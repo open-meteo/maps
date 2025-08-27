@@ -3,7 +3,6 @@ import { type GetResourceResponse, type RequestParameters } from 'maplibre-gl';
 import { setupGlobalCache, type TypedArray } from '@openmeteo/file-reader';
 
 import {
-	interpolate2DHermite,
 	getBorderPoints,
 	getBoundsFromGrid,
 	getIndexFromLatLong,
@@ -11,15 +10,18 @@ import {
 	getIndicesFromBounds
 } from '$lib/utils/math';
 
+import { getInterpolator } from '$lib/utils/color-scales';
+
 import { domains } from '$lib/utils/domains';
 import { variables } from '$lib/utils/variables';
 
+import { DynamicProjection, ProjectionGrid, type Projection } from '$lib/utils/projection';
+
+import { OMapsFileReader } from './omaps-reader';
+
 import TileWorker from './worker?worker';
 
-import type { TileJSON, TileIndex, Domain, Variable, Bounds, Range, ColorScale } from './types';
-import { DynamicProjection, ProjectionGrid, type Projection } from '$lib/utils/projection';
-import { OMapsFileReader } from './omaps-reader';
-import { getInterpolator } from '$lib/utils/color-scales';
+import type { TileJSON, TileIndex, Domain, Variable, Bounds, Range, ColorScale } from '$lib/types';
 
 let dark = false;
 let partial = false;
@@ -33,13 +35,6 @@ let ranges: Range[];
 
 let projection: Projection;
 let projectionGrid: ProjectionGrid;
-
-let nx: number;
-let ny: number;
-let lonMin: number;
-let latMin: number;
-let dx: number;
-let dy: number;
 
 setupGlobalCache();
 

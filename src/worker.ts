@@ -1,21 +1,12 @@
-import { hideZero, drawOnTiles } from './lib/utils/variables';
+import { hideZero } from '$lib/utils/variables';
 
-import { DynamicProjection, ProjectionGrid, type Projection } from './lib/utils/projection';
+import { DynamicProjection, ProjectionGrid, type Projection } from '$lib/utils/projection';
 
-import {
-	tile2lat,
-	tile2lon,
-	getIndexFromLatLong,
-	interpolateLinear,
-	interpolate2DHermite,
-	quinticHermite2D,
-	degreesToRadians,
-	noInterpolation
-} from './lib/utils/math';
+import { tile2lat, tile2lon, getIndexFromLatLong } from '$lib/utils/math';
 
-import type { IconListPixels } from './lib/utils/icons';
-import type { ColorScale, Domain, IndexAndFractions, Interpolator } from './types';
 import { getColorScale, getInterpolator } from '$lib/utils/color-scales';
+
+import type { ColorScale, Domain, IndexAndFractions } from '$lib/types';
 
 const TILE_SIZE = Number(import.meta.env.VITE_TILE_SIZE) * 2;
 const OPACITY = Number(import.meta.env.VITE_TILE_OPACITY);

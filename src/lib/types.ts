@@ -30,15 +30,15 @@ export type Location = {
 };
 
 export type LatLonZoom = {
+	zoom: number;
 	latitude: number;
 	longitude: number;
-	zoom: number;
 };
 
 export type TilePixel = {
-	tileIndex: TileIndex;
 	row: number;
 	column: number;
+	tileIndex: TileIndex;
 };
 
 export type Variable = {
@@ -49,8 +49,9 @@ export type Variable = {
 export type ColorScale = {
 	min: number;
 	max: number;
-	scalefactor: number;
+	unit: string;
 	colors: number[][];
+	scalefactor: number;
 	interpolationMethod: InterpolationMethod;
 };
 
