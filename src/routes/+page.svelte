@@ -482,7 +482,7 @@
 	const getDomainData = async (latest = true) => {
 		return new Promise((resolve) => {
 			fetch(
-				`https://openmeteo.s3.amazonaws.com/data_spatial/${domain.value}/${latest ? 'latest' : 'in-progress'}.json`
+				`https://map-tiles.open-meteo.com/data_spatial/${domain.value}/${latest ? 'latest' : 'in-progress'}.json`
 			).then(async (result) => {
 				const json = await result.json();
 				if (latest) {
