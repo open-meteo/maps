@@ -15,11 +15,7 @@ const config = {
 			fallback: null,
 			precompress: false,
 			strict: true
-		}),
-		paths: {
-			base: '/omaps',
-			relative: false
-		}
+		})
 	},
 	extensions: ['.svelte', '.svx']
 };
