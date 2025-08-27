@@ -1,3 +1,6 @@
+import { pad } from '$lib/utils/pad';
+import { toast } from 'svelte-sonner';
+
 export type TimeSliderOptions = {
 	container: HTMLElement;
 	initialDate: Date;
@@ -21,6 +24,10 @@ function formatSliderLabel(date: Date, hour: number) {
 
 function formatDateInputValue(date: Date) {
 	return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+export class TimeSlider {
+	constructor(container, initialDate, onChange) {}
 }
 
 export function createTimeSlider({
@@ -51,6 +58,7 @@ export function createTimeSlider({
 			type="date"
 			id="date_picker"
 			class="date-time-selection"
+			min=${initialDate.getFullYear() + '-' + pad(initialDate.getMonth() + 1) + '-' + pad(initialDate.getDate())}
 			value="${formatDateInputValue(currentDate)}"
 		/>
 	`;

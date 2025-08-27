@@ -33,7 +33,8 @@
 	let showTimeSelector = $state(true);
 
 	import '../styles.css';
-	import { SvelteDate } from 'svelte/reactivity';
+	import Scale from '$lib/components/scale/scale.svelte';
+	import SelectedVariables from '$lib/components/scale/selected-variables.svelte';
 
 	let darkMode = $derived(mode.current);
 	let timeSliderApi: { setDisabled: (d: boolean) => void };
@@ -42,6 +43,7 @@
 	class SettingsButton {
 		onAdd() {
 			const div = document.createElement('div');
+			div.title = 'Settings';
 			div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
 			div.innerHTML = `<button style="display:flex;justify-content:center;align-items:center;">
 				<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings-icon lucide-settings"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -58,6 +60,7 @@
 	class VariableButton {
 		onAdd() {
 			const div = document.createElement('div');
+			div.title = 'Variables';
 			div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
 			div.innerHTML = `<button style="display:flex;justify-content:center;align-items:center;">
 				<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" stroke-width="1.2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"  stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-images-icon lucide-images"><path d="M18 22H4a2 2 0 0 1-2-2V6"/><path d="m22 13-1.296-1.296a2.41 2.41 0 0 0-3.408 0L11 18"/><circle cx="12" cy="8" r="2"/><rect width="16" height="16" x="6" y="2" rx="2"/></svg>
@@ -74,6 +77,8 @@
 	class DarkModeButton {
 		onAdd() {
 			const div = document.createElement('div');
+			div.title = 'Darkmode';
+
 			div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
 
 			const darkSVG = `<button style="display:flex;justify-content:center;align-items:center;">
@@ -106,6 +111,7 @@
 		onAdd() {
 			const div = document.createElement('div');
 			div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+			div.title = 'Partial requests';
 
 			const partialSVG = `<button style="display:flex;justify-content:center;align-items:center;">
 				<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" stroke-width="1.2" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-database-zap-icon lucide-database-zap"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 15 21.84"/><path d="M21 5V8"/><path d="M21 12L18 17H22L19 22"/><path d="M3 12A9 3 0 0 0 14.59 14.87"/></svg>
@@ -136,6 +142,7 @@
 		onAdd() {
 			const div = document.createElement('div');
 			div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+			div.title = 'Time selector';
 
 			const clockSVG = `<button style="display:flex;justify-content:center;align-items:center;">
 				<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" stroke-width="1.2"  width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"  stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-calendar-clock-icon lucide-calendar-clock"><path d="M16 14v2.2l1.6 1"/><path d="M16 2v4"/><path d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5"/><path d="M3 10h5"/><path d="M8 2v4"/><circle cx="16" cy="16" r="6"/></svg>
@@ -507,12 +514,6 @@
 	let selectedDomain = $derived(domain.value);
 	let selectedVariable = $derived(variable.value);
 
-	let colorScale = $derived.by(() => {
-		return getColorScale(variable);
-	});
-
-	let colors = $derived(colorScale.colors.reverse());
-
 	let modelRuns = $derived.by(() => {
 		if (latest) {
 			let referenceTime = new Date(latest.reference_time);
@@ -532,45 +533,11 @@
 
 <div class="map" id="#map_container" bind:this={mapContainer}></div>
 <div class="absolute bottom-1 left-1 max-h-[300px]">
-	{#if showScale}
-		{#each colors as cs, i (i)}
-			<div
-				style={'background: rgba(' +
-					cs.join(',') +
-					`); width: 25px; height:${300 / (colorScale.max - colorScale.min)}px;`}
-			></div>
-		{/each}
-
-		{#each [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100] as step, i (i)}
-			<div
-				class="absolute w-[25px] text-center text-xs"
-				style={'bottom: ' + (2 + 298 * step * 0.0093) + 'px;'}
-			>
-				{(colorScale.min + step * 0.01 * (colorScale.max - colorScale.min)).toFixed(0)}
-			</div>
-		{/each}
-		{#if variable.value.startsWith('temperature')}
-			<div class="bg-background absolute top-[-20px] w-[25px] py-1 text-center text-xs">C°</div>
-		{/if}
-		{#if variable.value.startsWith('precipitation')}
-			<div class="bg-background absolute top-[-20px] w-[25px] py-1 text-center text-xs">mm</div>
-		{/if}
-	{/if}
-	<div
-		class=" bg-background/35 absolute bottom-0 left-8 w-[165px] rounded px-2 py-2 text-xs overflow-ellipsis"
-	>
-		<div class=" overflow-hidden">
-			<p class="truncate">
-				Domain: {domain.label}
-			</p>
-			<p class="truncate">
-				Variable: {variable.label}
-			</p>
-		</div>
-	</div>
+	<Scale {showScale} {variable} />
+	<SelectedVariables {domain} {variable} />
 </div>
 <div
-	class="bg-background/40 absolute bottom-14.5 left-[50%] mx-auto transform-[translate(-50%)] rounded-lg px-4 py-4 {!showTimeSelector
+	class="bg-background/50 absolute bottom-14.5 left-[50%] mx-auto transform-[translate(-50%)] rounded-lg px-4 py-4 {!showTimeSelector
 		? 'pointer-events-none opacity-0'
 		: 'opacity-100'}"
 >
