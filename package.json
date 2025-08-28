@@ -6,7 +6,7 @@
 	"types": "dist/index.d.ts",
 	"author": "Open-Meteo <info@open-meteo.com>",
 	"module": "dist/index.js",
-	"repository": "git://github.com/open-meteo/omaps",
+	"repository": "git://github.com/open-meteo/maps",
 	"description": "Protocol to read OMfiles and parse them to tiles for Mapbox / Maplibre",
 	"keywords": [
 		"open-meteo",

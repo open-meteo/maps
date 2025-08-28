@@ -333,52 +333,52 @@
 
 		map.on('load', async () => {
 			mapBounds = map.getBounds();
-			// map.setSky({
-			// 	'sky-color': '#000000',
-			// 	'sky-horizon-blend': 0.8,
-			// 	'horizon-color': '#80C1FF',
-			// 	'horizon-fog-blend': 0.6,
-			// 	'fog-color': '#D6EAFF',
-			// 	'fog-ground-blend': 0
-			// });
+			map.setSky({
+				'sky-color': '#000000',
+				'sky-horizon-blend': 0.8,
+				'horizon-color': '#80C1FF',
+				'horizon-fog-blend': 0.6,
+				'fog-color': '#D6EAFF',
+				'fog-ground-blend': 0
+			});
 
-			// map.addSource('terrainSource', {
-			// 	type: 'raster-dem',
-			// 	tiles: ['https://mapproxy.servert.nl/wmts/copernicus/webmercator/{z}/{x}/{y}.png'],
-			// 	tileSize: 512,
-			// 	scheme: 'tms',
-			// 	maxzoom: 10
-			// });
+			map.addSource('terrainSource', {
+				type: 'raster-dem',
+				tiles: ['https://mapproxy.servert.nl/wmts/copernicus/webmercator/{z}/{x}/{y}.png'],
+				tileSize: 512,
+				scheme: 'tms',
+				maxzoom: 10
+			});
 
-			// map.addSource('hillshadeSource', {
-			// 	type: 'raster-dem',
-			// 	tiles: ['https://mapproxy.servert.nl/wmts/copernicus/webmercator/{z}/{x}/{y}.png'],
-			// 	tileSize: 512,
-			// 	scheme: 'tms',
-			// 	maxzoom: 10
-			// });
+			map.addSource('hillshadeSource', {
+				type: 'raster-dem',
+				tiles: ['https://mapproxy.servert.nl/wmts/copernicus/webmercator/{z}/{x}/{y}.png'],
+				tileSize: 512,
+				scheme: 'tms',
+				maxzoom: 10
+			});
 
-			// map.addLayer(
-			// 	{
-			// 		source: 'hillshadeSource',
-			// 		id: 'hillshadeLayer',
-			// 		type: 'hillshade',
-			// 		paint: {
-			// 			'hillshade-method': 'igor',
-			// 			//'hillshade-exaggeration': 1,
-			// 			'hillshade-shadow-color': 'rgba(0,0,0,0.4)',
-			// 			'hillshade-highlight-color': 'rgba(255,255,255,0.35)'
-			// 		}
-			// 	},
-			// 	'landuse_overlay_national_park'
-			// );
+			map.addLayer(
+				{
+					source: 'hillshadeSource',
+					id: 'hillshadeLayer',
+					type: 'hillshade',
+					paint: {
+						'hillshade-method': 'igor',
+						//'hillshade-exaggeration': 1,
+						'hillshade-shadow-color': 'rgba(0,0,0,0.4)',
+						'hillshade-highlight-color': 'rgba(255,255,255,0.35)'
+					}
+				},
+				'landuse_overlay_national_park'
+			);
 
-			// map.addControl(
-			// 	new maplibregl.TerrainControl({
-			// 		source: 'terrainSource',
-			// 		exaggeration: 1
-			// 	})
-			// );
+			map.addControl(
+				new maplibregl.TerrainControl({
+					source: 'terrainSource',
+					exaggeration: 1
+				})
+			);
 
 			map.addControl(new SettingsButton());
 			map.addControl(new VariableButton());
@@ -518,6 +518,10 @@
 		}
 	});
 </script>
+
+<svelte:head>
+	<title>Open-Meteo Maps</title>
+</svelte:head>
 
 <div class="map" id="#map_container" bind:this={mapContainer}></div>
 <div class="absolute bottom-1 left-1 max-h-[300px]">
