@@ -27,7 +27,6 @@ let dark = false;
 let partial = false;
 let domain: Domain;
 let variable: Variable;
-let currentPath: string;
 let mapBounds: number[];
 let omapsFileReader: OMapsFileReader;
 let mapBoundsIndexes: number[];
@@ -160,60 +159,68 @@ const getTilejson = async (fullUrl: string): Promise<TileJSON> => {
 	};
 };
 
-const initOMFile = async (url: string): Promise<void> => {
-	const [omUrl, omParams] = url.replace('om://', '').split('?');
+const initOMFile = (url: string): Promise<void> => {
+	return new Promise((resolve, reject) => {
+		const [omUrl, omParams] = url.replace('om://', '').split('?');
 
-	const urlParams = new URLSearchParams(omParams);
-	dark = urlParams.get('dark') === 'true';
-	partial = urlParams.get('partial') === 'true';
-	domain = domains.find((dm) => dm.value === omUrl.split('/')[4]) ?? domains[0];
-	variable = variables.find((v) => urlParams.get('variable') === v.value) ?? variables[0];
-	mapBounds = urlParams
-		.get('bounds')
-		?.split(',')
-		.map((b: string): number => Number(b)) as number[];
+		const urlParams = new URLSearchParams(omParams);
+		dark = urlParams.get('dark') === 'true';
+		partial = urlParams.get('partial') === 'true';
+		domain = domains.find((dm) => dm.value === omUrl.split('/')[4]) ?? domains[0];
+		variable = variables.find((v) => urlParams.get('variable') === v.value) ?? variables[0];
+		mapBounds = urlParams
+			.get('bounds')
+			?.split(',')
+			.map((b: string): number => Number(b)) as number[];
 
-	mapBoundsIndexes = getIndicesFromBounds(
-		mapBounds[0],
-		mapBounds[1],
-		mapBounds[2],
-		mapBounds[3],
-		domain
-	);
+		mapBoundsIndexes = getIndicesFromBounds(
+			mapBounds[0],
+			mapBounds[1],
+			mapBounds[2],
+			mapBounds[3],
+			domain
+		);
 
-	if (partial) {
-		ranges = [
-			{ start: mapBoundsIndexes[1], end: mapBoundsIndexes[3] },
-			{ start: mapBoundsIndexes[0], end: mapBoundsIndexes[2] }
-		];
-	} else {
-		ranges = [
-			{ start: 0, end: domain.grid.ny },
-			{ start: 0, end: domain.grid.nx }
-		];
-	}
+		if (partial) {
+			ranges = [
+				{ start: mapBoundsIndexes[1], end: mapBoundsIndexes[3] },
+				{ start: mapBoundsIndexes[0], end: mapBoundsIndexes[2] }
+			];
+		} else {
+			ranges = [
+				{ start: 0, end: domain.grid.ny },
+				{ start: 0, end: domain.grid.nx }
+			];
+		}
 
-	if (!omapsFileReader) {
-		omapsFileReader = new OMapsFileReader(domain, partial);
-	}
+		if (!omapsFileReader) {
+			omapsFileReader = new OMapsFileReader(domain, partial);
+		}
 
-	if (omUrl !== currentPath) {
-		currentPath = omUrl;
 		omapsFileReader.setReaderData(domain, partial);
-		await omapsFileReader.init(omUrl);
-		data = await omapsFileReader.readVariable(variable, ranges);
-	} else {
-		omapsFileReader.setReaderData(domain, partial);
-		data = await omapsFileReader.readVariable(variable, ranges);
-	}
+		omapsFileReader
+			.init(omUrl)
+			.then(() => {
+				omapsFileReader.readVariable(variable, ranges).then((variable) => {
+					data = variable;
+					resolve();
+				});
+			})
+			.catch((e) => {
+				reject(e);
+			});
+	});
 };
 
 export const omProtocol = async (
 	params: RequestParameters
 ): Promise<GetResourceResponse<TileJSON | ImageBitmap>> => {
 	if (params.type == 'json') {
-		// Parse OMfile here to intermediately save data
-		await initOMFile(params.url);
+		try {
+			await initOMFile(params.url);
+		} catch (e) {
+			throw new Error(e);
+		}
 		return {
 			data: await getTilejson(params.url)
 		};

@@ -27,7 +27,7 @@
 
 		{#each [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100] as step, i (i)}
 			<div
-				class="absolute w-[25px] text-center text-xs"
+				class="absolute w-[25px] text-center text-xs text-white"
 				style={'bottom: ' + (2 + 298 * step * 0.0093) + 'px;'}
 			>
 				{(colorScale.min + step * 0.01 * (colorScale.max - colorScale.min)).toFixed(0)}

@@ -223,3 +223,37 @@ body {
 #time_slider {
 	margin: 0.6em 0;
 }
+
+.maplibregl-popup .maplibregl-popup-content {
+	padding: 3px 5px;
+}
+
+.value-popup {
+	color: black;
+}
+
+.dark .value-popup {
+	color: white;
+}
+
+.dark .maplibregl-popup-anchor-top .maplibregl-popup-tip {
+	border-bottom-color: rgba(100, 100, 100, 1);
+}
+.dark .maplibregl-popup-anchor-right .maplibregl-popup-tip {
+	border-left-color: rgba(100, 100, 100, 1);
+}
+.dark .maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
+	border-top-color: rgba(100, 100, 100, 1);
+}
+.dark .maplibregl-popup-anchor-left .maplibregl-popup-tip {
+	border-right-color: rgba(100, 100, 100, 1);
+}
+
+.dark .maplibregl-popup .maplibregl-popup-content {
+	background-color: rgba(100, 100, 100, 1);
+}
+
+.maplibregl-popup .maplibregl-popup-close-button {
+	top: -6px;
+	scale: 0.7;
+}
