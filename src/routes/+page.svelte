@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 
+	import { fade } from 'svelte/transition';
+
 	import { pushState } from '$app/navigation';
 
 	import { setMode, mode } from 'mode-watcher';
@@ -185,52 +187,51 @@
 
 	let checkSourceLoadedInterval: ReturnType<typeof setInterval>;
 	let checked = 0;
+
+	let loading = $state(false);
+	let omFileSource: maplibregl.RasterTileSource | undefined;
+
 	const changeOMfileURL = () => {
 		if (map) {
+			loading = true;
 			if (popup) {
 				popup.remove();
 			}
 
 			mapBounds = map.getBounds();
-
 			timeSliderApi.setDisabled(true);
 
 			omUrl = getOMUrl();
-			if (map.getLayer('omFileLayer')) {
-				map.removeLayer('omFileLayer');
-			}
-			// let omSource: maplibregl.RasterTileSource | undefined = map.getSource('omFileSource');
-			// if (omSource) {
-			// 	omSource.setUrl(omUrl);
-			// 	map.style.sourceCaches['omFileSource'].clearTiles();
-			// 	map.style.sourceCaches['omFileSource'].update(map.transform);
-			// 	map.triggerRepaint();
+			// if (map.getLayer('omFileLayer')) {
+			// 	map.removeLayer('omFileLayer');
 			// }
-			if (map.getSource('omFileSource')) {
-				map.removeSource('omFileSource');
+
+			omFileSource = map.getSource('omFileSource');
+			if (omFileSource) {
+				omFileSource.setUrl('om://' + omUrl);
 			}
 
-			source = map.addSource('omFileSource', {
-				type: 'raster',
-				url: 'om://' + omUrl,
-				tileSize: TILE_SIZE,
-				volatile: import.meta.env.DEV
-			});
+			// source = map.addSource('omFileSource', {
+			// 	type: 'raster',
+			// 	url: 'om://' + omUrl,
+			// 	tileSize: TILE_SIZE,
+			// 	volatile: import.meta.env.DEV
+			// });
 
-			map.addLayer(
-				{
-					source: 'omFileSource',
-					id: 'omFileLayer',
-					type: 'raster'
-				},
-				'waterway-tunnel'
-			);
+			// map.addLayer(
+			// 	{
+			// 		source: 'omFileSource',
+			// 		id: 'omFileLayer',
+			// 		type: 'raster'
+			// 	},
+			// 	'waterway-tunnel'
+			// );
 			checkSourceLoadedInterval = setInterval(() => {
 				checked++;
 				if (source.loaded() || checked >= 30) {
 					checked = 0;
 					timeSliderApi.setDisabled(false);
-
+					loading = false;
 					clearInterval(checkSourceLoadedInterval);
 				}
 			}, 100);
@@ -521,6 +522,28 @@
 <svelte:head>
 	<title>Open-Meteo Maps</title>
 </svelte:head>
+
+{#if loading}
+	<div
+		in:fade={{ delay: 0.2, duration: 200 }}
+		out:fade={{ delay: 0, duration: 100 }}
+		class="transform-[translate(-50%, -50%)] absolute top-[50%] left-[50%] z-50"
+	>
+		<svg
+			xmlns="http://www.w3.org/2000/svg"
+			width="48"
+			height="48"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="2"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+			class="lucide lucide-loader-circle-icon lucide-loader-circle animate-spin"
+			><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg
+		>
+	</div>
+{/if}
 
 <div class="map" id="#map_container" bind:this={mapContainer}></div>
 <div class="absolute bottom-1 left-1 max-h-[300px]">
