@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 
+	import { fade } from 'svelte/transition';
+
 	import { pushState } from '$app/navigation';
 
 	import { setMode, mode } from 'mode-watcher';
@@ -35,8 +37,78 @@
 	import VariableSelection from '$lib/components/selection/variable-selection.svelte';
 
 	let darkMode = $derived(mode.current);
-	let timeSliderApi: { setDisabled: (d: boolean) => void };
+	let timeSliderApi: { setDisabled: (d: boolean) => void; setBackToPreviousDate: () => void };
 	let timeSliderContainer: HTMLElement;
+
+	const addHillshadeLayer = () => {
+		map.setSky({
+			'sky-color': '#000000',
+			'sky-horizon-blend': 0.8,
+			'horizon-color': '#80C1FF',
+			'horizon-fog-blend': 0.6,
+			'fog-color': '#D6EAFF',
+			'fog-ground-blend': 0
+		});
+
+		map.addSource('terrainSource', {
+			type: 'raster-dem',
+			tiles: ['https://mapproxy.servert.nl/wmts/copernicus/webmercator/{z}/{x}/{y}.png'],
+			tileSize: 512,
+			scheme: 'tms',
+			maxzoom: 10
+		});
+
+		map.addSource('hillshadeSource', {
+			type: 'raster-dem',
+			tiles: ['https://mapproxy.servert.nl/wmts/copernicus/webmercator/{z}/{x}/{y}.png'],
+			tileSize: 512,
+			scheme: 'tms',
+			maxzoom: 10
+		});
+
+		map.addLayer(
+			{
+				source: 'hillshadeSource',
+				id: 'hillshadeLayer',
+				type: 'hillshade',
+				paint: {
+					'hillshade-method': 'igor',
+					//'hillshade-exaggeration': 1,
+					'hillshade-shadow-color': 'rgba(0,0,0,0.4)',
+					'hillshade-highlight-color': 'rgba(255,255,255,0.35)'
+				}
+			},
+			'waterway-tunnel'
+		);
+	};
+
+	const addOmFileLayer = () => {
+		map.addSource('omFileSource', {
+			type: 'raster',
+			url: 'om://' + omUrl,
+			tileSize: TILE_SIZE
+		});
+
+		omFileSource = map.getSource('omFileSource');
+		if (omFileSource) {
+			omFileSource.on('error', (e) => {
+				checked = 0;
+				timeSliderApi.setDisabled(false);
+				loading = false;
+				clearInterval(checkSourceLoadedInterval);
+				toast(e.error.message);
+			});
+		}
+
+		map.addLayer(
+			{
+				source: 'omFileSource',
+				id: 'omFileLayer',
+				type: 'raster'
+			},
+			'waterway-tunnel'
+		);
+	};
 
 	class SettingsButton {
 		onAdd() {
@@ -98,7 +170,11 @@
 				map.setStyle(
 					`https://maptiler.servert.nl/styles/basic-world-maps${mode.current === 'dark' ? '-dark' : ''}/style.json`
 				);
-				setTimeout(() => changeOMfileURL(), 500);
+
+				map.once('styledata', () => {
+					addHillshadeLayer();
+					addOmFileLayer();
+				});
 			});
 			return div;
 		}
@@ -181,59 +257,39 @@
 
 	const TILE_SIZE = Number(import.meta.env.VITE_TILE_SIZE);
 
-	let source: maplibregl.Map;
-
 	let checkSourceLoadedInterval: ReturnType<typeof setInterval>;
 	let checked = 0;
+
+	let loading = $state(false);
+	let omFileSource: maplibregl.RasterTileSource | undefined;
+	let hillshadeLayer: maplibregl.HillshadeLayerSpecification | undefined;
+
 	const changeOMfileURL = () => {
-		if (map) {
+		if (map && omFileSource) {
+			loading = true;
 			if (popup) {
 				popup.remove();
 			}
 
 			mapBounds = map.getBounds();
-
 			timeSliderApi.setDisabled(true);
 
 			omUrl = getOMUrl();
-			if (map.getLayer('omFileLayer')) {
-				map.removeLayer('omFileLayer');
-			}
-			// let omSource: maplibregl.RasterTileSource | undefined = map.getSource('omFileSource');
-			// if (omSource) {
-			// 	omSource.setUrl(omUrl);
-			// 	map.style.sourceCaches['omFileSource'].clearTiles();
-			// 	map.style.sourceCaches['omFileSource'].update(map.transform);
-			// 	map.triggerRepaint();
-			// }
-			if (map.getSource('omFileSource')) {
-				map.removeSource('omFileSource');
-			}
+			omFileSource.setUrl('om://' + omUrl);
 
-			source = map.addSource('omFileSource', {
-				type: 'raster',
-				url: 'om://' + omUrl,
-				tileSize: TILE_SIZE,
-				volatile: import.meta.env.DEV
-			});
-
-			map.addLayer(
-				{
-					source: 'omFileSource',
-					id: 'omFileLayer',
-					type: 'raster'
-				},
-				'waterway-tunnel'
-			);
 			checkSourceLoadedInterval = setInterval(() => {
 				checked++;
-				if (source.loaded() || checked >= 30) {
+				if ((omFileSource && omFileSource.loaded()) || checked >= 200) {
+					if (checked >= 200) {
+						// Timeout after 10s
+						toast('Request timed out');
+					}
 					checked = 0;
 					timeSliderApi.setDisabled(false);
-
+					loading = false;
 					clearInterval(checkSourceLoadedInterval);
 				}
-			}, 100);
+			}, 50);
 		}
 	};
 
@@ -333,45 +389,8 @@
 
 		map.on('load', async () => {
 			mapBounds = map.getBounds();
-			map.setSky({
-				'sky-color': '#000000',
-				'sky-horizon-blend': 0.8,
-				'horizon-color': '#80C1FF',
-				'horizon-fog-blend': 0.6,
-				'fog-color': '#D6EAFF',
-				'fog-ground-blend': 0
-			});
 
-			map.addSource('terrainSource', {
-				type: 'raster-dem',
-				tiles: ['https://mapproxy.servert.nl/wmts/copernicus/webmercator/{z}/{x}/{y}.png'],
-				tileSize: 512,
-				scheme: 'tms',
-				maxzoom: 10
-			});
-
-			map.addSource('hillshadeSource', {
-				type: 'raster-dem',
-				tiles: ['https://mapproxy.servert.nl/wmts/copernicus/webmercator/{z}/{x}/{y}.png'],
-				tileSize: 512,
-				scheme: 'tms',
-				maxzoom: 10
-			});
-
-			map.addLayer(
-				{
-					source: 'hillshadeSource',
-					id: 'hillshadeLayer',
-					type: 'hillshade',
-					paint: {
-						'hillshade-method': 'igor',
-						//'hillshade-exaggeration': 1,
-						'hillshade-shadow-color': 'rgba(0,0,0,0.4)',
-						'hillshade-highlight-color': 'rgba(255,255,255,0.35)'
-					}
-				},
-				'waterway-tunnel'
-			);
+			addHillshadeLayer();
 
 			map.addControl(
 				new maplibregl.TerrainControl({
@@ -388,21 +407,8 @@
 
 			latest = await getDomainData();
 			omUrl = getOMUrl();
-			source = map.addSource('omFileSource', {
-				type: 'raster',
-				url: 'om://' + omUrl,
-				tileSize: TILE_SIZE,
-				volatile: import.meta.env.DEV
-			});
 
-			map.addLayer(
-				{
-					source: 'omFileSource',
-					id: 'omFileLayer',
-					type: 'raster'
-				},
-				'waterway-tunnel'
-			);
+			addOmFileLayer();
 
 			map.on('mousemove', function (e) {
 				if (showPopup) {
@@ -410,7 +416,7 @@
 					if (!popup) {
 						popup = new maplibregl.Popup()
 							.setLngLat(coordinates)
-							.setHTML(`<span style="color:black;">Outside domain</span>`)
+							.setHTML(`<span class="value-popup">Outside domain</span>`)
 							.addTo(map);
 					} else {
 						popup.addTo(map);
@@ -427,12 +433,10 @@
 								string = value.toFixed(1) + (variable.value.startsWith('temperature') ? 'C°' : '');
 							}
 
-							popup.setLngLat(coordinates).setHTML(`<span style="color:black;">${string}</span>`);
+							popup.setLngLat(coordinates).setHTML(`<span class="value-popup">${string}</span>`);
 						}
 					} else {
-						popup
-							.setLngLat(coordinates)
-							.setHTML(`<span style="color:black;">Outside domain</span>`);
+						popup.setLngLat(coordinates).setHTML(`<span class="value-popup">Outside domain</span>`);
 					}
 				}
 			});
@@ -521,6 +525,28 @@
 <svelte:head>
 	<title>Open-Meteo Maps</title>
 </svelte:head>
+
+{#if loading}
+	<div
+		in:fade={{ delay: 1200, duration: 400 }}
+		out:fade={{ duration: 150 }}
+		class="pointer-events-none absolute top-[50%] left-[50%] z-50 transform-[translate(-50%,-50%)]"
+	>
+		<svg
+			xmlns="http://www.w3.org/2000/svg"
+			width="48"
+			height="48"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="2"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+			class="lucide lucide-loader-circle-icon lucide-loader-circle animate-spin"
+			><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg
+		>
+	</div>
+{/if}
 
 <div class="map" id="#map_container" bind:this={mapContainer}></div>
 <div class="absolute bottom-1 left-1 max-h-[300px]">
