@@ -223,7 +223,7 @@
 					id: 'omFileLayer',
 					type: 'raster'
 				},
-				'landuse_overlay_national_park'
+				'waterway-tunnel'
 			);
 			checkSourceLoadedInterval = setInterval(() => {
 				checked++;
@@ -328,8 +328,8 @@
 		map.addControl(new maplibregl.GlobeControl());
 
 		// improved scrolling
-		map.scrollZoom.setZoomRate(1 / 90);
-		map.scrollZoom.setWheelZoomRate(1 / 90);
+		map.scrollZoom.setZoomRate(1 / 85);
+		map.scrollZoom.setWheelZoomRate(1 / 85);
 
 		map.on('load', async () => {
 			mapBounds = map.getBounds();
@@ -370,7 +370,7 @@
 						'hillshade-highlight-color': 'rgba(255,255,255,0.35)'
 					}
 				},
-				'landuse_overlay_national_park'
+				'waterway-tunnel'
 			);
 
 			map.addControl(
@@ -401,7 +401,7 @@
 					id: 'omFileLayer',
 					type: 'raster'
 				},
-				'landuse_overlay_national_park'
+				'waterway-tunnel'
 			);
 
 			map.on('mousemove', function (e) {
@@ -452,7 +452,6 @@
 				container: timeSliderContainer,
 				initialDate: timeSelected,
 				onChange: (newDate) => {
-					console.log(newDate);
 					timeSelected = newDate;
 					url.searchParams.set('time', newDate.toISOString().replace(/[:Z]/g, '').slice(0, 15));
 					history.pushState({}, '', url);
