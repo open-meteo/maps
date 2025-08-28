@@ -1,6 +1,6 @@
 import { degreesToRadians, radiansToDegrees } from './math';
-import type { Domain } from '../../types';
-import type { Range } from '../../types';
+import type { Domain } from '$lib/types';
+import type { Range } from '$lib/types';
 
 export interface Projection {
 	forward(latitude: number, longitude: number): [x: number, y: number];

@@ -1,4 +1,4 @@
-import { hideZero } from '$lib/utils/variables';
+import { hideZero, drawOnTiles } from '$lib/utils/variables';
 
 import { DynamicProjection, ProjectionGrid, type Projection } from '$lib/utils/projection';
 
@@ -200,34 +200,33 @@ self.onmessage = async (message) => {
 			}
 		}
 
-		// if (drawOnTiles.includes(variable.value)) {
-		// 	const iconPixelData = message.data.iconPixelData;
-
-		// 	let reg = new RegExp(/wind_(\d+)m/);
-		// 	const matches = variable.value.match(reg);
-		// 	if (matches) {
-		// 		const boxSize = Math.floor(TILE_SIZE / 16);
-		// 		for (let i = 0; i < TILE_SIZE; i += boxSize) {
-		// 			for (let j = 0; j < TILE_SIZE; j += boxSize) {
-		// 				drawArrow(
-		// 					rgba,
-		// 					i,
-		// 					j,
-		// 					x,
-		// 					y,
-		// 					z,
-		// 					nx,
-		// 					domain,
-		// 					projectionGrid,
-		// 					values,
-		// 					directions,
-		// 					boxSize,
-		// 					iconPixelData
-		// 				);
-		// 			}
-		// 		}
-		// 	}
-		// }
+		if (drawOnTiles.includes(variable.value)) {
+			// const iconPixelData = message.data.iconPixelData;
+			// let reg = new RegExp(/wind_(\d+)m/);
+			// const matches = variable.value.match(reg);
+			// if (matches) {
+			// 	const boxSize = Math.floor(TILE_SIZE / 16);
+			// 	for (let i = 0; i < TILE_SIZE; i += boxSize) {
+			// 		for (let j = 0; j < TILE_SIZE; j += boxSize) {
+			// 			drawArrow(
+			// 				rgba,
+			// 				i,
+			// 				j,
+			// 				x,
+			// 				y,
+			// 				z,
+			// 				nx,
+			// 				domain,
+			// 				projectionGrid,
+			// 				values,
+			// 				directions,
+			// 				boxSize,
+			// 				iconPixelData
+			// 			);
+			// 		}
+			// 	}
+			// }
+		}
 
 		const tile = await createImageBitmap(new ImageData(rgba, TILE_SIZE, TILE_SIZE));
 

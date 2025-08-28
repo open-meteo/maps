@@ -2,7 +2,7 @@ import { interpolateHsl, color } from 'd3';
 
 import type { ColorScale, Interpolator, Variable } from '$lib/types';
 
-import { interpolate2DHermite, noInterpolation, quinticHermite2D } from './math';
+import { noInterpolation, interpolateLinear, interpolate2DHermite } from './interpolations';
 
 function interpolateColorScaleHSL(colors: Array<string>, steps: number) {
 	const segments = colors.length - 1;
@@ -44,7 +44,7 @@ const precipScale: ColorScale = {
 		...interpolateColorScaleHSL(['green', 'orange'], 5), // 5 to 10mm
 		...interpolateColorScaleHSL(['orange', 'red'], 10) // 10 to 20mm
 	],
-	interpolationMethod: 'hermite2d',
+	interpolationMethod: 'linear',
 	unit: 'mm'
 };
 
@@ -70,7 +70,7 @@ export const colorScales: ColorScales = {
 				4000
 			)
 		],
-		interpolationMethod: 'hermite2d',
+		interpolationMethod: 'linear',
 		unit: ''
 	},
 	cloud: {
@@ -80,7 +80,7 @@ export const colorScales: ColorScales = {
 		colors: [
 			...interpolateColorScaleHSL(['#FFF', '#c3c2c2'], 100) // 0 to 100%
 		],
-		interpolationMethod: 'hermite2d',
+		interpolationMethod: 'linear',
 		unit: '%'
 	},
 	convective_cloud_top: convectiveCloudScale,
@@ -94,7 +94,7 @@ export const colorScales: ColorScales = {
 			...interpolateColorScaleHSL(['#4444FF', '#FFFFFF'], 25), // 950 to 1000hPa
 			...interpolateColorScaleHSL(['#FFFFFF', '#FF4444'], 25) // 1000hPa to 1050hPa
 		],
-		interpolationMethod: 'hermite2d',
+		interpolationMethod: 'linear',
 		unit: 'hPa'
 	},
 	rain: precipScale,
@@ -108,7 +108,7 @@ export const colorScales: ColorScales = {
 				100
 			)
 		],
-		interpolationMethod: 'hermite2d',
+		interpolationMethod: 'linear',
 		unit: '%'
 	},
 	shortwave: {
@@ -121,7 +121,7 @@ export const colorScales: ColorScales = {
 				1000
 			)
 		],
-		interpolationMethod: 'hermite2d',
+		interpolationMethod: 'linear',
 		unit: 'W/m^2'
 	},
 	temperature: {
@@ -135,7 +135,7 @@ export const colorScales: ColorScales = {
 			...interpolateColorScaleHSL(['orange', 'red'], 14), // 28° to 42°
 			...interpolateColorScaleHSL(['red', 'purple'], 18) // 42° to 60°
 		],
-		interpolationMethod: 'hermite2d',
+		interpolationMethod: 'linear',
 		unit: 'C°'
 	},
 	thunderstorm: {
@@ -147,7 +147,7 @@ export const colorScales: ColorScales = {
 			...interpolateColorScaleHSL(['green', 'orange'], 33), //
 			...interpolateColorScaleHSL(['orange', 'red'], 34) //
 		],
-		interpolationMethod: 'hermite2d',
+		interpolationMethod: 'linear',
 		unit: '%'
 	},
 	uv: {
@@ -160,7 +160,7 @@ export const colorScales: ColorScales = {
 				12
 			)
 		],
-		interpolationMethod: 'hermite2d',
+		interpolationMethod: 'linear',
 		unit: ''
 	},
 	wind: {
@@ -172,7 +172,7 @@ export const colorScales: ColorScales = {
 			...interpolateColorScaleHSL(['green', 'orange'], 10), // 10 to 20kn
 			...interpolateColorScaleHSL(['orange', 'red'], 20) // 20 to 40kn
 		],
-		interpolationMethod: 'hermite2d',
+		interpolationMethod: 'linear',
 		unit: 'm/s'
 	}
 };
@@ -186,14 +186,14 @@ export function getColorScale(variable: Variable) {
 }
 
 export function getInterpolator(colorScale: ColorScale): Interpolator {
-	if (colorScale.interpolationMethod === 'hermite2d') {
-		return interpolate2DHermite;
-	} else if (colorScale.interpolationMethod === 'quintic2d') {
-		return quinticHermite2D;
-	} else if (colorScale.interpolationMethod === 'none') {
+	if (!colorScale.interpolationMethod || colorScale.interpolationMethod === 'none') {
 		return noInterpolation;
-	} else {
-		// default is hermite2d
+	} else if (colorScale.interpolationMethod === 'linear') {
+		return interpolateLinear;
+	} else if (colorScale.interpolationMethod === 'hermite2d') {
 		return interpolate2DHermite;
+	} else {
+		// default is linear
+		return interpolateLinear;
 	}
 }

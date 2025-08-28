@@ -38,7 +38,7 @@ export const variables = [
 	{ value: 'snowfall_height', label: 'Snowfall Height' },
 	{ value: 'snowfall_water_equivalent', label: 'Snow Water Equivalent' },
 
-	{ value: 'pressure_msl', label: 'Pressure Main Sea Level' },
+	{ value: 'pressure_msl', label: 'Pressure Mean Sea Level' },
 
 	{ value: 'shortwave_radiation', label: 'Shortwave Solar Radiation' },
 
@@ -110,5 +110,6 @@ export const drawOnTiles = [
 	'wind_100m',
 	'wind_120m',
 	'wind_150m',
-	'wind_180m'
+	'wind_180m',
+	'pressure_msl'
 ];
