@@ -57,29 +57,48 @@ export class OMapsFileReader {
 		};
 	}
 
-	getNextUrl(omUrl: string) {
-		const re = new RegExp(/(T(.*)00)/);
+	getNextUrls(omUrl: string) {
+		const re = new RegExp(/([0-9]{2}-[0-9]{2}-(.*)T(.*)00)/);
 		const matches = omUrl.match(re);
-		let currentTime, nextTime, nextUrl;
+		let nextUrl, previousUrl;
 		if (matches) {
-			currentTime = matches[2];
-			nextTime = pad(Number(currentTime) + 1);
-			if (nextTime === '24') {
-				nextTime = '00';
-			}
-			nextUrl = omUrl.replace(`T${currentTime}00`, `T${nextTime}00`);
+			const date = new Date('20' + matches[1].substring(0, matches[1].length - 2) + ':00Z');
+
+			date.setUTCHours(date.getUTCHours() + 1);
+			nextUrl = omUrl.replace(
+				re,
+				`${String(date.getUTCFullYear()).substring(2, 4)}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}00`
+			);
+
+			date.setUTCHours(date.getUTCHours() - 2);
+			previousUrl = omUrl.replace(
+				re,
+				`${String(date.getUTCFullYear()).substring(2, 4)}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}00`
+			);
 		}
-		return nextUrl;
+		return [previousUrl, nextUrl];
 	}
 
 	async prefetch(omUrl: string) {
-		const nextOmUrl = this.getNextUrl(omUrl);
-		if (nextOmUrl) {
-			const s3_backend = new OmHttpBackend({
-				url: nextOmUrl,
+		const nextOmUrls = this.getNextUrls(omUrl);
+		console.log(nextOmUrls);
+		if (nextOmUrls) {
+			// previous timestep
+			const s3_backend_prev = new OmHttpBackend({
+				url: nextOmUrls[0],
 				eTagValidation: false
 			});
-			this.reader = await s3_backend.asCachedReader();
+			try {
+				this.reader = await s3_backend_prev.asCachedReader();
+			} catch {}
+			// next timestep
+			const s3_backend_next = new OmHttpBackend({
+				url: nextOmUrls[1],
+				eTagValidation: false
+			});
+			try {
+				this.reader = await s3_backend_next.asCachedReader();
+			} catch {}
 		}
 	}
 
