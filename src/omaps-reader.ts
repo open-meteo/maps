@@ -58,30 +58,30 @@ export class OMapsFileReader {
 	}
 
 	getNextUrls(omUrl: string) {
-		const re = new RegExp(/([0-9]{2}-[0-9]{2}-(.*)T(.*)00)/);
+		const re = new RegExp(/([0-9]{2}-[0-9]{2}-[0-9]{2}T[0-9]{2}00)/);
 		const matches = omUrl.match(re);
-		let nextUrl, previousUrl;
+		console.log(matches);
+		let nextUrl, prevUrl;
 		if (matches) {
-			const date = new Date('20' + matches[1].substring(0, matches[1].length - 2) + ':00Z');
+			const date = new Date('20' + matches[0].substring(0, matches[0].length - 2) + ':00Z');
 
-			date.setUTCHours(date.getUTCHours() + 1);
+			date.setUTCHours(date.getUTCHours() - 1);
+			prevUrl = omUrl.replace(
+				re,
+				`${String(date.getUTCFullYear()).substring(2, 4)}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}00`
+			);
+
+			date.setUTCHours(date.getUTCHours() + 2);
 			nextUrl = omUrl.replace(
 				re,
 				`${String(date.getUTCFullYear()).substring(2, 4)}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}00`
 			);
-
-			date.setUTCHours(date.getUTCHours() - 2);
-			previousUrl = omUrl.replace(
-				re,
-				`${String(date.getUTCFullYear()).substring(2, 4)}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}00`
-			);
 		}
-		return [previousUrl, nextUrl];
+		return [prevUrl, nextUrl];
 	}
 
 	async prefetch(omUrl: string) {
 		const nextOmUrls = this.getNextUrls(omUrl);
-		console.log(nextOmUrls);
 		if (nextOmUrls) {
 			// previous timestep
 			const s3_backend_prev = new OmHttpBackend({
