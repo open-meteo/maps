@@ -22,7 +22,6 @@ import { OMapsFileReader } from './omaps-reader';
 import TileWorker from './worker?worker';
 
 import type { TileJSON, TileIndex, Domain, Variable, Bounds, Range, ColorScale } from '$lib/types';
-import { pad } from '$lib/utils/pad';
 
 let dark = false;
 let partial = false;
@@ -231,8 +230,6 @@ export const omProtocol = async (
 		return {
 			data: await renderTile(params.url)
 		};
-	} else if (params.type == 'arrayBuffer') {
-		// process vector data
 	} else {
 		throw new Error(`Unsupported request type '${params.type}'`);
 	}

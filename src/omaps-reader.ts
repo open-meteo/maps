@@ -1,10 +1,12 @@
-import { DynamicProjection, ProjectionGrid, type Projection } from '$lib/utils/projection';
-
 import { OmDataType, OmHttpBackend } from '@openmeteo/file-reader';
 
-import type { Domain, Range, Variable } from './lib/types';
-import type { Data } from './om-protocol';
+import { DynamicProjection, ProjectionGrid, type Projection } from '$lib/utils/projection';
+
 import { pad } from '$lib/utils/pad';
+
+import type { Domain, Range, Variable } from '$lib/types';
+
+import type { Data } from './om-protocol';
 
 export class OMapsFileReader {
 	child;
