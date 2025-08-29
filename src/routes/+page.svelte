@@ -83,13 +83,13 @@
 	};
 
 	const addOmFileLayer = () => {
-		map.addSource('omFileSource', {
-			type: 'raster',
+		map.addSource('omFileRasterSource', {
 			url: 'om://' + omUrl,
+			type: 'raster',
 			tileSize: TILE_SIZE
 		});
 
-		omFileSource = map.getSource('omFileSource');
+		omFileSource = map.getSource('omFileRasterSource');
 		if (omFileSource) {
 			omFileSource.on('error', (e) => {
 				checked = 0;
@@ -102,12 +102,27 @@
 
 		map.addLayer(
 			{
-				source: 'omFileSource',
-				id: 'omFileLayer',
-				type: 'raster'
+				id: 'omFileRasterLayer',
+				type: 'raster',
+				source: 'omFileRasterSource',
+				paint: {
+					// 'raster-fade-duration': 300
+				}
 			},
 			'waterway-tunnel'
 		);
+
+		// map.addSource('omFileVectorSource', {
+		// 	url: 'om://' + omUrl,
+		// 	type: 'vector'
+		// });
+
+		// map.addLayer({
+		// 	id: 'omFileVectorLayer',
+		// 	type: 'line',
+		// 	source: 'omFileVectorSource',
+		// 	'source-layer': 'contours'
+		// });
 	};
 
 	class SettingsButton {
@@ -399,9 +414,9 @@
 				})
 			);
 
+			map.addControl(new DarkModeButton());
 			map.addControl(new SettingsButton());
 			map.addControl(new VariableButton());
-			map.addControl(new DarkModeButton());
 			map.addControl(new PartialButton());
 			map.addControl(new TimeButton());
 
@@ -554,7 +569,7 @@
 	<SelectedVariables {domain} {variable} />
 </div>
 <div
-	class="bg-background/50 absolute bottom-14.5 left-[50%] mx-auto transform-[translate(-50%)] rounded-lg px-4 py-4 {!showTimeSelector
+	class="bg-background/90 dark:bg-background/70 absolute bottom-14.5 left-[50%] mx-auto transform-[translate(-50%)] rounded-lg px-4 py-4 {!showTimeSelector
 		? 'pointer-events-none opacity-0'
 		: 'opacity-100'}"
 >
