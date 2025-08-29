@@ -91,7 +91,7 @@ export class OMapsFileReader {
 			try {
 				this.reader = await s3_backend_prev.asCachedReader();
 				const variableReader = await this.reader.getChildByName(variable.value);
-				await variableReader.read(OmDataType.FloatArray, this.ranges);
+				variableReader.read(OmDataType.FloatArray, this.ranges);
 			} catch {}
 			// next timestep
 			const s3_backend_next = new OmHttpBackend({
@@ -101,7 +101,7 @@ export class OMapsFileReader {
 			try {
 				this.reader = await s3_backend_next.asCachedReader();
 				const variableReader = await this.reader.getChildByName(variable.value);
-				await variableReader.read(OmDataType.FloatArray, this.ranges);
+				variableReader.read(OmDataType.FloatArray, this.ranges);
 			} catch {}
 		}
 	}
