@@ -60,7 +60,6 @@ export class OMapsFileReader {
 	getNextUrls(omUrl: string) {
 		const re = new RegExp(/([0-9]{2}-[0-9]{2}-[0-9]{2}T[0-9]{2}00)/);
 		const matches = omUrl.match(re);
-		console.log(matches);
 		let nextUrl, prevUrl;
 		if (matches) {
 			const date = new Date('20' + matches[0].substring(0, matches[0].length - 2) + ':00Z');
