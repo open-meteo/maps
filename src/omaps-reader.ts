@@ -80,7 +80,7 @@ export class OMapsFileReader {
 		return [prevUrl, nextUrl];
 	}
 
-	async prefetch(omUrl: string) {
+	async prefetch(omUrl: string, variable: Variable) {
 		const nextOmUrls = this.getNextUrls(omUrl);
 		if (nextOmUrls) {
 			// previous timestep
@@ -90,6 +90,8 @@ export class OMapsFileReader {
 			});
 			try {
 				this.reader = await s3_backend_prev.asCachedReader();
+				const variableReader = await this.reader.getChildByName(variable.value);
+				await variableReader.read(OmDataType.FloatArray, this.ranges);
 			} catch {}
 			// next timestep
 			const s3_backend_next = new OmHttpBackend({
@@ -98,6 +100,8 @@ export class OMapsFileReader {
 			});
 			try {
 				this.reader = await s3_backend_next.asCachedReader();
+				const variableReader = await this.reader.getChildByName(variable.value);
+				await variableReader.read(OmDataType.FloatArray, this.ranges);
 			} catch {}
 		}
 	}

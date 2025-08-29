@@ -201,11 +201,11 @@ const initOMFile = (url: string): Promise<void> => {
 		omapsFileReader
 			.init(omUrl)
 			.then(() => {
-				omapsFileReader.readVariable(variable, ranges).then((variable) => {
-					data = variable;
+				omapsFileReader.readVariable(variable, ranges).then((values) => {
+					data = values;
 					resolve();
 					// prefetch the next timestep
-					omapsFileReader.prefetch(omUrl);
+					omapsFileReader.prefetch(omUrl, variable);
 				});
 			})
 			.catch((e) => {
