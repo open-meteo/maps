@@ -3,14 +3,14 @@
 
 	import { fade } from 'svelte/transition';
 
-	import { pushState } from '$app/navigation';
-
 	import { setMode, mode } from 'mode-watcher';
 
 	import { toast } from 'svelte-sonner';
 
 	import * as maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
+
+	import { pushState } from '$app/navigation';
 
 	import { omProtocol, getValueFromLatLong } from '../om-protocol';
 	import { pad } from '$lib/utils/pad';
@@ -545,7 +545,7 @@
 	<div
 		in:fade={{ delay: 1200, duration: 400 }}
 		out:fade={{ duration: 150 }}
-		class="pointer-events-none absolute top-[50%] left-[50%] z-50 transform-[translate(-50%,-50%)]"
+		class="transform-[translate(-50%,-50%)] pointer-events-none absolute left-[50%] top-[50%] z-50"
 	>
 		<svg
 			xmlns="http://www.w3.org/2000/svg"
@@ -569,7 +569,7 @@
 	<SelectedVariables {domain} {variable} />
 </div>
 <div
-	class="bg-background/90 dark:bg-background/70 absolute bottom-14.5 left-[50%] mx-auto transform-[translate(-50%)] rounded-lg px-4 py-4 {!showTimeSelector
+	class="bg-background/90 dark:bg-background/70 bottom-14.5 transform-[translate(-50%)] absolute left-[50%] mx-auto rounded-lg px-4 py-4 {!showTimeSelector
 		? 'pointer-events-none opacity-0'
 		: 'opacity-100'}"
 >
