@@ -64,6 +64,9 @@ export class OMapsFileReader {
 		if (matches) {
 			currentTime = matches[2];
 			nextTime = pad(Number(currentTime) + 1);
+			if (nextTime === '24') {
+				nextTime = '00';
+			}
 			nextUrl = omUrl.replace(`T${currentTime}00`, `T${nextTime}00`);
 		}
 		return nextUrl;
