@@ -67,13 +67,15 @@ export class OMapsFileReader {
 		return nextUrl;
 	}
 
-	async prefetch(nextOmUrl: string) {
-		const s3_backend = new OmHttpBackend({
-			url: nextOmUrl,
-			eTagValidation: false
-		});
-		this.reader = await s3_backend.asCachedReader();
-		console.log('prefetched next time step');
+	async prefetch(omUrl: string) {
+		const nextOmUrl = this.getNextUrl(omUrl);
+		if (nextOmUrl) {
+			const s3_backend = new OmHttpBackend({
+				url: nextOmUrl,
+				eTagValidation: false
+			});
+			this.reader = await s3_backend.asCachedReader();
+		}
 	}
 
 	dispose() {
