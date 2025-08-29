@@ -4,6 +4,7 @@ import { OmDataType, OmHttpBackend } from '@openmeteo/file-reader';
 
 import type { Domain, Range, Variable } from './lib/types';
 import type { Data } from './om-protocol';
+import { pad } from '$lib/utils/pad';
 
 export class OMapsFileReader {
 	child;
@@ -52,6 +53,27 @@ export class OMapsFileReader {
 		return {
 			values: await variableReader.read(OmDataType.FloatArray, this.ranges)
 		};
+	}
+
+	getNextUrl(omUrl: string) {
+		const re = new RegExp(/(T(.*)00)/);
+		const matches = omUrl.match(re);
+		let currentTime, nextTime, nextUrl;
+		if (matches) {
+			currentTime = matches[2];
+			nextTime = pad(Number(currentTime) + 1);
+			nextUrl = omUrl.replace(`T${currentTime}00`, `T${nextTime}00`);
+		}
+		return nextUrl;
+	}
+
+	async prefetch(nextOmUrl: string) {
+		const s3_backend = new OmHttpBackend({
+			url: nextOmUrl,
+			eTagValidation: false
+		});
+		this.reader = await s3_backend.asCachedReader();
+		console.log('prefetched next time step');
 	}
 
 	dispose() {
