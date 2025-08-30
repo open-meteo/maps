@@ -27,7 +27,8 @@ export class OMapsFileReader {
 		this.dispose();
 		const s3_backend = new OmHttpBackend({
 			url: omUrl,
-			eTagValidation: false
+			eTagValidation: false,
+			retries: 2
 		});
 		this.reader = await s3_backend.asCachedReader();
 	}

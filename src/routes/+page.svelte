@@ -3,14 +3,14 @@
 
 	import { fade } from 'svelte/transition';
 
-	import { pushState } from '$app/navigation';
-
 	import { setMode, mode } from 'mode-watcher';
 
 	import { toast } from 'svelte-sonner';
 
 	import * as maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
+
+	import { pushState } from '$app/navigation';
 
 	import { omProtocol, getValueFromLatLong } from '../om-protocol';
 	import { pad } from '$lib/utils/pad';
@@ -83,13 +83,13 @@
 	};
 
 	const addOmFileLayer = () => {
-		map.addSource('omFileSource', {
-			type: 'raster',
+		map.addSource('omFileRasterSource', {
 			url: 'om://' + omUrl,
+			type: 'raster',
 			tileSize: TILE_SIZE
 		});
 
-		omFileSource = map.getSource('omFileSource');
+		omFileSource = map.getSource('omFileRasterSource');
 		if (omFileSource) {
 			omFileSource.on('error', (e) => {
 				checked = 0;
@@ -102,12 +102,27 @@
 
 		map.addLayer(
 			{
-				source: 'omFileSource',
-				id: 'omFileLayer',
-				type: 'raster'
+				id: 'omFileRasterLayer',
+				type: 'raster',
+				source: 'omFileRasterSource',
+				paint: {
+					// 'raster-fade-duration': 300
+				}
 			},
 			'waterway-tunnel'
 		);
+
+		// map.addSource('omFileVectorSource', {
+		// 	url: 'om://' + omUrl,
+		// 	type: 'vector'
+		// });
+
+		// map.addLayer({
+		// 	id: 'omFileVectorLayer',
+		// 	type: 'line',
+		// 	source: 'omFileVectorSource',
+		// 	'source-layer': 'contours'
+		// });
 	};
 
 	class SettingsButton {
@@ -399,9 +414,9 @@
 				})
 			);
 
+			map.addControl(new DarkModeButton());
 			map.addControl(new SettingsButton());
 			map.addControl(new VariableButton());
-			map.addControl(new DarkModeButton());
 			map.addControl(new PartialButton());
 			map.addControl(new TimeButton());
 
@@ -530,7 +545,7 @@
 	<div
 		in:fade={{ delay: 1200, duration: 400 }}
 		out:fade={{ duration: 150 }}
-		class="pointer-events-none absolute top-[50%] left-[50%] z-50 transform-[translate(-50%,-50%)]"
+		class="transform-[translate(-50%,-50%)] pointer-events-none absolute left-[50%] top-[50%] z-50"
 	>
 		<svg
 			xmlns="http://www.w3.org/2000/svg"
@@ -554,7 +569,7 @@
 	<SelectedVariables {domain} {variable} />
 </div>
 <div
-	class="bg-background/50 absolute bottom-14.5 left-[50%] mx-auto transform-[translate(-50%)] rounded-lg px-4 py-4 {!showTimeSelector
+	class="bg-background/90 dark:bg-background/70 bottom-14.5 transform-[translate(-50%)] absolute left-[50%] mx-auto rounded-lg px-4 py-4 {!showTimeSelector
 		? 'pointer-events-none opacity-0'
 		: 'opacity-100'}"
 >
