@@ -1,8 +1,11 @@
-import { DynamicProjection, ProjectionGrid, type Projection } from '$lib/utils/projection';
-
 import { OmDataType, OmHttpBackend } from '@openmeteo/file-reader';
 
-import type { Domain, Range, Variable } from './lib/types';
+import { DynamicProjection, ProjectionGrid, type Projection } from '$lib/utils/projection';
+
+import { pad } from '$lib/utils/pad';
+
+import type { Domain, Range, Variable } from '$lib/types';
+
 import type { Data } from './om-protocol';
 
 export class OMapsFileReader {
@@ -53,6 +56,54 @@ export class OMapsFileReader {
 		return {
 			values: await variableReader.read(OmDataType.FloatArray, this.ranges)
 		};
+	}
+
+	getNextUrls(omUrl: string) {
+		const re = new RegExp(/([0-9]{2}-[0-9]{2}-[0-9]{2}T[0-9]{2}00)/);
+		const matches = omUrl.match(re);
+		let nextUrl, prevUrl;
+		if (matches) {
+			const date = new Date('20' + matches[0].substring(0, matches[0].length - 2) + ':00Z');
+
+			date.setUTCHours(date.getUTCHours() - 1);
+			prevUrl = omUrl.replace(
+				re,
+				`${String(date.getUTCFullYear()).substring(2, 4)}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}00`
+			);
+
+			date.setUTCHours(date.getUTCHours() + 2);
+			nextUrl = omUrl.replace(
+				re,
+				`${String(date.getUTCFullYear()).substring(2, 4)}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}00`
+			);
+		}
+		return [prevUrl, nextUrl];
+	}
+
+	async prefetch(omUrl: string, variable: Variable) {
+		const nextOmUrls = this.getNextUrls(omUrl);
+		if (nextOmUrls) {
+			// previous timestep
+			const s3_backend_prev = new OmHttpBackend({
+				url: nextOmUrls[0],
+				eTagValidation: false
+			});
+			try {
+				this.reader = await s3_backend_prev.asCachedReader();
+				const variableReader = await this.reader.getChildByName(variable.value);
+				variableReader.read(OmDataType.FloatArray, this.ranges);
+			} catch {}
+			// next timestep
+			const s3_backend_next = new OmHttpBackend({
+				url: nextOmUrls[1],
+				eTagValidation: false
+			});
+			try {
+				this.reader = await s3_backend_next.asCachedReader();
+				const variableReader = await this.reader.getChildByName(variable.value);
+				variableReader.read(OmDataType.FloatArray, this.ranges);
+			} catch {}
+		}
 	}
 
 	dispose() {
