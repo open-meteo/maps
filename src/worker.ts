@@ -231,6 +231,5 @@ self.onmessage = async (message) => {
 		const tile = await createImageBitmap(new ImageData(rgba, TILE_SIZE, TILE_SIZE));
 
 		postMessage({ type: 'RT', tile: tile, key: key });
-		self.close();
 	}
 };
