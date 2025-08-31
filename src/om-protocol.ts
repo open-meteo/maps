@@ -1,3 +1,5 @@
+import { browser } from '$app/environment';
+
 import { type GetResourceResponse, type RequestParameters } from 'maplibre-gl';
 
 import { setupGlobalCache, type TypedArray } from '@openmeteo/file-reader';
@@ -48,9 +50,9 @@ const TILE_SIZE = Number(import.meta.env.VITE_TILE_SIZE) * 2;
 let worker: Worker;
 const pendingTiles = new Map<string, (tile: ImageBitmap) => void>();
 
-function getWorker() {
-	// ensure this code only runs on the client!
-	if (typeof window !== 'undefined' && !worker) {
+const getWorker = () => {
+	// ensure this code only runs on the client
+	if (browser && !worker) {
 		worker = new TileWorker();
 		worker.onmessage = (message) => {
 			if (message.data.type === 'RT') {
@@ -64,7 +66,7 @@ function getWorker() {
 		};
 	}
 	return worker;
-}
+};
 
 export const getValueFromLatLong = (
 	lat: number,
