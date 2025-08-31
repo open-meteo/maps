@@ -45,6 +45,27 @@ let data: Data;
 
 const TILE_SIZE = Number(import.meta.env.VITE_TILE_SIZE) * 2;
 
+let worker: Worker;
+const pendingTiles = new Map<string, (tile: ImageBitmap) => void>();
+
+function getWorker() {
+	// ensure this code only runs on the client!
+	if (typeof window !== 'undefined' && !worker) {
+		worker = new TileWorker();
+		worker.onmessage = (message) => {
+			if (message.data.type === 'RT') {
+				const key = message.data.key;
+				const resolve = pendingTiles.get(key);
+				if (resolve) {
+					resolve(message.data.tile);
+					pendingTiles.delete(key);
+				}
+			}
+		};
+	}
+	return worker;
+}
+
 export const getValueFromLatLong = (
 	lat: number,
 	lon: number,
@@ -83,9 +104,9 @@ export const getValueFromLatLong = (
 const getTile = async ({ z, x, y }: TileIndex, omUrl: string): Promise<ImageBitmap> => {
 	const key = `${omUrl}/${TILE_SIZE}/${z}/${x}/${y}`;
 
-	const worker = new TileWorker();
+	const tileWorker = getWorker();
 
-	worker.postMessage({
+	tileWorker.postMessage({
 		type: 'GT',
 		x,
 		y,
@@ -98,15 +119,9 @@ const getTile = async ({ z, x, y }: TileIndex, omUrl: string): Promise<ImageBitm
 		dark: dark,
 		mapBounds: mapBounds
 	});
-	const tilePromise = new Promise<ImageBitmap>((resolve) => {
-		worker.onmessage = async (message) => {
-			if (message.data.type == 'RT' && key == message.data.key) {
-				resolve(message.data.tile);
-			}
-		};
+	return new Promise<ImageBitmap>((resolve) => {
+		pendingTiles.set(key, resolve);
 	});
-
-	return tilePromise;
 };
 
 const renderTile = async (url: string) => {
