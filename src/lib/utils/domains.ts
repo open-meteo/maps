@@ -308,7 +308,7 @@ export const domains: Array<Domain> = [
 			}
 		},
 		time_interval: 1,
-		model_interval: 1,
+		model_interval: 6,
 		windUVComponents: true
 	},
 
