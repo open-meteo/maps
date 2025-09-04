@@ -98,6 +98,4 @@ export const hideZero = [
 	'convective_cloud_base'
 ];
 
-export const requestMultiple = ['wind_*'];
-
 export const drawOnTiles = ['wind_*', 'pressure_msl'];
