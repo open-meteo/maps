@@ -21,5 +21,3 @@ jobs:
         run: npm run test
       - name: Build
         run: npm run build
-      - name: Rename index files
-        run: npm run rename_index_files
