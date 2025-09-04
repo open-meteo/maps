@@ -85,21 +85,6 @@ export const domains: Array<Domain> = [
 	// 		}
 	// 	},
 	// 	time_interval: 1,
-	// 	variables: [
-	// 		'cloud_cover',
-	// 		'precipitation',
-	// 		'pressure_msl',
-	// 		'relative_humidity_2m',
-	// 		'shortwave_radiation',
-	// 		'temperature_2m',
-	// 		'visibility',
-	// 		'weather_code',
-	// 		'wind_10m',
-	// 		'wind_40m',
-	// 		'wind_80m',
-	// 		'wind_120m',
-	// 		'wind_gusts_10m'
-	// 	],
 	// 	windUVComponents: false
 	// },
 
@@ -132,29 +117,6 @@ export const domains: Array<Domain> = [
 		},
 		time_interval: 1,
 		model_interval: 3,
-		variables: [
-			'cape',
-			'cloud_cover',
-			'precipitation',
-			'pressure_msl',
-			'relative_humidity_2m',
-			'shortwave_radiation',
-			'temperature_2m',
-			'temperature_50m',
-			'temperature_100m',
-			'temperature_150m',
-			'temperature_200m',
-			'temperature_250m',
-			'visibility',
-			'weather_code',
-			'wind_10m',
-			'wind_50m',
-			'wind_150m',
-			'wind_250m',
-			'wind_350m',
-			'wind_450m',
-			'wind_gusts_10m'
-		],
 		windUVComponents: false
 	},
 
@@ -177,24 +139,6 @@ export const domains: Array<Domain> = [
 		},
 		time_interval: 1,
 		model_interval: 6,
-		variables: [
-			'cape',
-			'cloud_cover',
-			'precipitation',
-			'pressure_msl',
-			'relative_humidity_2m',
-			'temperature_2m',
-			'temperature_80m',
-			'temperature_120m',
-			'temperature_180m',
-			'visibility',
-			'weather_code',
-			'wind_10m',
-			'wind_80m',
-			'wind_120m',
-			'wind_180m',
-			'wind_gusts_10m'
-		],
 		windUVComponents: true
 	},
 	{
@@ -215,24 +159,6 @@ export const domains: Array<Domain> = [
 		},
 		time_interval: 1,
 		model_interval: 3,
-		variables: [
-			'cape',
-			'cloud_cover',
-			'precipitation',
-			'pressure_msl',
-			'relative_humidity_2m',
-			'temperature_2m',
-			'temperature_80m',
-			'temperature_120m',
-			'temperature_180m',
-			'visibility',
-			'weather_code',
-			'wind_10m',
-			'wind_80m',
-			'wind_120m',
-			'wind_180m',
-			'wind_gusts_10m'
-		],
 		windUVComponents: true
 	},
 	{
@@ -253,24 +179,6 @@ export const domains: Array<Domain> = [
 		},
 		time_interval: 1,
 		model_interval: 3,
-		variables: [
-			'cape',
-			'cloud_cover',
-			'precipitation',
-			'pressure_msl',
-			'relative_humidity_2m',
-			'temperature_2m',
-			'temperature_80m',
-			'temperature_120m',
-			'temperature_180m',
-			'visibility',
-			'weather_code',
-			'wind_10m',
-			'wind_80m',
-			'wind_120m',
-			'wind_180m',
-			'wind_gusts_10m'
-		],
 		windUVComponents: true
 	},
 
@@ -293,20 +201,6 @@ export const domains: Array<Domain> = [
 		},
 		time_interval: 1,
 		model_interval: 6,
-		variables: [
-			'cape',
-			//'cloud_cover', <- only per hPa
-			'pressure_msl',
-			//'relative_humidity_2m',  <- only per hPa
-			'shortwave_radiation',
-			'temperature_80m',
-			'temperature_100m',
-			'visibility',
-			'weather_code',
-			'wind_80m',
-			'wind_100m',
-			'wind_gusts_10m'
-		],
 		windUVComponents: true
 	},
 	{
@@ -327,17 +221,6 @@ export const domains: Array<Domain> = [
 		},
 		time_interval: 1,
 		model_interval: 6,
-		variables: [
-			'cloud_cover',
-			'precipitation',
-			'pressure_msl',
-			'relative_humidity_2m',
-			'shortwave_radiation',
-			'temperature_2m',
-			'uv_index',
-			'wind_10m',
-			'wind_gusts_10m'
-		],
 		windUVComponents: true
 	},
 	{
@@ -367,18 +250,6 @@ export const domains: Array<Domain> = [
 		},
 		time_interval: 1,
 		model_interval: 1,
-		variables: [
-			'cape',
-			'cloud_cover',
-			'precipitation',
-			'pressure_msl',
-			'relative_humidity_2m',
-			'shortwave_radiation',
-			'temperature_2m',
-			'visibility',
-			'wind_10m',
-			'wind_gusts_10m'
-		],
 		windUVComponents: true
 	},
 	{
@@ -409,21 +280,36 @@ export const domains: Array<Domain> = [
 		},
 		time_interval: 1,
 		model_interval: 1,
-		variables: [
-			'cape',
-			'cloud_cover',
-			'precipitation',
-			'pressure_msl',
-			'relative_humidity_2m',
-			'shortwave_radiation',
-			'temperature_2m',
-			'thunderstorm_probability',
-			'visibility',
-			'wind_10m',
-			'wind_80m',
-			'wind_gusts_10m'
-		],
 		windUVComponents: false
+	},
+	{
+		value: 'ncep_nam_conus',
+		label: 'GFS NAM Conus',
+		grid: {
+			nx: 1799,
+			ny: 1059,
+			latMin: 21.138,
+			lonMin: -122.72,
+			dx: 0,
+			dy: 0,
+			zoom: 3.5,
+			projection: {
+				λ0: -97.5,
+				ϕ0: 0,
+				ϕ1: 38.5,
+				ϕ2: 38.5,
+				latitude: [21.138, 47.8424],
+				longitude: [-122.72, -60.918],
+				name: 'LambertConformalConicProjection'
+			},
+			center: function () {
+				this.center = getCenterPoint(this);
+				return this;
+			}
+		},
+		time_interval: 1,
+		model_interval: 6,
+		windUVComponents: true
 	},
 
 	// ECWMF
@@ -445,18 +331,6 @@ export const domains: Array<Domain> = [
 		},
 		time_interval: 3,
 		model_interval: 6,
-		variables: [
-			'cape',
-			'cloud_cover',
-			'precipitation',
-			'pressure_msl',
-			'relative_humidity_2m',
-			'shortwave_radiation',
-			'temperature_2m',
-			'wind_10m',
-			'wind_100m',
-			'wind_gusts_10m'
-		],
 		windUVComponents: true
 	},
 	{
@@ -477,18 +351,6 @@ export const domains: Array<Domain> = [
 		},
 		time_interval: 6,
 		model_interval: 6,
-		variables: [
-			'cape',
-			'cloud_cover',
-			'precipitation',
-			'pressure_msl',
-			'relative_humidity_2m',
-			'shortwave_radiation',
-			'temperature_2m',
-			'wind_10m',
-			'wind_100m',
-			'wind_gusts_10m'
-		],
 		windUVComponents: true
 	},
 
@@ -511,25 +373,6 @@ export const domains: Array<Domain> = [
 		},
 		time_interval: 1,
 		model_interval: 3,
-		variables: [
-			'cape',
-			'cloud_cover',
-			'precipitation',
-			'pressure_msl',
-			'relative_humidity_2m',
-			'shortwave_radiation',
-			'temperature_2m',
-			'temperature_40m',
-			'temperature_80m',
-			'temperature_120m',
-			'visibility',
-			'weather_code',
-			'wind_10m',
-			'wind_40m',
-			'wind_80m',
-			'wind_120m',
-			'wind_gusts_10m'
-		],
 		windUVComponents: false
 	},
 	// {
@@ -576,24 +419,6 @@ export const domains: Array<Domain> = [
 		},
 		time_interval: 1,
 		model_interval: 3,
-		variables: [
-			'cloud_cover',
-			'precipitation',
-			'pressure_msl',
-			'relative_humidity_2m',
-			'shortwave_radiation',
-			'temperature_2m',
-			'temperature_40m',
-			'temperature_80m',
-			'temperature_120m',
-			'visibility',
-			'weather_code',
-			'wind_10m',
-			'wind_40m',
-			'wind_80m',
-			'wind_120m',
-			'wind_gusts_10m'
-		],
 		windUVComponents: false
 	},
 	{
@@ -619,21 +444,6 @@ export const domains: Array<Domain> = [
 		},
 		time_interval: 1,
 		model_interval: 3,
-		variables: [
-			'cloud_cover',
-			'precipitation',
-			'pressure_msl',
-			'relative_humidity_2m',
-			'shortwave_radiation',
-			'temperature_2m',
-			'visibility',
-			'weather_code',
-			'wind_10m',
-			'wind_40m',
-			'wind_80m',
-			'wind_120m',
-			'wind_gusts_10m'
-		],
 		windUVComponents: false
 	},
 
@@ -656,19 +466,6 @@ export const domains: Array<Domain> = [
 		},
 		time_interval: 1,
 		model_interval: 3,
-		variables: [
-			'cape',
-			'cloud_cover',
-			'precipitation',
-			'pressure_msl',
-			'relative_humidity_2m',
-			'shortwave_radiation',
-			'temperature_2m',
-			'visibility',
-			'weather_code',
-			'wind_10m',
-			'wind_gusts_10m'
-		],
 		windUVComponents: false
 	},
 
@@ -691,16 +488,6 @@ export const domains: Array<Domain> = [
 		},
 		time_interval: 1,
 		model_interval: 3,
-		variables: [
-			'cloud_cover',
-			'precipitation',
-			'pressure_msl',
-			'relative_humidity_2m',
-			'shortwave_radiation',
-			'temperature_2m',
-			'wind_10m',
-			'wind_gusts_10m'
-		],
 		windUVComponents: true
 	},
 	{
@@ -721,15 +508,6 @@ export const domains: Array<Domain> = [
 		},
 		time_interval: 1,
 		model_interval: 3,
-		variables: [
-			'cloud_cover',
-			'precipitation',
-			'pressure_msl',
-			'relative_humidity_2m',
-			'shortwave_radiation',
-			'temperature_2m',
-			'wind_10m'
-		],
 		windUVComponents: true
 	},
 
@@ -752,25 +530,6 @@ export const domains: Array<Domain> = [
 		},
 		time_interval: 1,
 		model_interval: 3,
-		variables: [
-			'cape',
-			'cloud_cover',
-			'precipitation',
-			'pressure_msl',
-			'relative_humidity_2m',
-			'shortwave_radiation',
-			'temperature_2m',
-			'temperature_50m',
-			'temperature_100m',
-			'temperature_150m',
-			'temperature_200m',
-			'wind_10m',
-			'wind_50m',
-			'wind_100m',
-			'wind_150m',
-			'wind_200m',
-			'wind_gusts_10m'
-		],
 		windUVComponents: true
 	},
 	{
@@ -791,25 +550,6 @@ export const domains: Array<Domain> = [
 		},
 		time_interval: 1,
 		model_interval: 3,
-		variables: [
-			'cape',
-			'cloud_cover',
-			'precipitation',
-			'pressure_msl',
-			'relative_humidity_2m',
-			'shortwave_radiation',
-			'temperature_2m',
-			'temperature_50m',
-			'temperature_100m',
-			'temperature_150m',
-			'temperature_200m',
-			'wind_10m',
-			'wind_50m',
-			'wind_100m',
-			'wind_150m',
-			'wind_200m',
-			'wind_gusts_10m'
-		],
 		windUVComponents: true
 	},
 	{
@@ -830,25 +570,6 @@ export const domains: Array<Domain> = [
 		},
 		time_interval: 1,
 		model_interval: 3,
-		variables: [
-			'cape',
-			'cloud_cover',
-			'precipitation',
-			'pressure_msl',
-			'relative_humidity_2m',
-			'shortwave_radiation',
-			'temperature_2m',
-			'temperature_50m',
-			'temperature_100m',
-			'temperature_150m',
-			'temperature_200m',
-			'wind_10m',
-			'wind_50m',
-			'wind_100m',
-			'wind_150m',
-			'wind_200m',
-			'wind_gusts_10m'
-		],
 		windUVComponents: true
 	},
 
@@ -870,18 +591,6 @@ export const domains: Array<Domain> = [
 		},
 		time_interval: 1,
 		model_interval: 3,
-		variables: [
-			'cape',
-			'precipitation',
-			'relative_humidity_2m',
-			'shortwave_radiation',
-			'temperature_2m',
-			'wind_10m',
-			'wind_20m',
-			'wind_50m',
-			'wind_100m',
-			'wind_gusts_10m'
-		],
 		windUVComponents: true
 	},
 
@@ -913,15 +622,6 @@ export const domains: Array<Domain> = [
 		},
 		time_interval: 1,
 		model_interval: 3,
-		variables: [
-			'cloud_cover',
-			'precipitation',
-			'relative_humidity_2m',
-			'shortwave_radiation',
-			'temperature_2m',
-			'wind_10m',
-			'wind_gusts_10m'
-		],
 		windUVComponents: false
 	},
 
@@ -944,17 +644,6 @@ export const domains: Array<Domain> = [
 		},
 		time_interval: 1,
 		model_interval: 3,
-		variables: [
-			'cape',
-			'cloud_cover',
-			'precipitation',
-			'relative_humidity_2m',
-			'shortwave_radiation',
-			'temperature_2m',
-			'visibility',
-			'wind_10m',
-			'wind_gusts_10m'
-		],
 		windUVComponents: false
 	},
 	{
@@ -985,17 +674,6 @@ export const domains: Array<Domain> = [
 		},
 		time_interval: 1,
 		model_interval: 3,
-		variables: [
-			'cloud_cover_2m',
-			'precipitation',
-			'relative_humidity_2m',
-			'shortwave_radiation',
-			'temperature_2m',
-			'visibility',
-			'wind_10m',
-			'wind_50m',
-			'wind_gusts_10m'
-		],
 		windUVComponents: false
 	},
 
@@ -1024,22 +702,6 @@ export const domains: Array<Domain> = [
 		},
 		time_interval: 1,
 		model_interval: 3,
-		variables: [
-			'cloud_cover',
-			'precipitation',
-			'relative_humidity_2m',
-			'shortwave_radiation',
-			'temperature_2m',
-			'temperature_50m',
-			'temperature_100m',
-			'temperature_200m',
-			'visibility',
-			'wind_10m',
-			'wind_50m',
-			'wind_100m',
-			'wind_200m',
-			'wind_gusts_10m'
-		],
 		windUVComponents: false
 	},
 	{
@@ -1060,22 +722,6 @@ export const domains: Array<Domain> = [
 		},
 		time_interval: 1,
 		model_interval: 3,
-		variables: [
-			'cloud_cover',
-			'precipitation',
-			'relative_humidity_2m',
-			'shortwave_radiation',
-			'temperature_2m',
-			'temperature_50m',
-			'temperature_100m',
-			'temperature_200m',
-			'visibility',
-			'wind_10m',
-			'wind_50m',
-			'wind_100m',
-			'wind_200m',
-			'wind_gusts_10m'
-		],
 		windUVComponents: false
 	},
 
@@ -1105,21 +751,6 @@ export const domains: Array<Domain> = [
 		},
 		time_interval: 1,
 		model_interval: 3,
-		variables: [
-			'cape',
-			'cloud_cover',
-			'precipitation',
-			'pressure_msl',
-			'relative_humidity_2m',
-			'shortwave_radiation',
-			'sunshine_duration',
-			'surface_temperature',
-			'temperature_2m',
-			'visibility',
-			'weather_code',
-			'wind_10m',
-			'wind_gusts_10m'
-		],
 		windUVComponents: true
 	},
 	{
@@ -1147,21 +778,6 @@ export const domains: Array<Domain> = [
 		},
 		time_interval: 1,
 		model_interval: 3,
-		variables: [
-			'cape',
-			'cloud_cover',
-			'precipitation',
-			'pressure_msl',
-			'relative_humidity_2m',
-			'shortwave_radiation',
-			'sunshine_duration',
-			'surface_temperature',
-			'temperature_2m',
-			'visibility',
-			'weather_code',
-			'wind_10m',
-			'wind_gusts_10m'
-		],
 		windUVComponents: true
 	},
 
@@ -1184,16 +800,6 @@ export const domains: Array<Domain> = [
 		},
 		time_interval: 1,
 		model_interval: 3,
-		variables: [
-			'cape',
-			'cloud_cover',
-			'precipitation',
-			'relative_humidity_2m',
-			'shortwave_radiation',
-			'temperature_2m',
-			'wind_10m',
-			'wind_gusts_10m'
-		],
 		windUVComponents: false
 	},
 	{
@@ -1223,26 +829,6 @@ export const domains: Array<Domain> = [
 		},
 		time_interval: 1,
 		model_interval: 3,
-		variables: [
-			'cape',
-			'cloud_cover',
-			'precipitation',
-			'relative_humidity_2m',
-			'shortwave_radiation',
-			'temperature_2m',
-			'temperature_50m',
-			'temperature_100m',
-			'temperature_150m',
-			'temperature_200m',
-			'temperature_250m',
-			'visibility',
-			'wind_10m',
-			'wind_50m',
-			'wind_100m',
-			'wind_150m',
-			'wind_200m',
-			'wind_gusts_10m'
-		],
 		windUVComponents: false
 	}
 ];
