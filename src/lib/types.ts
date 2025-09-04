@@ -98,7 +98,6 @@ export interface Domain {
 	};
 	time_interval: number;
 	model_interval: number;
-	variables: string[];
 	windUVComponents: boolean;
 }
 
