@@ -164,11 +164,11 @@ export const colorScales: ColorScales = {
 	swell: {
 		min: 0,
 		max: 10,
-		scalefactor: 1,
+		scalefactor: 5,
 		colors: [
-			...interpolateColorScaleHSL(['blue', 'green'], 2), // 0 to 2m
-			...interpolateColorScaleHSL(['green', 'orange'], 4), // 2 to 6m
-			...interpolateColorScaleHSL(['orange', 'red'], 4) // 6 to 10m
+			...interpolateColorScaleHSL(['blue', 'green'], 10), // 0 to 2m
+			...interpolateColorScaleHSL(['green', 'orange'], 20), // 2 to 6m
+			...interpolateColorScaleHSL(['orange', 'red'], 20) // 6 to 10m
 		],
 		interpolationMethod: 'linear',
 		unit: 'm'

@@ -59,12 +59,15 @@ export const variables = [
 
 	{ value: 'visibility', label: 'Visibility' },
 
-	{ value: 'wave_height', label: 'Wave Height' },
+	{ value: 'wave_height', label: 'Wave Height & Direction' },
 	{ value: 'wave_period', label: 'Wave Period' },
 
 	{ value: 'weather_code', label: 'Weather Codes' },
 
 	{ value: 'wind_gusts_10m', label: 'Wind Gusts 10m' },
+
+	{ value: 'wind_wave_height', label: 'Wind Wave Height' },
+	{ value: 'wind_wave_period', label: 'Wind Wave Period' },
 
 	{ value: 'updraft', label: 'Updraft' },
 

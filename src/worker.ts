@@ -216,7 +216,9 @@ self.onmessage = async (message) => {
 
 		if (
 			(variable.value.startsWith('wave') && !variable.value.includes('_period')) ||
-			(variable.value.startsWith('wind') && !variable.value.includes('_gusts')) ||
+			(variable.value.startsWith('wind') &&
+				!variable.value.includes('_gusts') &&
+				!variable.value.includes('_wave')) ||
 			drawOnTiles.includes(variable.value)
 		) {
 			if (variable.value.startsWith('wave') || variable.value.startsWith('wind')) {
