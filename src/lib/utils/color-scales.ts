@@ -161,6 +161,18 @@ export const colorScales: ColorScales = {
 		interpolationMethod: 'linear',
 		unit: '%'
 	},
+	swell: {
+		min: 0,
+		max: 10,
+		scalefactor: 1,
+		colors: [
+			...interpolateColorScaleHSL(['blue', 'green'], 2), // 0 to 2m
+			...interpolateColorScaleHSL(['green', 'orange'], 4), // 2 to 6m
+			...interpolateColorScaleHSL(['orange', 'red'], 4) // 6 to 10m
+		],
+		interpolationMethod: 'linear',
+		unit: 'm'
+	},
 	uv: {
 		min: 0,
 		max: 12,
@@ -176,12 +188,12 @@ export const colorScales: ColorScales = {
 	},
 	wave: {
 		min: 0,
-		max: 12,
-		scalefactor: 1,
+		max: 10,
+		scalefactor: 5,
 		colors: [
-			...interpolateColorScaleHSL(['blue', 'green'], 4), // 0 to 4m
-			...interpolateColorScaleHSL(['green', 'orange'], 8), // 4 to 8m
-			...interpolateColorScaleHSL(['orange', 'red'], 12) // 8 to 12m
+			...interpolateColorScaleHSL(['blue', 'green'], 10), // 0 to 2m
+			...interpolateColorScaleHSL(['green', 'orange'], 20), // 2 to 6m
+			...interpolateColorScaleHSL(['orange', 'red'], 20) // 6 to 10m
 		],
 		interpolationMethod: 'linear',
 		unit: 'm'

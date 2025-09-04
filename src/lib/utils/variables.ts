@@ -49,11 +49,18 @@ export const variables = [
 
 	{ value: 'surface_temperature', label: 'Surface Temperature' },
 
+	{ value: 'swell_wave_height', label: 'Swell Wave Height' },
+	{ value: 'swell_wave_peak_period', label: 'Swell Wave Peak Period' },
+	{ value: 'swell_wave_period', label: 'Swell Wave Period' },
+	{ value: 'secondary_swell_wave_height', label: 'Secondary Swell Wave Height' },
+	{ value: 'secondary_swell_wave_period', label: 'Secondary Swell Wave Period' },
+
 	{ value: 'uv_index', label: 'UV Index' },
 
 	{ value: 'visibility', label: 'Visibility' },
 
 	{ value: 'wave_height', label: 'Wave Height' },
+	{ value: 'wave_period', label: 'Wave Period' },
 
 	{ value: 'weather_code', label: 'Weather Codes' },
 

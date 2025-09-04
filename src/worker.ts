@@ -6,17 +6,19 @@ import { tile2lat, tile2lon, getIndexFromLatLong, degreesToRadians } from '$lib/
 
 import { getColorScale, getInterpolator } from '$lib/utils/color-scales';
 
-import type { ColorScale, Domain, IndexAndFractions, Interpolator } from '$lib/types';
+import type { ColorScale, Domain, IndexAndFractions, Interpolator, Variable } from '$lib/types';
+
+import type { IconListPixels } from '$lib/utils/icons';
 
 const TILE_SIZE = Number(import.meta.env.VITE_TILE_SIZE) * 2;
 const OPACITY = Number(import.meta.env.VITE_TILE_OPACITY);
 
-// const rotatePoint = (cx: number, cy: number, theta: number, x: number, y: number) => {
-// 	let xt = Math.cos(theta) * (x - cx) - Math.sin(theta) * (y - cy) + cx;
-// 	let yt = Math.sin(theta) * (x - cx) + Math.cos(theta) * (y - cy) + cy;
+const rotatePoint = (cx: number, cy: number, theta: number, x: number, y: number) => {
+	const xt = Math.cos(theta) * (x - cx) - Math.sin(theta) * (y - cy) + cx;
+	const yt = Math.sin(theta) * (x - cx) + Math.cos(theta) * (y - cy) + cy;
 
-// 	return [xt, yt];
-// };
+	return [xt, yt];
+};
 
 const drawArrow = (
 	rgba: Uint8ClampedArray,
@@ -27,6 +29,7 @@ const drawArrow = (
 	z: number,
 	nx: number,
 	domain: Domain,
+	variable: Variable,
 	projectionGrid: ProjectionGrid,
 	values: TypedArray,
 	directions: TypedArray,
@@ -63,12 +66,19 @@ const drawArrow = (
 				const newJ = Math.floor(rotatedPoint[1]);
 				const indTile = jBase + newJ + (iBase + newI) * TILE_SIZE;
 
+				let opacityValue;
+
+				if (variable.value.startsWith('wind')) {
+					opacityValue = Math.min(((px - 2) / 200) * 50, 100);
+				} else {
+					opacityValue = 0.8;
+				}
+
 				if (northArrow[4 * ind + 3]) {
 					rgba[4 * indTile] = 0;
 					rgba[4 * indTile + 1] = 0;
 					rgba[4 * indTile + 2] = 0;
-					rgba[4 * indTile + 3] =
-						northArrow[4 * ind + 3] * Math.min(((px - 2) / 200) * 50, 100) * (OPACITY / 50);
+					rgba[4 * indTile + 3] = northArrow[4 * ind + 3] * opacityValue * (OPACITY / 50);
 				}
 			}
 		}
@@ -79,7 +89,7 @@ const getColor = (colorScale: ColorScale, px: number): number[] => {
 	return colorScale.colors[
 		Math.min(
 			colorScale.colors.length - 1,
-			Math.max(0, Math.floor((px - colorScale.min) / colorScale.scalefactor))
+			Math.max(0, Math.floor((px - colorScale.min) * colorScale.scalefactor))
 		)
 	];
 };
@@ -205,14 +215,14 @@ self.onmessage = async (message) => {
 		}
 
 		if (
-			variable.value.startsWith('wave') ||
-			(variable.value.startsWith('wind') && variable.value !== 'wind_gusts_10m') ||
+			(variable.value.startsWith('wave') && !variable.value.includes('_period')) ||
+			(variable.value.startsWith('wind') && !variable.value.includes('_gusts')) ||
 			drawOnTiles.includes(variable.value)
 		) {
-			const iconPixelData = message.data.iconPixelData;
-			let reg = new RegExp(/wind_(\d+)m/);
-			const matches = variable.value.match(reg);
-			if (matches) {
+			if (variable.value.startsWith('wave') || variable.value.startsWith('wind')) {
+				const iconPixelData = message.data.iconPixelData;
+				const directions = message.data.data.directions;
+
 				const boxSize = Math.floor(TILE_SIZE / 16);
 				for (let i = 0; i < TILE_SIZE; i += boxSize) {
 					for (let j = 0; j < TILE_SIZE; j += boxSize) {
@@ -223,8 +233,9 @@ self.onmessage = async (message) => {
 							x,
 							y,
 							z,
-							nx,
+							ranges[1]['end'] - ranges[1]['start'],
 							domain,
+							variable,
 							projectionGrid,
 							values,
 							directions,

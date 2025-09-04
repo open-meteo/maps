@@ -23,6 +23,8 @@ import { OMapsFileReader } from './omaps-reader';
 
 import TileWorker from './worker?worker';
 
+import arrowPixelsSource from '$lib/utils/arrow';
+
 import type { TileJSON, TileIndex, Domain, Variable, Bounds, Range, ColorScale } from '$lib/types';
 
 let dark = false;
@@ -38,6 +40,29 @@ let projection: Projection;
 let projectionGrid: ProjectionGrid;
 
 setupGlobalCache();
+
+const arrowPixelData = {};
+const initPixelData = async () => {
+	for (const [key, iconUrl] of Object.entries(arrowPixelsSource)) {
+		const response = await fetch(iconUrl);
+		const svgString = await response.text();
+
+		const svg64 = btoa(svgString);
+		const b64Start = 'data:image/svg+xml;base64,';
+
+		const image64 = b64Start + svg64;
+		const canvas = new OffscreenCanvas(32, 32);
+
+		let img = new Image();
+		img.onload = () => {
+			canvas.getContext('2d').drawImage(img, 0, 0);
+			const iconData = canvas.getContext('2d').getImageData(0, 0, 32, 32);
+
+			arrowPixelData[key] = iconData.data;
+		};
+		img.src = image64;
+	}
+};
 
 export interface Data {
 	values: TypedArray | undefined;
@@ -109,6 +134,11 @@ const getTile = async ({ z, x, y }: TileIndex, omUrl: string): Promise<ImageBitm
 
 	const tileWorker = getWorker();
 
+	let iconList = {};
+	if (variable.value.startsWith('wind') || variable.value.startsWith('wave')) {
+		iconList = arrowPixelData;
+	}
+
 	tileWorker.postMessage({
 		type: 'GT',
 		x,
@@ -120,7 +150,8 @@ const getTile = async ({ z, x, y }: TileIndex, omUrl: string): Promise<ImageBitm
 		variable,
 		ranges,
 		dark: dark,
-		mapBounds: mapBounds
+		mapBounds: mapBounds,
+		iconPixelData: iconList
 	});
 	return new Promise<ImageBitmap>((resolve) => {
 		pendingTiles.set(key, resolve);
@@ -178,6 +209,8 @@ const getTilejson = async (fullUrl: string): Promise<TileJSON> => {
 };
 
 const initOMFile = (url: string): Promise<void> => {
+	initPixelData();
+
 	return new Promise((resolve, reject) => {
 		const [omUrl, omParams] = url.replace('om://', '').split('?');
 

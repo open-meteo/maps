@@ -634,6 +634,26 @@ export const domains: Array<Domain> = [
 		model_interval: 3,
 		windUVComponents: true
 	},
+	{
+		value: 'meteofrance_wave',
+		label: 'MF Wave',
+		grid: {
+			nx: 4320,
+			ny: 2041,
+			latMin: -80 + 1 / 24,
+			lonMin: -180 + 1 / 24,
+			dx: 1 / 12,
+			dy: 1 / 12,
+			zoom: 1,
+			center: function () {
+				this.center = getCenterPoint(this);
+				return this;
+			}
+		},
+		time_interval: 1,
+		model_interval: 3,
+		windUVComponents: true
+	},
 
 	// MetNo
 	{

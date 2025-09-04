@@ -1,11 +1,12 @@
 import { pad } from '$lib/utils/pad';
-import { toast } from 'svelte-sonner';
+
+import type { Domain } from '$lib/types';
 
 export type TimeSliderOptions = {
 	container: HTMLElement;
 	initialDate: Date;
 	onChange: (date: Date) => void;
-	resolution?: number;
+	domain?: Domain;
 };
 
 function pad2(n: number) {
@@ -30,21 +31,10 @@ export class TimeSlider {
 	constructor(container, initialDate, onChange) {}
 }
 
-export function createTimeSlider({
-	container,
-	initialDate,
-	onChange,
-	resolution = 1
-}: TimeSliderOptions) {
+export function createTimeSlider({ container, initialDate, onChange, domain }: TimeSliderOptions) {
+	let resolution = domain.time_interval;
 	let currentDate = getLocalMidnight(initialDate);
 	let currentHour = initialDate.getHours();
-	if (resolution > 1 && initialDate.getUTCHours() % resolution !== 0) {
-		const closestHour = initialDate.getUTCHours() - (initialDate.getUTCHours() % resolution);
-		initialDate.setUTCHours(closestHour);
-		currentDate.setUTCHours(closestHour);
-		currentHour = initialDate.getHours();
-		updateUI();
-	}
 
 	container.innerHTML = `
 		<div style="display:flex; gap: 0.5em; justify-items: center; align-items: center;">
@@ -65,7 +55,6 @@ export function createTimeSlider({
 			type="date"
 			id="date_picker"
 			class="date-time-selection"
-			min=${initialDate.getFullYear() + '-' + pad(initialDate.getMonth() + 1) + '-' + pad(initialDate.getDate())}
 			value="${formatDateInputValue(currentDate)}"
 		/>
 	`;
@@ -106,10 +95,10 @@ export function createTimeSlider({
 	});
 
 	nextBtn.addEventListener('click', () => {
-		if (currentHour < 23 - resolution) {
+		if (currentHour <= 23 - resolution) {
 			currentHour += resolution;
 		} else {
-			currentHour = 0;
+			currentHour = currentHour + resolution - 24;
 			currentDate.setDate(currentDate.getDate() + 1);
 		}
 		updateUI();

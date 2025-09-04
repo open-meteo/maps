@@ -81,10 +81,18 @@ export class OMapsFileReader {
 			values = await variableReader.read(OmDataType.FloatArray, this.ranges);
 		}
 
-		if (variable.value.includes('_speed_') || variable.value === 'wave_height') {
+		if (variable.value.includes('_speed_')) {
 			// also get the direction for speed values
 			const variableReader = await this.reader.getChildByName(
 				variable.value.replace('_speed_', '_direction_')
+			);
+
+			directions = await variableReader.read(OmDataType.FloatArray, this.ranges);
+		}
+		if (variable.value === 'wave_height') {
+			// also get the direction for speed values
+			const variableReader = await this.reader.getChildByName(
+				variable.value.replace('wave_height', 'wave_direction')
 			);
 
 			directions = await variableReader.read(OmDataType.FloatArray, this.ranges);

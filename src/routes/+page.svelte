@@ -345,6 +345,11 @@
 		} else {
 			timeSelected.setHours(12, 0, 0, 0); // Default to 12:00 local time
 		}
+		if (domain.time_interval > 1) {
+			const closestHour =
+				timeSelected.getUTCHours() - (timeSelected.getUTCHours() % domain.time_interval);
+			timeSelected.setUTCHours(closestHour + domain.time_interval);
+		}
 
 		if (params.get('variable')) {
 			variable = variables.find((v) => v.value === params.get('variable')) ?? variables[0];
@@ -441,13 +446,7 @@
 						if ((hideZero.includes(variable.value) && value <= 0.25) || !value) {
 							popup.remove();
 						} else {
-							let string = '';
-							if (variable.value.startsWith('wind_')) {
-								string = `${value.toFixed(0)}kn`;
-							} else {
-								string = value.toFixed(1) + (variable.value.startsWith('temperature') ? 'C°' : '');
-							}
-
+							let string = value.toFixed(1) + colorScale.unit;
 							popup.setLngLat(coordinates).setHTML(`<span class="value-popup">${string}</span>`);
 						}
 					} else {
@@ -476,7 +475,7 @@
 					history.pushState({}, '', url);
 					changeOMfileURL();
 				},
-				resolution: domain.time_interval
+				domain: domain
 			});
 		});
 	});
@@ -607,7 +606,7 @@
 							if (domain.time_interval > 1) {
 								const closestHour =
 									timeSelected.getUTCHours() - (timeSelected.getUTCHours() % domain.time_interval);
-								timeSelected.setUTCHours(closestHour);
+								timeSelected.setUTCHours(closestHour + domain.time_interval);
 							}
 							url.searchParams.set('domain', value);
 							pushState(url + map._hash.getHashString(), {});
