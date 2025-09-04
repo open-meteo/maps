@@ -123,7 +123,7 @@ export interface IndexAndFractions {
 	yFraction: number;
 }
 
-export interface Range {
+export interface DimensionRange {
 	start: number;
 	end: number;
 }

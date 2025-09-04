@@ -2,23 +2,31 @@ import { hideZero, drawOnTiles } from '$lib/utils/variables';
 
 import { DynamicProjection, ProjectionGrid, type Projection } from '$lib/utils/projection';
 
-import { tile2lat, tile2lon, getIndexFromLatLong, degreesToRadians } from '$lib/utils/math';
+import {
+	tile2lat,
+	tile2lon,
+	rotatePoint,
+	degreesToRadians,
+	getIndexFromLatLong
+} from '$lib/utils/math';
 
 import { getColorScale, getInterpolator } from '$lib/utils/color-scales';
 
-import type { ColorScale, Domain, IndexAndFractions, Interpolator, Variable } from '$lib/types';
+import type {
+	Domain,
+	Variable,
+	ColorScale,
+	Interpolator,
+	DimensionRange,
+	IndexAndFractions
+} from '$lib/types';
 
 import type { IconListPixels } from '$lib/utils/icons';
 
+import type { TypedArray } from '@openmeteo/file-reader';
+
 const TILE_SIZE = Number(import.meta.env.VITE_TILE_SIZE) * 2;
 const OPACITY = Number(import.meta.env.VITE_TILE_OPACITY);
-
-const rotatePoint = (cx: number, cy: number, theta: number, x: number, y: number) => {
-	const xt = Math.cos(theta) * (x - cx) - Math.sin(theta) * (y - cy) + cx;
-	const yt = Math.sin(theta) * (x - cx) + Math.cos(theta) * (y - cy) + cy;
-
-	return [xt, yt];
-};
 
 const drawArrow = (
 	rgba: Uint8ClampedArray,
@@ -27,7 +35,7 @@ const drawArrow = (
 	x: number,
 	y: number,
 	z: number,
-	nx: number,
+	ranges: DimensionRange[],
 	domain: Domain,
 	variable: Variable,
 	projectionGrid: ProjectionGrid,
@@ -45,11 +53,25 @@ const drawArrow = (
 	const lat = tile2lat(y + iCenter / TILE_SIZE, z);
 	const lon = tile2lon(x + jCenter / TILE_SIZE, z);
 
-	const { index, xFraction, yFraction } = getIndexAndFractions(lat, lon, domain, projectionGrid);
+	const { index, xFraction, yFraction } = getIndexAndFractions(
+		lat,
+		lon,
+		domain,
+		projectionGrid,
+		ranges
+	);
 
-	const px = interpolator(values, nx, index, xFraction, yFraction);
+	const px = interpolator(
+		values,
+		ranges[1]['end'] - ranges[1]['start'],
+		index,
+		xFraction,
+		yFraction
+	);
 
-	const direction = degreesToRadians(interpolator(directions, nx, index, xFraction, yFraction));
+	const direction = degreesToRadians(
+		interpolator(directions, ranges[1]['end'] - ranges[1]['start'], index, xFraction, yFraction)
+	);
 
 	if (direction) {
 		for (let i = 0; i < boxSize; i++) {
@@ -235,7 +257,7 @@ self.onmessage = async (message) => {
 							x,
 							y,
 							z,
-							ranges[1]['end'] - ranges[1]['start'],
+							ranges,
 							domain,
 							variable,
 							projectionGrid,

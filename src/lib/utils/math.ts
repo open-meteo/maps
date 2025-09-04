@@ -236,3 +236,10 @@ export const degreesToRadians = (degree: number) => {
 export const radiansToDegrees = (rad: number) => {
 	return rad * (180 / Math.PI);
 };
+
+export const rotatePoint = (cx: number, cy: number, theta: number, x: number, y: number) => {
+	const xt = Math.cos(theta) * (x - cx) - Math.sin(theta) * (y - cy) + cx;
+	const yt = Math.sin(theta) * (x - cx) + Math.cos(theta) * (y - cy) + cy;
+
+	return [xt, yt];
+};

@@ -25,7 +25,15 @@ import TileWorker from './worker?worker';
 
 import arrowPixelsSource from '$lib/utils/arrow';
 
-import type { TileJSON, TileIndex, Domain, Variable, Bounds, Range, ColorScale } from '$lib/types';
+import type {
+	Bounds,
+	Domain,
+	Variable,
+	TileJSON,
+	TileIndex,
+	ColorScale,
+	DimensionRange
+} from '$lib/types';
 
 let dark = false;
 let partial = false;
@@ -34,7 +42,7 @@ let variable: Variable;
 let mapBounds: number[];
 let omapsFileReader: OMapsFileReader;
 let mapBoundsIndexes: number[];
-let ranges: Range[];
+let ranges: DimensionRange[];
 
 let projection: Projection;
 let projectionGrid: ProjectionGrid;
