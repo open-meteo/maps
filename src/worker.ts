@@ -2,83 +2,94 @@ import { hideZero, drawOnTiles } from '$lib/utils/variables';
 
 import { DynamicProjection, ProjectionGrid, type Projection } from '$lib/utils/projection';
 
-import { tile2lat, tile2lon, getIndexFromLatLong } from '$lib/utils/math';
+import { tile2lat, tile2lon, getIndexFromLatLong, degreesToRadians } from '$lib/utils/math';
 
 import { getColorScale, getInterpolator } from '$lib/utils/color-scales';
 
-import type { ColorScale, Domain, IndexAndFractions } from '$lib/types';
+import type { ColorScale, Domain, IndexAndFractions, Interpolator, Variable } from '$lib/types';
+
+import type { IconListPixels } from '$lib/utils/icons';
 
 const TILE_SIZE = Number(import.meta.env.VITE_TILE_SIZE) * 2;
 const OPACITY = Number(import.meta.env.VITE_TILE_OPACITY);
 
-// const rotatePoint = (cx: number, cy: number, theta: number, x: number, y: number) => {
-// 	let xt = Math.cos(theta) * (x - cx) - Math.sin(theta) * (y - cy) + cx;
-// 	let yt = Math.sin(theta) * (x - cx) + Math.cos(theta) * (y - cy) + cy;
+const rotatePoint = (cx: number, cy: number, theta: number, x: number, y: number) => {
+	const xt = Math.cos(theta) * (x - cx) - Math.sin(theta) * (y - cy) + cx;
+	const yt = Math.sin(theta) * (x - cx) + Math.cos(theta) * (y - cy) + cy;
 
-// 	return [xt, yt];
-// };
+	return [xt, yt];
+};
 
-// const drawArrow = (
-// 	rgba: Uint8ClampedArray,
-// 	iBase: number,
-// 	jBase: number,
-// 	x: number,
-// 	y: number,
-// 	z: number,
-// 	nx: number,
-// 	domain: Domain,
-// 	projectionGrid: ProjectionGrid,
-// 	values: TypedArray,
-// 	directions: TypedArray,
-// 	boxSize = TILE_SIZE / 8,
-// 	iconPixelData: IconListPixels
-// ): void => {
-// 	const northArrow = iconPixelData['0'];
+const drawArrow = (
+	rgba: Uint8ClampedArray,
+	iBase: number,
+	jBase: number,
+	x: number,
+	y: number,
+	z: number,
+	nx: number,
+	domain: Domain,
+	variable: Variable,
+	projectionGrid: ProjectionGrid,
+	values: TypedArray,
+	directions: TypedArray,
+	boxSize = TILE_SIZE / 8,
+	iconPixelData: IconListPixels,
+	interpolator: Interpolator
+): void => {
+	const northArrow = iconPixelData['0'];
 
-// 	let iCenter = iBase + Math.floor(boxSize / 2);
-// 	let jCenter = jBase + Math.floor(boxSize / 2);
+	const iCenter = iBase + Math.floor(boxSize / 2);
+	const jCenter = jBase + Math.floor(boxSize / 2);
 
-// 	const lat = tile2lat(y + iCenter / TILE_SIZE, z);
-// 	const lon = tile2lon(x + jCenter / TILE_SIZE, z);
+	const lat = tile2lat(y + iCenter / TILE_SIZE, z);
+	const lon = tile2lon(x + jCenter / TILE_SIZE, z);
 
-// 	const { index, xFraction, yFraction } = getIndexAndFractions(lat, lon, domain, projectionGrid);
+	const { index, xFraction, yFraction } = getIndexAndFractions(lat, lon, domain, projectionGrid);
 
-// 	let px = interpolateLinear(values, nx, index, xFraction, yFraction);
+	const px = interpolator(values, nx, index, xFraction, yFraction);
 
-// 	let direction = degreesToRadians(interpolateLinear(directions, nx, index, xFraction, yFraction));
+	const direction = degreesToRadians(interpolator(directions, nx, index, xFraction, yFraction));
 
-// 	if (direction) {
-// 		for (let i = 0; i < boxSize; i++) {
-// 			for (let j = 0; j < boxSize; j++) {
-// 				let ind = j + i * boxSize;
-// 				let rotatedPoint = rotatePoint(
-// 					Math.floor(boxSize / 2),
-// 					Math.floor(boxSize / 2),
-// 					-direction,
-// 					i,
-// 					j
-// 				);
-// 				let newI = Math.floor(rotatedPoint[0]);
-// 				let newJ = Math.floor(rotatedPoint[1]);
-// 				let indTile = jBase + newJ + (iBase + newI) * TILE_SIZE;
+	if (direction) {
+		for (let i = 0; i < boxSize; i++) {
+			for (let j = 0; j < boxSize; j++) {
+				const ind = j + i * boxSize;
+				const rotatedPoint = rotatePoint(
+					Math.floor(boxSize / 2),
+					Math.floor(boxSize / 2),
+					-direction,
+					i,
+					j
+				);
+				const newI = Math.floor(rotatedPoint[0]);
+				const newJ = Math.floor(rotatedPoint[1]);
+				const indTile = jBase + newJ + (iBase + newI) * TILE_SIZE;
 
-// 				if (northArrow[4 * ind + 3]) {
-// 					rgba[4 * indTile] = 0;
-// 					rgba[4 * indTile + 1] = 0;
-// 					rgba[4 * indTile + 2] = 0;
-// 					rgba[4 * indTile + 3] =
-// 						northArrow[4 * ind + 3] * Math.min(((px - 2) / 200) * 50, 100) * (OPACITY / 50);
-// 				}
-// 			}
-// 		}
-// 	}
-// };
+				let opacityValue;
+
+				if (variable.value.startsWith('wind')) {
+					opacityValue = Math.min(((px - 2) / 200) * 50, 100);
+				} else {
+					opacityValue = 0.8;
+				}
+
+				if (northArrow[4 * ind + 3]) {
+					rgba[4 * indTile] = 0;
+					rgba[4 * indTile + 1] = 0;
+					rgba[4 * indTile + 2] = 0;
+					rgba[4 * indTile + 3] = northArrow[4 * ind + 3] * opacityValue * (OPACITY / 50);
+				}
+			}
+		}
+	}
+};
 
 const getColor = (colorScale: ColorScale, px: number): number[] => {
 	return colorScale.colors[
 		Math.min(
 			colorScale.colors.length - 1,
-			Math.max(0, Math.floor((px - colorScale.min) / colorScale.scalefactor))
+			Math.max(0, Math.floor((px - colorScale.min) * colorScale.scalefactor))
 		)
 	];
 };
@@ -87,12 +98,15 @@ const getOpacity = (v: string, px: number, dark: boolean): number => {
 	if (v == 'cloud_cover' || v == 'thunderstorm_probability') {
 		// scale opacity with percentage
 		return 255 * (px ** 1.5 / 1000) * (OPACITY / 100);
-	} else if (v.startsWith('wind')) {
-		// scale opacity with wind values below 14kn
-		return Math.min((px - 2) / 12, 1) * 255 * (OPACITY / 100);
+	} else if (v.startsWith('cloud_base')) {
+		// scale cloud base to 20900m
+		return Math.min(1 - px / 20900, 1) * 255 * (OPACITY / 100);
 	} else if (v.startsWith('precipitation')) {
 		// scale opacity with precip values below 1.5mm
 		return Math.min(px / 1.5, 1) * 255 * (OPACITY / 100);
+	} else if (v.startsWith('wind')) {
+		// scale opacity with wind values below 14kn
+		return Math.min((px - 2) / 12, 1) * 255 * (OPACITY / 100);
 	} else {
 		// else set the opacity with env variable and deduct 20% for darkmode
 		return 255 * (dark ? OPACITY / 100 - 0.2 : OPACITY / 100);
@@ -200,32 +214,40 @@ self.onmessage = async (message) => {
 			}
 		}
 
-		if (drawOnTiles.includes(variable.value)) {
-			// const iconPixelData = message.data.iconPixelData;
-			// let reg = new RegExp(/wind_(\d+)m/);
-			// const matches = variable.value.match(reg);
-			// if (matches) {
-			// 	const boxSize = Math.floor(TILE_SIZE / 16);
-			// 	for (let i = 0; i < TILE_SIZE; i += boxSize) {
-			// 		for (let j = 0; j < TILE_SIZE; j += boxSize) {
-			// 			drawArrow(
-			// 				rgba,
-			// 				i,
-			// 				j,
-			// 				x,
-			// 				y,
-			// 				z,
-			// 				nx,
-			// 				domain,
-			// 				projectionGrid,
-			// 				values,
-			// 				directions,
-			// 				boxSize,
-			// 				iconPixelData
-			// 			);
-			// 		}
-			// 	}
-			// }
+		if (
+			(variable.value.startsWith('wave') && !variable.value.includes('_period')) ||
+			(variable.value.startsWith('wind') &&
+				!variable.value.includes('_gusts') &&
+				!variable.value.includes('_wave')) ||
+			drawOnTiles.includes(variable.value)
+		) {
+			if (variable.value.startsWith('wave') || variable.value.startsWith('wind')) {
+				const iconPixelData = message.data.iconPixelData;
+				const directions = message.data.data.directions;
+
+				const boxSize = Math.floor(TILE_SIZE / 16);
+				for (let i = 0; i < TILE_SIZE; i += boxSize) {
+					for (let j = 0; j < TILE_SIZE; j += boxSize) {
+						drawArrow(
+							rgba,
+							i,
+							j,
+							x,
+							y,
+							z,
+							ranges[1]['end'] - ranges[1]['start'],
+							domain,
+							variable,
+							projectionGrid,
+							values,
+							directions,
+							boxSize,
+							iconPixelData,
+							interpolator
+						);
+					}
+				}
+			}
 		}
 
 		const tile = await createImageBitmap(new ImageData(rgba, TILE_SIZE, TILE_SIZE));

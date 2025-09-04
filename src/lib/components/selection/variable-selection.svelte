@@ -8,17 +8,17 @@
 
 	import * as Select from '$lib/components/ui/select';
 
-	import type { Domain, Variable } from '$lib/types';
+	import type { Domain, DomainMetaData, Variable } from '$lib/types';
 
 	interface Props {
 		domain: Domain;
 		variable: Variable;
 		modelRuns;
 		timeSelected: Date;
-		latestRequest;
+		latestRequest: Promise<DomainMetaData>;
 		domainChange: Function;
 		variableChange: Function;
-		progressRequest;
+		progressRequest: Promise<DomainMetaData>;
 		modelRunChange: Function;
 		modelRunSelected: Date;
 	}
@@ -126,22 +126,7 @@
 							? 'bg-blue-400'
 							: ''}"
 						onclick={() => {
-							modelRunSelected = ip;
-							url.searchParams.set('model', ip.toISOString().replace(/[:Z]/g, '').slice(0, 15));
-							pushState(url + map._hash.getHashString(), {});
-							toast(
-								'Model run set to: ' +
-									ip.getUTCFullYear() +
-									'-' +
-									pad(ip.getUTCMonth() + 1) +
-									'-' +
-									pad(ip.getUTCDate()) +
-									' ' +
-									pad(ip.getUTCHours()) +
-									':' +
-									pad(ip.getUTCMinutes())
-							);
-							changeOMfileURL();
+							modelRunChange(ip);
 						}}
 						>{ip.getUTCFullYear() +
 							'-' +
@@ -174,7 +159,7 @@
 						>
 						<Select.Content side="bottom">
 							{#each latest.variables as vr, i (i)}
-								{#if !vr.startsWith('wind_') || vr === 'wind_gusts_10m'}
+								{#if !vr.includes('v_component') && !vr.includes('_direction')}
 									{@const v = variables.find((vrb) => vrb.value === vr)
 										? variables.find((vrb) => vrb.value === vr)
 										: { value: vr, label: vr }}

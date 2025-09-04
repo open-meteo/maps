@@ -1,11 +1,12 @@
-import type { Domain, DomainGroups } from '../../types';
-
 import {
 	getBorderPoints,
 	getBoundsFromBorderPoints,
 	getCenterFromBounds,
 	getCenterFromGrid
 } from './math';
+
+import type { Domain, DomainGroups } from '$lib/types';
+
 import { DynamicProjection, ProjectionGrid, type Projection } from './projection';
 
 export const domainGroups = [
@@ -179,6 +180,46 @@ export const domains: Array<Domain> = [
 		},
 		time_interval: 1,
 		model_interval: 3,
+		windUVComponents: true
+	},
+	{
+		value: 'dwd_gwam',
+		label: 'DWD GWAM',
+		grid: {
+			nx: 1440,
+			ny: 699,
+			latMin: -85.25,
+			lonMin: -180,
+			dx: 0.25,
+			dy: 0.25,
+			zoom: 1,
+			center: function () {
+				this.center = getCenterPoint(this);
+				return this;
+			}
+		},
+		time_interval: 3,
+		model_interval: 12,
+		windUVComponents: true
+	},
+	{
+		value: 'dwd_ewam',
+		label: 'DWD EWAM',
+		grid: {
+			nx: 526,
+			ny: 721,
+			latMin: 30,
+			lonMin: -10.5,
+			dx: 0.1,
+			dy: 0.05,
+			zoom: 3.2,
+			center: function () {
+				this.center = getCenterPoint(this);
+				return this;
+			}
+		},
+		time_interval: 1,
+		model_interval: 12,
 		windUVComponents: true
 	},
 
@@ -584,6 +625,26 @@ export const domains: Array<Domain> = [
 			dx: 0.01,
 			dy: 0.01,
 			zoom: 5.2,
+			center: function () {
+				this.center = getCenterPoint(this);
+				return this;
+			}
+		},
+		time_interval: 1,
+		model_interval: 3,
+		windUVComponents: true
+	},
+	{
+		value: 'meteofrance_wave',
+		label: 'MF Wave',
+		grid: {
+			nx: 4320,
+			ny: 2041,
+			latMin: -80 + 1 / 24,
+			lonMin: -180 + 1 / 24,
+			dx: 1 / 12,
+			dy: 1 / 12,
+			zoom: 1,
 			center: function () {
 				this.center = getCenterPoint(this);
 				return this;

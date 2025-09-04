@@ -73,7 +73,18 @@ export const colorScales: ColorScales = {
 		interpolationMethod: 'linear',
 		unit: ''
 	},
-	cloud: {
+	cloud_base: {
+		min: 0,
+		max: 20900,
+		scalefactor: 1,
+		colors: [
+			...interpolateColorScaleHSL(['#FFF', '#c3c2c2'], 20900) // 0 to 20900m
+		],
+		interpolationMethod: 'linear',
+		unit: 'm'
+	},
+
+	cloud_cover: {
 		min: 0,
 		max: 100,
 		scalefactor: 1,
@@ -129,11 +140,11 @@ export const colorScales: ColorScales = {
 		max: 60,
 		scalefactor: 1,
 		colors: [
-			...interpolateColorScaleHSL(['purple', 'blue'], 40), // -40° to 0°
-			...interpolateColorScaleHSL(['blue', 'green'], 16), // 0° to 16°
-			...interpolateColorScaleHSL(['green', 'orange'], 12), // 0° to 28°
-			...interpolateColorScaleHSL(['orange', 'red'], 14), // 28° to 42°
-			...interpolateColorScaleHSL(['red', 'purple'], 18) // 42° to 60°
+			...interpolateColorScaleHSL(['purple', 'blue'], 40), // -40°C to 0°C
+			...interpolateColorScaleHSL(['blue', 'green'], 16), // 0°Cto 16°C
+			...interpolateColorScaleHSL(['green', 'orange'], 12), // 0°C to 28°C
+			...interpolateColorScaleHSL(['orange', 'red'], 14), // 28°C to 42°C
+			...interpolateColorScaleHSL(['red', 'purple'], 18) // 42°C to 60°C
 		],
 		interpolationMethod: 'linear',
 		unit: 'C°'
@@ -150,6 +161,18 @@ export const colorScales: ColorScales = {
 		interpolationMethod: 'linear',
 		unit: '%'
 	},
+	swell: {
+		min: 0,
+		max: 10,
+		scalefactor: 5,
+		colors: [
+			...interpolateColorScaleHSL(['blue', 'green'], 10), // 0 to 2m
+			...interpolateColorScaleHSL(['green', 'orange'], 20), // 2 to 6m
+			...interpolateColorScaleHSL(['orange', 'red'], 20) // 6 to 10m
+		],
+		interpolationMethod: 'linear',
+		unit: 'm'
+	},
 	uv: {
 		min: 0,
 		max: 12,
@@ -162,6 +185,18 @@ export const colorScales: ColorScales = {
 		],
 		interpolationMethod: 'linear',
 		unit: ''
+	},
+	wave: {
+		min: 0,
+		max: 10,
+		scalefactor: 5,
+		colors: [
+			...interpolateColorScaleHSL(['blue', 'green'], 10), // 0 to 2m
+			...interpolateColorScaleHSL(['green', 'orange'], 20), // 2 to 6m
+			...interpolateColorScaleHSL(['orange', 'red'], 20) // 6 to 10m
+		],
+		interpolationMethod: 'linear',
+		unit: 'm'
 	},
 	wind: {
 		min: 0,
