@@ -8,17 +8,17 @@
 
 	import * as Select from '$lib/components/ui/select';
 
-	import type { Domain, Variable } from '$lib/types';
+	import type { Domain, DomainMetaData, Variable } from '$lib/types';
 
 	interface Props {
 		domain: Domain;
 		variable: Variable;
 		modelRuns;
 		timeSelected: Date;
-		latestRequest;
+		latestRequest: Promise<DomainMetaData>;
 		domainChange: Function;
 		variableChange: Function;
-		progressRequest;
+		progressRequest: Promise<DomainMetaData>;
 		modelRunChange: Function;
 		modelRunSelected: Date;
 	}
@@ -174,7 +174,7 @@
 						>
 						<Select.Content side="bottom">
 							{#each latest.variables as vr, i (i)}
-								{#if !vr.startsWith('wind_') || vr === 'wind_gusts_10m'}
+								{#if !vr.includes('v_component') && !vr.includes('_direction_')}
 									{@const v = variables.find((vrb) => vrb.value === vr)
 										? variables.find((vrb) => vrb.value === vr)
 										: { value: vr, label: vr }}

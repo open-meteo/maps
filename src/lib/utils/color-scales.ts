@@ -73,7 +73,18 @@ export const colorScales: ColorScales = {
 		interpolationMethod: 'linear',
 		unit: ''
 	},
-	cloud: {
+	cloud_base: {
+		min: 0,
+		max: 20900,
+		scalefactor: 1,
+		colors: [
+			...interpolateColorScaleHSL(['#FFF', '#c3c2c2'], 20900) // 0 to 20900m
+		],
+		interpolationMethod: 'linear',
+		unit: 'm'
+	},
+
+	cloud_cover: {
 		min: 0,
 		max: 100,
 		scalefactor: 1,

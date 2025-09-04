@@ -127,3 +127,11 @@ export interface Range {
 	start: number;
 	end: number;
 }
+
+export interface DomainMetaData {
+	completed: boolean;
+	last_modified_time: string;
+	reference_time: string;
+	valid_times: string[];
+	variables: string[];
+}

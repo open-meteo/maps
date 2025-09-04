@@ -41,6 +41,7 @@ setupGlobalCache();
 
 export interface Data {
 	values: TypedArray | undefined;
+	directions: TypedArray | undefined;
 }
 
 let data: Data;

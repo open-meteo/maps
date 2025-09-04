@@ -3,13 +3,14 @@ const pressureLevels = [
 ];
 
 const heights = [
-	2, 20, 30, 50, 75, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 1000, 1250, 1500, 1750, 2000,
-	2250, 2500, 2750, 3000, 3250, 3500, 3750, 4000, 4500, 5000, 5500, 6000
+	2, 10, 20, 30, 50, 75, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 1000, 1250, 1500, 1750,
+	2000, 2250, 2500, 2750, 3000, 3250, 3500, 3750, 4000, 4500, 5000, 5500, 6000
 ];
 
 export const variables = [
 	{ value: 'cape', label: 'CAPE' },
 
+	{ value: 'cloud_base', label: 'Cloud Base' },
 	{ value: 'cloud_cover', label: 'Cloud Cover' },
 	{ value: 'cloud_cover_high', label: 'Cloud Cover High' },
 	{ value: 'cloud_cover_mid', label: 'Cloud Cover Mid' },
@@ -17,6 +18,7 @@ export const variables = [
 
 	{ value: 'convective_cloud_base', label: 'Convective Cloud Base' },
 	{ value: 'convective_cloud_top', label: 'Convective Cloud Top' },
+	{ value: 'convective_inhibition', label: 'Convective Inhibition' },
 
 	{ value: 'diffuse_radiation', label: 'Difuse Radiation' },
 	{ value: 'direct_radiation', label: 'Direct Radiation' },
@@ -77,39 +79,25 @@ for (const pl of pressureLevels) {
 	variables.push({ value: `temperature_${pl}hPa`, label: `Temperature ${pl}hPa` });
 	variables.push({ value: `relative_humidity_${pl}hPa`, label: `Relative Humidity ${pl}hPa` });
 	variables.push({ value: `wind_${pl}hPa`, label: `Wind ${pl}hPa` });
+	variables.push({ value: `wind_u_component_${pl}hPa`, label: `Wind ${pl}hPa` });
+	variables.push({ value: `wind_speed_${pl}hPa`, label: `Wind ${pl}hPa` });
 }
 for (const height of heights) {
 	variables.push({ value: `temperature_${height}m`, label: `Temperature ${height}m` });
 	variables.push({ value: `relative_humidity_${height}m`, label: `Relative Humidity ${height}m` });
 	variables.push({ value: `wind_${height}m`, label: `Wind ${height}m` });
+	variables.push({ value: `wind_u_component_${height}m`, label: `Wind ${height}m` });
+	variables.push({ value: `wind_speed_${height}m`, label: `Wind ${height}m` });
 }
 
 export const hideZero = [
-	'precipitation',
-	'cloud_cover',
 	'rain',
+	'cloud_cover',
+	'precipitation',
 	'convective_cloud_top',
 	'convective_cloud_base'
 ];
-export const requestMultiple = [
-	'wind_10m',
-	'wind_40m',
-	'wind_50m',
-	'wind_80m',
-	'wind_100m',
-	'wind_120m',
-	'wind_150m',
-	'wind_180m'
-];
 
-export const drawOnTiles = [
-	'wind_10m',
-	'wind_40m',
-	'wind_50m',
-	'wind_80m',
-	'wind_100m',
-	'wind_120m',
-	'wind_150m',
-	'wind_180m',
-	'pressure_msl'
-];
+export const requestMultiple = ['wind_*'];
+
+export const drawOnTiles = ['wind_*', 'pressure_msl'];

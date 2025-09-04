@@ -1,11 +1,12 @@
-import type { Domain, DomainGroups } from '../../types';
-
 import {
 	getBorderPoints,
 	getBoundsFromBorderPoints,
 	getCenterFromBounds,
 	getCenterFromGrid
 } from './math';
+
+import type { Domain, DomainGroups } from '$lib/types';
+
 import { DynamicProjection, ProjectionGrid, type Projection } from './projection';
 
 export const domainGroups = [
