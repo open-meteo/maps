@@ -140,11 +140,11 @@ export const colorScales: ColorScales = {
 		max: 60,
 		scalefactor: 1,
 		colors: [
-			...interpolateColorScaleHSL(['purple', 'blue'], 40), // -40° to 0°
-			...interpolateColorScaleHSL(['blue', 'green'], 16), // 0° to 16°
-			...interpolateColorScaleHSL(['green', 'orange'], 12), // 0° to 28°
-			...interpolateColorScaleHSL(['orange', 'red'], 14), // 28° to 42°
-			...interpolateColorScaleHSL(['red', 'purple'], 18) // 42° to 60°
+			...interpolateColorScaleHSL(['purple', 'blue'], 40), // -40°C to 0°C
+			...interpolateColorScaleHSL(['blue', 'green'], 16), // 0°Cto 16°C
+			...interpolateColorScaleHSL(['green', 'orange'], 12), // 0°C to 28°C
+			...interpolateColorScaleHSL(['orange', 'red'], 14), // 28°C to 42°C
+			...interpolateColorScaleHSL(['red', 'purple'], 18) // 42°C to 60°C
 		],
 		interpolationMethod: 'linear',
 		unit: 'C°'
@@ -173,6 +173,18 @@ export const colorScales: ColorScales = {
 		],
 		interpolationMethod: 'linear',
 		unit: ''
+	},
+	wave: {
+		min: 0,
+		max: 12,
+		scalefactor: 1,
+		colors: [
+			...interpolateColorScaleHSL(['blue', 'green'], 4), // 0 to 4m
+			...interpolateColorScaleHSL(['green', 'orange'], 8), // 4 to 8m
+			...interpolateColorScaleHSL(['orange', 'red'], 12) // 8 to 12m
+		],
+		interpolationMethod: 'linear',
+		unit: 'm'
 	},
 	wind: {
 		min: 0,

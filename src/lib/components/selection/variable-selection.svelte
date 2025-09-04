@@ -126,22 +126,7 @@
 							? 'bg-blue-400'
 							: ''}"
 						onclick={() => {
-							modelRunSelected = ip;
-							url.searchParams.set('model', ip.toISOString().replace(/[:Z]/g, '').slice(0, 15));
-							pushState(url + map._hash.getHashString(), {});
-							toast(
-								'Model run set to: ' +
-									ip.getUTCFullYear() +
-									'-' +
-									pad(ip.getUTCMonth() + 1) +
-									'-' +
-									pad(ip.getUTCDate()) +
-									' ' +
-									pad(ip.getUTCHours()) +
-									':' +
-									pad(ip.getUTCMinutes())
-							);
-							changeOMfileURL();
+							modelRunChange(ip);
 						}}
 						>{ip.getUTCFullYear() +
 							'-' +
@@ -174,7 +159,7 @@
 						>
 						<Select.Content side="bottom">
 							{#each latest.variables as vr, i (i)}
-								{#if !vr.includes('v_component') && !vr.includes('_direction_')}
+								{#if !vr.includes('v_component') && !vr.includes('_direction')}
 									{@const v = variables.find((vrb) => vrb.value === vr)
 										? variables.find((vrb) => vrb.value === vr)
 										: { value: vr, label: vr }}

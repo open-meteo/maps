@@ -1,10 +1,11 @@
 const pressureLevels = [
-	30, 50, 70, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 850, 900, 925, 950, 975, 1000
+	10, 20, 30, 50, 70, 100, 150, 175, 200, 225, 250, 275, 300, 350, 400, 450, 500, 550, 600, 650,
+	700, 750, 800, 850, 875, 900, 925, 950, 970, 975, 985, 1000, 1015
 ];
 
 const heights = [
-	2, 10, 20, 30, 50, 75, 100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 1000, 1250, 1500, 1750,
-	2000, 2250, 2500, 2750, 3000, 3250, 3500, 3750, 4000, 4500, 5000, 5500, 6000
+	2, 10, 20, 30, 40, 50, 75, 80, 100, 120, 150, 200, 250, 300, 400, 500, 600, 700, 800, 1000, 1250,
+	1500, 1750, 2000, 2250, 2500, 2750, 3000, 3250, 3500, 3750, 4000, 4500, 5000, 5500, 6000
 ];
 
 export const variables = [
@@ -52,6 +53,8 @@ export const variables = [
 
 	{ value: 'visibility', label: 'Visibility' },
 
+	{ value: 'wave_height', label: 'Wave Height' },
+
 	{ value: 'weather_code', label: 'Weather Codes' },
 
 	{ value: 'wind_gusts_10m', label: 'Wind Gusts 10m' },
@@ -98,4 +101,4 @@ export const hideZero = [
 	'convective_cloud_base'
 ];
 
-export const drawOnTiles = ['wind_*', 'pressure_msl'];
+export const drawOnTiles = ['pressure_msl'];

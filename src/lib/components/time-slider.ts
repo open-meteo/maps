@@ -38,6 +38,13 @@ export function createTimeSlider({
 }: TimeSliderOptions) {
 	let currentDate = getLocalMidnight(initialDate);
 	let currentHour = initialDate.getHours();
+	if (resolution > 1 && initialDate.getUTCHours() % resolution !== 0) {
+		const closestHour = initialDate.getUTCHours() - (initialDate.getUTCHours() % resolution);
+		initialDate.setUTCHours(closestHour);
+		currentDate.setUTCHours(closestHour);
+		currentHour = initialDate.getHours();
+		updateUI();
+	}
 
 	container.innerHTML = `
 		<div style="display:flex; gap: 0.5em; justify-items: center; align-items: center;">

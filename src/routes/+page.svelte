@@ -37,7 +37,7 @@
 	import VariableSelection from '$lib/components/selection/variable-selection.svelte';
 
 	let darkMode = $derived(mode.current);
-	let timeSliderApi: { setDisabled: (d: boolean) => void; setBackToPreviousDate: () => void };
+	let timeSliderApi: { setDisabled: (d: boolean) => void };
 	let timeSliderContainer: HTMLElement;
 
 	const addHillshadeLayer = () => {
@@ -510,6 +510,13 @@
 					if (modelRunSelected - timeSelected > 0) {
 						timeSelected = new Date(referenceTime);
 					}
+					if (!json.variables.includes(variable.value)) {
+						variable = variables.find((v) => v.value === json.variables[0]) ?? variables[0];
+						url.searchParams.set('variable', variable.value);
+						pushState(url + map._hash.getHashString(), {});
+						toast('Variable set to: ' + variable.label);
+						changeOMfileURL();
+					}
 				}
 
 				resolve(json);
@@ -597,6 +604,11 @@
 						{modelRunSelected}
 						domainChange={(value: string) => {
 							domain = domains.find((dm) => dm.value === value) ?? domains[0];
+							if (domain.time_interval > 1) {
+								const closestHour =
+									timeSelected.getUTCHours() - (timeSelected.getUTCHours() % domain.time_interval);
+								timeSelected.setUTCHours(closestHour);
+							}
 							url.searchParams.set('domain', value);
 							pushState(url + map._hash.getHashString(), {});
 							toast('Domain set to: ' + domain.label);
