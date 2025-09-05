@@ -16,12 +16,16 @@
 	import { pad } from '$lib/utils/pad';
 	import { domains } from '$lib/utils/domains';
 	import { hideZero, variables } from '$lib/utils/variables';
-	import { createTimeSlider } from '$lib/components/time-slider';
 
 	import type { Variable, Domain } from '$lib/types';
 
 	import * as Sheet from '$lib/components/ui/sheet';
 	import * as Drawer from '$lib/components/ui/drawer';
+
+	import Scale from '$lib/components/scale/scale.svelte';
+	import TimeSelector from '$lib/components/time/time-selector.svelte';
+	import VariableSelection from '$lib/components/selection/variable-selection.svelte';
+	import SelectedVariables from '$lib/components/scale/selected-variables.svelte';
 
 	import { getColorScale } from '$lib/utils/color-scales';
 
@@ -32,12 +36,9 @@
 	let showTimeSelector = $state(true);
 
 	import '../styles.css';
-	import Scale from '$lib/components/scale/scale.svelte';
-	import SelectedVariables from '$lib/components/scale/selected-variables.svelte';
-	import VariableSelection from '$lib/components/selection/variable-selection.svelte';
+	import { SvelteDate } from 'svelte/reactivity';
 
 	let darkMode = $derived(mode.current);
-	let timeSliderApi: { setDisabled: (d: boolean) => void };
 	let timeSliderContainer: HTMLElement;
 
 	const addHillshadeLayer = () => {
@@ -93,7 +94,6 @@
 		if (omFileSource) {
 			omFileSource.on('error', (e) => {
 				checked = 0;
-				timeSliderApi.setDisabled(false);
 				loading = false;
 				clearInterval(checkSourceLoadedInterval);
 				toast(e.error.message);
@@ -287,7 +287,6 @@
 			}
 
 			mapBounds = map.getBounds();
-			timeSliderApi.setDisabled(true);
 
 			omUrl = getOMUrl();
 			omFileSource.setUrl('om://' + omUrl);
@@ -300,7 +299,6 @@
 						toast('Request timed out');
 					}
 					checked = 0;
-					timeSliderApi.setDisabled(false);
 					loading = false;
 					clearInterval(checkSourceLoadedInterval);
 				}
@@ -466,17 +464,17 @@
 				}
 			});
 
-			timeSliderApi = createTimeSlider({
-				container: timeSliderContainer,
-				initialDate: timeSelected,
-				onChange: (newDate) => {
-					timeSelected = newDate;
-					url.searchParams.set('time', newDate.toISOString().replace(/[:Z]/g, '').slice(0, 15));
-					history.pushState({}, '', url);
-					changeOMfileURL();
-				},
-				domain: domain
-			});
+			// timeSliderApi = createTimeSlider({
+			// 	container: timeSliderContainer,
+			// 	initialDate: timeSelected,
+			// 	onChange: (newDate) => {
+			// 		timeSelected = newDate;
+			// 		url.searchParams.set('time', newDate.toISOString().replace(/[:Z]/g, '').slice(0, 15));
+			// 		history.pushState({}, '', url);
+			// 		changeOMfileURL();
+			// 	},
+			// 	domain: domain
+			// });
 		});
 	});
 	onDestroy(() => {
@@ -579,10 +577,24 @@
 		? 'pointer-events-none opacity-0'
 		: 'opacity-100'}"
 >
-	<div
-		bind:this={timeSliderContainer}
-		class="time-slider-container flex flex-col items-center gap-0"
-	></div>
+	<TimeSelector
+		bind:domain
+		bind:timeSelected
+		onDateChange={(e: InputEvent) => {
+			const value = e.target?.value;
+			let newDate;
+			if (value.length < 3) {
+				newDate = new SvelteDate(timeSelected);
+				newDate.setHours(value);
+			} else {
+				newDate = new SvelteDate(value);
+			}
+			timeSelected = newDate;
+			url.searchParams.set('time', newDate.toISOString().replace(/[:Z]/g, '').slice(0, 15));
+			history.pushState({}, '', url);
+			changeOMfileURL();
+		}}
+	/>
 </div>
 <div class="absolute">
 	<Sheet.Root bind:open={sheetOpen}>
