@@ -16,8 +16,7 @@ export class RotatedLatLonProjection implements Projection {
 			this.θ = degreesToRadians(90 + rotation[0]);
 			this.ϕ = degreesToRadians(rotation[1]);
 		} else {
-			this.θ = 0;
-			this.ϕ = 0;
+			throw new Error('projectionData not defined');
 		}
 	}
 
@@ -84,11 +83,7 @@ export class LambertConformalConicProjection implements Projection {
 			ϕ2_dec = projectionData.ϕ2;
 			radius = projectionData.radius;
 		} else {
-			λ0_dec = 0;
-			ϕ0_dec = 0;
-			ϕ1_dec = 0;
-			ϕ2_dec = 0;
-			radius = 0;
+			throw new Error('projectionData not defined');
 		}
 
 		this.λ0 = degreesToRadians((((λ0_dec as number) + 180) % 360) - 180);
@@ -159,8 +154,7 @@ export class LambertAzimuthalEqualAreaProjection implements Projection {
 				this.R = radius;
 			}
 		} else {
-			this.λ0 = 0;
-			this.ϕ1 = 0;
+			throw new Error('projectionData not defined');
 		}
 	}
 
@@ -218,9 +212,7 @@ export class StereograpicProjection implements Projection {
 				this.R = projectionData.radius;
 			}
 		} else {
-			this.λ0 = 0;
-			this.sinϕ1 = 0;
-			this.cosϕ1 = 0;
+			throw new Error('projectionData not defined');
 		}
 	}
 
