@@ -1,12 +1,15 @@
 <script lang="ts">
+	import { onDestroy, onMount } from 'svelte';
+
 	import { SvelteDate } from 'svelte/reactivity';
+
+	import { toast } from 'svelte-sonner';
+
+	import { browser } from '$app/environment';
 
 	import { pad } from '$lib/utils/pad';
 
 	import type { Domain } from '$lib/types';
-	import { browser } from '$app/environment';
-	import { onDestroy, onMount } from 'svelte';
-	import { toast } from 'svelte-sonner';
 
 	interface Props {
 		domain: Domain;
