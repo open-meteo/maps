@@ -2,6 +2,10 @@ import { hideZero, drawOnTiles } from '$lib/utils/variables';
 
 import { DynamicProjection, ProjectionGrid, type Projection } from '$lib/utils/projection';
 
+import { VectorTile } from '@mapbox/vector-tile';
+
+import Pbf from 'pbf';
+
 import {
 	tile2lat,
 	tile2lon,
@@ -38,7 +42,7 @@ const drawArrow = (
 	ranges: DimensionRange[],
 	domain: Domain,
 	variable: Variable,
-	projectionGrid: ProjectionGrid,
+	projectionGrid: ProjectionGrid | null,
 	values: TypedArray,
 	directions: TypedArray,
 	boxSize = TILE_SIZE / 8,
@@ -161,6 +165,34 @@ const getIndexAndFractions = (
 	);
 };
 
+// Rectangle coords (lon,lat)
+const rectCoords: [number, number][] = [
+	[3, 51.5],
+	[3, 54],
+	[0, 54],
+	[0, 51.5],
+	[3, 51.5]
+];
+
+// writer for VectorTileLayer
+function writeLayer(layer: any, pbf: Pbf) {
+	// name
+	pbf.writeStringField(1, layer.name);
+	// features
+	layer.features.forEach((feat: any) => {
+		pbf.writeMessage(2, writeFeature, feat);
+	});
+	// extent
+	pbf.writeVarintField(5, layer.extent);
+}
+
+// writer for VectorTileFeature
+function writeFeature(feat: any, pbf: Pbf) {
+	pbf.writeVarintField(1, feat.id); // id
+	pbf.writeVarintField(3, feat.type); // type (2 = LineString)
+	pbf.writePackedVarint(4, feat.geom); // geometry
+}
+
 self.onmessage = async (message) => {
 	if (message.data.type == 'GT') {
 		const key = message.data.key;
@@ -275,5 +307,89 @@ self.onmessage = async (message) => {
 		const tile = await createImageBitmap(new ImageData(rgba, TILE_SIZE, TILE_SIZE));
 
 		postMessage({ type: 'RT', tile: tile, key: key });
+	} else if (message.data.type == 'GP') {
+		const key = message.data.key;
+		const x = message.data.x;
+		const y = message.data.y;
+		const z = message.data.z;
+		const values = message.data.data.values;
+		const ranges = message.data.ranges;
+
+		const domain = message.data.domain;
+		const variable = message.data.variable;
+
+		const dark = message.data.dark;
+
+		let projectionGrid = null;
+		if (domain.grid.projection) {
+			const projectionName = domain.grid.projection.name;
+			const projection = new DynamicProjection(
+				projectionName,
+				domain.grid.projection
+			) as Projection;
+			projectionGrid = new ProjectionGrid(projection, domain.grid, ranges);
+		}
+
+		const extent = 4096;
+		const layerName = 'rect_layer';
+
+		// Encode geometry commands per MVT spec
+		function encodeCommand(id: number, count: number) {
+			return (count << 3) | id;
+		}
+		function zigZag(n: number) {
+			return (n << 1) ^ (n >> 31);
+		}
+
+		// Quick projection: lon/lat → extent (not perfect WebMercator, but enough for demo)
+		function project([lon, lat]: [number, number]): [number, number] {
+			const x = Math.floor(((lon + 180) / 360) * extent);
+			const y = Math.floor(
+				((1 -
+					Math.log(Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)) /
+						Math.PI) /
+					2) *
+					extent
+			);
+			return [x, y];
+		}
+
+		const coords = rectCoords.map(project);
+
+		const geom: number[] = [];
+		let cursor: [number, number] = [0, 0];
+
+		// MoveTo first point
+		const [x0, y0] = coords[0];
+		geom.push(encodeCommand(1, 1)); // MoveTo
+		geom.push(zigZag(x0 - cursor[0]));
+		geom.push(zigZag(y0 - cursor[1]));
+		cursor = [x0, y0];
+
+		// LineTo rest
+		geom.push(encodeCommand(2, coords.length - 1));
+		for (let i = 1; i < coords.length; i++) {
+			const [xi, yi] = coords[i];
+			geom.push(zigZag(xi - cursor[0]));
+			geom.push(zigZag(yi - cursor[1]));
+			cursor = [xi, yi];
+		}
+
+		const pbf = new Pbf();
+
+		// write Layer
+		pbf.writeMessage(3, writeLayer, {
+			name: layerName,
+			extent,
+			features: [
+				{
+					id: 1,
+					type: 2, // 2 = LineString
+					geom
+				}
+			]
+		});
+
+		postMessage({ type: 'RP', tile: pbf.finish(), key: key });
 	}
 };

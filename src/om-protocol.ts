@@ -2,6 +2,10 @@ import { browser } from '$app/environment';
 
 import { type GetResourceResponse, type RequestParameters } from 'maplibre-gl';
 
+import { VectorTile } from '@mapbox/vector-tile';
+
+import Pbf from 'pbf';
+
 import { setupGlobalCache, type TypedArray } from '@openmeteo/file-reader';
 
 import {
@@ -82,7 +86,9 @@ let data: Data;
 const TILE_SIZE = Number(import.meta.env.VITE_TILE_SIZE) * 2;
 
 let worker: Worker;
+
 const pendingTiles = new Map<string, (tile: ImageBitmap) => void>();
+const pendingPbfs = new Map<string, (pbf: Uint8Array) => void>();
 
 const getWorker = () => {
 	// ensure this code only runs on the client
@@ -95,6 +101,13 @@ const getWorker = () => {
 				if (resolve) {
 					resolve(message.data.tile);
 					pendingTiles.delete(key);
+				}
+			} else if (message.data.type === 'RP') {
+				const key = message.data.key;
+				const resolve = pendingPbfs.get(key);
+				if (resolve) {
+					resolve(message.data.tile);
+					pendingPbfs.delete(key);
 				}
 			}
 		};
@@ -180,10 +193,31 @@ const renderTile = async (url: string) => {
 	const x = parseInt(result[3]);
 	const y = parseInt(result[4]);
 
-	// Read OM data
-	const tile = await getTile({ z, x, y }, omUrl);
+	return await getTile({ z, x, y }, omUrl);
+};
 
-	return tile;
+const getPbf = async ({ z, x, y }: TileIndex, omUrl: string): Promise<Uint8Array> => {
+	const key = `${omUrl}/${TILE_SIZE}/${z}/${x}/${y}`;
+
+	const tileWorker = getWorker();
+
+	tileWorker.postMessage({
+		type: 'GP',
+		x,
+		y,
+		z,
+		key,
+		data,
+		domain,
+		variable,
+		ranges,
+		dark: dark,
+		mapBounds: mapBounds
+	});
+
+	return new Promise<Uint8Array>((resolve) => {
+		pendingPbfs.set(key, resolve);
+	});
 };
 
 const renderLines = async (url: string) => {
@@ -200,12 +234,7 @@ const renderLines = async (url: string) => {
 	const x = parseInt(result[3]);
 	const y = parseInt(result[4]);
 
-	// Read OM data
-	// const tile = await getTile({ z, x, y }, omUrl);
-
-	let exampleString = ``;
-
-	return [exampleString];
+	return await getPbf({ z, x, y }, omUrl);
 };
 
 const getTilejson = async (fullUrl: string): Promise<TileJSON> => {
@@ -295,8 +324,7 @@ const initOMFile = (url: string): Promise<void> => {
 
 export const omProtocol = async (
 	params: RequestParameters
-): Promise<GetResourceResponse<TileJSON | ImageBitmap>> => {
-	console.log(params);
+): Promise<GetResourceResponse<TileJSON | ImageBitmap | Uint8Array<ArrayBufferLike>>> => {
 	if (params.type == 'json') {
 		try {
 			await initOMFile(params.url);

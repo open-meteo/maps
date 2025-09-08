@@ -122,7 +122,11 @@
 			id: 'omFileVectorLayer',
 			type: 'line',
 			source: 'omFileVectorSource',
-			'source-layer': 'contours'
+			'source-layer': 'rect_layer',
+			paint: {
+				'line-color': 'red',
+				'line-width': 2
+			}
 		});
 	};
 
@@ -419,7 +423,7 @@
 
 			addOmFileLayer();
 
-			map.on('mousemove', function (e) {
+			map.style.map.on('mousemove', function (e) {
 				if (showPopup) {
 					const coordinates = e.lngLat;
 					if (!popup) {
