@@ -38,17 +38,27 @@
 		return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 	};
 
+	const previousHour = () => {
+		const d = new SvelteDate(timeSelected);
+		d.setHours(currentHour - resolution);
+		onDateChange(null, d);
+	};
+
+	const nextHour = () => {
+		const d = new SvelteDate(timeSelected);
+		d.setHours(currentHour + resolution);
+		onDateChange(null, d);
+	};
+
 	const keydownEvent = (event: KeyboardEvent) => {
 		if (!disabled) {
 			const d = new SvelteDate(timeSelected);
 			switch (event.key) {
 				case 'ArrowLeft':
-					d.setHours(currentHour - resolution);
-					onDateChange(null, d);
+					previousHour();
 					break;
 				case 'ArrowRight':
-					d.setHours(currentHour + resolution);
-					onDateChange(null, d);
+					nextHour();
 					break;
 				case 'ArrowUp':
 					d.setDate(d.getDate() + 1);
@@ -84,11 +94,12 @@
 		<div style="display:flex; gap: 0.5em; justify-items: center; align-items: center;">
 			<button
 				id="prev_hour"
-				class="rounded border bg-white px-2.5 py-2 duration-200 dark:bg-[#646464cc] {disabled
+				class="cursor-pointer rounded border bg-white px-2.5 py-2 delay-75 duration-200 dark:bg-[#646464cc] {disabled
 					? 'border-foreground/50  text-black/50 dark:text-white/50 '
 					: ' border-foreground/75 text-black  dark:text-white'}"
 				type="button"
 				aria-label="Previous hour"
+				onclick={previousHour}
 				><svg
 					xmlns="http://www.w3.org/2000/svg"
 					width="22"
@@ -104,18 +115,19 @@
 				></button
 			>
 			<span
-				class="min-w-[155px] text-center whitespace-nowrap duration-200 {disabled
+				class="min-w-[155px] text-center whitespace-nowrap delay-75 duration-200 {disabled
 					? ' text-black/50 dark:text-white/50 '
 					: ' text-black  dark:text-white'}"
 				id="slider_time_label">{formatSliderLabel(currentDate)}</span
 			>
 			<button
 				id="next_hour"
-				class="rounded border bg-white px-2.5 py-2 duration-200 dark:bg-[#646464cc] {disabled
+				class="cursor-pointer rounded border bg-white px-2.5 py-2 delay-75 duration-200 dark:bg-[#646464cc] {disabled
 					? 'border-foreground/50  text-black/50 dark:text-white/50 '
 					: ' border-foreground/75 text-black  dark:text-white'}"
 				type="button"
 				aria-label="Next hour"
+				onclick={nextHour}
 				><svg
 					xmlns="http://www.w3.org/2000/svg"
 					width="22"
@@ -133,7 +145,7 @@
 		</div>
 		<input
 			id="time_slider"
-			class="w-full"
+			class="w-full delay-75 duration-200"
 			type="range"
 			min="0"
 			max="24"
@@ -152,7 +164,7 @@
 		<input
 			type="date"
 			id="date_picker"
-			class="date-time-selection {disabled
+			class="date-time-selection rounded bg-white delay-75 duration-200 dark:bg-[#646464cc] {disabled
 				? 'border-foreground/50  text-black/50 dark:text-white/50 '
 				: ' border-foreground/75 text-black  dark:text-white'}"
 			{disabled}
