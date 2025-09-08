@@ -1,6 +1,6 @@
 import { DynamicProjection, ProjectionGrid, type Projection } from './projection';
 
-import type { Range, Domain, Bounds, Center, IndexAndFractions } from '$lib/types';
+import type { DimensionRange, Domain, Bounds, Center, IndexAndFractions } from '$lib/types';
 
 const r2d = 180 / Math.PI;
 
@@ -47,7 +47,7 @@ export const getIndexFromLatLong = (
 	lat: number,
 	lon: number,
 	domain: Domain,
-	ranges: Range[] = [
+	ranges: DimensionRange[] = [
 		{ start: 0, end: domain.grid.ny },
 		{ start: 0, end: domain.grid.nx }
 	]
