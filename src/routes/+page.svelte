@@ -3,9 +3,11 @@
 
 	import { fade } from 'svelte/transition';
 
-	import { setMode, mode } from 'mode-watcher';
+	import { SvelteDate } from 'svelte/reactivity';
 
 	import { toast } from 'svelte-sonner';
+
+	import { setMode, mode } from 'mode-watcher';
 
 	import * as maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
@@ -16,14 +18,20 @@
 	import { pad } from '$lib/utils/pad';
 	import { domains } from '$lib/utils/domains';
 	import { hideZero, variables } from '$lib/utils/variables';
-	import { createTimeSlider } from '$lib/components/time-slider';
 
-	import type { Variable, Domain } from '$lib/types';
+	import type { Variable, Domain, DomainMetaData } from '$lib/types';
 
 	import * as Sheet from '$lib/components/ui/sheet';
 	import * as Drawer from '$lib/components/ui/drawer';
 
+	import Scale from '$lib/components/scale/scale.svelte';
+	import TimeSelector from '$lib/components/time/time-selector.svelte';
+	import VariableSelection from '$lib/components/selection/variable-selection.svelte';
+	import SelectedVariables from '$lib/components/scale/selected-variables.svelte';
+
 	import { getColorScale } from '$lib/utils/color-scales';
+
+	import '../styles.css';
 
 	let partial = $state(false);
 	let showScale = $state(true);
@@ -31,14 +39,7 @@
 	let drawerOpen = $state(false);
 	let showTimeSelector = $state(true);
 
-	import '../styles.css';
-	import Scale from '$lib/components/scale/scale.svelte';
-	import SelectedVariables from '$lib/components/scale/selected-variables.svelte';
-	import VariableSelection from '$lib/components/selection/variable-selection.svelte';
-
 	let darkMode = $derived(mode.current);
-	let timeSliderApi: { setDisabled: (d: boolean) => void };
-	let timeSliderContainer: HTMLElement;
 
 	const addHillshadeLayer = () => {
 		map.setSky({
@@ -54,6 +55,7 @@
 			type: 'raster-dem',
 			tiles: ['https://mapproxy.servert.nl/wmts/copernicus/webmercator/{z}/{x}/{y}.png'],
 			tileSize: 512,
+			// @ts-expect-error scheme not supported in types, but still works
 			scheme: 'tms',
 			maxzoom: 10
 		});
@@ -62,6 +64,7 @@
 			type: 'raster-dem',
 			tiles: ['https://mapproxy.servert.nl/wmts/copernicus/webmercator/{z}/{x}/{y}.png'],
 			tileSize: 512,
+			// @ts-expect-error scheme not supported in types, but still works
 			scheme: 'tms',
 			maxzoom: 10
 		});
@@ -73,7 +76,6 @@
 				type: 'hillshade',
 				paint: {
 					'hillshade-method': 'igor',
-					//'hillshade-exaggeration': 1,
 					'hillshade-shadow-color': 'rgba(0,0,0,0.4)',
 					'hillshade-highlight-color': 'rgba(255,255,255,0.35)'
 				}
@@ -93,7 +95,6 @@
 		if (omFileSource) {
 			omFileSource.on('error', (e) => {
 				checked = 0;
-				timeSliderApi.setDisabled(false);
 				loading = false;
 				clearInterval(checkSourceLoadedInterval);
 				toast(e.error.message);
@@ -251,33 +252,35 @@
 		onRemove() {}
 	}
 
-	let map: maplibregl.Map;
-	let mapContainer: HTMLElement | null;
-
 	let omUrl: string;
-	let popup: maplibregl.Popup | undefined;
 
 	let url: URL;
 	let params: URLSearchParams;
 
-	let domain: Domain = $state({
-		value: 'meteoswiss_icon_ch1',
-		label: 'DWD ICON D2',
-		model_interval: 3
-	});
-	let variable: Variable = $state({ value: 'temperature_2m', label: 'Temperature 2m' });
+	let domain: Domain = $state(
+		domains.find((dm) => dm.value === import.meta.env.VITE_DOMAIN) ?? domains[0]
+	);
+	let variable: Variable = $state(
+		variables.find((v) => v.value === import.meta.env.VITE_VARIABLE) ?? variables[0]
+	);
 	let timeSelected = $state(new Date());
 	let modelRunSelected = $state(new Date());
-	let mapBounds: maplibregl.LngLatBounds = $state();
 
 	const TILE_SIZE = Number(import.meta.env.VITE_TILE_SIZE);
 
 	let checkSourceLoadedInterval: ReturnType<typeof setInterval>;
 	let checked = 0;
 
-	let loading = $state(false);
+	let map: maplibregl.Map;
+	let mapContainer: HTMLElement | null;
+	let popup: maplibregl.Popup | undefined;
+
+	let mapBounds: maplibregl.LngLatBounds | undefined = $state();
 	let omFileSource: maplibregl.RasterTileSource | undefined;
-	let hillshadeLayer: maplibregl.HillshadeLayerSpecification | undefined;
+
+	let latest: DomainMetaData | undefined = $state();
+	let loading = $state(false);
+	let showPopup = false;
 
 	const changeOMfileURL = () => {
 		if (map && omFileSource) {
@@ -287,7 +290,6 @@
 			}
 
 			mapBounds = map.getBounds();
-			timeSliderApi.setDisabled(true);
 
 			omUrl = getOMUrl();
 			omFileSource.setUrl('om://' + omUrl);
@@ -300,24 +302,18 @@
 						toast('Request timed out');
 					}
 					checked = 0;
-					timeSliderApi.setDisabled(false);
 					loading = false;
 					clearInterval(checkSourceLoadedInterval);
 				}
 			}, 50);
 		}
 	};
-
-	let latest = $state();
-
 	onMount(() => {
 		url = new URL(document.location.href);
 		params = new URLSearchParams(url.search);
 
 		if (params.get('domain')) {
 			domain = domains.find((dm) => dm.value === params.get('domain')) ?? domains[0];
-		} else {
-			domain = domains.find((dm) => dm.value === import.meta.env.VITE_DOMAIN) ?? domains[0];
 		}
 
 		let urlModelTime = params.get('model');
@@ -328,7 +324,7 @@
 			const hour = parseInt(urlModelTime.slice(11, 13));
 			const minute = parseInt(urlModelTime.slice(13, 15));
 			// Parse Date from UTC components (urlTime is in UTC)
-			modelRunSelected = new Date(Date.UTC(year, month, day, hour, minute, 0, 0));
+			modelRunSelected = new SvelteDate(Date.UTC(year, month, day, hour, minute, 0, 0));
 		} else {
 			modelRunSelected.setHours(0, 0, 0, 0); // Default to 12:00 local time
 		}
@@ -341,20 +337,14 @@
 			const hour = parseInt(urlTime.slice(11, 13));
 			const minute = parseInt(urlTime.slice(13, 15));
 			// Parse Date from UTC components (urlTime is in UTC)
-			timeSelected = new Date(Date.UTC(year, month, day, hour, minute, 0, 0));
+			timeSelected = new SvelteDate(Date.UTC(year, month, day, hour, minute, 0, 0));
 		} else {
 			timeSelected.setHours(12, 0, 0, 0); // Default to 12:00 local time
 		}
-		if (domain.time_interval > 1) {
-			const closestHour =
-				timeSelected.getUTCHours() - (timeSelected.getUTCHours() % domain.time_interval);
-			timeSelected.setUTCHours(closestHour + domain.time_interval);
-		}
+		checkClosestHourDomainInterval();
 
 		if (params.get('variable')) {
 			variable = variables.find((v) => v.value === params.get('variable')) ?? variables[0];
-		} else {
-			variable = variables.find((v) => v.value === import.meta.env.VITE_VARIABLE) ?? variables[0];
 		}
 
 		if (params.get('partial')) {
@@ -362,7 +352,6 @@
 		}
 	});
 
-	let showPopup = false;
 	onMount(() => {
 		maplibregl.addProtocol('om', omProtocol);
 
@@ -465,38 +454,28 @@
 					popup.setLngLat(coordinates).addTo(map);
 				}
 			});
-
-			timeSliderApi = createTimeSlider({
-				container: timeSliderContainer,
-				initialDate: timeSelected,
-				onChange: (newDate) => {
-					timeSelected = newDate;
-					url.searchParams.set('time', newDate.toISOString().replace(/[:Z]/g, '').slice(0, 15));
-					history.pushState({}, '', url);
-					changeOMfileURL();
-				},
-				domain: domain
-			});
 		});
 	});
+
 	onDestroy(() => {
 		if (map) {
 			map.remove();
 		}
-		if (timeSliderContainer) {
-			timeSliderContainer.innerHTML = ``;
-		}
 	});
 
 	const getOMUrl = () => {
-		return `https://map-tiles.open-meteo.com/data_spatial/${domain.value}/${modelRunSelected.getUTCFullYear()}/${pad(modelRunSelected.getUTCMonth() + 1)}/${pad(modelRunSelected.getUTCDate())}/${pad(modelRunSelected.getUTCHours())}00Z/${timeSelected.getUTCFullYear()}-${pad(timeSelected.getUTCMonth() + 1)}-${pad(timeSelected.getUTCDate())}T${pad(timeSelected.getUTCHours())}00.om?dark=${darkMode}&variable=${variable.value}&bounds=${mapBounds.getSouth()},${mapBounds.getWest()},${mapBounds.getNorth()},${mapBounds.getEast()}&partial=${partial}`;
+		if (mapBounds) {
+			return `https://map-tiles.open-meteo.com/data_spatial/${domain.value}/${modelRunSelected.getUTCFullYear()}/${pad(modelRunSelected.getUTCMonth() + 1)}/${pad(modelRunSelected.getUTCDate())}/${pad(modelRunSelected.getUTCHours())}00Z/${timeSelected.getUTCFullYear()}-${pad(timeSelected.getUTCMonth() + 1)}-${pad(timeSelected.getUTCDate())}T${pad(timeSelected.getUTCHours())}00.om?dark=${darkMode}&variable=${variable.value}&bounds=${mapBounds.getSouth()},${mapBounds.getWest()},${mapBounds.getNorth()},${mapBounds.getEast()}&partial=${partial}`;
+		} else {
+			return `https://map-tiles.open-meteo.com/data_spatial/${domain.value}/${modelRunSelected.getUTCFullYear()}/${pad(modelRunSelected.getUTCMonth() + 1)}/${pad(modelRunSelected.getUTCDate())}/${pad(modelRunSelected.getUTCHours())}00Z/${timeSelected.getUTCFullYear()}-${pad(timeSelected.getUTCMonth() + 1)}-${pad(timeSelected.getUTCDate())}T${pad(timeSelected.getUTCHours())}00.om?dark=${darkMode}&variable=${variable.value}&partial=${partial}`;
+		}
 	};
 
 	let colorScale = $derived.by(() => {
 		return getColorScale(variable);
 	});
 
-	const getDomainData = async (latest = true) => {
+	const getDomainData = async (latest = true): Promise<DomainMetaData> => {
 		return new Promise((resolve) => {
 			fetch(
 				`https://map-tiles.open-meteo.com/data_spatial/${domain.value}/${latest ? 'latest' : 'in-progress'}.json`
@@ -504,10 +483,10 @@
 				const json = await result.json();
 				if (latest) {
 					const referenceTime = json.reference_time;
-					modelRunSelected = new Date(referenceTime);
+					modelRunSelected = new SvelteDate(referenceTime);
 
-					if (modelRunSelected - timeSelected > 0) {
-						timeSelected = new Date(referenceTime);
+					if (modelRunSelected.getTime() - timeSelected.getTime() > 0) {
+						timeSelected = new SvelteDate(referenceTime);
 					}
 					if (!json.variables.includes(variable.value)) {
 						variable = variables.find((v) => v.value === json.variables[0]) ?? variables[0];
@@ -532,7 +511,7 @@
 			let returnArray = [
 				...Array(Math.round(referenceTime.getUTCHours() / domain.model_interval + 1))
 			].map((_, i) => {
-				let d = new Date();
+				let d = new SvelteDate();
 				d.setUTCHours(i * domain.model_interval, 0, 0, 0);
 				return d;
 			});
@@ -541,6 +520,17 @@
 			return [];
 		}
 	});
+
+	const checkClosestHourDomainInterval = () => {
+		if (domain.time_interval > 1) {
+			if (timeSelected.getUTCHours() % domain.time_interval > 0) {
+				const closestUTCHour =
+					timeSelected.getUTCHours() - (timeSelected.getUTCHours() % domain.time_interval);
+				timeSelected.setUTCHours(closestUTCHour + domain.time_interval);
+				url.searchParams.set('time', timeSelected.toISOString().replace(/[:Z]/g, '').slice(0, 15));
+			}
+		}
+	};
 </script>
 
 <svelte:head>
@@ -579,10 +569,35 @@
 		? 'pointer-events-none opacity-0'
 		: 'opacity-100'}"
 >
-	<div
-		bind:this={timeSliderContainer}
-		class="time-slider-container flex flex-col items-center gap-0"
-	></div>
+	<TimeSelector
+		bind:domain
+		bind:timeSelected
+		onDateChange={(e: Event | null, date: Date | undefined) => {
+			let newDate;
+			if (e) {
+				const target = e.target as HTMLInputElement;
+				const value = target?.value;
+				if (value.length < 3) {
+					newDate = new SvelteDate(timeSelected);
+					newDate.setHours(Number(value));
+				} else {
+					newDate = new SvelteDate(value);
+				}
+			} else {
+				newDate = new SvelteDate(date);
+			}
+
+			timeSelected = newDate;
+			url.searchParams.set('time', newDate.toISOString().replace(/[:Z]/g, '').slice(0, 15));
+			pushState(url + map._hash.getHashString(), {});
+
+			if (timeSelected.getUTCHours() % domain.time_interval > 0) {
+				toast('Timestep not in interval, maybe force reload page');
+			}
+			changeOMfileURL();
+		}}
+		disabled={loading}
+	/>
 </div>
 <div class="absolute">
 	<Sheet.Root bind:open={sheetOpen}>
@@ -601,16 +616,17 @@
 						{latestRequest}
 						{progressRequest}
 						{modelRunSelected}
-						domainChange={(value: string) => {
+						domainChange={async (value: string) => {
 							domain = domains.find((dm) => dm.value === value) ?? domains[0];
-							if (domain.time_interval > 1) {
-								const closestHour =
-									timeSelected.getUTCHours() - (timeSelected.getUTCHours() % domain.time_interval);
-								timeSelected.setUTCHours(closestHour + domain.time_interval);
-							}
+							checkClosestHourDomainInterval();
 							url.searchParams.set('domain', value);
+							url.searchParams.set(
+								'time',
+								timeSelected.toISOString().replace(/[:Z]/g, '').slice(0, 15)
+							);
 							pushState(url + map._hash.getHashString(), {});
 							toast('Domain set to: ' + domain.label);
+							latest = await getDomainData();
 							changeOMfileURL();
 						}}
 						modelRunChange={(mr: Date) => {

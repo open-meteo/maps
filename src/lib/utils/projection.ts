@@ -1,6 +1,6 @@
 import { degreesToRadians, radiansToDegrees } from './math';
 import type { Domain } from '$lib/types';
-import type { Range } from '$lib/types';
+import type { DimensionRange } from '$lib/types';
 
 export interface Projection {
 	forward(latitude: number, longitude: number): [x: number, y: number];
@@ -12,7 +12,7 @@ export class RotatedLatLonProjection implements Projection {
 	ϕ: number;
 	constructor(projectionData: Domain['grid']['projection']) {
 		if (projectionData) {
-			const rotation = projectionData.rotation;
+			const rotation = projectionData.rotation ?? [0, 0];
 			this.θ = degreesToRadians(90 + rotation[0]);
 			this.ϕ = degreesToRadians(rotation[1]);
 		} else {
@@ -71,30 +71,43 @@ export class LambertConformalConicProjection implements Projection {
 
 	R = 6370.997; // Radius of the Earth
 	constructor(projectionData: Domain['grid']['projection']) {
+		let λ0_dec;
+		let ϕ0_dec;
+		let ϕ1_dec;
+		let ϕ2_dec;
+		let radius;
+
 		if (projectionData) {
-			const λ0_dec = projectionData.λ0;
-			const ϕ0_dec = projectionData.ϕ0;
-			const ϕ1_dec = projectionData.ϕ1;
-			const ϕ2_dec = projectionData.ϕ2;
-			const radius = projectionData.radius;
-			this.λ0 = degreesToRadians(((λ0_dec + 180) % 360) - 180);
-			const ϕ0 = degreesToRadians(ϕ0_dec);
-			const ϕ1 = degreesToRadians(ϕ1_dec);
-			const ϕ2 = degreesToRadians(ϕ2_dec);
+			λ0_dec = projectionData.λ0;
+			ϕ0_dec = projectionData.ϕ0;
+			ϕ1_dec = projectionData.ϕ1;
+			ϕ2_dec = projectionData.ϕ2;
+			radius = projectionData.radius;
+		} else {
+			λ0_dec = 0;
+			ϕ0_dec = 0;
+			ϕ1_dec = 0;
+			ϕ2_dec = 0;
+			radius = 0;
+		}
 
-			if (ϕ1 == ϕ2) {
-				this.n = Math.sin(ϕ1);
-			} else {
-				this.n =
-					Math.log(Math.cos(ϕ1) / Math.cos(ϕ2)) /
-					Math.log(Math.tan(Math.PI / 4 + ϕ2 / 2) / Math.tan(Math.PI / 4 + ϕ1 / 2));
-			}
-			this.F = (Math.cos(ϕ1) * Math.pow(Math.tan(Math.PI / 4 + ϕ1 / 2), this.n)) / this.n;
-			this.ρ0 = this.F / Math.pow(Math.tan(Math.PI / 4 + ϕ0 / 2), this.n);
+		this.λ0 = degreesToRadians((((λ0_dec as number) + 180) % 360) - 180);
+		const ϕ0 = degreesToRadians(ϕ0_dec as number);
+		const ϕ1 = degreesToRadians(ϕ1_dec as number);
+		const ϕ2 = degreesToRadians(ϕ2_dec as number);
 
-			if (radius) {
-				this.R = radius;
-			}
+		if (ϕ1 == ϕ2) {
+			this.n = Math.sin(ϕ1);
+		} else {
+			this.n =
+				Math.log(Math.cos(ϕ1) / Math.cos(ϕ2)) /
+				Math.log(Math.tan(Math.PI / 4 + ϕ2 / 2) / Math.tan(Math.PI / 4 + ϕ1 / 2));
+		}
+		this.F = (Math.cos(ϕ1) * Math.pow(Math.tan(Math.PI / 4 + ϕ1 / 2), this.n)) / this.n;
+		this.ρ0 = this.F / Math.pow(Math.tan(Math.PI / 4 + ϕ0 / 2), this.n);
+
+		if (radius) {
+			this.R = radius;
 		}
 	}
 
@@ -137,8 +150,8 @@ export class LambertAzimuthalEqualAreaProjection implements Projection {
 	R = 6371229; // Radius of the Earth
 	constructor(projectionData: Domain['grid']['projection']) {
 		if (projectionData) {
-			const λ0_dec = projectionData.λ0;
-			const ϕ1_dec = projectionData.ϕ1;
+			const λ0_dec = projectionData.λ0 as number;
+			const ϕ1_dec = projectionData.ϕ1 as number;
 			const radius = projectionData.radius;
 			this.λ0 = degreesToRadians(λ0_dec);
 			this.ϕ1 = degreesToRadians(ϕ1_dec);
@@ -212,21 +225,21 @@ export class StereograpicProjection implements Projection {
 	}
 
 	forward(latitude: number, longitude: number): [x: number, y: number] {
-		let ϕ = degreesToRadians(latitude);
-		let λ = degreesToRadians(longitude);
-		let k =
+		const ϕ = degreesToRadians(latitude);
+		const λ = degreesToRadians(longitude);
+		const k =
 			(2 * this.R) /
 			(1 + this.sinϕ1 * Math.sin(ϕ) + this.cosϕ1 * Math.cos(ϕ) * Math.cos(λ - this.λ0));
-		let x = k * Math.cos(ϕ) * Math.sin(λ - this.λ0);
-		let y = k * (this.cosϕ1 * Math.sin(ϕ) - this.sinϕ1 * Math.cos(ϕ) * Math.cos(λ - this.λ0));
+		const x = k * Math.cos(ϕ) * Math.sin(λ - this.λ0);
+		const y = k * (this.cosϕ1 * Math.sin(ϕ) - this.sinϕ1 * Math.cos(ϕ) * Math.cos(λ - this.λ0));
 		return [x, y];
 	}
 
 	reverse(x: number, y: number): [latitude: number, longitude: number] {
-		let p = Math.sqrt(x * x + y * y);
-		let c = 2 * Math.atan2(p, 2 * this.R);
-		let ϕ = Math.asin(Math.cos(c) * this.sinϕ1 + (y * Math.sin(c) * this.cosϕ1) / p);
-		let λ =
+		const p = Math.sqrt(x * x + y * y);
+		const c = 2 * Math.atan2(p, 2 * this.R);
+		const ϕ = Math.asin(Math.cos(c) * this.sinϕ1 + (y * Math.sin(c) * this.cosϕ1) / p);
+		const λ =
 			this.λ0 +
 			Math.atan2(x * Math.sin(c), p * this.cosϕ1 * Math.cos(c) - y * this.sinϕ1 * Math.sin(c));
 		return [radiansToDegrees(ϕ), radiansToDegrees(λ)];
@@ -253,12 +266,12 @@ export class ProjectionGrid {
 	origin;
 	dx; //meters
 	dy; //meters
-	range;
+	ranges;
 
 	constructor(
 		projection: Projection,
 		grid: Domain['grid'],
-		ranges: Range[] = [
+		ranges: DimensionRange[] = [
 			{ start: 0, end: grid.ny },
 			{ start: 0, end: grid.nx }
 		]
@@ -272,7 +285,7 @@ export class ProjectionGrid {
 
 		this.nx = grid.nx;
 		this.ny = grid.ny;
-		if (latitude && Array === latitude.constructor) {
+		if (latitude && Array === latitude.constructor && Array === longitude.constructor) {
 			const sw = projection.forward(latitude[0], longitude[0]);
 			const ne = projection.forward(latitude[1], longitude[1]);
 			this.origin = sw;
