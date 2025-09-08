@@ -83,7 +83,6 @@ export const colorScales: ColorScales = {
 		interpolationMethod: 'linear',
 		unit: 'm'
 	},
-
 	cloud_cover: {
 		min: 0,
 		max: 100,
@@ -216,6 +215,7 @@ export function getColorScale(variable: Variable) {
 	return (
 		colorScales[variable.value] ??
 		colorScales[variable.value.split('_')[0]] ??
+		colorScales[variable.value.split('_')[0] + '_' + variable.value.split('_')[1]] ??
 		colorScales['temperature']
 	);
 }
