@@ -17,7 +17,7 @@
 	import { domains } from '$lib/utils/domains';
 	import { hideZero, variables } from '$lib/utils/variables';
 
-	import type { Variable, Domain } from '$lib/types';
+	import type { Variable, Domain, DomainMetaData } from '$lib/types';
 
 	import * as Sheet from '$lib/components/ui/sheet';
 	import * as Drawer from '$lib/components/ui/drawer';
@@ -39,7 +39,6 @@
 	import { SvelteDate } from 'svelte/reactivity';
 
 	let darkMode = $derived(mode.current);
-	let timeSliderContainer: HTMLElement;
 
 	const addHillshadeLayer = () => {
 		map.setSky({
@@ -251,33 +250,35 @@
 		onRemove() {}
 	}
 
-	let map: maplibregl.Map;
-	let mapContainer: HTMLElement | null;
-
 	let omUrl: string;
-	let popup: maplibregl.Popup | undefined;
 
 	let url: URL;
 	let params: URLSearchParams;
 
-	let domain: Domain = $state({
-		value: 'meteoswiss_icon_ch1',
-		label: 'DWD ICON D2',
-		model_interval: 3
-	});
-	let variable: Variable = $state({ value: 'temperature_2m', label: 'Temperature 2m' });
+	let domain: Domain = $state(
+		domains.find((dm) => dm.value === import.meta.env.VITE_DOMAIN) ?? domains[0]
+	);
+	let variable: Variable = $state(
+		variables.find((v) => v.value === import.meta.env.VITE_VARIABLE) ?? variables[0]
+	);
 	let timeSelected = $state(new Date());
 	let modelRunSelected = $state(new Date());
-	let mapBounds: maplibregl.LngLatBounds = $state();
 
 	const TILE_SIZE = Number(import.meta.env.VITE_TILE_SIZE);
 
 	let checkSourceLoadedInterval: ReturnType<typeof setInterval>;
 	let checked = 0;
 
-	let loading = $state(false);
+	let map: maplibregl.Map;
+	let mapContainer: HTMLElement | null;
+	let popup: maplibregl.Popup | undefined;
+
+	let mapBounds: maplibregl.LngLatBounds | undefined = $state();
 	let omFileSource: maplibregl.RasterTileSource | undefined;
-	let hillshadeLayer: maplibregl.HillshadeLayerSpecification | undefined;
+
+	let latest: DomainMetaData | undefined = $state();
+	let loading = $state(false);
+	let showPopup = false;
 
 	const changeOMfileURL = () => {
 		if (map && omFileSource) {
@@ -305,17 +306,12 @@
 			}, 50);
 		}
 	};
-
-	let latest = $state();
-
 	onMount(() => {
 		url = new URL(document.location.href);
 		params = new URLSearchParams(url.search);
 
 		if (params.get('domain')) {
 			domain = domains.find((dm) => dm.value === params.get('domain')) ?? domains[0];
-		} else {
-			domain = domains.find((dm) => dm.value === import.meta.env.VITE_DOMAIN) ?? domains[0];
 		}
 
 		let urlModelTime = params.get('model');
@@ -326,7 +322,7 @@
 			const hour = parseInt(urlModelTime.slice(11, 13));
 			const minute = parseInt(urlModelTime.slice(13, 15));
 			// Parse Date from UTC components (urlTime is in UTC)
-			modelRunSelected = new Date(Date.UTC(year, month, day, hour, minute, 0, 0));
+			modelRunSelected = new SvelteDate(Date.UTC(year, month, day, hour, minute, 0, 0));
 		} else {
 			modelRunSelected.setHours(0, 0, 0, 0); // Default to 12:00 local time
 		}
@@ -339,20 +335,14 @@
 			const hour = parseInt(urlTime.slice(11, 13));
 			const minute = parseInt(urlTime.slice(13, 15));
 			// Parse Date from UTC components (urlTime is in UTC)
-			timeSelected = new Date(Date.UTC(year, month, day, hour, minute, 0, 0));
+			timeSelected = new SvelteDate(Date.UTC(year, month, day, hour, minute, 0, 0));
 		} else {
 			timeSelected.setHours(12, 0, 0, 0); // Default to 12:00 local time
 		}
-		if (domain.time_interval > 1) {
-			const closestHour =
-				timeSelected.getUTCHours() - (timeSelected.getUTCHours() % domain.time_interval);
-			timeSelected.setUTCHours(closestHour + domain.time_interval);
-		}
+		checkClosestHourDomainInterval();
 
 		if (params.get('variable')) {
 			variable = variables.find((v) => v.value === params.get('variable')) ?? variables[0];
-		} else {
-			variable = variables.find((v) => v.value === import.meta.env.VITE_VARIABLE) ?? variables[0];
 		}
 
 		if (params.get('partial')) {
@@ -360,7 +350,6 @@
 		}
 	});
 
-	let showPopup = false;
 	onMount(() => {
 		maplibregl.addProtocol('om', omProtocol);
 
@@ -463,26 +452,12 @@
 					popup.setLngLat(coordinates).addTo(map);
 				}
 			});
-
-			// timeSliderApi = createTimeSlider({
-			// 	container: timeSliderContainer,
-			// 	initialDate: timeSelected,
-			// 	onChange: (newDate) => {
-			// 		timeSelected = newDate;
-			// 		url.searchParams.set('time', newDate.toISOString().replace(/[:Z]/g, '').slice(0, 15));
-			// 		history.pushState({}, '', url);
-			// 		changeOMfileURL();
-			// 	},
-			// 	domain: domain
-			// });
 		});
 	});
+
 	onDestroy(() => {
 		if (map) {
 			map.remove();
-		}
-		if (timeSliderContainer) {
-			timeSliderContainer.innerHTML = ``;
 		}
 	});
 
@@ -539,6 +514,17 @@
 			return [];
 		}
 	});
+
+	const checkClosestHourDomainInterval = () => {
+		if (domain.time_interval > 1) {
+			if (timeSelected.getUTCHours() % domain.time_interval > 0) {
+				const closestUTCHour =
+					timeSelected.getUTCHours() - (timeSelected.getUTCHours() % domain.time_interval);
+				timeSelected.setUTCHours(closestUTCHour + domain.time_interval);
+				url.searchParams.set('time', timeSelected.toISOString().replace(/[:Z]/g, '').slice(0, 15));
+			}
+		}
+	};
 </script>
 
 <svelte:head>
@@ -580,20 +566,31 @@
 	<TimeSelector
 		bind:domain
 		bind:timeSelected
-		onDateChange={(e: InputEvent) => {
-			const value = e.target?.value;
+		onDateChange={(e: InputEvent | null, date: Date) => {
 			let newDate;
-			if (value.length < 3) {
-				newDate = new SvelteDate(timeSelected);
-				newDate.setHours(value);
+			if (e) {
+				const target = e.target as HTMLInputElement;
+				const value = target?.value;
+				if (value.length < 3) {
+					newDate = new SvelteDate(timeSelected);
+					newDate.setHours(Number(value));
+				} else {
+					newDate = new SvelteDate(value);
+				}
 			} else {
-				newDate = new SvelteDate(value);
+				newDate = new SvelteDate(date);
 			}
+
 			timeSelected = newDate;
 			url.searchParams.set('time', newDate.toISOString().replace(/[:Z]/g, '').slice(0, 15));
-			history.pushState({}, '', url);
+			pushState(url + map._hash.getHashString(), {});
+
+			if (timeSelected.getUTCHours() % domain.time_interval > 0) {
+				toast('Timestep not in interval');
+			}
 			changeOMfileURL();
 		}}
+		disabled={loading}
 	/>
 </div>
 <div class="absolute">
@@ -613,16 +610,17 @@
 						{latestRequest}
 						{progressRequest}
 						{modelRunSelected}
-						domainChange={(value: string) => {
+						domainChange={async (value: string) => {
 							domain = domains.find((dm) => dm.value === value) ?? domains[0];
-							if (domain.time_interval > 1) {
-								const closestHour =
-									timeSelected.getUTCHours() - (timeSelected.getUTCHours() % domain.time_interval);
-								timeSelected.setUTCHours(closestHour + domain.time_interval);
-							}
+							checkClosestHourDomainInterval();
 							url.searchParams.set('domain', value);
+							url.searchParams.set(
+								'time',
+								timeSelected.toISOString().replace(/[:Z]/g, '').slice(0, 15)
+							);
 							pushState(url + map._hash.getHashString(), {});
 							toast('Domain set to: ' + domain.label);
+							latest = await getDomainData();
 							changeOMfileURL();
 						}}
 						modelRunChange={(mr: Date) => {
