@@ -186,6 +186,28 @@ const renderTile = async (url: string) => {
 	return tile;
 };
 
+const renderLines = async (url: string) => {
+	// Read URL parameters
+	const re = new RegExp(/om:\/\/(.+)\/(\d+)\/(\d+)\/(\d+)/);
+	const result = url.match(re);
+	if (!result) {
+		throw new Error(`Invalid OM protocol URL '${url}'`);
+	}
+	const urlParts = result[1].split('#');
+	const omUrl = urlParts[0];
+
+	const z = parseInt(result[2]);
+	const x = parseInt(result[3]);
+	const y = parseInt(result[4]);
+
+	// Read OM data
+	// const tile = await getTile({ z, x, y }, omUrl);
+
+	let exampleString = ``;
+
+	return [exampleString];
+};
+
 const getTilejson = async (fullUrl: string): Promise<TileJSON> => {
 	let bounds: Bounds;
 	if (domain.grid.projection) {
@@ -274,6 +296,7 @@ const initOMFile = (url: string): Promise<void> => {
 export const omProtocol = async (
 	params: RequestParameters
 ): Promise<GetResourceResponse<TileJSON | ImageBitmap>> => {
+	console.log(params);
 	if (params.type == 'json') {
 		try {
 			await initOMFile(params.url);
@@ -286,6 +309,10 @@ export const omProtocol = async (
 	} else if (params.type == 'image') {
 		return {
 			data: await renderTile(params.url)
+		};
+	} else if (params.type == 'arrayBuffer') {
+		return {
+			data: await renderLines(params.url)
 		};
 	} else {
 		throw new Error(`Unsupported request type '${params.type}'`);

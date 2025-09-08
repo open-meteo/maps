@@ -113,17 +113,17 @@
 			'waterway-tunnel'
 		);
 
-		// map.addSource('omFileVectorSource', {
-		// 	url: 'om://' + omUrl,
-		// 	type: 'vector'
-		// });
+		map.addSource('omFileVectorSource', {
+			url: 'om://' + omUrl,
+			type: 'vector'
+		});
 
-		// map.addLayer({
-		// 	id: 'omFileVectorLayer',
-		// 	type: 'line',
-		// 	source: 'omFileVectorSource',
-		// 	'source-layer': 'contours'
-		// });
+		map.addLayer({
+			id: 'omFileVectorLayer',
+			type: 'line',
+			source: 'omFileVectorSource',
+			'source-layer': 'contours'
+		});
 	};
 
 	class SettingsButton {
