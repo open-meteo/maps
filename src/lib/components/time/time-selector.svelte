@@ -14,7 +14,7 @@
 	interface Props {
 		domain: Domain;
 		timeSelected: Date;
-		onDateChange: (e: Event | null, date?: Date) => void;
+		onDateChange: (date: Date) => void;
 		disabled: boolean;
 	}
 
@@ -30,35 +30,46 @@
 
 	const resolution = $derived(domain.time_interval);
 
-	const formatSliderLabel = (date: Date) => {
-		return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:00`;
+	const previousHour = () => {
+		const date = new SvelteDate(timeSelected);
+		date.setHours(currentHour - resolution);
+		onDateChange(date);
 	};
 
-	const formatDateInputValue = (date: Date) => {
-		return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+	const nextHour = () => {
+		const date = new SvelteDate(timeSelected);
+		date.setHours(currentHour + resolution);
+		onDateChange(date);
+	};
+
+	const previousDay = () => {
+		const date = new SvelteDate(timeSelected);
+		date.setDate(date.getDate() - 1);
+		date.setHours(currentHour);
+		onDateChange(date);
+	};
+
+	const nextDay = () => {
+		const date = new SvelteDate(timeSelected);
+		date.setDate(date.getDate() + 1);
+		date.setHours(currentHour);
+		onDateChange(date);
 	};
 
 	const keydownEvent = (event: KeyboardEvent) => {
 		if (!disabled) {
-			const d = new SvelteDate(timeSelected);
 			switch (event.key) {
 				case 'ArrowLeft':
-					d.setHours(currentHour - resolution);
-					onDateChange(null, d);
+					previousHour();
 					break;
 				case 'ArrowRight':
-					d.setHours(currentHour + resolution);
-					onDateChange(null, d);
-					break;
-				case 'ArrowUp':
-					d.setDate(d.getDate() + 1);
-					d.setHours(currentHour);
-					onDateChange(null, d);
+					nextHour();
 					break;
 				case 'ArrowDown':
-					d.setDate(d.getDate() - 1);
-					d.setHours(currentHour);
-					onDateChange(null, d);
+					previousDay();
+					break;
+				case 'ArrowUp':
+					nextDay();
 					break;
 			}
 		} else {
@@ -84,11 +95,12 @@
 		<div style="display:flex; gap: 0.5em; justify-items: center; align-items: center;">
 			<button
 				id="prev_hour"
-				class="rounded border bg-white px-2.5 py-2 duration-200 dark:bg-[#646464cc] {disabled
+				class="cursor-pointer rounded border bg-white px-2.5 py-2 delay-75 duration-200 dark:bg-[#646464cc] {disabled
 					? 'border-foreground/50  text-black/50 dark:text-white/50 '
 					: ' border-foreground/75 text-black  dark:text-white'}"
 				type="button"
 				aria-label="Previous hour"
+				onclick={previousHour}
 				><svg
 					xmlns="http://www.w3.org/2000/svg"
 					width="22"
@@ -103,19 +115,33 @@
 					><path d="m15 18-6-6 6-6" /></svg
 				></button
 			>
-			<span
-				class="min-w-[155px] text-center whitespace-nowrap duration-200 {disabled
-					? ' text-black/50 dark:text-white/50 '
-					: ' text-black  dark:text-white'}"
-				id="slider_time_label">{formatSliderLabel(currentDate)}</span
-			>
+			<div class="-mt-0.5 flex flex-col items-center">
+				<span
+					class="min-w-[155px] text-center whitespace-nowrap delay-75 duration-200 {disabled
+						? ' text-black/50 dark:text-white/50 '
+						: ' text-black  dark:text-white'}"
+					id="slider_time_label"
+					>{`${currentDate.getFullYear()}-${pad(currentDate.getMonth() + 1)}-${pad(currentDate.getDate())}T${pad(currentDate.getHours())}:00`}</span
+				>
+				<span
+					class="text-xs delay-75 duration-200 {disabled
+						? ' text-black/50 dark:text-white/50 '
+						: ' text-black  dark:text-white'}"
+				>
+					{Intl.DateTimeFormat().resolvedOptions().timeZone} ({currentDate.getTimezoneOffset() < 0
+						? '+'
+						: '-'}{-currentDate.getTimezoneOffset() / 60}:00)
+				</span>
+			</div>
+
 			<button
 				id="next_hour"
-				class="rounded border bg-white px-2.5 py-2 duration-200 dark:bg-[#646464cc] {disabled
+				class="cursor-pointer rounded border bg-white px-2.5 py-2 delay-75 duration-200 dark:bg-[#646464cc] {disabled
 					? 'border-foreground/50  text-black/50 dark:text-white/50 '
 					: ' border-foreground/75 text-black  dark:text-white'}"
 				type="button"
 				aria-label="Next hour"
+				onclick={nextHour}
 				><svg
 					xmlns="http://www.w3.org/2000/svg"
 					width="22"
@@ -133,7 +159,7 @@
 		</div>
 		<input
 			id="time_slider"
-			class="w-full"
+			class="w-full delay-75 duration-200"
 			type="range"
 			min="0"
 			max="24"
@@ -147,17 +173,28 @@
 				newDate.setHours(Number(value));
 				currentDate = newDate;
 			}}
-			onchange={(e) => onDateChange(e)}
+			onchange={(e) => {
+				const target = e.target as HTMLInputElement;
+				const value = target?.value;
+				const date = new SvelteDate(timeSelected);
+				date.setHours(Number(value));
+				onDateChange(date);
+			}}
 		/>
 		<input
 			type="date"
 			id="date_picker"
-			class="date-time-selection {disabled
+			class="date-time-selection rounded bg-white delay-75 duration-200 dark:bg-[#646464cc] {disabled
 				? 'border-foreground/50  text-black/50 dark:text-white/50 '
 				: ' border-foreground/75 text-black  dark:text-white'}"
 			{disabled}
-			value={formatDateInputValue(currentDate)}
-			oninput={(e) => onDateChange(e)}
+			value={`${currentDate.getFullYear()}-${pad(currentDate.getMonth() + 1)}-${pad(currentDate.getDate())}`}
+			oninput={(e) => {
+				const target = e.target as HTMLInputElement;
+				const value = target?.value;
+				const date = new SvelteDate(value);
+				onDateChange(date);
+			}}
 		/>
 	</div>
 </div>
