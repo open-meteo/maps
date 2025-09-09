@@ -9,23 +9,17 @@ import {
 	tile2lon,
 	rotatePoint,
 	degreesToRadians,
-	getIndexFromLatLong
+	getIndexAndFractions
 } from '$lib/utils/math';
 
-import { getColorScale, getInterpolator } from '$lib/utils/color-scales';
+import { getColor, getColorScale, getInterpolator, getOpacity } from '$lib/utils/color-scales';
 
-import type {
-	Domain,
-	Variable,
-	ColorScale,
-	Interpolator,
-	DimensionRange,
-	IndexAndFractions
-} from '$lib/types';
+import type { Domain, Variable, Interpolator, DimensionRange } from '$lib/types';
 
 import type { IconListPixels } from '$lib/utils/icons';
 
 import type { TypedArray } from '@openmeteo/file-reader';
+import { marchingSquares } from '$lib/utils/march';
 
 const TILE_SIZE = Number(import.meta.env.VITE_TILE_SIZE) * 2;
 const OPACITY = Number(import.meta.env.VITE_TILE_OPACITY);
@@ -108,88 +102,6 @@ const drawArrow = (
 		}
 	}
 };
-
-const getColor = (colorScale: ColorScale, px: number): number[] => {
-	return colorScale.colors[
-		Math.min(
-			colorScale.colors.length - 1,
-			Math.max(0, Math.floor((px - colorScale.min) * colorScale.scalefactor))
-		)
-	];
-};
-
-const getOpacity = (v: string, px: number, dark: boolean): number => {
-	if (v == 'cloud_cover' || v == 'thunderstorm_probability') {
-		// scale opacity with percentage
-		return 255 * (px ** 1.5 / 1000) * (OPACITY / 100);
-	} else if (v.startsWith('cloud_base')) {
-		// scale cloud base to 20900m
-		return Math.min(1 - px / 20900, 1) * 255 * (OPACITY / 100);
-	} else if (v.startsWith('precipitation')) {
-		// scale opacity with precip values below 1.5mm
-		return Math.min(px / 1.5, 1) * 255 * (OPACITY / 100);
-	} else if (v.startsWith('wind')) {
-		// scale opacity with wind values below 14kn
-		return Math.min((px - 2) / 12, 1) * 255 * (OPACITY / 100);
-	} else {
-		// else set the opacity with env variable and deduct 20% for darkmode
-		return 255 * (dark ? OPACITY / 100 - 0.2 : OPACITY / 100);
-	}
-};
-
-const getIndexAndFractions = (
-	lat: number,
-	lon: number,
-	domain: Domain,
-	projectionGrid: ProjectionGrid | null,
-	ranges = [
-		{ start: 0, end: domain.grid.ny },
-		{ start: 0, end: domain.grid.nx }
-	]
-) => {
-	let indexObject: IndexAndFractions;
-	if (domain.grid.projection && projectionGrid) {
-		indexObject = projectionGrid.findPointInterpolated(lat, lon, ranges);
-	} else {
-		indexObject = getIndexFromLatLong(lat, lon, domain, ranges);
-	}
-
-	return (
-		indexObject ?? {
-			index: NaN,
-			xFraction: 0,
-			yFraction: 0
-		}
-	);
-};
-
-// Rectangle coords (lon,lat)
-const rectCoords: [number, number][] = [
-	[3, 51.5],
-	[3, 54],
-	[0, 54],
-	[0, 51.5],
-	[3, 51.5]
-];
-
-// writer for VectorTileLayer
-function writeLayer(layer: any, pbf: Pbf) {
-	// name
-	pbf.writeStringField(1, layer.name);
-	// features
-	layer.features.forEach((feat: any) => {
-		pbf.writeMessage(2, writeFeature, feat);
-	});
-	// extent
-	pbf.writeVarintField(5, layer.extent);
-}
-
-// writer for VectorTileFeature
-function writeFeature(feat: any, pbf: Pbf) {
-	pbf.writeVarintField(1, feat.id); // id
-	pbf.writeVarintField(3, feat.type); // type (2 = LineString)
-	pbf.writePackedVarint(4, feat.geom); // geometry
-}
 
 self.onmessage = async (message) => {
 	if (message.data.type == 'getImage') {
@@ -328,68 +240,114 @@ self.onmessage = async (message) => {
 			projectionGrid = new ProjectionGrid(projection, domain.grid, ranges);
 		}
 
-		console.log(z, y, x);
+		const colorScale = getColorScale(message.data.variable);
+		const interpolator = getInterpolator(colorScale);
 
 		const extent = 4096;
-		const layerName = 'rect_layer';
+		const layerName = 'contours';
 
-		// Encode geometry commands per MVT spec
-		function encodeCommand(id: number, count: number) {
-			return (count << 3) | id;
-		}
-		function zigZag(n: number) {
-			return (n << 1) ^ (n >> 31);
-		}
+		// let coords = [];
+		// for (let i = 0; i < extent; i++) {
+		// 	const lat = tile2lat(y + i / extent, z);
+		// 	for (let j = 0; j < extent; j++) {
+		// 		const ind = j + i * extent;
+		// 		const lon = tile2lon(x + j / extent, z);
 
-		// Quick projection: lon/lat → extent (not perfect WebMercator, but enough for demo)
-		function project([lon, lat]: [number, number]): [number, number] {
-			const x = Math.floor(((lon + 180) / 360) * extent);
-			const y = Math.floor(
-				((1 -
-					Math.log(Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)) /
-						Math.PI) /
-					2) *
-					extent
-			);
-			return [x, y];
-		}
+		// 		const { index, xFraction, yFraction } = getIndexAndFractions(
+		// 			lat,
+		// 			lon,
+		// 			domain,
+		// 			projectionGrid,
+		// 			ranges
+		// 		);
 
-		const coords = rectCoords.map(project);
+		// 		const px = interpolator(
+		// 			values,
+		// 			ranges[1]['end'] - ranges[1]['start'],
+		// 			index,
+		// 			xFraction,
+		// 			yFraction
+		// 		);
+
+		// 		if (px > 1014.99999 && px < 1015.00001) {
+		// 			coords.push([j, i]);
+		// 		}
+		// 	}
+		// }
+
+		const level = 1015;
+		const coords = marchingSquares(values, level, x, y, z, domain, projectionGrid, ranges);
+
+		console.log(coords);
+
+		const pbf = new Pbf();
 
 		const geom: number[] = [];
 		let cursor: [number, number] = [0, 0];
 
-		// MoveTo first point
-		const [x0, y0] = coords[0];
-		geom.push(encodeCommand(1, 1)); // MoveTo
-		geom.push(zigZag(x0 - cursor[0]));
-		geom.push(zigZag(y0 - cursor[1]));
-		cursor = [x0, y0];
+		if (coords) {
+			// MoveTo first point
+			const [x0, y0] = coords[0] ? [coords[0][0], coords[0][1]] : [0, 0];
+			geom.push(encodeCommand(1, 1)); // MoveTo
+			geom.push(zigZag(x0 - cursor[0]));
+			geom.push(zigZag(y0 - cursor[1]));
+			cursor = [x0, y0];
 
-		// LineTo rest
-		geom.push(encodeCommand(2, coords.length - 1));
-		for (let i = 1; i < coords.length; i++) {
-			const [xi, yi] = coords[i];
-			geom.push(zigZag(xi - cursor[0]));
-			geom.push(zigZag(yi - cursor[1]));
-			cursor = [xi, yi];
+			// LineTo rest
+			for (let i = 1; i < coords.length; i++) {
+				const [xi1, yi1] = [coords[i][0], coords[i][1]];
+				const [xi2, yi2] = [coords[i][2], coords[i][3]];
+				geom.push(encodeCommand(1, 1)); // MoveTo
+				geom.push(zigZag(xi1 - cursor[0]));
+				geom.push(zigZag(yi1 - cursor[1]));
+				cursor = [xi1, yi1];
+				geom.push(encodeCommand(2, 1));
+				geom.push(zigZag(xi2 - cursor[0]));
+				geom.push(zigZag(yi2 - cursor[1]));
+				cursor = [xi2, yi2];
+			}
+
+			// write Layer
+			pbf.writeMessage(3, writeLayer, {
+				name: layerName,
+				extent,
+				features: [
+					{
+						id: 1,
+						type: 2, // 2 = LineString
+						geom
+					}
+				]
+			});
 		}
-
-		const pbf = new Pbf();
-
-		// write Layer
-		pbf.writeMessage(3, writeLayer, {
-			name: layerName,
-			extent,
-			features: [
-				{
-					id: 1,
-					type: 2, // 2 = LineString
-					geom
-				}
-			]
-		});
 
 		postMessage({ type: 'returnArrayBuffer', tile: pbf.finish(), key: key });
 	}
 };
+
+// writer for VectorTileLayer
+function writeLayer(layer: any, pbf: Pbf) {
+	// name
+	pbf.writeStringField(1, layer.name);
+	// features
+	layer.features.forEach((feat: any) => {
+		pbf.writeMessage(2, writeFeature, feat);
+	});
+	// extent
+	pbf.writeVarintField(5, layer.extent);
+}
+
+// writer for VectorTileFeature
+function writeFeature(feat: any, pbf: Pbf) {
+	pbf.writeVarintField(1, feat.id); // id
+	pbf.writeVarintField(3, feat.type); // type (2 = LineString)
+	pbf.writePackedVarint(4, feat.geom); // geometry
+}
+
+// Encode geometry commands per MVT spec
+function encodeCommand(id: number, count: number) {
+	return (count << 3) | id;
+}
+function zigZag(n: number) {
+	return (n << 1) ^ (n >> 31);
+}

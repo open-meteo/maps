@@ -122,9 +122,9 @@
 			id: 'omFileVectorLayer',
 			type: 'line',
 			source: 'omFileVectorSource',
-			'source-layer': 'rect_layer',
+			'source-layer': 'contours',
 			paint: {
-				'line-color': 'red',
+				'line-color': 'blue',
 				'line-width': 2
 			}
 		});

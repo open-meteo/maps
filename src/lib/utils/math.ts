@@ -243,3 +243,29 @@ export const rotatePoint = (cx: number, cy: number, theta: number, x: number, y:
 
 	return [xt, yt];
 };
+
+export const getIndexAndFractions = (
+	lat: number,
+	lon: number,
+	domain: Domain,
+	projectionGrid: ProjectionGrid | null,
+	ranges = [
+		{ start: 0, end: domain.grid.ny },
+		{ start: 0, end: domain.grid.nx }
+	]
+) => {
+	let indexObject: IndexAndFractions;
+	if (domain.grid.projection && projectionGrid) {
+		indexObject = projectionGrid.findPointInterpolated(lat, lon, ranges);
+	} else {
+		indexObject = getIndexFromLatLong(lat, lon, domain, ranges);
+	}
+
+	return (
+		indexObject ?? {
+			index: NaN,
+			xFraction: 0,
+			yFraction: 0
+		}
+	);
+};
