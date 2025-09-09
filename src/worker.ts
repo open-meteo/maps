@@ -2,8 +2,6 @@ import { hideZero, drawOnTiles } from '$lib/utils/variables';
 
 import { DynamicProjection, ProjectionGrid, type Projection } from '$lib/utils/projection';
 
-import { VectorTile } from '@mapbox/vector-tile';
-
 import Pbf from 'pbf';
 
 import {
@@ -194,7 +192,7 @@ function writeFeature(feat: any, pbf: Pbf) {
 }
 
 self.onmessage = async (message) => {
-	if (message.data.type == 'GT') {
+	if (message.data.type == 'getImage') {
 		const key = message.data.key;
 		const x = message.data.x;
 		const y = message.data.y;
@@ -306,8 +304,8 @@ self.onmessage = async (message) => {
 
 		const tile = await createImageBitmap(new ImageData(rgba, TILE_SIZE, TILE_SIZE));
 
-		postMessage({ type: 'RT', tile: tile, key: key });
-	} else if (message.data.type == 'GP') {
+		postMessage({ type: 'returnImage', tile: tile, key: key });
+	} else if (message.data.type == 'getArrayBuffer') {
 		const key = message.data.key;
 		const x = message.data.x;
 		const y = message.data.y;
@@ -329,6 +327,8 @@ self.onmessage = async (message) => {
 			) as Projection;
 			projectionGrid = new ProjectionGrid(projection, domain.grid, ranges);
 		}
+
+		console.log(z, y, x);
 
 		const extent = 4096;
 		const layerName = 'rect_layer';
@@ -390,6 +390,6 @@ self.onmessage = async (message) => {
 			]
 		});
 
-		postMessage({ type: 'RP', tile: pbf.finish(), key: key });
+		postMessage({ type: 'returnArrayBuffer', tile: pbf.finish(), key: key });
 	}
 };
