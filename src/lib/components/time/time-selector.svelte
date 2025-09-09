@@ -115,13 +115,25 @@
 					><path d="m15 18-6-6 6-6" /></svg
 				></button
 			>
-			<span
-				class="min-w-[155px] text-center whitespace-nowrap delay-75 duration-200 {disabled
-					? ' text-black/50 dark:text-white/50 '
-					: ' text-black  dark:text-white'}"
-				id="slider_time_label"
-				>{`${currentDate.getFullYear()}-${pad(currentDate.getMonth() + 1)}-${pad(currentDate.getDate())}T${pad(currentDate.getHours())}:00`}</span
-			>
+			<div class="-mt-0.5 flex flex-col items-center">
+				<span
+					class="min-w-[155px] text-center whitespace-nowrap delay-75 duration-200 {disabled
+						? ' text-black/50 dark:text-white/50 '
+						: ' text-black  dark:text-white'}"
+					id="slider_time_label"
+					>{`${currentDate.getFullYear()}-${pad(currentDate.getMonth() + 1)}-${pad(currentDate.getDate())}T${pad(currentDate.getHours())}:00`}</span
+				>
+				<span
+					class="text-xs delay-75 duration-200 {disabled
+						? ' text-black/50 dark:text-white/50 '
+						: ' text-black  dark:text-white'}"
+				>
+					{Intl.DateTimeFormat().resolvedOptions().timeZone} ({currentDate.getTimezoneOffset() < 0
+						? '+'
+						: '-'}{-currentDate.getTimezoneOffset() / 60}:00)
+				</span>
+			</div>
+
 			<button
 				id="next_hour"
 				class="cursor-pointer rounded border bg-white px-2.5 py-2 delay-75 duration-200 dark:bg-[#646464cc] {disabled
