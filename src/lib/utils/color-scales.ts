@@ -99,7 +99,7 @@ export const colorScales: ColorScales = {
 	pressure: {
 		min: 950,
 		max: 1050,
-		scalefactor: 2,
+		scalefactor: 0.5,
 		colors: [
 			...interpolateColorScaleHSL(['#4444FF', '#FFFFFF'], 25), // 950 to 1000hPa
 			...interpolateColorScaleHSL(['#FFFFFF', '#FF4444'], 25) // 1000hPa to 1050hPa
