@@ -572,28 +572,18 @@
 	<TimeSelector
 		bind:domain
 		bind:timeSelected
-		onDateChange={(e: Event | null, date: Date | undefined) => {
-			let newDate;
-			if (e) {
-				const target = e.target as HTMLInputElement;
-				const value = target?.value;
-				if (value.length < 3) {
-					newDate = new SvelteDate(timeSelected);
-					newDate.setHours(Number(value));
-				} else {
-					newDate = new SvelteDate(value);
-				}
-			} else {
-				newDate = new SvelteDate(date);
-			}
+		onDateChange={(date: Date) => {
+			let newDate = new SvelteDate(date);
 
 			timeSelected = newDate;
+
 			url.searchParams.set('time', newDate.toISOString().replace(/[:Z]/g, '').slice(0, 15));
 			pushState(url + map._hash.getHashString(), {});
 
 			if (timeSelected.getUTCHours() % domain.time_interval > 0) {
 				toast('Timestep not in interval, maybe force reload page');
 			}
+
 			changeOMfileURL();
 		}}
 		disabled={loading}
