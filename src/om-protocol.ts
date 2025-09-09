@@ -1,3 +1,5 @@
+import { browser } from '$app/environment';
+
 import { type GetResourceResponse, type RequestParameters } from 'maplibre-gl';
 
 import { setupGlobalCache, type TypedArray } from '@openmeteo/file-reader';
@@ -21,7 +23,17 @@ import { OMapsFileReader } from './omaps-reader';
 
 import TileWorker from './worker?worker';
 
-import type { TileJSON, TileIndex, Domain, Variable, Bounds, Range, ColorScale } from '$lib/types';
+import arrowPixelsSource from '$lib/utils/arrow';
+
+import type {
+	Bounds,
+	Domain,
+	Variable,
+	TileJSON,
+	TileIndex,
+	ColorScale,
+	DimensionRange
+} from '$lib/types';
 
 let dark = false;
 let partial = false;
@@ -30,20 +42,65 @@ let variable: Variable;
 let mapBounds: number[];
 let omapsFileReader: OMapsFileReader;
 let mapBoundsIndexes: number[];
-let ranges: Range[];
+let ranges: DimensionRange[];
 
 let projection: Projection;
 let projectionGrid: ProjectionGrid;
 
 setupGlobalCache();
 
+const arrowPixelData = {};
+const initPixelData = async () => {
+	for (const [key, iconUrl] of Object.entries(arrowPixelsSource)) {
+		const response = await fetch(iconUrl);
+		const svgString = await response.text();
+
+		const svg64 = btoa(svgString);
+		const b64Start = 'data:image/svg+xml;base64,';
+
+		const image64 = b64Start + svg64;
+		const canvas = new OffscreenCanvas(32, 32);
+
+		let img = new Image();
+		img.onload = () => {
+			canvas.getContext('2d').drawImage(img, 0, 0);
+			const iconData = canvas.getContext('2d').getImageData(0, 0, 32, 32);
+
+			arrowPixelData[key] = iconData.data;
+		};
+		img.src = image64;
+	}
+};
+
 export interface Data {
 	values: TypedArray | undefined;
+	directions: TypedArray | undefined;
 }
 
 let data: Data;
 
 const TILE_SIZE = Number(import.meta.env.VITE_TILE_SIZE) * 2;
+
+let worker: Worker;
+const pendingTiles = new Map<string, (tile: ImageBitmap) => void>();
+
+const getWorker = () => {
+	// ensure this code only runs on the client
+	if (browser && !worker) {
+		worker = new TileWorker();
+		worker.onmessage = (message) => {
+			if (message.data.type === 'RT') {
+				const key = message.data.key;
+				const resolve = pendingTiles.get(key);
+				if (resolve) {
+					resolve(message.data.tile);
+					pendingTiles.delete(key);
+				}
+			}
+		};
+	}
+	return worker;
+};
 
 export const getValueFromLatLong = (
 	lat: number,
@@ -83,9 +140,14 @@ export const getValueFromLatLong = (
 const getTile = async ({ z, x, y }: TileIndex, omUrl: string): Promise<ImageBitmap> => {
 	const key = `${omUrl}/${TILE_SIZE}/${z}/${x}/${y}`;
 
-	const worker = new TileWorker();
+	const tileWorker = getWorker();
 
-	worker.postMessage({
+	let iconList = {};
+	if (variable.value.startsWith('wind') || variable.value.startsWith('wave')) {
+		iconList = arrowPixelData;
+	}
+
+	tileWorker.postMessage({
 		type: 'GT',
 		x,
 		y,
@@ -96,17 +158,12 @@ const getTile = async ({ z, x, y }: TileIndex, omUrl: string): Promise<ImageBitm
 		variable,
 		ranges,
 		dark: dark,
-		mapBounds: mapBounds
+		mapBounds: mapBounds,
+		iconPixelData: iconList
 	});
-	const tilePromise = new Promise<ImageBitmap>((resolve) => {
-		worker.onmessage = async (message) => {
-			if (message.data.type == 'RT' && key == message.data.key) {
-				resolve(message.data.tile);
-			}
-		};
+	return new Promise<ImageBitmap>((resolve) => {
+		pendingTiles.set(key, resolve);
 	});
-
-	return tilePromise;
 };
 
 const renderTile = async (url: string) => {
@@ -160,6 +217,8 @@ const getTilejson = async (fullUrl: string): Promise<TileJSON> => {
 };
 
 const initOMFile = (url: string): Promise<void> => {
+	initPixelData();
+
 	return new Promise((resolve, reject) => {
 		const [omUrl, omParams] = url.replace('om://', '').split('?');
 

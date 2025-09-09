@@ -210,16 +210,6 @@ body {
 	color: white;
 }
 
-.date-time-selection {
-	border-radius: 0.25em;
-	border-width: 1px;
-}
-
-.dark .date-time-selection {
-	background-color: rgba(100, 100, 100, 0.8);
-	color: white;
-}
-
 #time_slider {
 	margin: 0.6em 0;
 }

@@ -1,6 +1,6 @@
 import { DynamicProjection, ProjectionGrid, type Projection } from './projection';
 
-import type { Range, Domain, Bounds, Center, IndexAndFractions } from '$lib/types';
+import type { DimensionRange, Domain, Bounds, Center, IndexAndFractions } from '$lib/types';
 
 const r2d = 180 / Math.PI;
 
@@ -47,7 +47,7 @@ export const getIndexFromLatLong = (
 	lat: number,
 	lon: number,
 	domain: Domain,
-	ranges: Range[] = [
+	ranges: DimensionRange[] = [
 		{ start: 0, end: domain.grid.ny },
 		{ start: 0, end: domain.grid.nx }
 	]
@@ -235,4 +235,11 @@ export const degreesToRadians = (degree: number) => {
 
 export const radiansToDegrees = (rad: number) => {
 	return rad * (180 / Math.PI);
+};
+
+export const rotatePoint = (cx: number, cy: number, theta: number, x: number, y: number) => {
+	const xt = Math.cos(theta) * (x - cx) - Math.sin(theta) * (y - cy) + cx;
+	const yt = Math.sin(theta) * (x - cx) + Math.cos(theta) * (y - cy) + cy;
+
+	return [xt, yt];
 };

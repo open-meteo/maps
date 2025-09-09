@@ -98,7 +98,6 @@ export interface Domain {
 	};
 	time_interval: number;
 	model_interval: number;
-	variables: string[];
 	windUVComponents: boolean;
 }
 
@@ -124,7 +123,15 @@ export interface IndexAndFractions {
 	yFraction: number;
 }
 
-export interface Range {
+export interface DimensionRange {
 	start: number;
 	end: number;
+}
+
+export interface DomainMetaData {
+	completed: boolean;
+	last_modified_time: string;
+	reference_time: string;
+	valid_times: string[];
+	variables: string[];
 }

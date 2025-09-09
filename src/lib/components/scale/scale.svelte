@@ -21,7 +21,7 @@
 			<div
 				style={'background: rgba(' +
 					cs.join(',') +
-					`); width: 25px; height:${300 / (colorScale.max - colorScale.min)}px;`}
+					`); width: 25px; height:${300 / ((colorScale.max - colorScale.min) * colorScale.scalefactor)}px;`}
 			></div>
 		{/each}
 
