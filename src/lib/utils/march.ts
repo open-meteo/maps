@@ -139,7 +139,7 @@ export function marchingSquares(
 
 				const ix = interpolate(a.v, b.v, a.x, b.x, level);
 				const iy = interpolate(a.v, b.v, a.y, b.y, level);
-				pts.push(project([ix, iy]));
+				pts.push(project([ix, iy], extent));
 			}
 
 			if (pts.length === 2) {

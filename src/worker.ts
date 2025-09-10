@@ -246,38 +246,47 @@ self.onmessage = async (message) => {
 		const extent = 4096;
 		const layerName = 'contours';
 
-		// let coords = [];
-		// for (let i = 0; i < extent; i++) {
-		// 	const lat = tile2lat(y + i / extent, z);
-		// 	for (let j = 0; j < extent; j++) {
-		// 		const ind = j + i * extent;
-		// 		const lon = tile2lon(x + j / extent, z);
+		const tileLatMin = tile2lat(y + 1, z);
+		const tileLatMax = tile2lat(y, z);
+		const tileLonMin = tile2lon(x, z);
+		const tileLonMax = tile2lon(x + 1, z);
 
-		// 		const { index, xFraction, yFraction } = getIndexAndFractions(
-		// 			lat,
-		// 			lon,
-		// 			domain,
-		// 			projectionGrid,
-		// 			ranges
-		// 		);
+		const nx = domain.grid.nx;
+		const ny = domain.grid.ny;
 
-		// 		const px = interpolator(
-		// 			values,
-		// 			ranges[1]['end'] - ranges[1]['start'],
-		// 			index,
-		// 			xFraction,
-		// 			yFraction
-		// 		);
+		const dx = domain.grid.dx;
+		const dy = domain.grid.dy;
 
-		// 		if (px > 1014.99999 && px < 1015.00001) {
-		// 			coords.push([j, i]);
-		// 		}
-		// 	}
-		// }
+		const lonMin = domain.grid.lonMin;
+		const lonMax = domain.grid.lonMin + nx * dx;
+
+		const latMin = domain.grid.latMin;
+		const latMax = domain.grid.latMin + ny * dy;
+
+		let coords = [];
+		for (let i = 0; i < ny; i++) {
+			const lat = latMin + dy * i;
+
+			if (lat > tileLatMin && lat <= tileLatMax) {
+				for (let j = 0; j < nx; j++) {
+					const lon = lonMin + dx * j;
+
+					if (lon > tileLonMin && lon <= tileLonMax) {
+						const ind = j + i * nx;
+
+						const px = values[ind];
+
+						if (px > 1014.9 && px < 1015.1) {
+							console.log(ind);
+							coords.push([lon, lat]);
+						}
+					}
+				}
+			}
+		}
 
 		const level = 1015;
-		const coords = marchingSquares(values, level, x, y, z, domain, projectionGrid, ranges);
-
+		// const coords = marchingSquares(values, level, x, y, z, domain, projectionGrid, ranges);
 		console.log(coords);
 
 		const pbf = new Pbf();
@@ -286,6 +295,7 @@ self.onmessage = async (message) => {
 		let cursor: [number, number] = [0, 0];
 
 		if (coords) {
+			coords = coords.map((coord) => project([coord[0], coord[1]]));
 			// MoveTo first point
 			const [x0, y0] = coords[0] ? [coords[0][0], coords[0][1]] : [0, 0];
 			geom.push(encodeCommand(1, 1)); // MoveTo
@@ -293,18 +303,28 @@ self.onmessage = async (message) => {
 			geom.push(zigZag(y0 - cursor[1]));
 			cursor = [x0, y0];
 
+			// // LineTo rest
+			// for (let i = 1; i < coords.length; i++) {
+			// 	const [xi1, yi1] = [coords[i][0], coords[i][1]];
+			// 	const [xi2, yi2] = [coords[i][2], coords[i][3]];
+			// 	geom.push(encodeCommand(1, 1)); // MoveTo
+			// 	geom.push(zigZag(xi1 - cursor[0]));
+			// 	geom.push(zigZag(yi1 - cursor[1]));
+			// 	cursor = [xi1, yi1];
+			// 	geom.push(encodeCommand(2, 1));
+			// 	geom.push(zigZag(xi2 - cursor[0]));
+			// 	geom.push(zigZag(yi2 - cursor[1]));
+			// 	cursor = [xi2, yi2];
+			// }
+
 			// LineTo rest
+			geom.push(encodeCommand(2, coords.length));
 			for (let i = 1; i < coords.length; i++) {
 				const [xi1, yi1] = [coords[i][0], coords[i][1]];
-				const [xi2, yi2] = [coords[i][2], coords[i][3]];
-				geom.push(encodeCommand(1, 1)); // MoveTo
+
 				geom.push(zigZag(xi1 - cursor[0]));
 				geom.push(zigZag(yi1 - cursor[1]));
 				cursor = [xi1, yi1];
-				geom.push(encodeCommand(2, 1));
-				geom.push(zigZag(xi2 - cursor[0]));
-				geom.push(zigZag(yi2 - cursor[1]));
-				cursor = [xi2, yi2];
 			}
 
 			// write Layer
@@ -350,4 +370,16 @@ function encodeCommand(id: number, count: number) {
 }
 function zigZag(n: number) {
 	return (n << 1) ^ (n >> 31);
+}
+
+// Quick projection: lon/lat → extent (not perfect WebMercator, but enough for demo)
+function project([lon, lat]: [number, number], extent = 4096): [number, number] {
+	const x = Math.floor(((lon + 180) / 360) * extent);
+	const y = Math.floor(
+		((1 -
+			Math.log(Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)) / Math.PI) /
+			2) *
+			extent
+	);
+	return [x, y];
 }

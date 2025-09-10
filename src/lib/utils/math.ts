@@ -13,6 +13,20 @@ export const tile2lat = (y: number, z: number): number => {
 	return r2d * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
 };
 
+export const lon2tile = (lon: number, z: number): number => {
+	return Math.pow(2, z) * ((lon + 180) / 360);
+};
+
+export const lat2tile = (lat: number, z: number): number => {
+	return (
+		(Math.pow(2, z) *
+			(1 -
+				Math.log(Math.tan(degreesToRadians(lat)) + 1 / Math.cos(degreesToRadians(lat))) /
+					Math.PI)) /
+		2
+	);
+};
+
 export const tileToBBOX = (tile: [x: number, y: number, z: number]) => {
 	const e = tile2lon(tile[0] + 1, tile[2]);
 	const w = tile2lon(tile[0], tile[2]);
