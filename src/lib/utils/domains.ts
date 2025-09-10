@@ -7,7 +7,7 @@ import {
 
 import type { Domain, DomainGroups } from '$lib/types';
 
-import { DynamicProjection, ProjectionGrid, type Projection } from './projection';
+import { DynamicProjection, ProjectionGrid, type Projection } from './projections';
 
 export const domainGroups = [
 	//'bom',

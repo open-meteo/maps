@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
-import { RotatedLatLonProjection, LambertConformalConicProjection } from '../utils/projection';
+import { RotatedLatLonProjection, LambertConformalConicProjection } from '$lib/utils/projections';
 
-import { domains } from '../utils/domains';
+import { domains } from '$lib/utils/domains';
 
 const dmiDomain = domains.find((d) => d.value === 'dmi_harmonie_arome_europe');
 const knmiDomain = domains.find((d) => d.value === 'knmi_harmonie_arome_europe');

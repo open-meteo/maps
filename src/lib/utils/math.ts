@@ -1,4 +1,4 @@
-import { DynamicProjection, ProjectionGrid, type Projection } from './projection';
+import { DynamicProjection, ProjectionGrid, type Projection } from './projections';
 
 import type { DimensionRange, Domain, Bounds, Center, IndexAndFractions } from '$lib/types';
 
@@ -63,13 +63,15 @@ export const getIndexFromLatLong = (
 	if (lat < latMin || lat >= latMax || lon < lonMin || lon >= lonMax) {
 		return { index: NaN, xFraction: 0, yFraction: 0 };
 	} else {
+		const nx = ranges[1]['end'] - ranges[1]['start'];
+
 		const x = Math.floor((lon - lonMin) / dx);
 		const y = Math.floor((lat - latMin) / dy);
 
 		const xFraction = ((lon - lonMin) % dx) / dx;
 		const yFraction = ((lat - latMin) % dy) / dy;
 
-		const index = y * (ranges[1]['end'] - ranges[1]['start']) + x;
+		const index = y * nx + x;
 		return { index, xFraction, yFraction };
 	}
 };
@@ -87,18 +89,17 @@ export const getIndicesFromBounds = (
 	const nx = domain.grid.nx;
 	const ny = domain.grid.ny;
 
-	// local sw, ne
-	let s, w, n, e;
-	let minX: number, minY: number, maxX: number, maxY: number;
-
 	let xPrecision, yPrecision;
 	if (String(dx).split('.')[1]) {
-		xPrecision = String(dx).split('.')[1].length ?? 2;
-		yPrecision = String(dy).split('.')[1].length ?? 2;
+		xPrecision = String(dx).split('.')[1].length;
+		yPrecision = String(dy).split('.')[1].length;
 	} else {
 		xPrecision = 2;
 		yPrecision = 2;
 	}
+
+	let s: number, w: number, n: number, e: number;
+	let minX: number, minY: number, maxX: number, maxY: number;
 
 	if (domain.grid.projection) {
 		const projectionName = domain.grid.projection.name;

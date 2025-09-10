@@ -1,9 +1,10 @@
-import { DynamicProjection, ProjectionGrid, type Projection } from '$lib/utils/projection';
+import { DynamicProjection, ProjectionGrid, type Projection } from '$lib/utils/projections';
 
 import { OmDataType, OmHttpBackend } from '@openmeteo/file-reader';
 
-import type { Domain, Range, Variable } from './lib/types';
 import type { Data } from './om-protocol';
+
+import type { Domain, DimensionRange, Variable } from '$lib/types';
 
 export class OMapsFileReader {
 	child;
@@ -40,7 +41,7 @@ export class OMapsFileReader {
 		}
 	}
 
-	setRanges(ranges: Range[] | null, dimensions: number[]) {
+	setRanges(ranges: DimensionRange[] | null, dimensions: number[]) {
 		if (this.partial) {
 			this.ranges = ranges ?? this.ranges;
 		} else {
@@ -51,7 +52,7 @@ export class OMapsFileReader {
 		}
 	}
 
-	async readVariable(variable: Variable, ranges: Range[] | null = null): Promise<Data> {
+	async readVariable(variable: Variable, ranges: DimensionRange[] | null = null): Promise<Data> {
 		let values, directions;
 		if (variable.value.includes('_u_component')) {
 			// combine uv components, and calculate directions
