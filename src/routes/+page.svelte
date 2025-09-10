@@ -547,13 +547,8 @@
 		const closestModelRun = new SvelteDate();
 		closestModelRun.setUTCFullYear(year);
 		closestModelRun.setUTCMonth(month);
-		if (closestModelRunUTCHour < 0) {
-			closestModelRun.setUTCDate(date - 1);
-			closestModelRun.setUTCHours(24 + closestModelRunUTCHour);
-		} else {
-			closestModelRun.setUTCDate(date);
-			closestModelRun.setUTCHours(closestModelRunUTCHour);
-		}
+		closestModelRun.setUTCDate(date);
+		closestModelRun.setUTCHours(closestModelRunUTCHour);
 		closestModelRun.setUTCMinutes(0);
 		closestModelRun.setUTCSeconds(0);
 		closestModelRun.setUTCMilliseconds(0);
