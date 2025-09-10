@@ -60,7 +60,7 @@ export const getIndexFromLatLong = (
 	const lonMax = domain.grid.lonMin + dx * ranges[1]['end'];
 	const latMax = domain.grid.latMin + dy * ranges[0]['end'];
 
-	if (lat < latMin || lat > latMax || lon < lonMin || lon > lonMax) {
+	if (lat < latMin || lat >= latMax || lon < lonMin || lon >= lonMax) {
 		return { index: NaN, xFraction: 0, yFraction: 0 };
 	} else {
 		const x = Math.floor((lon - lonMin) / dx);
@@ -81,42 +81,69 @@ export const getIndicesFromBounds = (
 	east: number,
 	domain: Domain
 ): [minX: number, minY: number, maxX: number, maxY: number] => {
-	const dx = domain.grid.dx;
-	const dy = domain.grid.dy;
+	let dx = domain.grid.dx;
+	let dy = domain.grid.dy;
 
 	const nx = domain.grid.nx;
 	const ny = domain.grid.ny;
-
-	const minLat = domain.grid.latMin;
-	const minLon = domain.grid.lonMin;
 
 	// local sw, ne
 	let s, w, n, e;
 	let minX: number, minY: number, maxX: number, maxY: number;
 
-	if (domain.grid.projection) {
-		// ------ WIP ------
-		const projectionName = domain.grid.projection.name;
+	let xPrecision, yPrecision;
+	if (String(dx).split('.')[1]) {
+		xPrecision = String(dx).split('.')[1].length ?? 2;
+		yPrecision = String(dy).split('.')[1].length ?? 2;
+	} else {
+		xPrecision = 2;
+		yPrecision = 2;
+	}
 
+	if (domain.grid.projection) {
+		const projectionName = domain.grid.projection.name;
 		const projection = new DynamicProjection(projectionName, domain.grid.projection) as Projection;
 		const projectionGrid = new ProjectionGrid(projection, domain.grid);
 
-		// const [westProjected, southProjected, eastProjected, northProjected] = getLatLonMinMaxProjected(
-		// 	projectionGrid,
-		// 	[s, w, n, e]
-		// );
-		const [x1, y1] = projectionGrid.findPointInterpolated2D(south, west);
-		const [x2, y2] = projectionGrid.findPointInterpolated2D(north, east);
-		minX = Math.floor(x1);
-		minY = Math.floor(y1);
-		maxX = Math.ceil(x2);
-		maxY = Math.ceil(y2);
+		[s, w, n, e] = getRotatedSWNE(domain, projection, [south, west, north, east]);
+
+		dx = projectionGrid.dx;
+		dy = projectionGrid.dy;
+
+		// round to nearest grid point + / - 1
+		s = Number((s - (s % dy)).toFixed(yPrecision));
+		w = Number((w - (w % dx)).toFixed(xPrecision));
+		n = Number((n - (n % dy) + dy).toFixed(yPrecision));
+		e = Number((e - (e % dx) + dx).toFixed(xPrecision));
+
+		if (s - projectionGrid.origin[1] < 0) {
+			minY = 0;
+		} else {
+			minY = Math.floor(Math.max((s - projectionGrid.origin[1]) / dy - 1, 0));
+		}
+
+		if (w - projectionGrid.origin[0] < 0) {
+			minX = 0;
+		} else {
+			minX = Math.floor(Math.max((w - projectionGrid.origin[0]) / dx - 1, 0));
+		}
+
+		if (n - projectionGrid.origin[1] < 0) {
+			maxY = ny;
+		} else {
+			maxY = Math.ceil(Math.min((n - projectionGrid.origin[1]) / dy + 1, ny));
+		}
+
+		if (e - projectionGrid.origin[0] < 0) {
+			maxX = nx;
+		} else {
+			maxX = Math.ceil(Math.min((e - projectionGrid.origin[0]) / dx + 1, nx));
+		}
 
 		return [minX, minY, maxX, maxY];
-		// ------ END WIP ------
 	} else {
-		const xPrecision = String(dx).split('.')[1].length;
-		const yPrecision = String(dy).split('.')[1].length;
+		const minLat = domain.grid.latMin;
+		const minLon = domain.grid.lonMin;
 
 		s = Number((south - (south % dy)).toFixed(yPrecision));
 		w = Number((west - (west % dx)).toFixed(xPrecision));
@@ -150,6 +177,46 @@ export const getIndicesFromBounds = (
 	}
 };
 
+export const getRotatedSWNE = (
+	domain: Domain,
+	projection: Projection,
+	[south, west, north, east]: [number, number, number, number]
+): [localSouth: number, localWest: number, localNorth: number, localEast: number] => {
+	const pointsX = [];
+	const pointsY = [];
+
+	// loop over viewport bounds with resolution of 0.01 degree
+	// project these to local points
+	for (let i = south; i < north; i += 0.01) {
+		const point = projection.forward(i, west);
+		pointsX.push(point[0]);
+		pointsY.push(point[1]);
+	}
+	for (let i = west; i < east; i += 0.01) {
+		const point = projection.forward(north, i);
+		pointsX.push(point[0]);
+		pointsY.push(point[1]);
+	}
+	for (let i = north; i > south; i -= 0.01) {
+		const point = projection.forward(i, east);
+		pointsX.push(point[0]);
+		pointsY.push(point[1]);
+	}
+	for (let i = east; i > west; i -= 0.01) {
+		const point = projection.forward(south, i);
+		pointsX.push(point[0]);
+		pointsY.push(point[1]);
+	}
+
+	// then find out minima and maxima
+	const ls = Math.min(...pointsY);
+	const lw = Math.min(...pointsX);
+	const ln = Math.max(...pointsY);
+	const le = Math.max(...pointsX);
+
+	return [ls, lw, ln, le];
+};
+
 export const getBorderPoints = (projectionGrid: ProjectionGrid) => {
 	const points = [];
 	for (let i = 0; i < projectionGrid.ny; i++) {
@@ -170,7 +237,6 @@ export const getBorderPoints = (projectionGrid: ProjectionGrid) => {
 	for (let i = projectionGrid.nx; i >= 0; i--) {
 		points.push([projectionGrid.origin[0] + i * projectionGrid.dx, projectionGrid.origin[1]]);
 	}
-
 	return points;
 };
 

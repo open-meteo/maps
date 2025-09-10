@@ -112,7 +112,7 @@ export const getValueFromLatLong = (
 
 		let indexObject;
 		if (domain.grid.projection) {
-			indexObject = projectionGrid.findPointInterpolated(lat, lon);
+			indexObject = projectionGrid.findPointInterpolated(lat, lon, ranges);
 		} else {
 			indexObject = getIndexFromLatLong(lat, lon, domain, ranges);
 		}
@@ -278,7 +278,7 @@ export const omProtocol = async (
 		try {
 			await initOMFile(params.url);
 		} catch (e) {
-			throw new Error(e);
+			throw new Error(e.stack);
 		}
 		return {
 			data: await getTilejson(params.url)

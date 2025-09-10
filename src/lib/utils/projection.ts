@@ -281,8 +281,8 @@ export class ProjectionGrid {
 			const sw = projection.forward(latitude[0], longitude[0]);
 			const ne = projection.forward(latitude[1], longitude[1]);
 			this.origin = sw;
-			this.dx = (ne[0] - sw[0]) / (this.nx - 1);
-			this.dy = (ne[1] - sw[1]) / (this.ny - 1);
+			this.dx = (ne[0] - sw[0]) / this.nx;
+			this.dy = (ne[1] - sw[1]) / this.ny;
 		} else if (projectOrigin) {
 			this.dx = grid.dx;
 			this.dy = grid.dy;
@@ -294,34 +294,27 @@ export class ProjectionGrid {
 		}
 	}
 
-	findPointInterpolated(lat: number, lon: number) {
-		const [xpos, ypos] = this.projection.forward(lat, lon);
+	findPointInterpolated(lat: number, lon: number, ranges: DimensionRange[]) {
+		const [xPos, yPos] = this.projection.forward(lat, lon);
 
-		const x = (xpos - this.origin[0]) / this.dx;
-		const y = (ypos - this.origin[1]) / this.dy;
+		const minX = this.origin[0] + this.dx * ranges[1]['start'];
+		const minY = this.origin[1] + this.dy * ranges[0]['start'];
+
+		const x = (xPos - minX) / this.dx;
+		const y = (yPos - minY) / this.dy;
 
 		const xFraction = x - Math.floor(x);
 		const yFraction = y - Math.floor(y);
 
-		if (y < 0 || x < 0 || y >= this.ny || x >= this.nx) {
+		if (
+			x < 0 ||
+			x >= ranges[1]['end'] - ranges[1]['start'] ||
+			y < 0 ||
+			y >= ranges[0]['end'] - ranges[0]['start']
+		) {
 			return { index: NaN, xFraction: 0, yFraction: 0 };
 		}
-		const index = Math.floor(y) * this.nx + Math.floor(x);
-		return { index: index, xFraction, yFraction };
-	}
-
-	findPointInterpolated2D(lat: number, lon: number) {
-		const [xpos, ypos] = this.projection.forward(lat, lon);
-
-		const x = Math.max(
-			Math.min((xpos - this.origin[0]) / this.dx, this.ranges[1]['end'] - this.ranges[1]['start']),
-			0
-		);
-		const y = Math.max(
-			Math.min((ypos - this.origin[1]) / this.dy, this.ranges[0]['end'] - this.ranges[0]['start']),
-			0
-		);
-
-		return [x, y];
+		const index = Math.floor(y) * (ranges[1]['end'] - ranges[1]['start']) + Math.floor(x);
+		return { index, xFraction, yFraction };
 	}
 }
