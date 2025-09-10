@@ -16,13 +16,15 @@
 		timeSelected: Date;
 		onDateChange: (date: Date) => void;
 		disabled: boolean;
+		showTimeSelector: boolean;
 	}
 
 	let {
 		domain = $bindable(),
 		timeSelected = $bindable(),
 		onDateChange,
-		disabled
+		disabled,
+		showTimeSelector
 	}: Props = $props();
 
 	let currentDate = $derived(timeSelected);
@@ -90,12 +92,16 @@
 	});
 </script>
 
-<div>
+<div
+	class="time-selector bg-background/90 dark:bg-background/70 absolute bottom-14.5 left-[50%] mx-auto transform-[translate(-50%)] rounded-lg px-3 py-3 {!showTimeSelector
+		? 'pointer-events-none opacity-0'
+		: 'opacity-100'}"
+>
 	<div class="flex flex-col {disabled ? 'cursor-not-allowed' : ''}">
-		<div style="display:flex; gap: 0.5em; justify-items: center; align-items: center;">
+		<div class="flex items-center justify-center gap-0.5">
 			<button
 				id="prev_hour"
-				class="cursor-pointer rounded border bg-white px-2.5 py-2 delay-75 duration-200 dark:bg-[#646464cc] {disabled
+				class="cursor-pointer rounded border bg-white p-1.5 delay-75 duration-200 dark:bg-[#646464cc] {disabled
 					? 'border-foreground/50  text-black/50 dark:text-white/50 '
 					: ' border-foreground/75 text-black  dark:text-white'}"
 				type="button"
@@ -117,7 +123,7 @@
 			>
 			<div class="-mt-0.5 flex flex-col items-center">
 				<span
-					class="min-w-[155px] text-center whitespace-nowrap delay-75 duration-200 {disabled
+					class="min-w-[150px] text-center whitespace-nowrap delay-75 duration-200 {disabled
 						? ' text-black/50 dark:text-white/50 '
 						: ' text-black  dark:text-white'}"
 					id="slider_time_label"
@@ -136,7 +142,7 @@
 
 			<button
 				id="next_hour"
-				class="cursor-pointer rounded border bg-white px-2.5 py-2 delay-75 duration-200 dark:bg-[#646464cc] {disabled
+				class="cursor-pointer rounded border bg-white p-1.5 delay-75 duration-200 dark:bg-[#646464cc] {disabled
 					? 'border-foreground/50  text-black/50 dark:text-white/50 '
 					: ' border-foreground/75 text-black  dark:text-white'}"
 				type="button"
@@ -184,7 +190,7 @@
 		<input
 			type="date"
 			id="date_picker"
-			class="date-time-selection rounded bg-white delay-75 duration-200 dark:bg-[#646464cc] {disabled
+			class="date-time-selection rounded bg-white text-sm delay-75 duration-200 dark:bg-[#646464cc] {disabled
 				? 'border-foreground/50  text-black/50 dark:text-white/50 '
 				: ' border-foreground/75 text-black  dark:text-white'}"
 			{disabled}
@@ -193,6 +199,7 @@
 				const target = e.target as HTMLInputElement;
 				const value = target?.value;
 				const date = new SvelteDate(value);
+				date.setHours(currentHour);
 				onDateChange(date);
 			}}
 		/>
