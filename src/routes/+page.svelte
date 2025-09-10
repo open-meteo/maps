@@ -595,6 +595,10 @@
 					pad(modelRunSelected.getUTCMinutes())
 			);
 		}
+		// day the data structure was altered
+		if (modelRunSelected.getTime() < 1752624000000) {
+			toast('Date selected probably too old, since data structure altered on 16th July 2025');
+		}
 	};
 </script>
 
