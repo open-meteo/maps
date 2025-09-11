@@ -263,13 +263,16 @@
 	let variable: Variable = $state(
 		variables.find((v) => v.value === import.meta.env.VITE_VARIABLE) ?? variables[0]
 	);
-	let timeSelected = $state(new Date());
+
+	const now = new SvelteDate();
+	now.setHours(now.getHours() + 1, 0, 0, 0);
+	let timeSelected = $state(new Date(now)); // Default to current hour + 1
 	let modelRunSelected = $state(new Date());
 
 	const TILE_SIZE = Number(import.meta.env.VITE_TILE_SIZE);
 
-	let checkSourceLoadedInterval: ReturnType<typeof setInterval>;
 	let checked = 0;
+	let checkSourceLoadedInterval: ReturnType<typeof setInterval>;
 
 	let map: maplibregl.Map;
 	let mapContainer: HTMLElement | null;
@@ -320,27 +323,25 @@
 		let urlModelTime = params.get('model');
 		if (urlModelTime && urlModelTime.length == 15) {
 			const year = parseInt(urlModelTime.slice(0, 4));
-			const month = parseInt(urlModelTime.slice(5, 7)) - 1; // zero-based
+			const month = parseInt(urlModelTime.slice(5, 7)) - 1;
 			const day = parseInt(urlModelTime.slice(8, 10));
 			const hour = parseInt(urlModelTime.slice(11, 13));
 			const minute = parseInt(urlModelTime.slice(13, 15));
 			// Parse Date from UTC components (urlTime is in UTC)
 			modelRunSelected = new SvelteDate(Date.UTC(year, month, day, hour, minute, 0, 0));
 		} else {
-			modelRunSelected.setHours(0, 0, 0, 0); // Default to 12:00 local time
+			modelRunSelected.setHours(0, 0, 0, 0);
 		}
 
 		let urlTime = params.get('time');
 		if (urlTime && urlTime.length == 15) {
 			const year = parseInt(urlTime.slice(0, 4));
-			const month = parseInt(urlTime.slice(5, 7)) - 1; // zero-based
+			const month = parseInt(urlTime.slice(5, 7)) - 1;
 			const day = parseInt(urlTime.slice(8, 10));
 			const hour = parseInt(urlTime.slice(11, 13));
 			const minute = parseInt(urlTime.slice(13, 15));
 			// Parse Date from UTC components (urlTime is in UTC)
 			timeSelected = new SvelteDate(Date.UTC(year, month, day, hour, minute, 0, 0));
-		} else {
-			timeSelected.setHours(12, 0, 0, 0); // Default to 12:00 local time
 		}
 		checkClosestHourDomainInterval();
 
@@ -535,7 +536,7 @@
 
 	const checkClosestHourModelRun = () => {
 		let modelRunChanged = false;
-		const referenceTime = new Date(latest.reference_time);
+		const referenceTime = new Date(latest ? latest.reference_time : now);
 
 		const year = timeSelected.getUTCFullYear();
 		const month = timeSelected.getUTCMonth();
@@ -557,7 +558,6 @@
 			modelRunSelected = new SvelteDate(closestModelRun);
 			modelRunChanged = true;
 		} else {
-			console.log('rt', referenceTime);
 			if (referenceTime.getTime() === modelRunSelected.getTime()) {
 				url.searchParams.delete('model');
 				pushState(url + map._hash.getHashString(), {});
