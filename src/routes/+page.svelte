@@ -339,7 +339,8 @@
 			// Parse Date from UTC components (urlTime is in UTC)
 			timeSelected = new SvelteDate(Date.UTC(year, month, day, hour, minute, 0, 0));
 		} else {
-			timeSelected.setHours(12, 0, 0, 0); // Default to 12:00 local time
+			let now = new Date();
+			timeSelected.setHours(now.getHours()); // Default to current hour
 		}
 		checkClosestHourDomainInterval();
 

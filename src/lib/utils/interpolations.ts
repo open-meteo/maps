@@ -1,3 +1,4 @@
+import type { DimensionRange } from '$lib/types';
 import type { TypedArray } from '@openmeteo/file-reader';
 
 export const noInterpolation = (values: TypedArray, nx: number, index: number): number => {
@@ -6,11 +7,13 @@ export const noInterpolation = (values: TypedArray, nx: number, index: number): 
 
 export const interpolateLinear = (
 	values: TypedArray,
-	nx: number,
 	index: number,
 	xFraction: number,
-	yFraction: number
+	yFraction: number,
+	ranges: DimensionRange[]
 ): number => {
+	const nx = ranges[1]['end'] - ranges[1]['start'];
+
 	const p0 = Number(values[index]);
 	let p1 = Number(values[index + 1]);
 	const p2 = Number(values[index + nx]);

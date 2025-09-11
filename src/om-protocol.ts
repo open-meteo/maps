@@ -17,7 +17,7 @@ import { getInterpolator } from '$lib/utils/color-scales';
 import { domains } from '$lib/utils/domains';
 import { variables } from '$lib/utils/variables';
 
-import { DynamicProjection, ProjectionGrid, type Projection } from '$lib/utils/projection';
+import { DynamicProjection, ProjectionGrid, type Projection } from '$lib/utils/projections';
 
 import { OMapsFileReader } from './omaps-reader';
 
@@ -112,7 +112,7 @@ export const getValueFromLatLong = (
 
 		let indexObject;
 		if (domain.grid.projection) {
-			indexObject = projectionGrid.findPointInterpolated(lat, lon);
+			indexObject = projectionGrid.findPointInterpolated(lat, lon, ranges);
 		} else {
 			indexObject = getIndexFromLatLong(lat, lon, domain, ranges);
 		}
@@ -125,8 +125,8 @@ export const getValueFromLatLong = (
 
 		if (values && index) {
 			const interpolator = getInterpolator(colorScale);
-			//const px = interpolateLinear(data, index, xFraction, yFraction);
-			const px = interpolator(values as Float32Array, domain.grid.nx, index, xFraction, yFraction);
+
+			const px = interpolator(values as Float32Array, index, xFraction, yFraction, ranges);
 
 			return { index: index, value: px };
 		} else {
