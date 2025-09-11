@@ -110,8 +110,6 @@ export const getIndicesFromBounds = (
 
 		dx = projectionGrid.dx;
 		dy = projectionGrid.dy;
-		const dySign = dy < 0 ? -1 : 1;
-		const dxSign = dx < 0 ? -1 : 1;
 
 		// round to nearest grid point + / - 1
 		s = Number((s - (s % dy)).toFixed(yPrecision));
@@ -121,15 +119,8 @@ export const getIndicesFromBounds = (
 
 		const originX = projectionGrid.origin[0];
 		const originY = projectionGrid.origin[1];
-		if (dySign > 0) {
-			minY = Math.min(Math.max(Math.floor((s - originY) / dy - 1), 0), ny);
-			maxY = Math.max(Math.min(Math.ceil((n - originY) / dy + 1), ny), 0);
-		} else {
-			minY = Math.min(Math.max(Math.floor((n - originY) / dy - 1), 0), ny);
-			maxY = Math.max(Math.min(Math.ceil((s - originY) / dy + 1), ny), 0);
-		}
 
-		if (dxSign > 0) {
+		if (dx > 0) {
 			minX = Math.min(Math.max(Math.floor((w - originX) / dx - 1), 0), nx);
 			maxX = Math.max(Math.min(Math.ceil((e - originX) / dx + 1), nx), 0);
 		} else {
@@ -137,38 +128,46 @@ export const getIndicesFromBounds = (
 			maxX = Math.max(Math.min(Math.ceil((w - originX) / dx + 1), nx), 0);
 		}
 
+		if (dy > 0) {
+			minY = Math.min(Math.max(Math.floor((s - originY) / dy - 1), 0), ny);
+			maxY = Math.max(Math.min(Math.ceil((n - originY) / dy + 1), ny), 0);
+		} else {
+			minY = Math.min(Math.max(Math.floor((n - originY) / dy - 1), 0), ny);
+			maxY = Math.max(Math.min(Math.ceil((s - originY) / dy + 1), ny), 0);
+		}
+
 		return [minX, minY, maxX, maxY];
 	} else {
-		const minLat = domain.grid.latMin;
-		const minLon = domain.grid.lonMin;
+		const originX = domain.grid.lonMin;
+		const originY = domain.grid.latMin;
 
 		s = Number((south - (south % dy)).toFixed(yPrecision));
 		w = Number((west - (west % dx)).toFixed(xPrecision));
 		n = Number((north - (north % dy) + dy).toFixed(yPrecision));
 		e = Number((east - (east % dx) + dx).toFixed(xPrecision));
 
-		if (s - minLat < 0) {
+		if (s - originY < 0) {
 			minY = 0;
 		} else {
-			minY = Math.floor(Math.max((s - minLat) / dy - 1, 0));
+			minY = Math.floor(Math.max((s - originY) / dy - 1, 0));
 		}
 
-		if (w - minLon < 0) {
+		if (w - originX < 0) {
 			minX = 0;
 		} else {
-			minX = Math.floor(Math.max((w - minLon) / dx - 1, 0));
+			minX = Math.floor(Math.max((w - originX) / dx - 1, 0));
 		}
 
-		if (n - minLat < 0) {
+		if (n - originY < 0) {
 			maxY = ny;
 		} else {
-			maxY = Math.ceil(Math.min((n - minLat) / dy + 1, ny));
+			maxY = Math.ceil(Math.min((n - originY) / dy + 1, ny));
 		}
 
-		if (e - minLon < 0) {
+		if (e - originX < 0) {
 			maxX = nx;
 		} else {
-			maxX = Math.ceil(Math.min((e - minLon) / dx + 1, nx));
+			maxX = Math.ceil(Math.min((e - originX) / dx + 1, nx));
 		}
 		return [minX, minY, maxX, maxY];
 	}
