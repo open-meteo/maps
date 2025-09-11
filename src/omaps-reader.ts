@@ -126,32 +126,26 @@ export class OMapsFileReader {
 				`${String(date.getUTCFullYear()).substring(2, 4)}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}00`
 			);
 		}
-		return [prevUrl, nextUrl];
+		if (prevUrl && nextUrl) {
+			return [prevUrl, nextUrl];
+		} else {
+			return undefined;
+		}
 	}
 
-	async prefetch(omUrl: string, variable: Variable) {
+	async prefetch(omUrl: string) {
 		const nextOmUrls = this.getNextUrls(omUrl);
 		if (nextOmUrls) {
-			// previous timestep
-			const s3_backend_prev = new OmHttpBackend({
-				url: nextOmUrls[0],
-				eTagValidation: false
-			});
-			try {
-				this.reader = await s3_backend_prev.asCachedReader();
-				const variableReader = await this.reader.getChildByName(variable.value);
-				variableReader.read(OmDataType.FloatArray, this.ranges);
-			} catch {}
-			// next timestep
-			const s3_backend_next = new OmHttpBackend({
-				url: nextOmUrls[1],
-				eTagValidation: false
-			});
-			try {
-				this.reader = await s3_backend_next.asCachedReader();
-				const variableReader = await this.reader.getChildByName(variable.value);
-				variableReader.read(OmDataType.FloatArray, this.ranges);
-			} catch {}
+			for (const nextOmUrl of nextOmUrls) {
+				fetch(nextOmUrl, {
+					method: 'GET',
+					headers: {
+						Range: 'bytes=0-255' // Just fetch first 256 bytes to trigger caching
+					}
+				}).catch(() => {
+					// Silently ignore errors for pretches
+				});
+			}
 		}
 	}
 
