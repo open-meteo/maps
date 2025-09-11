@@ -260,9 +260,11 @@ const initOMFile = (url: string): Promise<void> => {
 		omapsFileReader
 			.init(omUrl)
 			.then(() => {
-				omapsFileReader.readVariable(variable, ranges).then((variable) => {
-					data = variable;
+				omapsFileReader.readVariable(variable, ranges).then((values) => {
+					data = values;
 					resolve();
+					// prefetch first bytes of the previous and next timesteps to trigger CF caching
+					omapsFileReader.prefetch(omUrl);
 				});
 			})
 			.catch((e) => {
