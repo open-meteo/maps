@@ -66,8 +66,10 @@ export class OMapsFileReader {
 
 			this.setRanges(ranges, dimensions);
 
-			const valuesU = await variableReaderU.read(OmDataType.FloatArray, this.ranges);
-			const valuesV = await variableReaderV.read(OmDataType.FloatArray, this.ranges);
+			const valuesUPromise = variableReaderU.read(OmDataType.FloatArray, this.ranges);
+			const valuesVPromise = variableReaderV.read(OmDataType.FloatArray, this.ranges);
+
+			const [valuesU, valuesV] = await Promise.all([valuesUPromise, valuesVPromise]);
 
 			values = [];
 			directions = [];
