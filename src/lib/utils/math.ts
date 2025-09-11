@@ -122,19 +122,19 @@ export const getIndicesFromBounds = (
 		const originX = projectionGrid.origin[0];
 		const originY = projectionGrid.origin[1];
 		if (dySign > 0) {
-			minY = Math.floor(Math.min(Math.max((s - originY) / dy - 1, 0), ny));
-			maxY = Math.ceil(Math.max(Math.min((n - originY) / dy + 1, ny), 0));
+			minY = Math.min(Math.max(Math.floor((s - originY) / dy - 1), 0), ny);
+			maxY = Math.max(Math.min(Math.ceil((n - originY) / dy + 1), ny), 0);
 		} else {
-			minY = Math.floor(Math.min(Math.max((n - originY) / dy - 1, 0), ny));
-			maxY = Math.ceil(Math.max(Math.min((s - originY) / dy + 1, ny), 0));
+			minY = Math.min(Math.max(Math.floor((n - originY) / dy - 1), 0), ny);
+			maxY = Math.max(Math.min(Math.ceil((s - originY) / dy + 1), ny), 0);
 		}
 
 		if (dxSign > 0) {
-			minX = Math.floor(Math.min(Math.max((w - originX) / dx - 1, 0), nx));
-			maxX = Math.ceil(Math.max(Math.min((e - originX) / dx + 1, nx), 0));
+			minX = Math.min(Math.max(Math.floor((w - originX) / dx - 1), 0), nx);
+			maxX = Math.max(Math.min(Math.ceil((e - originX) / dx + 1), nx), 0);
 		} else {
-			minX = Math.floor(Math.min(Math.max((e - originX) / dx - 1, 0), nx));
-			maxX = Math.ceil(Math.max(Math.min((w - originX) / dx + 1, nx), 0));
+			minX = Math.min(Math.max(Math.floor((e - originX) / dx - 1), 0), nx);
+			maxX = Math.max(Math.min(Math.ceil((w - originX) / dx + 1), nx), 0);
 		}
 
 		return [minX, minY, maxX, maxY];
