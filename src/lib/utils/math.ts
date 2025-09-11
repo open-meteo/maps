@@ -110,6 +110,8 @@ export const getIndicesFromBounds = (
 
 		dx = projectionGrid.dx;
 		dy = projectionGrid.dy;
+		const dySign = dy < 0 ? -1 : 1;
+		const dxSign = dx < 0 ? -1 : 1;
 
 		// round to nearest grid point + / - 1
 		s = Number((s - (s % dy)).toFixed(yPrecision));
@@ -117,28 +119,22 @@ export const getIndicesFromBounds = (
 		n = Number((n - (n % dy) + dy).toFixed(yPrecision));
 		e = Number((e - (e % dx) + dx).toFixed(xPrecision));
 
-		if (s - projectionGrid.origin[1] < 0) {
-			minY = 0;
+		const originX = projectionGrid.origin[0];
+		const originY = projectionGrid.origin[1];
+		if (dySign > 0) {
+			minY = Math.floor(Math.min(Math.max((s - originY) / dy - 1, 0), ny));
+			maxY = Math.ceil(Math.max(Math.min((n - originY) / dy + 1, ny), 0));
 		} else {
-			minY = Math.floor(Math.max((s - projectionGrid.origin[1]) / dy - 1, 0));
+			minY = Math.floor(Math.min(Math.max((n - originY) / dy - 1, 0), ny));
+			maxY = Math.ceil(Math.max(Math.min((s - originY) / dy + 1, ny), 0));
 		}
 
-		if (w - projectionGrid.origin[0] < 0) {
-			minX = 0;
+		if (dxSign > 0) {
+			minX = Math.floor(Math.min(Math.max((w - originX) / dx - 1, 0), nx));
+			maxX = Math.ceil(Math.max(Math.min((e - originX) / dx + 1, nx), 0));
 		} else {
-			minX = Math.floor(Math.max((w - projectionGrid.origin[0]) / dx - 1, 0));
-		}
-
-		if (n - projectionGrid.origin[1] < 0) {
-			maxY = ny;
-		} else {
-			maxY = Math.ceil(Math.min((n - projectionGrid.origin[1]) / dy + 1, ny));
-		}
-
-		if (e - projectionGrid.origin[0] < 0) {
-			maxX = nx;
-		} else {
-			maxX = Math.ceil(Math.min((e - projectionGrid.origin[0]) / dx + 1, nx));
+			minX = Math.floor(Math.min(Math.max((e - originX) / dx - 1, 0), nx));
+			maxX = Math.ceil(Math.max(Math.min((w - originX) / dx + 1, nx), 0));
 		}
 
 		return [minX, minY, maxX, maxY];
