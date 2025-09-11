@@ -320,7 +320,7 @@
 			domain = domains.find((dm) => dm.value === params.get('domain')) ?? domains[0];
 		}
 
-		let urlModelTime = params.get('model');
+		let urlModelTime = params.get('model_run');
 		if (urlModelTime && urlModelTime.length == 15) {
 			const year = parseInt(urlModelTime.slice(0, 4));
 			const month = parseInt(urlModelTime.slice(5, 7)) - 1;
@@ -559,7 +559,7 @@
 			modelRunChanged = true;
 		} else {
 			if (referenceTime.getTime() === modelRunSelected.getTime()) {
-				url.searchParams.delete('model');
+				url.searchParams.delete('model_run');
 				pushState(url + map._hash.getHashString(), {});
 			} else if (
 				timeSelected.getTime() > referenceTime.getTime() &&
@@ -578,7 +578,7 @@
 
 		if (modelRunChanged) {
 			url.searchParams.set(
-				'model',
+				'model_run',
 				modelRunSelected.toISOString().replace(/[:Z]/g, '').slice(0, 15)
 			);
 			pushState(url + map._hash.getHashString(), {});
@@ -685,7 +685,7 @@
 						}}
 						modelRunChange={(mr: Date) => {
 							modelRunSelected = mr;
-							url.searchParams.set('model', mr.toISOString().replace(/[:Z]/g, '').slice(0, 15));
+							url.searchParams.set('model_run', mr.toISOString().replace(/[:Z]/g, '').slice(0, 15));
 							pushState(url + map._hash.getHashString(), {});
 							toast(
 								'Model run set to: ' +

@@ -59,10 +59,10 @@ export type InterpolationMethod = 'none' | 'linear' | 'hermite2d';
 
 export type Interpolator = (
 	values: Float32Array<ArrayBufferLike>,
-	nx: number,
 	index: number,
 	xFraction: number,
-	yFraction: number
+	yFraction: number,
+	ranges: DimensionRange[]
 ) => number;
 
 export interface Domain {
