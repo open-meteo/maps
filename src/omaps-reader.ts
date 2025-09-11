@@ -133,7 +133,7 @@ export class OMapsFileReader {
 		}
 	}
 
-	async prefetch(omUrl: string) {
+	prefetch(omUrl: string) {
 		const nextOmUrls = this.getNextUrls(omUrl);
 		if (nextOmUrls) {
 			for (const nextOmUrl of nextOmUrls) {

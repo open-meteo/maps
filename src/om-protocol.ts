@@ -264,7 +264,7 @@ const initOMFile = (url: string): Promise<void> => {
 					data = values;
 					resolve();
 					// prefetch the next timestep
-					omapsFileReader.prefetch(omUrl, variable);
+					omapsFileReader.prefetch(omUrl);
 				});
 			})
 			.catch((e) => {
