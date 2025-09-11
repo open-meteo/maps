@@ -263,13 +263,16 @@
 	let variable: Variable = $state(
 		variables.find((v) => v.value === import.meta.env.VITE_VARIABLE) ?? variables[0]
 	);
-	let timeSelected = $state(new Date());
+
+	const now = new SvelteDate();
+	now.setHours(now.getHours() + 1, 0, 0, 0);
+	let timeSelected = $state(new Date(now)); // Default to current hour + 1
 	let modelRunSelected = $state(new Date());
 
 	const TILE_SIZE = Number(import.meta.env.VITE_TILE_SIZE);
 
-	let checkSourceLoadedInterval: ReturnType<typeof setInterval>;
 	let checked = 0;
+	let checkSourceLoadedInterval: ReturnType<typeof setInterval>;
 
 	let map: maplibregl.Map;
 	let mapContainer: HTMLElement | null;
@@ -288,8 +291,9 @@
 			if (popup) {
 				popup.remove();
 			}
-
 			mapBounds = map.getBounds();
+
+			checkClosestHourModelRun();
 
 			omUrl = getOMUrl();
 			omFileSource.setUrl('om://' + omUrl);
@@ -316,31 +320,28 @@
 			domain = domains.find((dm) => dm.value === params.get('domain')) ?? domains[0];
 		}
 
-		let urlModelTime = params.get('model');
+		let urlModelTime = params.get('model_run');
 		if (urlModelTime && urlModelTime.length == 15) {
 			const year = parseInt(urlModelTime.slice(0, 4));
-			const month = parseInt(urlModelTime.slice(5, 7)) - 1; // zero-based
+			const month = parseInt(urlModelTime.slice(5, 7)) - 1;
 			const day = parseInt(urlModelTime.slice(8, 10));
 			const hour = parseInt(urlModelTime.slice(11, 13));
 			const minute = parseInt(urlModelTime.slice(13, 15));
 			// Parse Date from UTC components (urlTime is in UTC)
 			modelRunSelected = new SvelteDate(Date.UTC(year, month, day, hour, minute, 0, 0));
 		} else {
-			modelRunSelected.setHours(0, 0, 0, 0); // Default to 12:00 local time
+			modelRunSelected.setHours(0, 0, 0, 0);
 		}
 
 		let urlTime = params.get('time');
 		if (urlTime && urlTime.length == 15) {
 			const year = parseInt(urlTime.slice(0, 4));
-			const month = parseInt(urlTime.slice(5, 7)) - 1; // zero-based
+			const month = parseInt(urlTime.slice(5, 7)) - 1;
 			const day = parseInt(urlTime.slice(8, 10));
 			const hour = parseInt(urlTime.slice(11, 13));
 			const minute = parseInt(urlTime.slice(13, 15));
 			// Parse Date from UTC components (urlTime is in UTC)
 			timeSelected = new SvelteDate(Date.UTC(year, month, day, hour, minute, 0, 0));
-		} else {
-			let now = new Date();
-			timeSelected.setHours(now.getHours()); // Default to current hour
 		}
 		checkClosestHourDomainInterval();
 
@@ -532,6 +533,73 @@
 			}
 		}
 	};
+
+	const checkClosestHourModelRun = () => {
+		let modelRunChanged = false;
+		const referenceTime = new Date(latest ? latest.reference_time : now);
+
+		const year = timeSelected.getUTCFullYear();
+		const month = timeSelected.getUTCMonth();
+		const date = timeSelected.getUTCDate();
+
+		const closestModelRunUTCHour =
+			timeSelected.getUTCHours() - (timeSelected.getUTCHours() % domain.model_interval);
+
+		const closestModelRun = new SvelteDate();
+		closestModelRun.setUTCFullYear(year);
+		closestModelRun.setUTCMonth(month);
+		closestModelRun.setUTCDate(date);
+		closestModelRun.setUTCHours(closestModelRunUTCHour);
+		closestModelRun.setUTCMinutes(0);
+		closestModelRun.setUTCSeconds(0);
+		closestModelRun.setUTCMilliseconds(0);
+
+		if (timeSelected.getTime() < modelRunSelected.getTime()) {
+			modelRunSelected = new SvelteDate(closestModelRun);
+			modelRunChanged = true;
+		} else {
+			if (referenceTime.getTime() === modelRunSelected.getTime()) {
+				url.searchParams.delete('model_run');
+				pushState(url + map._hash.getHashString(), {});
+			} else if (
+				timeSelected.getTime() > referenceTime.getTime() &&
+				referenceTime.getTime() > modelRunSelected.getTime()
+			) {
+				modelRunSelected = new SvelteDate(referenceTime);
+				modelRunChanged = true;
+			} else if (timeSelected.getTime() < referenceTime.getTime() - 24 * 60 * 60 * 1000) {
+				// Atleast yesterday, always update to nearest modelRun
+				if (modelRunSelected.getTime() < closestModelRun.getTime()) {
+					modelRunSelected = new SvelteDate(closestModelRun);
+					modelRunChanged = true;
+				}
+			}
+		}
+
+		if (modelRunChanged) {
+			url.searchParams.set(
+				'model_run',
+				modelRunSelected.toISOString().replace(/[:Z]/g, '').slice(0, 15)
+			);
+			pushState(url + map._hash.getHashString(), {});
+			toast(
+				'Model run set to: ' +
+					modelRunSelected.getUTCFullYear() +
+					'-' +
+					pad(modelRunSelected.getUTCMonth() + 1) +
+					'-' +
+					pad(modelRunSelected.getUTCDate()) +
+					' ' +
+					pad(modelRunSelected.getUTCHours()) +
+					':' +
+					pad(modelRunSelected.getUTCMinutes())
+			);
+		}
+		// day the data structure was altered
+		if (modelRunSelected.getTime() < 1752624000000) {
+			toast('Date selected probably too old, since data structure altered on 16th July 2025');
+		}
+	};
 </script>
 
 <svelte:head>
@@ -565,31 +633,26 @@
 	<Scale {showScale} {variable} />
 	<SelectedVariables {domain} {variable} />
 </div>
-<div
-	class="bg-background/90 dark:bg-background/70 absolute bottom-14.5 left-[50%] mx-auto transform-[translate(-50%)] rounded-lg px-4 py-4 {!showTimeSelector
-		? 'pointer-events-none opacity-0'
-		: 'opacity-100'}"
->
-	<TimeSelector
-		bind:domain
-		bind:timeSelected
-		onDateChange={(date: Date) => {
-			let newDate = new SvelteDate(date);
+<TimeSelector
+	bind:domain
+	bind:timeSelected
+	onDateChange={(date: Date) => {
+		let newDate = new SvelteDate(date);
 
-			timeSelected = newDate;
+		timeSelected = newDate;
 
-			url.searchParams.set('time', newDate.toISOString().replace(/[:Z]/g, '').slice(0, 15));
-			pushState(url + map._hash.getHashString(), {});
+		url.searchParams.set('time', newDate.toISOString().replace(/[:Z]/g, '').slice(0, 15));
+		pushState(url + map._hash.getHashString(), {});
 
-			if (timeSelected.getUTCHours() % domain.time_interval > 0) {
-				toast('Timestep not in interval, maybe force reload page');
-			}
+		if (timeSelected.getUTCHours() % domain.time_interval > 0) {
+			toast('Timestep not in interval, maybe force reload page');
+		}
 
-			changeOMfileURL();
-		}}
-		disabled={loading}
-	/>
-</div>
+		changeOMfileURL();
+	}}
+	disabled={loading}
+	{showTimeSelector}
+/>
 <div class="absolute">
 	<Sheet.Root bind:open={sheetOpen}>
 		<Sheet.Content><div class="px-6 pt-12">Units</div></Sheet.Content>
@@ -622,7 +685,7 @@
 						}}
 						modelRunChange={(mr: Date) => {
 							modelRunSelected = mr;
-							url.searchParams.set('model', mr.toISOString().replace(/[:Z]/g, '').slice(0, 15));
+							url.searchParams.set('model_run', mr.toISOString().replace(/[:Z]/g, '').slice(0, 15));
 							pushState(url + map._hash.getHashString(), {});
 							toast(
 								'Model run set to: ' +
