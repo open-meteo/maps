@@ -49,104 +49,112 @@ export function marchingSquares(
 	z: number,
 	domain: Domain,
 	projectionGrid: ProjectionGrid | null,
-	ranges: DimensionRange[],
-	extent = 4096
+	ranges: DimensionRange[]
 ): number[][] {
 	const segments = [];
 
-	// ---------------------------------------------------------
-	// Main cell loop – plain for‑loops for speed
-	// ---------------------------------------------------------
-	const oX = domain.grid.lonMin;
-	const oY = domain.grid.latMin;
-
-	const dx = domain.grid.dx;
-	const dy = domain.grid.dy;
+	const tileLatMin = tile2lat(y + 1, z);
+	const tileLatMax = tile2lat(y, z);
+	const tileLonMin = tile2lon(x, z);
+	const tileLonMax = tile2lon(x + 1, z);
 
 	const nx = domain.grid.nx;
 	const ny = domain.grid.ny;
 
-	for (let i = 0; i < extent; i++) {
-		const lat = tile2lat(y + i / extent, z);
-		for (let j = 0; j < extent; j++) {
-			const lon = tile2lon(x + j / extent, z);
+	const dx = domain.grid.dx;
+	const dy = domain.grid.dy;
 
-			const { index } = getIndexAndFractions(lat, lon, domain, projectionGrid, ranges);
+	const oX = tile2lon(x, z);
+	const oY = tile2lat(y + 1, z);
 
-			const v0 = values[index]; // (i,   j)
-			const v1 = values[index + 1]; // (i, j+1)
-			const v2 = values[index + nx]; // (i+1, j)
-			const v3 = values[index + nx + 1]; // (i+1, j+1)
+	const lonMin = domain.grid.lonMin;
+	const latMin = domain.grid.latMin;
 
-			// code
-			const c = (v0 > level) | ((v1 > level) << 1) | ((v2 > level) << 2) | ((v3 > level) << 3);
+	const indicis = [];
+	const indicisFound = [];
+	for (let i = 0; i < ny; i++) {
+		const lat = latMin + dy * i;
+		if (lat > tileLatMin && lat <= tileLatMax) {
+			for (let j = 0; j < nx; j++) {
+				const lon = lonMin + dx * j;
+				if (lon > tileLonMin && lon <= tileLonMax) {
+					const index = j + i * nx;
 
-			if (c === 0 || c === 15) continue; // no contour inside this cell
+					indicis.push(index);
 
-			// ----- corners in world coordinates ------------------------
-			// const x0 = oX + j * extent;
-			// const y0 = oY + i * extent;
-			// const x1 = oX + (j + 1) * extent;
-			// const y1 = oY + (i + 1) * extent;
+					const v0 = values[index]; // (i,   j)
+					const v1 = values[index + 1]; // (i, j+1)
+					const v2 = values[index + nx]; // (i+1, j)
+					const v3 = values[index + nx + 1]; // (i+1, j+1)
 
-			const x0 = lon - dx / 2;
-			const y0 = lat - dy / 2;
-			const x1 = lon + dx / 2;
-			const y1 = lat + dy / 2;
+					// code
+					const c = (v0 > level) | ((v1 > level) << 1) | ((v2 > level) << 2) | ((v3 > level) << 3);
 
-			// ----- fetch the edges that need intersections ----------
-			const edges = edgeTable[c];
+					if (c === 0 || c === 15) continue; // no contour inside this cell
 
-			// compute the *intersection* points on those edges
-			const pts = [];
-			for (const [ea, eb] of edges) {
-				// map edge number → (node index, value, coordinate)
-				// Edge 0 – (0,1)
-				// Edge 1 – (1,2)
-				// Edge 2 – (2,3)
-				// Edge 3 – (3,0)
-				let a = {},
-					b = {};
+					indicisFound.push(index);
 
-				switch (ea) {
-					case 0:
-						a = { x: x0, y: y0, v: v0 };
-						break;
-					case 1:
-						a = { x: x1, y: y0, v: v1 };
-						break;
-					case 2:
-						a = { x: x1, y: y1, v: v2 };
-						break;
-					case 3:
-						a = { x: x0, y: y1, v: v3 };
-						break;
+					// ----- corners of gridcell in world coordinates ------------------------
+					const x0 = lon - dx / 2;
+					const y0 = lat - dy / 2;
+					const x1 = lon + dx / 2;
+					const y1 = lat + dy / 2;
+
+					// ----- fetch the edges that need intersections ----------
+					const edges = edgeTable[c];
+
+					// compute the *intersection* points on those edges
+					const pts = [];
+					for (const [ea, eb] of edges) {
+						// map edge number → (node index, value, coordinate)
+						// Edge 0 – (0,1)
+						// Edge 1 – (1,2)
+						// Edge 2 – (2,3)
+						// Edge 3 – (3,0)
+						let a = {};
+						let b = {};
+
+						switch (ea) {
+							case 0:
+								a = { x: x0, y: y0, v: v0 };
+								break;
+							case 1:
+								a = { x: x1, y: y0, v: v1 };
+								break;
+							case 2:
+								a = { x: x1, y: y1, v: v2 };
+								break;
+							case 3:
+								a = { x: x0, y: y1, v: v3 };
+								break;
+						}
+						switch (eb) {
+							case 0:
+								b = { x: x0, y: y0, v: v0 };
+								break;
+							case 1:
+								b = { x: x1, y: y0, v: v1 };
+								break;
+							case 2:
+								b = { x: x1, y: y1, v: v2 };
+								break;
+							case 3:
+								b = { x: x0, y: y1, v: v3 };
+								break;
+						}
+
+						const ix = interpolate(a.v, b.v, a.x, b.x, level);
+						const iy = interpolate(a.v, b.v, a.y, b.y, level);
+						pts.push(project([ix, iy]));
+					}
+
+					if (pts.length === 2) {
+						segments.push([pts[0][0], pts[0][1], pts[1][0], pts[1][1]]);
+					} else if (pts.length === 4) {
+						segments.push([pts[0][0], pts[0][1], pts[1][0], pts[1][1]]);
+						segments.push([pts[2][0], pts[2][1], pts[3][0], pts[3][1]]);
+					}
 				}
-				switch (eb) {
-					case 0:
-						b = { x: x0, y: y0, v: v0 };
-						break;
-					case 1:
-						b = { x: x1, y: y0, v: v1 };
-						break;
-					case 2:
-						b = { x: x1, y: y1, v: v2 };
-						break;
-					case 3:
-						b = { x: x0, y: y1, v: v3 };
-						break;
-				}
-
-				const ix = interpolate(a.v, b.v, a.x, b.x, level);
-				const iy = interpolate(a.v, b.v, a.y, b.y, level);
-				pts.push(project([ix, iy], extent));
-			}
-
-			if (pts.length === 2) {
-				segments.push([pts[0][0], pts[0][1], pts[1][0], pts[1][1]]);
-			} else if (pts.length === 4) {
-				segments.push([pts[0][0], pts[0][1], pts[1][0], pts[1][1]]);
-				segments.push([pts[2][0], pts[2][1], pts[3][0], pts[3][1]]);
 			}
 		}
 	}
@@ -154,8 +162,7 @@ export function marchingSquares(
 	return segments;
 }
 
-// Quick projection: lon/lat → extent (not perfect WebMercator, but enough for demo)
-function project([lon, lat]: [number, number], extent = 4096): [number, number] {
+function project([lat, lon]: [number, number], extent = 4096): [number, number] {
 	const x = Math.floor(((lon + 180) / 360) * extent);
 	const y = Math.floor(
 		((1 -
