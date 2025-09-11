@@ -364,7 +364,7 @@
 			zoom: domain?.grid.zoom,
 			keyboard: false,
 			hash: true,
-			maxZoom: 20,
+			maxZoom: 11,
 			maxPitch: 85
 		});
 
@@ -401,14 +401,14 @@
 		map.on('load', async () => {
 			mapBounds = map.getBounds();
 
-			addHillshadeLayer();
+			// addHillshadeLayer();
 
-			map.addControl(
-				new maplibregl.TerrainControl({
-					source: 'terrainSource',
-					exaggeration: 1
-				})
-			);
+			// map.addControl(
+			// 	new maplibregl.TerrainControl({
+			// 		source: 'terrainSource',
+			// 		exaggeration: 1
+			// 	})
+			// );
 
 			map.addControl(new DarkModeButton());
 			map.addControl(new SettingsButton());
