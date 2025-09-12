@@ -145,7 +145,7 @@ export function marchingSquares(
 
 						const ix = interpolate(a.v, b.v, a.x, b.x, level);
 						const iy = interpolate(a.v, b.v, a.y, b.y, level);
-						pts.push(project([ix, iy]));
+						pts.push([ix, iy]);
 					}
 
 					if (pts.length === 2) {
@@ -160,15 +160,4 @@ export function marchingSquares(
 	}
 
 	return segments;
-}
-
-function project([lat, lon]: [number, number], extent = 4096): [number, number] {
-	const x = Math.floor(((lon + 180) / 360) * extent);
-	const y = Math.floor(
-		((1 -
-			Math.log(Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)) / Math.PI) /
-			2) *
-			extent
-	);
-	return [x, y];
 }

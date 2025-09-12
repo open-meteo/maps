@@ -27,13 +27,15 @@ export const lat2tile = (lat: number, z: number): number => {
 	);
 };
 
-export const tileToBBOX = (tile: [x: number, y: number, z: number]) => {
-	const e = tile2lon(tile[0] + 1, tile[2]);
-	const w = tile2lon(tile[0], tile[2]);
-	const s = tile2lat(tile[1] + 1, tile[2]);
-	const n = tile2lat(tile[1], tile[2]);
-	return [w, s, e, n];
-};
+export function latLon2Tile(z, x, y, latDeg, lonDeg, tileSize = 256) {
+	const worldPx = lon2tile(lonDeg, z) * tileSize;
+	const worldPy = lat2tile(latDeg, z) * tileSize;
+
+	const px = worldPx - x * tileSize;
+	const py = worldPy - y * tileSize;
+
+	return [px, py];
+}
 
 export const hermite = (t: number, p0: number, p1: number, m0: number, m1: number) => {
 	const t2 = t * t;

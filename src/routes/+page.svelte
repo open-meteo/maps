@@ -91,9 +91,9 @@
 			tileSize: TILE_SIZE
 		});
 
-		omFileSource = map.getSource('omFileRasterSource');
-		if (omFileSource) {
-			omFileSource.on('error', (e) => {
+		omRasterSource = map.getSource('omFileRasterSource');
+		if (omRasterSource) {
+			omRasterSource.on('error', (e) => {
 				checked = 0;
 				loading = false;
 				clearInterval(checkSourceLoadedInterval);
@@ -117,6 +117,16 @@
 			url: 'om://' + omUrl,
 			type: 'vector'
 		});
+
+		omVectorSource = map.getSource('omFileVectorSource');
+		if (omVectorSource) {
+			omVectorSource.on('error', (e) => {
+				checked = 0;
+				loading = false;
+				clearInterval(checkSourceLoadedInterval);
+				toast(e.error.message);
+			});
+		}
 
 		map.addLayer({
 			id: 'omFileVectorLayer',
@@ -283,14 +293,15 @@
 	let popup: maplibregl.Popup | undefined;
 
 	let mapBounds: maplibregl.LngLatBounds | undefined = $state();
-	let omFileSource: maplibregl.RasterTileSource | undefined;
+	let omRasterSource: maplibregl.RasterTileSource | undefined;
+	let omVectorSource: maplibregl.VectorTileSource | undefined;
 
 	let latest: DomainMetaData | undefined = $state();
 	let loading = $state(false);
 	let showPopup = false;
 
 	const changeOMfileURL = () => {
-		if (map && omFileSource) {
+		if (map && omRasterSource && omVectorSource) {
 			loading = true;
 			if (popup) {
 				popup.remove();
@@ -300,11 +311,12 @@
 			checkClosestHourModelRun();
 
 			omUrl = getOMUrl();
-			omFileSource.setUrl('om://' + omUrl);
+			omRasterSource.setUrl('om://' + omUrl);
+			omVectorSource.setUrl('om://' + omUrl);
 
 			checkSourceLoadedInterval = setInterval(() => {
 				checked++;
-				if ((omFileSource && omFileSource.loaded()) || checked >= 200) {
+				if ((omRasterSource && omRasterSource.loaded()) || checked >= 200) {
 					if (checked >= 200) {
 						// Timeout after 10s
 						toast('Request timed out');
