@@ -1,7 +1,7 @@
 const pressureLevels = [
-	10, 15, 20, 30, 40, 50, 70, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325, 350, 375, 400, 425,
-	450, 475, 500, 525, 550, 575, 600, 625, 650, 675, 700, 725, 750, 775, 800, 825, 850, 875, 900,
-	925, 950, 970, 975, 985, 1000, 1015
+	10, 15, 20, 30, 40, 50, 70, 75, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325, 350, 375, 400,
+	425, 450, 475, 500, 525, 550, 575, 600, 625, 650, 675, 700, 725, 750, 775, 800, 825, 850, 875,
+	900, 925, 950, 970, 975, 985, 1000, 1015
 ];
 
 const heights = [
@@ -10,6 +10,8 @@ const heights = [
 ];
 
 export const variables = [
+	{ value: 'boundary_layer_height', label: 'Boundary Layer Height' },
+
 	{ value: 'cape', label: 'CAPE' },
 
 	{ value: 'categorical_freezing_rain', label: 'Categorical Freezing Rain' },
@@ -28,25 +30,35 @@ export const variables = [
 	{ value: 'direct_radiation', label: 'Direct Radiation' },
 
 	{ value: 'freezing_level_height', label: 'Freezing Level Height' },
+	{ value: 'freezing_rain_probability', label: 'Freezing Rain Probability' },
 
 	{ value: 'latent_heat_flux', label: 'Latent Heat Flux' },
 	{ value: 'sensible_heat_flux', label: 'Sensible Heat Flux' },
 
+	{ value: 'ice_pellets_probability', label: 'Ice Pellets Probability' },
+
 	{ value: 'lifted_index', label: 'Lifted Index' },
+	{ value: 'lightning_potential', label: 'Lightning Potential' },
+
+	{ value: 'mass_density_8m', label: 'Mass Density (8m)' },
 
 	{ value: 'precipitation', label: 'Precipitation' },
 	{ value: 'precipitation_probability', label: 'Precipitation Probability' },
+
+	{ value: 'pressure_msl', label: 'Pressure Mean Sea Level' },
+
 	{ value: 'rain', label: 'Rain' },
+	{ value: 'rain_probability', label: 'Rain Probability' },
+
 	{ value: 'showers', label: 'Showers' },
-	{ value: 'thunderstorm_probability', label: 'Thunderstorm probability' },
-	{ value: 'lightning_potential', label: 'Lightning Potential' },
 
 	{ value: 'snow', label: 'Snow' },
 	{ value: 'snow_depth', label: 'Snow Depth' },
+
+	{ value: 'snowfall', label: 'Snowfall' },
+	{ value: 'snowfall_probability', label: 'Snowfall Probability' },
 	{ value: 'snowfall_height', label: 'Snowfall Height' },
 	{ value: 'snowfall_water_equivalent', label: 'Snow Water Equivalent' },
-
-	{ value: 'pressure_msl', label: 'Pressure Mean Sea Level' },
 
 	{ value: 'shortwave_radiation', label: 'Shortwave Solar Radiation' },
 
@@ -57,10 +69,16 @@ export const variables = [
 	{ value: 'swell_wave_height', label: 'Swell Wave Height' },
 	{ value: 'swell_wave_peak_period', label: 'Swell Wave Peak Period' },
 	{ value: 'swell_wave_period', label: 'Swell Wave Period' },
+
 	{ value: 'secondary_swell_wave_height', label: 'Secondary Swell Wave Height' },
 	{ value: 'secondary_swell_wave_period', label: 'Secondary Swell Wave Period' },
 
+	{ value: 'thunderstorm_probability', label: 'Thunderstorm probability' },
+
+	{ value: 'total_column_integrated_water_vapour', label: 'Total Column Integrated Water Vapour' },
+
 	{ value: 'uv_index', label: 'UV Index' },
+	{ value: 'uv_index_clear_sky', label: 'UV Index Clear Sky' },
 
 	{ value: 'visibility', label: 'Visibility' },
 
@@ -81,15 +99,23 @@ export const variables = [
 	{ value: 'soil_temperature_18cm', label: 'Soil Temperature (18 cm)' },
 	{ value: 'soil_temperature_54cm', label: 'Soil Temperature (54 cm)' },
 	{ value: 'soil_temperature_0_to_7cm', label: 'Soil Temperature (0-7 cm)' },
+	{ value: 'soil_temperature_0_to_10cm', label: 'Soil Temperature (0-10 cm)' },
 	{ value: 'soil_temperature_7_to_28cm', label: 'Soil Temperature (7-28 cm)' },
+	{ value: 'soil_temperature_10_to_40cm', label: 'Soil Temperature (10-40 cm)' },
+	{ value: 'soil_temperature_40_to_100cm', label: 'Soil Temperature (40-100 cm)' },
+	{ value: 'soil_temperature_100_to_200cm', label: 'Soil Temperature (100-200 cm)' },
 
 	{ value: 'soil_moisture_0_to_1cm', label: 'Soil Moisture (0-1 cm)' },
 	{ value: 'soil_moisture_0_to_7cm', label: 'Soil Moisture (0-7 cm)' },
 	{ value: 'soil_moisture_1_to_3cm', label: 'Soil Moisture (1-3 cm)' },
 	{ value: 'soil_moisture_3_to_9cm', label: 'Soil Moisture (3-9 cm)' },
+	{ value: 'soil_moisture_0_to_10cm', label: 'Soil Moisture (0-10 cm)' },
 	{ value: 'soil_moisture_7_to_28cm', label: 'Soil Moisture (7-28 cm)' },
 	{ value: 'soil_moisture_9_to_27cm', label: 'Soil Moisture (9-27 cm)' },
-	{ value: 'soil_moisture_27_to_81cm', label: 'Soil Moisture (27-81 cm)' }
+	{ value: 'soil_moisture_10_to_40cm', label: 'Soil Moisture (10-40 cm)' },
+	{ value: 'soil_moisture_27_to_81cm', label: 'Soil Moisture (27-81 cm)' },
+	{ value: 'soil_moisture_40_to_100cm', label: 'Soil Moisture (40-100 cm)' },
+	{ value: 'soil_moisture_100_to_200cm', label: 'Soil Moisture (100-200 cm)' }
 ];
 
 for (const pl of pressureLevels) {

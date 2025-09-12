@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { RotatedLatLonProjection, LambertConformalConicProjection } from '../utils/projection';
+import { RotatedLatLonProjection, LambertConformalConicProjection } from '../utils/projections';
 
 import { domains } from '../utils/domains';
 

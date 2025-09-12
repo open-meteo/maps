@@ -7,7 +7,7 @@ import {
 
 import type { Domain, DomainGroups } from '$lib/types';
 
-import { DynamicProjection, ProjectionGrid, type Projection } from './projection';
+import { DynamicProjection, ProjectionGrid, type Projection } from './projections';
 
 export const domainGroups = [
 	//'bom',
@@ -412,13 +412,13 @@ export const domains: Array<Domain> = [
 				return this;
 			}
 		},
-		time_interval: 1,
-		model_interval: 3,
+		time_interval: 3,
+		model_interval: 12,
 		windUVComponents: false
 	},
 	// {
 	// 	value: 'cmc_gem_geps',
-	// 	label: 'GEM Global',
+	// 	label: 'GEM Global GEPS',
 	// 	grid: {
 	// 		nx: 2400,
 	// 		ny: 1201,
@@ -433,7 +433,7 @@ export const domains: Array<Domain> = [
 	// 		}
 	// 	},
 	// 	time_interval: 3,
-	// 	variables: ['precipitation_probability'],
+	// 	model_interval: 12,
 	// 	windUVComponents: false
 	// },
 	{
@@ -459,7 +459,7 @@ export const domains: Array<Domain> = [
 			}
 		},
 		time_interval: 1,
-		model_interval: 3,
+		model_interval: 6,
 		windUVComponents: false
 	},
 	{
@@ -484,7 +484,7 @@ export const domains: Array<Domain> = [
 			}
 		},
 		time_interval: 1,
-		model_interval: 3,
+		model_interval: 6,
 		windUVComponents: false
 	},
 
@@ -527,8 +527,8 @@ export const domains: Array<Domain> = [
 				return this;
 			}
 		},
-		time_interval: 1,
-		model_interval: 3,
+		time_interval: 6,
+		model_interval: 6,
 		windUVComponents: true
 	},
 	{

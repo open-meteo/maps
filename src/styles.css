@@ -247,3 +247,9 @@ body {
 	top: -6px;
 	scale: 0.7;
 }
+
+@media (orientation: landscape) {
+	.time-selector {
+		bottom: 4px;
+	}
+}

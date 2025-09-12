@@ -1,8 +1,11 @@
-import { DynamicProjection, ProjectionGrid, type Projection } from '$lib/utils/projection';
-
 import { OmDataType, OmHttpBackend } from '@openmeteo/file-reader';
 
-import type { Domain, Range, Variable } from './lib/types';
+import { pad } from '$lib/utils/pad';
+
+import { DynamicProjection, ProjectionGrid, type Projection } from '$lib/utils/projections';
+
+import type { Domain, DimensionRange, Variable } from '$lib/types';
+
 import type { Data } from './om-protocol';
 
 export class OMapsFileReader {
@@ -40,7 +43,7 @@ export class OMapsFileReader {
 		}
 	}
 
-	setRanges(ranges: Range[] | null, dimensions: number[]) {
+	setRanges(ranges: DimensionRange[] | null, dimensions: number[]) {
 		if (this.partial) {
 			this.ranges = ranges ?? this.ranges;
 		} else {
@@ -51,7 +54,7 @@ export class OMapsFileReader {
 		}
 	}
 
-	async readVariable(variable: Variable, ranges: Range[] | null = null): Promise<Data> {
+	async readVariable(variable: Variable, ranges: DimensionRange[] | null = null): Promise<Data> {
 		let values, directions;
 		if (variable.value.includes('_u_component')) {
 			// combine uv components, and calculate directions
@@ -63,8 +66,10 @@ export class OMapsFileReader {
 
 			this.setRanges(ranges, dimensions);
 
-			const valuesU = await variableReaderU.read(OmDataType.FloatArray, this.ranges);
-			const valuesV = await variableReaderV.read(OmDataType.FloatArray, this.ranges);
+			const valuesUPromise = variableReaderU.read(OmDataType.FloatArray, this.ranges);
+			const valuesVPromise = variableReaderV.read(OmDataType.FloatArray, this.ranges);
+
+			const [valuesU, valuesV] = await Promise.all([valuesUPromise, valuesVPromise]);
 
 			values = [];
 			directions = [];
@@ -102,6 +107,48 @@ export class OMapsFileReader {
 			values: values,
 			directions: directions
 		};
+	}
+
+	getNextUrls(omUrl: string) {
+		const re = new RegExp(/([0-9]{2}-[0-9]{2}-[0-9]{2}T[0-9]{2}00)/);
+		const matches = omUrl.match(re);
+		let nextUrl, prevUrl;
+		if (matches) {
+			const date = new Date('20' + matches[0].substring(0, matches[0].length - 2) + ':00Z');
+
+			date.setUTCHours(date.getUTCHours() - 1);
+			prevUrl = omUrl.replace(
+				re,
+				`${String(date.getUTCFullYear()).substring(2, 4)}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}00`
+			);
+
+			date.setUTCHours(date.getUTCHours() + 2);
+			nextUrl = omUrl.replace(
+				re,
+				`${String(date.getUTCFullYear()).substring(2, 4)}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}00`
+			);
+		}
+		if (prevUrl && nextUrl) {
+			return [prevUrl, nextUrl];
+		} else {
+			return undefined;
+		}
+	}
+
+	prefetch(omUrl: string) {
+		const nextOmUrls = this.getNextUrls(omUrl);
+		if (nextOmUrls) {
+			for (const nextOmUrl of nextOmUrls) {
+				fetch(nextOmUrl, {
+					method: 'GET',
+					headers: {
+						Range: 'bytes=0-255' // Just fetch first 256 bytes to trigger caching
+					}
+				}).catch(() => {
+					// Silently ignore errors for pretches
+				});
+			}
+		}
 	}
 
 	dispose() {

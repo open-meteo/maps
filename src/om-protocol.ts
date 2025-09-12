@@ -18,7 +18,7 @@ import { getInterpolator } from '$lib/utils/color-scales';
 import { domains } from '$lib/utils/domains';
 import { variables } from '$lib/utils/variables';
 
-import { DynamicProjection, ProjectionGrid, type Projection } from '$lib/utils/projection';
+import { DynamicProjection, ProjectionGrid, type Projection } from '$lib/utils/projections';
 
 import { OMapsFileReader } from './omaps-reader';
 
@@ -50,21 +50,20 @@ let projectionGrid: ProjectionGrid;
 
 setupGlobalCache();
 
+<<<<<<< HEAD
 interface ArrowPixelData {
 	[key: string]: ImageData['data'];
 }
 const arrowPixelData: ArrowPixelData = {};
+=======
+const arrowPixelData: Record<string, ImageDataArray> = {};
+>>>>>>> main
 const initPixelData = async () => {
-	for (const [key, iconUrl] of Object.entries(arrowPixelsSource)) {
-		const response = await fetch(iconUrl);
-		const svgString = await response.text();
-
-		const svg64 = btoa(svgString);
-		const b64Start = 'data:image/svg+xml;base64,';
-
-		const image64 = b64Start + svg64;
+	const loadIcon = async (key: string, iconUrl: string) => {
+		const svgText = await fetch(iconUrl).then((r) => r.text());
 		const canvas = new OffscreenCanvas(32, 32);
 
+<<<<<<< HEAD
 		const img = new Image();
 		img.onload = () => {
 			const context = canvas.getContext('2d');
@@ -76,6 +75,26 @@ const initPixelData = async () => {
 		};
 		img.src = image64;
 	}
+=======
+		return new Promise((resolve, reject) => {
+			const img = new Image();
+			img.onload = () => {
+				const ctx = canvas.getContext('2d');
+				if (!ctx) {
+					reject(new Error('Failed to get 2D context'));
+					return;
+				}
+				ctx.drawImage(img, 0, 0, 32, 32);
+				arrowPixelData[key] = ctx.getImageData(0, 0, 32, 32).data;
+				resolve(void 0);
+			};
+			img.onerror = reject;
+			img.src = `data:image/svg+xml;base64,${btoa(svgText)}`;
+		});
+	};
+
+	await Promise.all(Object.entries(arrowPixelsSource).map(([key, url]) => loadIcon(key, url)));
+>>>>>>> main
 };
 
 export interface Data {
@@ -118,7 +137,7 @@ export const getValueFromLatLong = (
 
 		let indexObject;
 		if (domain.grid.projection) {
-			indexObject = projectionGrid.findPointInterpolated(lat, lon);
+			indexObject = projectionGrid.findPointInterpolated(lat, lon, ranges);
 		} else {
 			indexObject = getIndexFromLatLong(lat, lon, domain, ranges);
 		}
@@ -131,8 +150,8 @@ export const getValueFromLatLong = (
 
 		if (values && index) {
 			const interpolator = getInterpolator(colorScale);
-			//const px = interpolateLinear(data, index, xFraction, yFraction);
-			const px = interpolator(values as Float32Array, domain.grid.nx, index, xFraction, yFraction);
+
+			const px = interpolator(values as Float32Array, index, xFraction, yFraction, ranges);
 
 			return { index: index, value: px };
 		} else {
@@ -268,9 +287,11 @@ const initOMFile = (url: string): Promise<void> => {
 		omapsFileReader
 			.init(omUrl)
 			.then(() => {
-				omapsFileReader.readVariable(variable, ranges).then((variable) => {
-					data = variable;
+				omapsFileReader.readVariable(variable, ranges).then((values) => {
+					data = values;
 					resolve();
+					// prefetch first bytes of the previous and next timesteps to trigger CF caching
+					omapsFileReader.prefetch(omUrl);
 				});
 			})
 			.catch((e) => {

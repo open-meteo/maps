@@ -1,6 +1,6 @@
 import { hideZero, drawOnTiles } from '$lib/utils/variables';
 
-import { DynamicProjection, ProjectionGrid, type Projection } from '$lib/utils/projection';
+import { DynamicProjection, ProjectionGrid, type Projection } from '$lib/utils/projections';
 
 import Pbf from 'pbf';
 
@@ -59,16 +59,10 @@ const drawArrow = (
 		ranges
 	);
 
-	const px = interpolator(
-		values,
-		ranges[1]['end'] - ranges[1]['start'],
-		index,
-		xFraction,
-		yFraction
-	);
+	const px = interpolator(values as Float32Array, index, xFraction, yFraction, ranges);
 
 	const direction = degreesToRadians(
-		interpolator(directions, ranges[1]['end'] - ranges[1]['start'], index, xFraction, yFraction)
+		interpolator(directions as Float32Array, index, xFraction, yFraction, ranges)
 	);
 
 	if (direction) {
@@ -148,13 +142,7 @@ self.onmessage = async (message) => {
 					ranges
 				);
 
-				let px = interpolator(
-					values,
-					ranges[1]['end'] - ranges[1]['start'],
-					index,
-					xFraction,
-					yFraction
-				);
+				let px = interpolator(values as Float32Array, index, xFraction, yFraction, ranges);
 
 				if (hideZero.includes(variable.value)) {
 					if (px < 0.25) {
