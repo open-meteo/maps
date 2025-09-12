@@ -50,32 +50,12 @@ let projectionGrid: ProjectionGrid;
 
 setupGlobalCache();
 
-<<<<<<< HEAD
-interface ArrowPixelData {
-	[key: string]: ImageData['data'];
-}
-const arrowPixelData: ArrowPixelData = {};
-=======
 const arrowPixelData: Record<string, ImageDataArray> = {};
->>>>>>> main
 const initPixelData = async () => {
 	const loadIcon = async (key: string, iconUrl: string) => {
 		const svgText = await fetch(iconUrl).then((r) => r.text());
 		const canvas = new OffscreenCanvas(32, 32);
 
-<<<<<<< HEAD
-		const img = new Image();
-		img.onload = () => {
-			const context = canvas.getContext('2d');
-			if (context) {
-				context.drawImage(img, 0, 0);
-				const iconData = context.getImageData(0, 0, 32, 32);
-				arrowPixelData[key] = iconData.data;
-			}
-		};
-		img.src = image64;
-	}
-=======
 		return new Promise((resolve, reject) => {
 			const img = new Image();
 			img.onload = () => {
@@ -94,7 +74,6 @@ const initPixelData = async () => {
 	};
 
 	await Promise.all(Object.entries(arrowPixelsSource).map(([key, url]) => loadIcon(key, url)));
->>>>>>> main
 };
 
 export interface Data {
