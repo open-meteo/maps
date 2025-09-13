@@ -239,14 +239,14 @@ self.onmessage = async (message) => {
 		for (let j = 0; j < nx; j++) {
 			const lon = lonMin + dx * j;
 
-			const worldPx = lon2tile(lon, z) * tileSize;
+			const worldPx = Math.floor(lon2tile(lon, z) * tileSize);
 			const px = worldPx - x * tileSize;
 
 			if (px > 0 && px <= tileSize) {
 				for (let i = 0; i < ny; i++) {
 					const lat = latMin + dy * i;
 
-					const worldPy = lat2tile(lat, z) * tileSize;
+					const worldPy = Math.floor(lat2tile(lat, z) * tileSize);
 					const py = worldPy - y * tileSize;
 					if (py > 0 && py <= tileSize) {
 						const index = i * nx + j;
