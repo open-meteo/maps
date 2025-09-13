@@ -10,7 +10,9 @@ import {
 	rotatePoint,
 	degreesToRadians,
 	getIndexAndFractions,
-	latLon2Tile
+	latLon2Tile,
+	lon2tile,
+	lat2tile
 } from '$lib/utils/math';
 
 import { getColor, getColorScale, getInterpolator, getOpacity } from '$lib/utils/color-scales';
