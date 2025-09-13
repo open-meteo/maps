@@ -296,20 +296,20 @@ self.onmessage = async (message) => {
 				geom.push(zigZag(yt0 - cursor[1]));
 				cursor = [xt0, yt0];
 			}
-		}
 
-		// write Layer
-		pbf.writeMessage(3, writeLayer, {
-			name: layerName,
-			extent,
-			features: [
-				{
-					id: 1,
-					type: 2, // 2 = LineString
-					geom
-				}
-			]
-		});
+			// write Layer
+			pbf.writeMessage(3, writeLayer, {
+				name: layerName,
+				extent,
+				features: [
+					{
+						id: 1,
+						type: 2, // 2 = LineString
+						geom
+					}
+				]
+			});
+		}
 
 		postMessage({ type: 'returnArrayBuffer', tile: pbf.finish(), key: key });
 	}
