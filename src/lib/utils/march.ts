@@ -68,31 +68,20 @@ export function marchingSquares(
 	const lonMin = domain.grid.lonMin;
 
 	const tileSize = 4096;
+	const margin = 256;
 	const gridPoints = [];
-	for (let j = 0; j < nx; j++) {
-		const lon = lonMin + dx * j;
+	for (let i = 0; i < ny; i++) {
+		const worldPy = Math.floor(lat2tile(latMin + dy * i, z) * tileSize);
+		const py = worldPy - y * tileSize;
+		if (py > -margin && py <= tileSize + margin) {
+			for (let j = 0; j < nx; j++) {
+				const worldPx = Math.floor(lon2tile(lonMin + dx * j, z) * tileSize);
+				const px = worldPx - x * tileSize;
 
-		const worldPx = lon2tile(lon, z) * tileSize;
-		const px = worldPx - x * tileSize;
-
-		if (px > 0 && px <= tileSize) {
-			for (let i = 0; i < ny; i++) {
-				const lat = latMin + dy * i;
-
-				const worldPy = lat2tile(lat, z) * tileSize;
-				const py = worldPy - y * tileSize;
-				if (py > 0 && py <= tileSize) {
+				if (px > -margin && px <= tileSize + margin) {
 					const index = i * nx + j;
 
 					const v0 = values[index]; // (i, j)  west‑south
-
-					if (v0 > level - 0.005 && v0 < level + 0.005) {
-						segments.push([px, py]);
-						continue;
-					} else {
-						continue;
-					}
-
 					const v1 = values[index + 1]; // (i, j+1)  east‑south
 					const v2 = values[index + nx]; //  (i+1, j) west‑north
 					const v3 = values[index + nx + 1]; // (i+1, j+1) east‑north
@@ -106,11 +95,11 @@ export function marchingSquares(
 
 					if (c === 0 || c === 15) continue; // no contour inside this cell
 
-					// ----- corners of gridcell in tile coordinates ------------------------
-					const x0 = lon2tile(lon, z) * tileSize - x * tileSize;
-					const y0 = lat2tile(lat + dy, z) * tileSize - y * tileSize;
-					const x1 = lon2tile(lon + dx, z) * tileSize - x * tileSize;
-					const y1 = lat2tile(lat, z) * tileSize - y * tileSize;
+					// ----- corners of 4 gridcells in tile coordinates ------------------------
+					const x0 = Math.floor(lon2tile(lonMin + dx * j, z) * tileSize) - x * tileSize;
+					const y0 = Math.floor(lat2tile(latMin + dy * i, z) * tileSize) - y * tileSize;
+					const x1 = Math.floor(lon2tile(lonMin + dx * (j + 1), z) * tileSize) - x * tileSize;
+					const y1 = Math.floor(lat2tile(latMin + dy * (i + 1), z) * tileSize) - y * tileSize;
 
 					// ----- fetch the edges that need intersections ----------
 					const edges = edgeTable[c];
@@ -157,9 +146,8 @@ export function marchingSquares(
 
 						const ix = interpolate(a.v, b.v, a.x, b.x, level);
 						const iy = interpolate(a.v, b.v, a.y, b.y, level);
-						// pts.push([px,py]);
+						pts.push([ix, iy]);
 					}
-					segments.push([px, py]);
 
 					if (pts.length === 2) {
 						segments.push([pts[0][0], pts[0][1], pts[1][0], pts[1][1]]);

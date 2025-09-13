@@ -225,45 +225,7 @@ self.onmessage = async (message) => {
 		const geom: number[] = [];
 		let cursor: [number, number] = [0, 0];
 
-		const nx = domain.grid.nx;
-		const ny = domain.grid.ny;
-
-		const dx = domain.grid.dx;
-		const dy = domain.grid.dy;
-
-		const latMin = domain.grid.latMin;
-		const lonMin = domain.grid.lonMin;
-
-		const margin = 256;
-
-		const tileSize = 4096;
-		const coords = [];
-
-		for (let i = 0; i < ny; i++) {
-			const worldPy = Math.floor(lat2tile(latMin + dy * i, z) * tileSize);
-			const py = worldPy - y * tileSize;
-			if (py > -margin && py <= tileSize + margin) {
-				for (let j = 0; j < nx; j++) {
-					const worldPx = Math.floor(lon2tile(lonMin + dx * j, z) * tileSize);
-					const px = worldPx - x * tileSize;
-
-					if (px > -margin && px <= tileSize + margin) {
-						const index = i * nx + j;
-
-						const v = values[index]; // (i, j)  west‑south
-
-						if (v > level - 0.005 && v < level + 0.005) {
-							coords.push([px, py]);
-							continue;
-						} else {
-							continue;
-						}
-					}
-				}
-			}
-		}
-
-		// const [coords, gridPoints] = marchingSquares(values, level, x, y, z, domain);
+		const [coords, gridPoints] = marchingSquares(values, level, x, y, z, domain);
 
 		let xt0, yt0, xt1, yt1;
 
@@ -276,24 +238,17 @@ self.onmessage = async (message) => {
 
 			// geom.push(encodeCommand(2, coords.length - 1)); // LineTo
 			for (const c of coords) {
-				// [xt0, yt0, xt1, yt1] = c;
-				[xt0, yt0] = c;
+				[xt0, yt0, xt1, yt1] = c;
 
-				// // geom.push(encodeCommand(1, 1)); // MoveTo
-				// geom.push(zigZag(xt0 - cursor[0]));
-				// geom.push(zigZag(yt0 - cursor[1]));
-				// cursor = [xt0, yt0];
-
-				// // geom.push(encodeCommand(2, 1)); // LineTo
-				// geom.push(zigZag(xt1 - cursor[0]));
-				// geom.push(zigZag(yt1 - cursor[1]));
-				// cursor = [xt1, yt1];
-
-				// Single point
-				geom.push(encodeCommand(2, 1)); // LineTo
+				geom.push(encodeCommand(1, 1)); // MoveTo
 				geom.push(zigZag(xt0 - cursor[0]));
 				geom.push(zigZag(yt0 - cursor[1]));
 				cursor = [xt0, yt0];
+
+				geom.push(encodeCommand(2, 1)); // LineTo
+				geom.push(zigZag(xt1 - cursor[0]));
+				geom.push(zigZag(yt1 - cursor[1]));
+				cursor = [xt1, yt1];
 			}
 
 			// write Layer
