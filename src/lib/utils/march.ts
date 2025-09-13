@@ -76,7 +76,7 @@ export function marchingSquares(
 		const px = worldPx - x * tileSize;
 
 		if (px > 0 && px <= tileSize) {
-			for (let i = 0; i <= ny; i++) {
+			for (let i = 0; i < ny; i++) {
 				const lat = latMin + dy * i;
 
 				const worldPy = lat2tile(lat, z) * tileSize;
@@ -87,8 +87,6 @@ export function marchingSquares(
 					const v0 = values[index]; // (i, j)  west‑south
 
 					if (v0 > level - 0.005 && v0 < level + 0.005) {
-						// let [xt0, yt0] = latLon2Tile(z, x, y, lat, lon, 4096);
-						// segments.push([xt0, yt0]);
 						segments.push([px, py]);
 						continue;
 					} else {

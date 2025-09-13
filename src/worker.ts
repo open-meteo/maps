@@ -223,7 +223,46 @@ self.onmessage = async (message) => {
 		const geom: number[] = [];
 		let cursor: [number, number] = [0, 0];
 
-		const [coords, gridPoints] = marchingSquares(values, level, x, y, z, domain);
+		const nx = domain.grid.nx;
+		const ny = domain.grid.ny;
+
+		const dx = domain.grid.dx;
+		const dy = domain.grid.dy;
+
+		const latMin = domain.grid.latMin;
+		const lonMin = domain.grid.lonMin;
+
+		const tileSize = 4096;
+		const coords = [];
+		for (let j = 0; j < nx; j++) {
+			const lon = lonMin + dx * j;
+
+			const worldPx = lon2tile(lon, z) * tileSize;
+			const px = worldPx - x * tileSize;
+
+			if (px > 0 && px <= tileSize) {
+				for (let i = 0; i < ny; i++) {
+					const lat = latMin + dy * i;
+
+					const worldPy = lat2tile(lat, z) * tileSize;
+					const py = worldPy - y * tileSize;
+					if (py > 0 && py <= tileSize) {
+						const index = i * nx + j;
+
+						const v = values[index]; // (i, j)  west‑south
+
+						if (v > level - 0.005 && v < level + 0.005) {
+							coords.push([px, py]);
+							continue;
+						} else {
+							continue;
+						}
+					}
+				}
+			}
+		}
+
+		// const [coords, gridPoints] = marchingSquares(values, level, x, y, z, domain);
 
 		// MoveTo first point
 		geom.push(encodeCommand(1, 1)); // MoveTo
@@ -251,10 +290,10 @@ self.onmessage = async (message) => {
 		let xt0, yt0, xt1, yt1;
 
 		const testCoords = [
-			[7.5, 54],
+			[7.5, 62],
 			[7.5, 50.5],
-			[3, 50.5],
-			[3, 54]
+			[-2, 50.5],
+			[-2, 62]
 		];
 		// const testCoords = [
 		// 	[71.6, -50.7],

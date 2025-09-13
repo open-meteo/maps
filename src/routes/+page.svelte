@@ -437,6 +437,17 @@
 
 			addOmFileLayer();
 
+			// const testCoords = [
+			// 	[7.5, 54],
+			// 	[7.5, 50.5],
+			// 	[3, 50.5],
+			// 	[3, 54]
+			// ];
+
+			// for (let c of testCoords) {
+			// 	new maplibregl.Marker().setLngLat(c).addTo(map);
+			// }
+
 			map.style.map.on('mousemove', function (e) {
 				if (showPopup) {
 					const coordinates = e.lngLat;
