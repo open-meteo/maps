@@ -27,7 +27,14 @@ export const lat2tile = (lat: number, z: number): number => {
 	);
 };
 
-export function latLon2Tile(z, x, y, latDeg, lonDeg, tileSize = 256) {
+export function latLon2Tile(
+	z: number,
+	x: number,
+	y: number,
+	latDeg: number,
+	lonDeg: number,
+	tileSize = 256
+) {
 	const worldPx = lon2tile(lonDeg, z) * tileSize;
 	const worldPy = lat2tile(latDeg, z) * tileSize;
 

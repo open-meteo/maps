@@ -10,8 +10,6 @@ import {
 	rotatePoint,
 	degreesToRadians,
 	getIndexAndFractions,
-	lon2tile,
-	lat2tile,
 	latLon2Tile
 } from '$lib/utils/math';
 
@@ -209,181 +207,138 @@ self.onmessage = async (message) => {
 
 		postMessage({ type: 'returnImage', tile: tile, key: key });
 	} else if (message.data.type == 'getArrayBuffer') {
-		const key = message.data.key;
 		const x = message.data.x;
 		const y = message.data.y;
 		const z = message.data.z;
+		const key = message.data.key;
 		const values = message.data.data.values;
-		const ranges = message.data.ranges;
-
 		const domain = message.data.domain;
-		const variable = message.data.variable;
-
-		const dark = message.data.dark;
-
-		let projectionGrid = null;
-		if (domain.grid.projection) {
-			const projectionName = domain.grid.projection.name;
-			const projection = new DynamicProjection(
-				projectionName,
-				domain.grid.projection
-			) as Projection;
-			projectionGrid = new ProjectionGrid(projection, domain.grid, ranges);
-		}
-
-		const colorScale = getColorScale(message.data.variable);
-		const interpolator = getInterpolator(colorScale);
 
 		const extent = 4096;
 		const layerName = 'contours';
 
-		// const tileLatMin = tile2lat(y + 1, z);
-		// const tileLatMax = tile2lat(y, z);
-		// const tileLonMin = tile2lon(x, z);
-		// const tileLonMax = tile2lon(x + 1, z);
-
-		// const nx = domain.grid.nx;
-		// const ny = domain.grid.ny;
-
-		// const dx = domain.grid.dx;
-		// const dy = domain.grid.dy;
-
-		// const lonMin = domain.grid.lonMin;
-		// const lonMax = domain.grid.lonMin + nx * dx;
-
-		// const latMin = domain.grid.latMin;
-		// const latMax = domain.grid.latMin + ny * dy;
-
-		// const indices = [];
-		// for (let i = 0; i < ny; i++) {
-		// 	const lat = latMin + dy * i;
-
-		// 	if (lat > tileLatMin && lat <= tileLatMax) {
-		// 		for (let j = 0; j < nx; j++) {
-		// 			const lon = lonMin + dx * j;
-
-		// 			if (lon > tileLonMin && lon <= tileLonMax) {
-		// 				const ind = j + i * nx;
-		// 				indices.push(ind);
-		// 			}
-		// 		}
-		// 	}
-		// }
-
 		const level = 1000;
-		let coords = marchingSquares(values, level, x, y, z, domain, projectionGrid, ranges);
-
-		console.log(coords);
 
 		const pbf = new Pbf();
-
 		const geom: number[] = [];
 		let cursor: [number, number] = [0, 0];
 
-		if (coords.length > 0) {
-			// MoveTo first point
-			geom.push(encodeCommand(1, 1)); // MoveTo
-			geom.push(zigZag(0));
-			geom.push(zigZag(0));
-			cursor = [0, 0];
+		const [coords, gridPoints] = marchingSquares(values, level, x, y, z, domain);
 
-			geom.push(encodeCommand(2, 4)); // LineTo
+		// MoveTo first point
+		geom.push(encodeCommand(1, 1)); // MoveTo
+		geom.push(zigZag(0));
+		geom.push(zigZag(0));
+		cursor = [0, 0];
 
-			geom.push(zigZag(4096 - cursor[0]));
-			geom.push(zigZag(0 - cursor[1]));
-			cursor = [4096, 0];
+		geom.push(encodeCommand(2, 4)); // LineTo
+		geom.push(zigZag(4096 - cursor[0]));
+		geom.push(zigZag(0 - cursor[1]));
+		cursor = [4096, 0];
 
-			geom.push(zigZag(4096 - cursor[0]));
-			geom.push(zigZag(4096 - cursor[1]));
-			cursor = [4096, 4096];
+		geom.push(zigZag(4096 - cursor[0]));
+		geom.push(zigZag(4096 - cursor[1]));
+		cursor = [4096, 4096];
 
-			geom.push(zigZag(0 - cursor[0]));
-			geom.push(zigZag(4096 - cursor[1]));
-			cursor = [0, 4096];
+		geom.push(zigZag(0 - cursor[0]));
+		geom.push(zigZag(4096 - cursor[1]));
+		cursor = [0, 4096];
 
-			geom.push(zigZag(0 - cursor[0]));
-			geom.push(zigZag(0 - cursor[1]));
-			cursor = [0, 0];
+		geom.push(zigZag(0 - cursor[0]));
+		geom.push(zigZag(0 - cursor[1]));
+		cursor = [0, 0];
 
-			const tileLatMin = tile2lat(y + 1, z);
-			const tileLatMax = tile2lat(y, z);
-			const tileLonMin = tile2lon(x, z);
-			const tileLonMax = tile2lon(x + 1, z);
+		let xt0, yt0, xt1, yt1;
 
-			const tileDx = tileLonMax - tileLonMin;
-			const tileDy = tileLatMax - tileLatMin;
+		const testCoords = [
+			[7.5, 54],
+			[7.5, 50.5],
+			[3, 50.5],
+			[3, 54]
+		];
+		// const testCoords = [
+		// 	[71.6, -50.7],
+		// 	[71.6, -47.8],
+		// 	[67.25, -47.8],
+		// 	[67.25, -50.7]
+		// ];
 
-			console.log(tileDx, tileDy);
+		geom.push(encodeCommand(1, 1)); // MoveTo
+		[xt0, yt0] = testCoords[testCoords.length - 1];
+		[xt0, yt0] = latLon2Tile(z, x, y, yt0, xt0, 4096);
+		geom.push(zigZag(xt0 - cursor[0]));
+		geom.push(zigZag(yt0 - cursor[1]));
+		cursor = [xt0, yt0];
+		for (const c of testCoords) {
+			[xt0, yt0] = c;
 
-			geom.push(encodeCommand(1, 1)); // MoveTo
-			let xt1, yt1;
-			let [xt0, yt0] = coords[coords.length - 1];
 			[xt0, yt0] = latLon2Tile(z, x, y, yt0, xt0, 4096);
 
+			geom.push(encodeCommand(2, 1)); // LineTo
 			geom.push(zigZag(xt0 - cursor[0]));
 			geom.push(zigZag(yt0 - cursor[1]));
 			cursor = [xt0, yt0];
-			// geom.push(encodeCommand(2, coords.length - 1)); // LineTo
-			for (let c of coords) {
-				[xt0, yt0, xt1, yt1] = c;
+		}
 
-				[xt0, yt0] = latLon2Tile(z, x, y, yt0, xt0, 4096);
-				[xt1, yt1] = latLon2Tile(z, x, y, yt1, xt1, 4096);
-				geom.push(encodeCommand(1, 1)); // MoveTo
+		// if (gridPoints.length > 0) {
+		// 	geom.push(encodeCommand(1, 1)); // MoveTo
+		// 	[xt0, yt0] = gridPoints[gridPoints.length - 1];
+
+		// 	geom.push(zigZag(xt0 - cursor[0]));
+		// 	geom.push(zigZag(yt0 - cursor[1]));
+		// 	cursor = [xt0, yt0];
+		// 	for (const c of gridPoints) {
+		// 		[xt0, yt0] = c;
+
+		// 		geom.push(encodeCommand(2, 1)); // LineTo
+		// 		geom.push(zigZag(xt0 - cursor[0]));
+		// 		geom.push(zigZag(yt0 - cursor[1]));
+		// 		cursor = [xt0, yt0];
+		// 	}
+		// }
+
+		if (coords.length > 0) {
+			geom.push(encodeCommand(1, 1)); // MoveTo
+			[xt0, yt0] = coords[0];
+			geom.push(zigZag(xt0 - cursor[0]));
+			geom.push(zigZag(yt0 - cursor[1]));
+			cursor = [xt0, yt0];
+
+			// geom.push(encodeCommand(2, coords.length - 1)); // LineTo
+			for (const c of coords) {
+				// [xt0, yt0, xt1, yt1] = c;
+				[xt0, yt0] = c;
+
+				// // geom.push(encodeCommand(1, 1)); // MoveTo
+				// geom.push(zigZag(xt0 - cursor[0]));
+				// geom.push(zigZag(yt0 - cursor[1]));
+				// cursor = [xt0, yt0];
+
+				// // geom.push(encodeCommand(2, 1)); // LineTo
+				// geom.push(zigZag(xt1 - cursor[0]));
+				// geom.push(zigZag(yt1 - cursor[1]));
+				// cursor = [xt1, yt1];
+
+				// Single point
+				geom.push(encodeCommand(2, 1)); // LineTo
 				geom.push(zigZag(xt0 - cursor[0]));
 				geom.push(zigZag(yt0 - cursor[1]));
 				cursor = [xt0, yt0];
-
-				geom.push(encodeCommand(2, 1)); // LineTo
-				geom.push(zigZag(xt1 - cursor[0]));
-				geom.push(zigZag(yt1 - cursor[1]));
-				cursor = [xt1, yt1];
 			}
-
-			// const [x0, y0] = coords[0] ? [coords[0][0], coords[0][1]] : [0, 0];
-			// geom.push(encodeCommand(1, 1)); // MoveTo
-			// geom.push(zigZag(x0 - cursor[0]));
-			// geom.push(zigZag(y0 - cursor[1]));
-			// cursor = [x0, y0];
-
-			// for (let i = 1; i < coords.length; i++) {
-			// 	const [xi1, yi1] = [coords[i][0], coords[i][1]];
-			// 	const [xi2, yi2] = [coords[i][2], coords[i][3]];
-			// 	// const [yi1, xi1] = [coords[i][0], coords[i][1]];
-			// 	// const [yi2, xi2] = [coords[i][2], coords[i][3]];
-			// 	geom.push(encodeCommand(1, 1)); // MoveTo
-			// 	geom.push(zigZag(xi1 - cursor[0]));
-			// 	geom.push(zigZag(yi1 - cursor[1]));
-			// 	cursor = [xi1, yi1];
-			// 	geom.push(encodeCommand(2, 1)); // LineTo
-			// 	geom.push(zigZag(xi2 - cursor[0]));
-			// 	geom.push(zigZag(yi2 - cursor[1]));
-			// 	cursor = [xi2, yi2];
-			// }
-
-			// LineTo rest
-			// geom.push(encodeCommand(2, coords.length));
-			// for (let i = 1; i < coords.length; i++) {
-			// 	const [xi1, yi1] = [coords[i][0], coords[i][1]];
-
-			// 	geom.push(zigZag(xi1 - cursor[0]));
-			// 	geom.push(zigZag(yi1 - cursor[1]));
-			// 	cursor = [xi1, yi1];
-			// }
-
-			// write Layer
-			pbf.writeMessage(3, writeLayer, {
-				name: layerName,
-				extent,
-				features: [
-					{
-						id: 1,
-						type: 2, // 2 = LineString
-						geom
-					}
-				]
-			});
 		}
+
+		// write Layer
+		pbf.writeMessage(3, writeLayer, {
+			name: layerName,
+			extent,
+			features: [
+				{
+					id: 1,
+					type: 2, // 2 = LineString
+					geom
+				}
+			]
+		});
 
 		postMessage({ type: 'returnArrayBuffer', tile: pbf.finish(), key: key });
 	}

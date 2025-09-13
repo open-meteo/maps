@@ -1,10 +1,8 @@
-import type { DimensionRange, Domain } from '$lib/types';
+import type { Domain } from '$lib/types';
 
-import { tile2lat, tile2lon, getIndexAndFractions } from '$lib/utils/math';
+import { lon2tile, lat2tile, latLon2Tile } from '$lib/utils/math';
 
 import type { TypedArray } from '@openmeteo/file-reader';
-
-import type { ProjectionGrid } from './projection';
 
 // prettier-ignore
 export const edgeTable = [
@@ -36,9 +34,18 @@ export const edgeTable = [
  * @param {number} T    the contour threshold
  * @returns {number} world coordinate of the intersection
  */
-function interpolate(v0: number, v1: number, t0: number, t1: number, T: number): number {
+function interpolate(
+	v0: number | bigint,
+	v1: number | bigint,
+	t0: number,
+	t1: number,
+	T: number
+): number {
 	if (v0 === v1) return (t0 + t1) * 0.5; // degenerate cell
-	return t0 + ((T - v0) * (t1 - t0)) / (v1 - v0);
+	return t0 + ((T - Number(v0)) * (t1 - t0)) / (Number(v1) - Number(v0));
+
+	// t = (isolevel - valueAtVertexA) / (valueAtVertexB - valueAtVertexA);
+	// pointOnEdge = vertexA + t * (vertexB - vertexA);
 }
 
 export function marchingSquares(
@@ -47,16 +54,9 @@ export function marchingSquares(
 	x: number,
 	y: number,
 	z: number,
-	domain: Domain,
-	projectionGrid: ProjectionGrid | null,
-	ranges: DimensionRange[]
+	domain: Domain
 ): number[][] {
 	const segments = [];
-
-	const tileLatMin = tile2lat(y + 1, z);
-	const tileLatMax = tile2lat(y, z);
-	const tileLonMin = tile2lon(x, z);
-	const tileLonMax = tile2lon(x + 1, z);
 
 	const nx = domain.grid.nx;
 	const ny = domain.grid.ny;
@@ -64,41 +64,55 @@ export function marchingSquares(
 	const dx = domain.grid.dx;
 	const dy = domain.grid.dy;
 
-	const oX = tile2lon(x, z);
-	const oY = tile2lat(y + 1, z);
-
-	const lonMin = domain.grid.lonMin;
 	const latMin = domain.grid.latMin;
+	const lonMin = domain.grid.lonMin;
 
-	const indicis = [];
-	const indicisFound = [];
-	for (let i = 0; i < ny; i++) {
-		const lat = latMin + dy * i;
-		if (lat > tileLatMin && lat <= tileLatMax) {
-			for (let j = 0; j < nx; j++) {
-				const lon = lonMin + dx * j;
-				if (lon > tileLonMin && lon <= tileLonMax) {
-					const index = j + i * nx;
+	const tileSize = 4096;
+	const gridPoints = [];
+	for (let j = 0; j < nx; j++) {
+		const lon = lonMin + dx * j;
 
-					indicis.push(index);
+		const worldPx = lon2tile(lon, z) * tileSize;
+		const px = worldPx - x * tileSize;
 
-					const v0 = values[index]; // (i,   j)
-					const v1 = values[index + 1]; // (i, j+1)
-					const v2 = values[index + nx]; // (i+1, j)
-					const v3 = values[index + nx + 1]; // (i+1, j+1)
+		if (px > 0 && px <= tileSize) {
+			for (let i = 0; i <= ny; i++) {
+				const lat = latMin + dy * i;
+
+				const worldPy = lat2tile(lat, z) * tileSize;
+				const py = worldPy - y * tileSize;
+				if (py > 0 && py <= tileSize) {
+					const index = i * nx + j;
+
+					const v0 = values[index]; // (i, j)  west‑south
+
+					if (v0 > level - 0.005 && v0 < level + 0.005) {
+						// let [xt0, yt0] = latLon2Tile(z, x, y, lat, lon, 4096);
+						// segments.push([xt0, yt0]);
+						segments.push([px, py]);
+						continue;
+					} else {
+						continue;
+					}
+
+					const v1 = values[index + 1]; // (i, j+1)  east‑south
+					const v2 = values[index + nx]; //  (i+1, j) west‑north
+					const v3 = values[index + nx + 1]; // (i+1, j+1) east‑north
 
 					// code
-					const c = (v0 > level) | ((v1 > level) << 1) | ((v2 > level) << 2) | ((v3 > level) << 3);
+					const c =
+						(v0 > level ? 1 : 0) |
+						((v1 > level ? 1 : 0) << 1) |
+						((v2 > level ? 1 : 0) << 2) |
+						((v3 > level ? 1 : 0) << 3);
 
 					if (c === 0 || c === 15) continue; // no contour inside this cell
 
-					indicisFound.push(index);
-
-					// ----- corners of gridcell in world coordinates ------------------------
-					const x0 = lon - dx / 2;
-					const y0 = lat - dy / 2;
-					const x1 = lon + dx / 2;
-					const y1 = lat + dy / 2;
+					// ----- corners of gridcell in tile coordinates ------------------------
+					const x0 = lon2tile(lon, z) * tileSize - x * tileSize;
+					const y0 = lat2tile(lat + dy, z) * tileSize - y * tileSize;
+					const x1 = lon2tile(lon + dx, z) * tileSize - x * tileSize;
+					const y1 = lat2tile(lat, z) * tileSize - y * tileSize;
 
 					// ----- fetch the edges that need intersections ----------
 					const edges = edgeTable[c];
@@ -111,8 +125,8 @@ export function marchingSquares(
 						// Edge 1 – (1,2)
 						// Edge 2 – (2,3)
 						// Edge 3 – (3,0)
-						let a = {};
-						let b = {};
+						let a: { x: number; y: number; v: number | bigint } = { x: 0, y: 0, v: 0 };
+						let b: { x: number; y: number; v: number | bigint } = { x: 0, y: 0, v: 0 };
 
 						switch (ea) {
 							case 0:
@@ -145,8 +159,9 @@ export function marchingSquares(
 
 						const ix = interpolate(a.v, b.v, a.x, b.x, level);
 						const iy = interpolate(a.v, b.v, a.y, b.y, level);
-						pts.push([ix, iy]);
+						// pts.push([px,py]);
 					}
+					segments.push([px, py]);
 
 					if (pts.length === 2) {
 						segments.push([pts[0][0], pts[0][1], pts[1][0], pts[1][1]]);
@@ -159,5 +174,5 @@ export function marchingSquares(
 		}
 	}
 
-	return segments;
+	return [segments, gridPoints];
 }
