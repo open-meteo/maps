@@ -234,21 +234,20 @@ self.onmessage = async (message) => {
 		const latMin = domain.grid.latMin;
 		const lonMin = domain.grid.lonMin;
 
+		const margin = 256;
+
 		const tileSize = 4096;
 		const coords = [];
-		for (let j = 0; j < nx; j++) {
-			const lon = lonMin + dx * j;
 
-			const worldPx = Math.floor(lon2tile(lon, z) * tileSize);
-			const px = worldPx - x * tileSize;
+		for (let i = 0; i < ny; i++) {
+			const worldPy = Math.floor(lat2tile(latMin + dy * i, z) * tileSize);
+			const py = worldPy - y * tileSize;
+			if (py > -margin && py <= tileSize + margin) {
+				for (let j = 0; j < nx; j++) {
+					const worldPx = Math.floor(lon2tile(lonMin + dx * j, z) * tileSize);
+					const px = worldPx - x * tileSize;
 
-			if (px > 0 && px <= tileSize) {
-				for (let i = 0; i < ny; i++) {
-					const lat = latMin + dy * i;
-
-					const worldPy = Math.floor(lat2tile(lat, z) * tileSize);
-					const py = worldPy - y * tileSize;
-					if (py > 0 && py <= tileSize) {
+					if (px > -margin && px <= tileSize + margin) {
 						const index = i * nx + j;
 
 						const v = values[index]; // (i, j)  west‑south

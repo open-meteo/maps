@@ -35,8 +35,8 @@ export function latLon2Tile(
 	lonDeg: number,
 	tileSize = 256
 ) {
-	const worldPx = lon2tile(lonDeg, z) * tileSize;
-	const worldPy = lat2tile(latDeg, z) * tileSize;
+	const worldPx = Math.floor(lon2tile(lonDeg, z) * tileSize);
+	const worldPy = Math.floor(lat2tile(latDeg, z) * tileSize);
 
 	const px = worldPx - x * tileSize;
 	const py = worldPy - y * tileSize;
