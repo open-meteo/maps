@@ -41,6 +41,8 @@
 
 	let darkMode = $derived(mode.current);
 
+	const beforeLayer = 'country-lines';
+
 	const addHillshadeLayer = () => {
 		map.setSky({
 			'sky-color': '#000000',
@@ -80,7 +82,7 @@
 					'hillshade-highlight-color': 'rgba(255,255,255,0.35)'
 				}
 			},
-			'waterway-tunnel'
+			beforeLayer
 		);
 	};
 
@@ -110,7 +112,7 @@
 					// 'raster-fade-duration': 300
 				}
 			},
-			'waterway-tunnel'
+			beforeLayer
 		);
 
 		// map.addSource('omFileVectorSource', {
@@ -184,12 +186,14 @@
 				}
 				div.innerHTML = mode.current !== 'dark' ? lightSVG : darkSVG;
 				map.setStyle(
-					`https://maptiler.servert.nl/styles/basic-world-maps${mode.current === 'dark' ? '-dark' : ''}/style.json`
+					`https://maptiler.servert.nl/styles/maps-minimal${mode.current === 'dark' ? '-dark' : ''}/style.json`
 				);
 
 				map.once('styledata', () => {
-					addHillshadeLayer();
-					addOmFileLayer();
+					setTimeout(() => {
+						// addHillshadeLayer();
+						addOmFileLayer();
+					}, 50);
 				});
 			});
 			return div;
@@ -359,12 +363,12 @@
 
 		map = new maplibregl.Map({
 			container: mapContainer as HTMLElement,
-			style: `https://maptiler.servert.nl/styles/basic-world-maps${mode.current === 'dark' ? '-dark' : ''}/style.json`,
+			style: `https://maptiler.servert.nl/styles/maps-minimal${mode.current === 'dark' ? '-dark' : ''}/style.json`,
 			center: typeof domain.grid.center == 'object' ? domain.grid.center : [0, 0],
 			zoom: domain?.grid.zoom,
 			keyboard: false,
 			hash: true,
-			maxZoom: 20,
+			maxZoom: 11,
 			maxPitch: 85
 		});
 
@@ -401,14 +405,14 @@
 		map.on('load', async () => {
 			mapBounds = map.getBounds();
 
-			addHillshadeLayer();
+			// addHillshadeLayer();
 
-			map.addControl(
-				new maplibregl.TerrainControl({
-					source: 'terrainSource',
-					exaggeration: 1
-				})
-			);
+			// map.addControl(
+			// 	new maplibregl.TerrainControl({
+			// 		source: 'terrainSource',
+			// 		exaggeration: 1
+			// 	})
+			// );
 
 			map.addControl(new DarkModeButton());
 			map.addControl(new SettingsButton());
