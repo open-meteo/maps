@@ -264,77 +264,7 @@ self.onmessage = async (message) => {
 
 		// const [coords, gridPoints] = marchingSquares(values, level, x, y, z, domain);
 
-		// MoveTo first point
-		geom.push(encodeCommand(1, 1)); // MoveTo
-		geom.push(zigZag(0));
-		geom.push(zigZag(0));
-		cursor = [0, 0];
-
-		geom.push(encodeCommand(2, 4)); // LineTo
-		geom.push(zigZag(4096 - cursor[0]));
-		geom.push(zigZag(0 - cursor[1]));
-		cursor = [4096, 0];
-
-		geom.push(zigZag(4096 - cursor[0]));
-		geom.push(zigZag(4096 - cursor[1]));
-		cursor = [4096, 4096];
-
-		geom.push(zigZag(0 - cursor[0]));
-		geom.push(zigZag(4096 - cursor[1]));
-		cursor = [0, 4096];
-
-		geom.push(zigZag(0 - cursor[0]));
-		geom.push(zigZag(0 - cursor[1]));
-		cursor = [0, 0];
-
 		let xt0, yt0, xt1, yt1;
-
-		const testCoords = [
-			[7.5, 62],
-			[7.5, 50.5],
-			[-2, 50.5],
-			[-2, 62]
-		];
-		// const testCoords = [
-		// 	[71.6, -50.7],
-		// 	[71.6, -47.8],
-		// 	[67.25, -47.8],
-		// 	[67.25, -50.7]
-		// ];
-
-		geom.push(encodeCommand(1, 1)); // MoveTo
-		[xt0, yt0] = testCoords[testCoords.length - 1];
-		[xt0, yt0] = latLon2Tile(z, x, y, yt0, xt0, 4096);
-		geom.push(zigZag(xt0 - cursor[0]));
-		geom.push(zigZag(yt0 - cursor[1]));
-		cursor = [xt0, yt0];
-		for (const c of testCoords) {
-			[xt0, yt0] = c;
-
-			[xt0, yt0] = latLon2Tile(z, x, y, yt0, xt0, 4096);
-
-			geom.push(encodeCommand(2, 1)); // LineTo
-			geom.push(zigZag(xt0 - cursor[0]));
-			geom.push(zigZag(yt0 - cursor[1]));
-			cursor = [xt0, yt0];
-		}
-
-		// if (gridPoints.length > 0) {
-		// 	geom.push(encodeCommand(1, 1)); // MoveTo
-		// 	[xt0, yt0] = gridPoints[gridPoints.length - 1];
-
-		// 	geom.push(zigZag(xt0 - cursor[0]));
-		// 	geom.push(zigZag(yt0 - cursor[1]));
-		// 	cursor = [xt0, yt0];
-		// 	for (const c of gridPoints) {
-		// 		[xt0, yt0] = c;
-
-		// 		geom.push(encodeCommand(2, 1)); // LineTo
-		// 		geom.push(zigZag(xt0 - cursor[0]));
-		// 		geom.push(zigZag(yt0 - cursor[1]));
-		// 		cursor = [xt0, yt0];
-		// 	}
-		// }
 
 		if (coords.length > 0) {
 			geom.push(encodeCommand(1, 1)); // MoveTo
