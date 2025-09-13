@@ -69,7 +69,6 @@ export function marchingSquares(
 
 	const tileSize = 4096;
 	const margin = 256;
-	const gridPoints = [];
 	for (let i = 0; i < ny; i++) {
 		const worldPy = Math.floor(lat2tile(latMin + dy * i, z) * tileSize);
 		const py = worldPy - y * tileSize;
@@ -160,5 +159,5 @@ export function marchingSquares(
 		}
 	}
 
-	return [segments, gridPoints];
+	return segments;
 }

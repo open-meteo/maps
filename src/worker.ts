@@ -225,20 +225,19 @@ self.onmessage = async (message) => {
 		const geom: number[] = [];
 		let cursor: [number, number] = [0, 0];
 
-		const [coords, gridPoints] = marchingSquares(values, level, x, y, z, domain);
+		const segments = marchingSquares(values, level, x, y, z, domain);
 
-		let xt0, yt0, xt1, yt1;
-
-		if (coords.length > 0) {
+		if (segments.length > 0) {
+			// move to first point in segments
+			let xt0, yt0, xt1, yt1;
 			geom.push(encodeCommand(1, 1)); // MoveTo
-			[xt0, yt0] = coords[0];
+			[xt0, yt0] = segments[0];
 			geom.push(zigZag(xt0 - cursor[0]));
 			geom.push(zigZag(yt0 - cursor[1]));
 			cursor = [xt0, yt0];
 
-			// geom.push(encodeCommand(2, coords.length - 1)); // LineTo
-			for (const c of coords) {
-				[xt0, yt0, xt1, yt1] = c;
+			for (const s of segments) {
+				[xt0, yt0, xt1, yt1] = s;
 
 				geom.push(encodeCommand(1, 1)); // MoveTo
 				geom.push(zigZag(xt0 - cursor[0]));
