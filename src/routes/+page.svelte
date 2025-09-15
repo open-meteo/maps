@@ -264,11 +264,7 @@
 	let domain: Domain = $state(
 		domainOptions.find((dm) => dm.value === import.meta.env.VITE_DOMAIN) ?? domainOptions[0]
 	);
-<<<<<<< Updated upstream
-	let variable: Variable = $state(
-		variableOptions.find((v) => v.value === import.meta.env.VITE_VARIABLE) ?? variableOptions[0]
-	);
-=======
+
 	let variables: Variable[] = $state([
 		variableOptions.find((v) => v.value === import.meta.env.VITE_VARIABLE) ?? variableOptions[0]
 	]);
@@ -279,7 +275,6 @@
 		}
 		return keys;
 	});
->>>>>>> Stashed changes
 
 	const now = new SvelteDate();
 	now.setHours(now.getHours() + 1, 0, 0, 0);
@@ -538,26 +533,16 @@
 					if (modelRunSelected.getTime() - timeSelected.getTime() > 0) {
 						timeSelected = new SvelteDate(referenceTime);
 					}
-<<<<<<< Updated upstream
-					if (!json.variables.includes(variable.value)) {
-						variable =
-							variableOptions.find((v) => v.value === json.variables[0]) ?? variableOptions[0];
-						url.searchParams.set('variable', variable.value);
+
+					if (!json.variables.some((jsV) => variableKeys.includes(jsV))) {
+						variables = [
+							variableOptions.find((v) => v.value === json.variables[0]) ?? variableOptions[0]
+						];
+						url.searchParams.set('variables', variable.value);
 						pushState(url + map._hash.getHashString(), {});
 						toast('Variable set to: ' + variable.label);
 						changeOMfileURL();
 					}
-=======
-					// if (!json.variables.some((jsV) => variableKeys.includes(jsV))) {
-					// 	variables = [
-					// 		variableOptions.find((v) => v.value === json.variables[0]) ?? variableOptions[0]
-					// 	];
-					// 	url.searchParams.set('variables', variable.value);
-					// 	pushState(url + map._hash.getHashString(), {});
-					// 	toast('Variable set to: ' + variable.label);
-					// 	changeOMfileURL();
-					// }
->>>>>>> Stashed changes
 				}
 
 				resolve(json);
@@ -763,25 +748,8 @@
 							changeOMfileURL();
 						}}
 						variableChange={(value: string) => {
-<<<<<<< Updated upstream
-							variable = variableOptions.find((v) => v.value === value) ?? variableOptions[0];
-=======
-<<<<<<< Updated upstream
-							variable = variables.find((v) => v.value === value) ?? variables[0];
-=======
-<<<<<<< Updated upstream
-							variable = variableOptions.find((v) => v.value === value) ?? variableOptions[0];
-=======
-<<<<<<< Updated upstream
-							variable = variables.find((v) => v.value === value) ?? variables[0];
->>>>>>> Stashed changes
->>>>>>> Stashed changes
->>>>>>> Stashed changes
-							url.searchParams.set('variable', variable.value);
-=======
 							variables = [variableOptions.find((v) => v.value === value) ?? variableOptions[0]];
 							url.searchParams.set('variables', variableKeys.join(','));
->>>>>>> Stashed changes
 							pushState(url + map._hash.getHashString(), {});
 							let variablesSet = [];
 							for (const variable of variables) {
