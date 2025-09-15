@@ -1,3 +1,5 @@
+import type { Variable } from '$lib/types';
+
 const pressureLevels = [
 	10, 15, 20, 30, 40, 50, 70, 75, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325, 350, 375, 400,
 	425, 450, 475, 500, 525, 550, 575, 600, 625, 650, 675, 700, 725, 750, 775, 800, 825, 850, 875,
@@ -9,7 +11,7 @@ const heights = [
 	1500, 1750, 2000, 2250, 2500, 2750, 3000, 3250, 3500, 3750, 4000, 4500, 5000, 5500, 6000
 ];
 
-export const variableOptions = [
+export const variableOptions: Variable[] = [
 	{ value: 'boundary_layer_height', label: 'Boundary Layer Height' },
 
 	{ value: 'cape', label: 'CAPE' },
@@ -157,3 +159,13 @@ export const hideZero = [
 ];
 
 export const drawOnTiles = ['pressure_msl'];
+
+const getVariableKeys = () => {
+	const keys = [];
+	for (const variable of variableOptions) {
+		keys.push(variable.value);
+	}
+	return keys;
+};
+
+export const variableOptionKeys = getVariableKeys();

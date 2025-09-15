@@ -15,9 +15,11 @@
 	import { pushState } from '$app/navigation';
 
 	import { omProtocol, getValueFromLatLong } from '../om-protocol';
+
 	import { pad } from '$lib/utils/pad';
 	import { domainOptions } from '$lib/utils/domains';
-	import { hideZero, variableOptions } from '$lib/utils/variables';
+	import { getColorScale } from '$lib/utils/color-scales';
+	import { hideZero, variableOptionKeys, variableOptions } from '$lib/utils/variables';
 
 	import type { Variable, Domain, DomainMetaData } from '$lib/types';
 
@@ -28,8 +30,6 @@
 	import TimeSelector from '$lib/components/time/time-selector.svelte';
 	import VariableSelection from '$lib/components/selection/variable-selection.svelte';
 	import SelectedVariables from '$lib/components/scale/selected-variables.svelte';
-
-	import { getColorScale } from '$lib/utils/color-scales';
 
 	import '../styles.css';
 
@@ -264,9 +264,22 @@
 	let domain: Domain = $state(
 		domainOptions.find((dm) => dm.value === import.meta.env.VITE_DOMAIN) ?? domainOptions[0]
 	);
+<<<<<<< Updated upstream
 	let variable: Variable = $state(
 		variableOptions.find((v) => v.value === import.meta.env.VITE_VARIABLE) ?? variableOptions[0]
 	);
+=======
+	let variables: Variable[] = $state([
+		variableOptions.find((v) => v.value === import.meta.env.VITE_VARIABLE) ?? variableOptions[0]
+	]);
+	let variableKeys = $derived.by(() => {
+		const keys = [];
+		for (const variable of variables) {
+			keys.push(variable.value);
+		}
+		return keys;
+	});
+>>>>>>> Stashed changes
 
 	const now = new SvelteDate();
 	now.setHours(now.getHours() + 1, 0, 0, 0);
@@ -349,9 +362,39 @@
 		}
 		checkClosestHourDomainInterval();
 
+<<<<<<< Updated upstream
 		if (params.get('variable')) {
+<<<<<<< Updated upstream
 			variable =
 				variableOptions.find((v) => v.value === params.get('variable')) ?? variableOptions[0];
+=======
+<<<<<<< Updated upstream
+			variable = variables.find((v) => v.value === params.get('variable')) ?? variables[0];
+=======
+<<<<<<< Updated upstream
+			variable =
+				variableOptions.find((v) => v.value === params.get('variable')) ?? variableOptions[0];
+=======
+			variable = variables.find((v) => v.value === params.get('variable')) ?? variables[0];
+=======
+		if (params.get('variables')) {
+			variables = params
+				.get('variables')
+				?.split(',')
+				.filter((v: string) => {
+					if (variableOptionKeys.includes(v)) {
+						return true;
+					} else {
+						return false;
+					}
+				})
+				.map((v: string) => {
+					return variableOptions.find((vo) => v === vo.value);
+				});
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
 		}
 
 		if (params.get('partial')) {
@@ -439,7 +482,7 @@
 					}
 					let { index, value } = getValueFromLatLong(coordinates.lat, coordinates.lng, colorScale);
 					if (index) {
-						if ((hideZero.includes(variable.value) && value <= 0.25) || !value) {
+						if ((hideZero.some((hZ) => variableKeys.includes(hZ)) && value <= 0.25) || !value) {
 							popup.remove();
 						} else {
 							let string = value.toFixed(1) + colorScale.unit;
@@ -472,14 +515,14 @@
 
 	const getOMUrl = () => {
 		if (mapBounds) {
-			return `https://map-tiles.open-meteo.com/data_spatial/${domain.value}/${modelRunSelected.getUTCFullYear()}/${pad(modelRunSelected.getUTCMonth() + 1)}/${pad(modelRunSelected.getUTCDate())}/${pad(modelRunSelected.getUTCHours())}00Z/${timeSelected.getUTCFullYear()}-${pad(timeSelected.getUTCMonth() + 1)}-${pad(timeSelected.getUTCDate())}T${pad(timeSelected.getUTCHours())}00.om?dark=${darkMode}&variable=${variable.value}&bounds=${mapBounds.getSouth()},${mapBounds.getWest()},${mapBounds.getNorth()},${mapBounds.getEast()}&partial=${partial}`;
+			return `https://map-tiles.open-meteo.com/data_spatial/${domain.value}/${modelRunSelected.getUTCFullYear()}/${pad(modelRunSelected.getUTCMonth() + 1)}/${pad(modelRunSelected.getUTCDate())}/${pad(modelRunSelected.getUTCHours())}00Z/${timeSelected.getUTCFullYear()}-${pad(timeSelected.getUTCMonth() + 1)}-${pad(timeSelected.getUTCDate())}T${pad(timeSelected.getUTCHours())}00.om?dark=${darkMode}&variables=${variableKeys.join(',')}&bounds=${mapBounds.getSouth()},${mapBounds.getWest()},${mapBounds.getNorth()},${mapBounds.getEast()}&partial=${partial}`;
 		} else {
-			return `https://map-tiles.open-meteo.com/data_spatial/${domain.value}/${modelRunSelected.getUTCFullYear()}/${pad(modelRunSelected.getUTCMonth() + 1)}/${pad(modelRunSelected.getUTCDate())}/${pad(modelRunSelected.getUTCHours())}00Z/${timeSelected.getUTCFullYear()}-${pad(timeSelected.getUTCMonth() + 1)}-${pad(timeSelected.getUTCDate())}T${pad(timeSelected.getUTCHours())}00.om?dark=${darkMode}&variable=${variable.value}&partial=${partial}`;
+			return `https://map-tiles.open-meteo.com/data_spatial/${domain.value}/${modelRunSelected.getUTCFullYear()}/${pad(modelRunSelected.getUTCMonth() + 1)}/${pad(modelRunSelected.getUTCDate())}/${pad(modelRunSelected.getUTCHours())}00Z/${timeSelected.getUTCFullYear()}-${pad(timeSelected.getUTCMonth() + 1)}-${pad(timeSelected.getUTCDate())}T${pad(timeSelected.getUTCHours())}00.om?dark=${darkMode}&variables=${variableKeys.join(',')}&partial=${partial}`;
 		}
 	};
 
 	let colorScale = $derived.by(() => {
-		return getColorScale(variable);
+		return getColorScale(variables[0]);
 	});
 
 	const getDomainData = async (latest = true): Promise<DomainMetaData> => {
@@ -495,6 +538,7 @@
 					if (modelRunSelected.getTime() - timeSelected.getTime() > 0) {
 						timeSelected = new SvelteDate(referenceTime);
 					}
+<<<<<<< Updated upstream
 					if (!json.variables.includes(variable.value)) {
 						variable =
 							variableOptions.find((v) => v.value === json.variables[0]) ?? variableOptions[0];
@@ -503,6 +547,17 @@
 						toast('Variable set to: ' + variable.label);
 						changeOMfileURL();
 					}
+=======
+					// if (!json.variables.some((jsV) => variableKeys.includes(jsV))) {
+					// 	variables = [
+					// 		variableOptions.find((v) => v.value === json.variables[0]) ?? variableOptions[0]
+					// 	];
+					// 	url.searchParams.set('variables', variable.value);
+					// 	pushState(url + map._hash.getHashString(), {});
+					// 	toast('Variable set to: ' + variable.label);
+					// 	changeOMfileURL();
+					// }
+>>>>>>> Stashed changes
 				}
 
 				resolve(json);
@@ -636,8 +691,8 @@
 
 <div class="map" id="#map_container" bind:this={mapContainer}></div>
 <div class="absolute bottom-1 left-1 max-h-[300px]">
-	<Scale {showScale} {variable} />
-	<SelectedVariables {domain} {variable} />
+	<Scale {showScale} {variables} />
+	<SelectedVariables {domain} {variables} />
 </div>
 <TimeSelector
 	bind:domain
@@ -670,7 +725,7 @@
 				<div class="container mx-auto px-3">
 					<VariableSelection
 						{domain}
-						{variable}
+						{variables}
 						{modelRuns}
 						{timeSelected}
 						{latestRequest}
@@ -708,10 +763,31 @@
 							changeOMfileURL();
 						}}
 						variableChange={(value: string) => {
+<<<<<<< Updated upstream
 							variable = variableOptions.find((v) => v.value === value) ?? variableOptions[0];
+=======
+<<<<<<< Updated upstream
+							variable = variables.find((v) => v.value === value) ?? variables[0];
+=======
+<<<<<<< Updated upstream
+							variable = variableOptions.find((v) => v.value === value) ?? variableOptions[0];
+=======
+<<<<<<< Updated upstream
+							variable = variables.find((v) => v.value === value) ?? variables[0];
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
 							url.searchParams.set('variable', variable.value);
+=======
+							variables = [variableOptions.find((v) => v.value === value) ?? variableOptions[0]];
+							url.searchParams.set('variables', variableKeys.join(','));
+>>>>>>> Stashed changes
 							pushState(url + map._hash.getHashString(), {});
-							toast('Variable set to: ' + variable.label);
+							let variablesSet = [];
+							for (const variable of variables) {
+								variablesSet.push(variable.label);
+							}
+							toast('Variable set to: ' + variablesSet.join(', '));
 							changeOMfileURL();
 						}}
 					/>

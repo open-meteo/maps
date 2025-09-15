@@ -109,7 +109,7 @@ export class OMapsFileReader {
 		};
 	}
 
-	getNextUrls(omUrl: string) {
+	getNextUrls(omUrl: string): [string, string] | null {
 		const re = new RegExp(/([0-9]{2}-[0-9]{2}-[0-9]{2}T[0-9]{2}00)/);
 		const matches = omUrl.match(re);
 		let nextUrl, prevUrl;
@@ -131,7 +131,7 @@ export class OMapsFileReader {
 		if (prevUrl && nextUrl) {
 			return [prevUrl, nextUrl];
 		} else {
-			return undefined;
+			return null;
 		}
 	}
 

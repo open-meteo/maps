@@ -3,10 +3,10 @@
 
 	interface Props {
 		domain: Domain;
-		variable: Variable;
+		variables: Variable[];
 	}
 
-	let { domain, variable }: Props = $props();
+	let { domain, variables }: Props = $props();
 </script>
 
 <div
@@ -17,7 +17,10 @@
 			Domain: {domain.label}
 		</p>
 		<p class="truncate">
-			Variable: {variable.label}
+			Variables:
+			{#each variables as variable}
+				{variable.label}
+			{/each}
 		</p>
 	</div>
 </div>
