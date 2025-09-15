@@ -456,14 +456,29 @@
 					} else {
 						popup.addTo(map);
 					}
-					let { index, value } = getValueFromLatLong(coordinates.lat, coordinates.lng, colorScale);
-					if (index) {
-						if ((hideZero.some((hZ) => variableKeys.includes(hZ)) && value <= 0.25) || !value) {
-							popup.remove();
-						} else {
-							let string = value.toFixed(1) + colorScale.unit;
-							popup.setLngLat(coordinates).setHTML(`<span class="value-popup">${string}</span>`);
+					let spanText = '';
+					for (const variable of variables) {
+						let cs = getColorScale(variable);
+
+						let { index, value } = getValueFromLatLong(
+							coordinates.lat,
+							coordinates.lng,
+							variable,
+							cs
+						);
+						console.log(variable, cs);
+						if (index) {
+							if ((hideZero.includes(variable.value) && value <= 0.25) || !value) {
+								//popup.remove();
+							} else {
+								let string = value.toFixed(1) + cs.unit;
+								spanText =
+									spanText + `<span class="value-popup">${variable.label}: ${string}</span><br>`;
+							}
 						}
+					}
+					if (spanText) {
+						popup.setLngLat(coordinates).setHTML(spanText);
 					} else {
 						popup.setLngLat(coordinates).setHTML(`<span class="value-popup">Outside domain</span>`);
 					}

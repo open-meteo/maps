@@ -108,10 +108,11 @@ const getWorker = () => {
 export const getValueFromLatLong = (
 	lat: number,
 	lon: number,
+	variable: Variable,
 	colorScale: ColorScale
 ): { index: number; value: number; direction?: number } => {
 	if (data) {
-		const values = data.values;
+		const values = data[variable.value];
 
 		let indexObject;
 		if (domain.grid.projection) {
@@ -141,17 +142,16 @@ export const getValueFromLatLong = (
 };
 
 const getTile = async ({ z, x, y }: TileIndex, omUrl: string): Promise<ImageBitmap> => {
-	const tilePromises = [];
-
-	const tileWorker = getWorker();
-
 	let iconList = {};
-	// if (variableKeys.value.startsWith('wind') || variable.value.startsWith('wave')) {
-	// 	iconList = arrowPixelData;
-	// }
+	const tilePromises = [];
+	const tileWorker = getWorker();
 
 	for (const variable of variables) {
 		const key = `${omUrl}/${variable.value}/${TILE_SIZE}/${z}/${x}/${y}`;
+
+		if (variable.value.startsWith('wind') || variable.value.startsWith('wave')) {
+			iconList = arrowPixelData;
+		}
 
 		tileWorker.postMessage({
 			type: 'GT',
@@ -181,14 +181,16 @@ const getTile = async ({ z, x, y }: TileIndex, omUrl: string): Promise<ImageBitm
 	canvas.height = TILE_SIZE;
 
 	await Promise.all(tilePromises).then((tiles) => {
-		ctx.globalAlpha = 0.95;
-		if (tiles.length > 2) {
-			ctx.globalAlpha = 0.85;
-		} else if (tiles.length > 4) {
-			ctx.globalAlpha = 0.75;
-		}
-		for (const tile of tiles) {
-			ctx?.drawImage(tile, 0, 0);
+		if (ctx) {
+			ctx.globalAlpha = 0.95;
+			if (tiles.length > 2) {
+				ctx.globalAlpha = 0.85;
+			} else if (tiles.length > 4) {
+				ctx.globalAlpha = 0.75;
+			}
+			for (const tile of tiles) {
+				ctx.drawImage(tile, 0, 0);
+			}
 		}
 	});
 
@@ -311,7 +313,6 @@ const initOMFile = (url: string): Promise<void> => {
 						omapsFileReader.readVariable(variable, ranges).then((dataObject) => {
 							data[variable.value] = dataObject['values'];
 							data[variable.value + 'directions'] = dataObject['directions'];
-							resolve();
 
 							// prefetch first bytes of the previous and next timesteps to trigger CF caching
 							omapsFileReader.prefetch(omUrl);
@@ -319,8 +320,7 @@ const initOMFile = (url: string): Promise<void> => {
 					);
 				}
 
-				await Promise.all(variablePromises);
-				resolve();
+				await Promise.all(variablePromises).then(() => resolve());
 			})
 			.catch((e) => {
 				reject(e);

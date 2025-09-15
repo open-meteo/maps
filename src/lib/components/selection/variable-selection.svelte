@@ -162,7 +162,7 @@
 						}}
 					>
 						<Select.Trigger aria-label="Domain trigger" class="top-[0.35rem] !h-12 w-full  pt-6 "
-							>{#each variables as variable}{variable?.label}{/each}</Select.Trigger
+							>{#each variables as variable}{variable?.label + ', '}{/each}</Select.Trigger
 						>
 						<Select.Content side="bottom">
 							{#each latest.variables as vr, i (i)}
