@@ -357,21 +357,6 @@
 		}
 		checkClosestHourDomainInterval();
 
-<<<<<<< Updated upstream
-		if (params.get('variable')) {
-<<<<<<< Updated upstream
-			variable =
-				variableOptions.find((v) => v.value === params.get('variable')) ?? variableOptions[0];
-=======
-<<<<<<< Updated upstream
-			variable = variables.find((v) => v.value === params.get('variable')) ?? variables[0];
-=======
-<<<<<<< Updated upstream
-			variable =
-				variableOptions.find((v) => v.value === params.get('variable')) ?? variableOptions[0];
-=======
-			variable = variables.find((v) => v.value === params.get('variable')) ?? variables[0];
-=======
 		if (params.get('variables')) {
 			variables = params
 				.get('variables')
@@ -386,10 +371,6 @@
 				.map((v: string) => {
 					return variableOptions.find((vo) => v === vo.value);
 				});
->>>>>>> Stashed changes
->>>>>>> Stashed changes
->>>>>>> Stashed changes
->>>>>>> Stashed changes
 		}
 
 		if (params.get('partial')) {
