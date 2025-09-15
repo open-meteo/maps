@@ -181,6 +181,12 @@ const getTile = async ({ z, x, y }: TileIndex, omUrl: string): Promise<ImageBitm
 	canvas.height = TILE_SIZE;
 
 	await Promise.all(tilePromises).then((tiles) => {
+		ctx.globalAlpha = 0.95;
+		if (tiles.length > 2) {
+			ctx.globalAlpha = 0.85;
+		} else if (tiles.length > 4) {
+			ctx.globalAlpha = 0.75;
+		}
 		for (const tile of tiles) {
 			ctx?.drawImage(tile, 0, 0);
 		}

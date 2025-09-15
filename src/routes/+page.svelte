@@ -265,7 +265,7 @@
 		domainOptions.find((dm) => dm.value === import.meta.env.VITE_DOMAIN) ?? domainOptions[0]
 	);
 
-	let variables: Variable[] = $state([
+	let variables: Variable[] | undefined = $state([
 		variableOptions.find((v) => v.value === import.meta.env.VITE_VARIABLE) ?? variableOptions[0]
 	]);
 	let variableKeys = $derived.by(() => {
@@ -516,12 +516,14 @@
 					}
 
 					if (!json.variables.some((jsV) => variableKeys.includes(jsV))) {
-						variables = [
-							variableOptions.find((v) => v.value === json.variables[0]) ?? variableOptions[0]
-						];
-						url.searchParams.set('variables', variable.value);
+						variables = [variableOptions.find((v) => v.value === json.variables[0])];
+						url.searchParams.set('variables', variableKeys.join(','));
 						pushState(url + map._hash.getHashString(), {});
-						toast('Variable set to: ' + variable.label);
+						let variablesSet = [];
+						for (const variable of variables) {
+							variablesSet.push(variable.label);
+						}
+						toast('Variable set to: ' + variablesSet.join(', '));
 						changeOMfileURL();
 					}
 				}
@@ -728,8 +730,19 @@
 							);
 							changeOMfileURL();
 						}}
-						variableChange={(value: string) => {
-							variables = [variableOptions.find((v) => v.value === value) ?? variableOptions[0]];
+						variableChange={(values: string[]) => {
+							variables = values
+								.filter((v: string) => {
+									if (variableOptionKeys.includes(v)) {
+										return true;
+									} else {
+										return false;
+									}
+								})
+								.map((v: string) => {
+									return variableOptions.find((vo) => v === vo.value);
+								});
+
 							url.searchParams.set('variables', variableKeys.join(','));
 							pushState(url + map._hash.getHashString(), {});
 							let variablesSet = [];

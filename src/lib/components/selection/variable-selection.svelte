@@ -12,7 +12,7 @@
 
 	interface Props {
 		domain: Domain;
-		variable: Variable;
+		variables: Variable[];
 		modelRuns;
 		timeSelected: Date;
 		latestRequest: Promise<DomainMetaData>;
@@ -24,7 +24,7 @@
 	}
 	let {
 		domain,
-		variable,
+		variables,
 		modelRuns,
 		timeSelected,
 		latestRequest,
@@ -36,7 +36,13 @@
 	}: Props = $props();
 
 	let selectedDomain = $derived(domain.value);
-	let selectedVariable = $derived(variable.value);
+	let selectedVariables = $derived.by(() => {
+		const keys = [];
+		for (const variable of variables) {
+			keys.push(variable.value);
+		}
+		return keys;
+	});
 
 	const timeValid = $derived.by(async () => {
 		let latest = await latestRequest;
@@ -148,14 +154,15 @@
 				<div class="relative">
 					<Select.Root
 						name="variables"
-						type="single"
-						bind:value={selectedVariable}
+						type="multiple"
+						bind:value={selectedVariables}
 						onValueChange={(value) => {
+							console.log(value);
 							variableChange(value);
 						}}
 					>
 						<Select.Trigger aria-label="Domain trigger" class="top-[0.35rem] !h-12 w-full  pt-6 "
-							>{variable?.label}</Select.Trigger
+							>{#each variables as variable}{variable?.label}{/each}</Select.Trigger
 						>
 						<Select.Content side="bottom">
 							{#each latest.variables as vr, i (i)}
