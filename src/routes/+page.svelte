@@ -16,8 +16,8 @@
 
 	import { omProtocol, getValueFromLatLong } from '../om-protocol';
 	import { pad } from '$lib/utils/pad';
-	import { domains } from '$lib/utils/domains';
-	import { hideZero, variables } from '$lib/utils/variables';
+	import { domainOptions } from '$lib/utils/domains';
+	import { hideZero, variableOptions } from '$lib/utils/variables';
 
 	import type { Variable, Domain, DomainMetaData } from '$lib/types';
 
@@ -262,10 +262,10 @@
 	let params: URLSearchParams;
 
 	let domain: Domain = $state(
-		domains.find((dm) => dm.value === import.meta.env.VITE_DOMAIN) ?? domains[0]
+		domainOptions.find((dm) => dm.value === import.meta.env.VITE_DOMAIN) ?? domainOptions[0]
 	);
 	let variable: Variable = $state(
-		variables.find((v) => v.value === import.meta.env.VITE_VARIABLE) ?? variables[0]
+		variableOptions.find((v) => v.value === import.meta.env.VITE_VARIABLE) ?? variableOptions[0]
 	);
 
 	const now = new SvelteDate();
@@ -321,7 +321,7 @@
 		params = new URLSearchParams(url.search);
 
 		if (params.get('domain')) {
-			domain = domains.find((dm) => dm.value === params.get('domain')) ?? domains[0];
+			domain = domainOptions.find((dm) => dm.value === params.get('domain')) ?? domainOptions[0];
 		}
 
 		let urlModelTime = params.get('model_run');
@@ -350,7 +350,8 @@
 		checkClosestHourDomainInterval();
 
 		if (params.get('variable')) {
-			variable = variables.find((v) => v.value === params.get('variable')) ?? variables[0];
+			variable =
+				variableOptions.find((v) => v.value === params.get('variable')) ?? variableOptions[0];
 		}
 
 		if (params.get('partial')) {
@@ -495,7 +496,8 @@
 						timeSelected = new SvelteDate(referenceTime);
 					}
 					if (!json.variables.includes(variable.value)) {
-						variable = variables.find((v) => v.value === json.variables[0]) ?? variables[0];
+						variable =
+							variableOptions.find((v) => v.value === json.variables[0]) ?? variableOptions[0];
 						url.searchParams.set('variable', variable.value);
 						pushState(url + map._hash.getHashString(), {});
 						toast('Variable set to: ' + variable.label);
@@ -675,7 +677,7 @@
 						{progressRequest}
 						{modelRunSelected}
 						domainChange={async (value: string) => {
-							domain = domains.find((dm) => dm.value === value) ?? domains[0];
+							domain = domainOptions.find((dm) => dm.value === value) ?? domainOptions[0];
 							checkClosestHourDomainInterval();
 							url.searchParams.set('domain', value);
 							url.searchParams.set(
@@ -706,7 +708,7 @@
 							changeOMfileURL();
 						}}
 						variableChange={(value: string) => {
-							variable = variables.find((v) => v.value === value) ?? variables[0];
+							variable = variableOptions.find((v) => v.value === value) ?? variableOptions[0];
 							url.searchParams.set('variable', variable.value);
 							pushState(url + map._hash.getHashString(), {});
 							toast('Variable set to: ' + variable.label);

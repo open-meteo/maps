@@ -9,7 +9,7 @@ const heights = [
 	1500, 1750, 2000, 2250, 2500, 2750, 3000, 3250, 3500, 3750, 4000, 4500, 5000, 5500, 6000
 ];
 
-export const variables = [
+export const variableOptions = [
 	{ value: 'boundary_layer_height', label: 'Boundary Layer Height' },
 
 	{ value: 'cape', label: 'CAPE' },
@@ -119,21 +119,33 @@ export const variables = [
 ];
 
 for (const pl of pressureLevels) {
-	variables.push({ value: `cloud_cover_${pl}hPa`, label: `Cloud Cover ${pl}hPa` });
-	variables.push({ value: `geopotential_height_${pl}hPa`, label: `Geopotential Height ${pl}hPa` });
-	variables.push({ value: `relative_humidity_${pl}hPa`, label: `Relative Humidity ${pl}hPa` });
-	variables.push({ value: `temperature_${pl}hPa`, label: `Temperature ${pl}hPa` });
-	variables.push({ value: `vertical_velocity_${pl}hPa`, label: `Vertical Velocity ${pl}hPa` });
-	variables.push({ value: `wind_${pl}hPa`, label: `Wind ${pl}hPa` });
-	variables.push({ value: `wind_u_component_${pl}hPa`, label: `Wind ${pl}hPa` });
-	variables.push({ value: `wind_speed_${pl}hPa`, label: `Wind ${pl}hPa` });
+	variableOptions.push({ value: `cloud_cover_${pl}hPa`, label: `Cloud Cover ${pl}hPa` });
+	variableOptions.push({
+		value: `geopotential_height_${pl}hPa`,
+		label: `Geopotential Height ${pl}hPa`
+	});
+	variableOptions.push({
+		value: `relative_humidity_${pl}hPa`,
+		label: `Relative Humidity ${pl}hPa`
+	});
+	variableOptions.push({ value: `temperature_${pl}hPa`, label: `Temperature ${pl}hPa` });
+	variableOptions.push({
+		value: `vertical_velocity_${pl}hPa`,
+		label: `Vertical Velocity ${pl}hPa`
+	});
+	variableOptions.push({ value: `wind_${pl}hPa`, label: `Wind ${pl}hPa` });
+	variableOptions.push({ value: `wind_u_component_${pl}hPa`, label: `Wind ${pl}hPa` });
+	variableOptions.push({ value: `wind_speed_${pl}hPa`, label: `Wind ${pl}hPa` });
 }
 for (const height of heights) {
-	variables.push({ value: `relative_humidity_${height}m`, label: `Relative Humidity ${height}m` });
-	variables.push({ value: `temperature_${height}m`, label: `Temperature ${height}m` });
-	variables.push({ value: `wind_${height}m`, label: `Wind ${height}m` });
-	variables.push({ value: `wind_u_component_${height}m`, label: `Wind ${height}m` });
-	variables.push({ value: `wind_speed_${height}m`, label: `Wind ${height}m` });
+	variableOptions.push({
+		value: `relative_humidity_${height}m`,
+		label: `Relative Humidity ${height}m`
+	});
+	variableOptions.push({ value: `temperature_${height}m`, label: `Temperature ${height}m` });
+	variableOptions.push({ value: `wind_${height}m`, label: `Wind ${height}m` });
+	variableOptions.push({ value: `wind_u_component_${height}m`, label: `Wind ${height}m` });
+	variableOptions.push({ value: `wind_speed_${height}m`, label: `Wind ${height}m` });
 }
 
 export const hideZero = [

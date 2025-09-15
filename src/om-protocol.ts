@@ -14,8 +14,8 @@ import {
 
 import { getInterpolator } from '$lib/utils/color-scales';
 
-import { domains } from '$lib/utils/domains';
-import { variables } from '$lib/utils/variables';
+import { domainOptions } from '$lib/utils/domains';
+import { variableOptions } from '$lib/utils/variables';
 
 import { DynamicProjection, ProjectionGrid, type Projection } from '$lib/utils/projections';
 
@@ -228,8 +228,9 @@ const initOMFile = (url: string): Promise<void> => {
 		const urlParams = new URLSearchParams(omParams);
 		dark = urlParams.get('dark') === 'true';
 		partial = urlParams.get('partial') === 'true';
-		domain = domains.find((dm) => dm.value === omUrl.split('/')[4]) ?? domains[0];
-		variable = variables.find((v) => urlParams.get('variable') === v.value) ?? variables[0];
+		domain = domainOptions.find((dm) => dm.value === omUrl.split('/')[4]) ?? domainOptions[0];
+		variable =
+			variableOptions.find((v) => urlParams.get('variable') === v.value) ?? variableOptions[0];
 		mapBounds = urlParams
 			.get('bounds')
 			?.split(',')
