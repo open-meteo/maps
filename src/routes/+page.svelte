@@ -466,7 +466,6 @@
 							variable,
 							cs
 						);
-						console.log(variable, cs);
 						if (index) {
 							if ((hideZero.includes(variable.value) && value <= 0.25) || !value) {
 								//popup.remove();
@@ -699,7 +698,60 @@
 />
 <div class="absolute">
 	<Sheet.Root bind:open={sheetOpen}>
-		<Sheet.Content><div class="px-6 pt-12">Units</div></Sheet.Content>
+		<Sheet.Content
+			><div class="px-6 pt-12">Units</div>
+			<div class="flex flex-col gap-3 px-6 pt-6">
+				<div>Popular maps</div>
+				<div>
+					<ul>
+						<li>
+							<button
+								class="cursor-pointer"
+								onclick={() => {
+									variables = [
+										{
+											value: 'cloud_cover',
+											label: 'Cloud Cover'
+										},
+										{
+											value: 'precipitation',
+											label: 'Precipitation'
+										}
+									];
+									url.searchParams.set('variables', variableKeys.join(','));
+									pushState(url + map._hash.getHashString(), {});
+									let variablesSet = [];
+									for (const variable of variables) {
+										variablesSet.push(variable.label);
+									}
+									changeOMfileURL();
+								}}>Cloud Cover & Precipitation</button
+							>
+						</li>
+						<li>
+							<button
+								class="cursor-pointer"
+								onclick={() => {
+									variables = [
+										{
+											value: 'temperature_2m',
+											label: 'Temperature 2m'
+										}
+									];
+									url.searchParams.set('variables', variableKeys.join(','));
+									pushState(url + map._hash.getHashString(), {});
+									let variablesSet = [];
+									for (const variable of variables) {
+										variablesSet.push(variable.label);
+									}
+									changeOMfileURL();
+								}}>Temperature</button
+							>
+						</li>
+					</ul>
+				</div>
+			</div></Sheet.Content
+		>
 	</Sheet.Root>
 
 	<Drawer.Root bind:open={drawerOpen}>
