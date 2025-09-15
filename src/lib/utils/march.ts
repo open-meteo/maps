@@ -48,14 +48,14 @@ function interpolate(
 	// pointOnEdge = vertexA + t * (vertexB - vertexA);
 }
 
-export function marchingSquares(
+export const marchingSquares = (
 	values: TypedArray,
 	level: number,
 	x: number,
 	y: number,
 	z: number,
 	domain: Domain
-): number[][] {
+): number[][] => {
 	const segments = [];
 
 	const nx = domain.grid.nx;
@@ -160,4 +160,4 @@ export function marchingSquares(
 	}
 
 	return segments;
-}
+};
