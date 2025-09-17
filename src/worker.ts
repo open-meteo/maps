@@ -161,7 +161,7 @@ self.onmessage = async (message) => {
 		const x = message.data.x;
 		const y = message.data.y;
 		const z = message.data.z;
-		const values = message.data.data.values;
+		const values = message.data.values;
 		const ranges = message.data.ranges;
 
 		const domain = message.data.domain;
@@ -233,7 +233,7 @@ self.onmessage = async (message) => {
 		) {
 			if (variable.value.startsWith('wave') || variable.value.startsWith('wind')) {
 				const iconPixelData = message.data.iconPixelData;
-				const directions = message.data.data.directions;
+				const directions = message.data.directions;
 
 				const boxSize = Math.floor(TILE_SIZE / 16);
 				for (let i = 0; i < TILE_SIZE; i += boxSize) {

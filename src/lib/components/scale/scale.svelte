@@ -5,13 +5,13 @@
 
 	interface Props {
 		showScale: boolean;
-		variable: Variable;
+		variables: Variable[];
 	}
 
-	let { showScale, variable }: Props = $props();
+	let { showScale, variables }: Props = $props();
 
 	let colorScale = $derived.by(() => {
-		return getColorScale(variable);
+		return getColorScale(variables[0]);
 	});
 </script>
 
