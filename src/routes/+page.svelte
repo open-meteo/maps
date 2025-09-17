@@ -501,6 +501,7 @@
 			map.addControl(new HillshadeButton());
 
 			if (hillshade) {
+				addHillshadeLayer();
 				if (!terrainSourceControl) {
 					terrainSourceControl = new maplibregl.TerrainControl({
 						source: 'terrainSource',
