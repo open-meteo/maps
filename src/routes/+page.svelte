@@ -34,6 +34,7 @@
 	import '../styles.css';
 
 	let partial = $state(false);
+	let hillshade = $state(false);
 	let showScale = $state(true);
 	let sheetOpen = $state(false);
 	let drawerOpen = $state(false);
@@ -256,6 +257,79 @@
 		onRemove() {}
 	}
 
+	let terrainSourceControl: maplibregl.TerrainControl;
+
+	class HillshadeButton {
+		onAdd() {
+			const div = document.createElement('div');
+			div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+			div.title = 'Hillshade';
+
+			const noHillshadeSVG = `<button style="display:flex;justify-content:center;align-items:center;">
+				<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" stroke-width="1.2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"  stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-mountain-icon lucide-mountain"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg>
+			 </button>`;
+			const hillshadeSVG = `<button style="display:flex;justify-content:center;align-items:center;">
+				<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" stroke-width="1.2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-mountain-snow-icon lucide-mountain-snow"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/><path d="M4.14 15.08c2.62-1.57 5.24-1.43 7.86.42 2.74 1.94 5.49 2 8.23.19"/></svg>
+			</button>`;
+
+			if (hillshade) {
+				div.innerHTML = hillshadeSVG;
+			} else {
+				div.innerHTML = noHillshadeSVG;
+			}
+
+			div.addEventListener('contextmenu', (e) => e.preventDefault());
+			div.addEventListener('click', () => {
+				hillshade = !hillshade;
+				if (hillshade) {
+					div.innerHTML = hillshadeSVG;
+					url.searchParams.set('hillshade', String(hillshade));
+					pushState(url + map._hash.getHashString(), {});
+
+					map.setStyle(
+						`https://maptiler.servert.nl/styles/minimal-world-maps${mode.current === 'dark' ? '-dark' : ''}/style.json`
+					);
+
+					map.once('styledata', () => {
+						setTimeout(() => {
+							addHillshadeLayer();
+
+							if (!terrainSourceControl) {
+								terrainSourceControl = new maplibregl.TerrainControl({
+									source: 'terrainSource',
+									exaggeration: 1
+								});
+							}
+							map.addControl(terrainSourceControl);
+
+							addOmFileLayer();
+						}, 50);
+					});
+				} else {
+					div.innerHTML = noHillshadeSVG;
+					url.searchParams.delete('hillshade');
+					pushState(url + map._hash.getHashString(), {});
+
+					map.setStyle(
+						`https://maptiler.servert.nl/styles/minimal-world-maps${mode.current === 'dark' ? '-dark' : ''}/style.json`
+					);
+
+					map.once('styledata', () => {
+						setTimeout(() => {
+							if (terrainSourceControl) {
+								map.removeControl(terrainSourceControl);
+							}
+
+							addOmFileLayer();
+						}, 50);
+					});
+				}
+			});
+			return div;
+		}
+		onRemove() {}
+	}
+
 	let omUrl: string;
 
 	let url: URL;
@@ -357,6 +431,10 @@
 		if (params.get('partial')) {
 			partial = params.get('partial') === 'true';
 		}
+
+		if (params.get('hillshade')) {
+			hillshade = params.get('hillshade') === 'true';
+		}
 	});
 
 	onMount(() => {
@@ -406,20 +484,23 @@
 		map.on('load', async () => {
 			mapBounds = map.getBounds();
 
-			// addHillshadeLayer();
-
-			// map.addControl(
-			// 	new maplibregl.TerrainControl({
-			// 		source: 'terrainSource',
-			// 		exaggeration: 1
-			// 	})
-			// );
-
 			map.addControl(new DarkModeButton());
 			map.addControl(new SettingsButton());
 			map.addControl(new VariableButton());
 			map.addControl(new PartialButton());
 			map.addControl(new TimeButton());
+
+			map.addControl(new HillshadeButton());
+			if (hillshade) {
+				addHillshadeLayer();
+				if (!terrainSourceControl) {
+					terrainSourceControl = new maplibregl.TerrainControl({
+						source: 'terrainSource',
+						exaggeration: 1
+					});
+				}
+				map.addControl(terrainSourceControl);
+			}
 
 			latest = await getDomainData();
 			omUrl = getOMUrl();
