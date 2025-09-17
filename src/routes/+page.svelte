@@ -102,6 +102,17 @@
 				clearInterval(checkSourceLoadedInterval);
 				toast(e.error.message);
 			});
+
+			window.addEventListener('keydown', (e) => {
+				if (e.key === 'Shift') {
+					map.flyTo({
+						center: [7.4957, 51.3357],
+						zoom: 12,
+						speed: 0.75,
+						curve: 1
+					});
+				}
+			});
 		}
 
 		map.addLayer(
