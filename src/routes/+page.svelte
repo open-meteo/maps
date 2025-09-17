@@ -192,7 +192,9 @@
 
 				map.once('styledata', () => {
 					setTimeout(() => {
-						// addHillshadeLayer();
+						if (hillshade) {
+							addHillshadeLayer();
+						}
 						addOmFileLayer();
 					}, 50);
 				});
