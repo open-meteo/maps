@@ -175,26 +175,30 @@ const getTile = async ({ z, x, y }: TileIndex, omUrl: string): Promise<ImageBitm
 		);
 	}
 
-	const canvas = window.document.createElement('canvas');
-	const ctx = canvas.getContext('2d');
-	canvas.width = TILE_SIZE;
-	canvas.height = TILE_SIZE;
+	if (tilePromises.length === 1) {
+		return tilePromises[0];
+	} else {
+		const canvas = window.document.createElement('canvas');
+		const ctx = canvas.getContext('2d');
+		canvas.width = TILE_SIZE;
+		canvas.height = TILE_SIZE;
 
-	await Promise.all(tilePromises).then((tiles) => {
-		if (ctx) {
-			ctx.globalAlpha = 0.95;
-			if (tiles.length > 2) {
-				ctx.globalAlpha = 0.85;
-			} else if (tiles.length > 4) {
-				ctx.globalAlpha = 0.75;
+		await Promise.all(tilePromises).then((tiles) => {
+			if (ctx) {
+				ctx.globalAlpha = 0.95;
+				if (tiles.length > 2) {
+					ctx.globalAlpha = 0.85;
+				} else if (tiles.length > 4) {
+					ctx.globalAlpha = 0.75;
+				}
+				for (const tile of tiles) {
+					ctx.drawImage(tile, 0, 0);
+				}
 			}
-			for (const tile of tiles) {
-				ctx.drawImage(tile, 0, 0);
-			}
-		}
-	});
+		});
 
-	return createImageBitmap(canvas);
+		return createImageBitmap(canvas);
+	}
 };
 
 const renderTile = async (url: string) => {
