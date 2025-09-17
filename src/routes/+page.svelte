@@ -41,7 +41,7 @@
 
 	let darkMode = $derived(mode.current);
 
-	const beforeLayer = 'country-lines';
+	const beforeLayer = 'waterway-tunnel';
 
 	const addHillshadeLayer = () => {
 		map.setSky({
@@ -186,7 +186,7 @@
 				}
 				div.innerHTML = mode.current !== 'dark' ? lightSVG : darkSVG;
 				map.setStyle(
-					`https://maptiler.servert.nl/styles/maps-minimal${mode.current === 'dark' ? '-dark' : ''}/style.json`
+					`https://maptiler.servert.nl/styles/minimal-world-maps${mode.current === 'dark' ? '-dark' : ''}/style.json`
 				);
 
 				map.once('styledata', () => {
@@ -364,7 +364,7 @@
 
 		map = new maplibregl.Map({
 			container: mapContainer as HTMLElement,
-			style: `https://maptiler.servert.nl/styles/maps-minimal${mode.current === 'dark' ? '-dark' : ''}/style.json`,
+			style: `https://maptiler.servert.nl/styles/minimal-world-maps${mode.current === 'dark' ? '-dark' : ''}/style.json`,
 			center: typeof domain.grid.center == 'object' ? domain.grid.center : [0, 0],
 			zoom: domain?.grid.zoom,
 			keyboard: false,
