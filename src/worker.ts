@@ -2,28 +2,27 @@ import { hideZero, drawOnTiles } from '$lib/utils/variables';
 
 import { DynamicProjection, ProjectionGrid, type Projection } from '$lib/utils/projections';
 
+import Pbf from 'pbf';
+
 import {
 	tile2lat,
 	tile2lon,
 	rotatePoint,
 	degreesToRadians,
-	getIndexFromLatLong
+	getIndexAndFractions,
+	latLon2Tile,
+	lon2tile,
+	lat2tile
 } from '$lib/utils/math';
 
-import { getColorScale, getInterpolator } from '$lib/utils/color-scales';
+import { getColor, getColorScale, getInterpolator, getOpacity } from '$lib/utils/color-scales';
 
-import type {
-	Domain,
-	Variable,
-	ColorScale,
-	Interpolator,
-	DimensionRange,
-	IndexAndFractions
-} from '$lib/types';
+import type { Domain, Variable, Interpolator, DimensionRange } from '$lib/types';
 
 import type { IconListPixels } from '$lib/utils/icons';
 
 import type { TypedArray } from '@openmeteo/file-reader';
+import { marchingSquares } from '$lib/utils/march';
 
 const TILE_SIZE = Number(import.meta.env.VITE_TILE_SIZE) * 2;
 const OPACITY = Number(import.meta.env.VITE_TILE_OPACITY);
@@ -101,62 +100,8 @@ const drawArrow = (
 	}
 };
 
-const getColor = (colorScale: ColorScale, px: number): number[] => {
-	return colorScale.colors[
-		Math.min(
-			colorScale.colors.length - 1,
-			Math.max(0, Math.floor((px - colorScale.min) * colorScale.scalefactor))
-		)
-	];
-};
-
-const getOpacity = (v: string, px: number, dark: boolean): number => {
-	if (v == 'cloud_cover' || v == 'thunderstorm_probability') {
-		// scale opacity with percentage
-		return 255 * (px ** 1.5 / 1000) * (OPACITY / 100);
-	} else if (v.startsWith('cloud_base')) {
-		// scale cloud base to 20900m
-		return Math.min(1 - px / 20900, 1) * 255 * (OPACITY / 100);
-	} else if (v.startsWith('precipitation')) {
-		// scale opacity with precip values below 1.5mm
-		return Math.min(px / 1.5, 1) * 255 * (OPACITY / 100);
-	} else if (v.startsWith('wind')) {
-		// scale opacity with wind values below 14kn
-		return Math.min((px - 2) / 12, 1) * 255 * (OPACITY / 100);
-	} else {
-		// else set the opacity with env variable and deduct 20% for darkmode
-		return 255 * (dark ? OPACITY / 100 - 0.2 : OPACITY / 100);
-	}
-};
-
-const getIndexAndFractions = (
-	lat: number,
-	lon: number,
-	domain: Domain,
-	projectionGrid: ProjectionGrid | null,
-	ranges = [
-		{ start: 0, end: domain.grid.ny },
-		{ start: 0, end: domain.grid.nx }
-	]
-) => {
-	let indexObject: IndexAndFractions;
-	if (domain.grid.projection && projectionGrid) {
-		indexObject = projectionGrid.findPointInterpolated(lat, lon, ranges);
-	} else {
-		indexObject = getIndexFromLatLong(lat, lon, domain, ranges);
-	}
-
-	return (
-		indexObject ?? {
-			index: NaN,
-			xFraction: 0,
-			yFraction: 0
-		}
-	);
-};
-
 self.onmessage = async (message) => {
-	if (message.data.type == 'GT') {
+	if (message.data.type == 'getImage') {
 		const key = message.data.key;
 		const x = message.data.x;
 		const y = message.data.y;
@@ -262,6 +207,90 @@ self.onmessage = async (message) => {
 
 		const tile = await createImageBitmap(new ImageData(rgba, TILE_SIZE, TILE_SIZE));
 
-		postMessage({ type: 'RT', tile: tile, key: key });
+		postMessage({ type: 'returnImage', tile: tile, key: key });
+	} else if (message.data.type == 'getArrayBuffer') {
+		const x = message.data.x;
+		const y = message.data.y;
+		const z = message.data.z;
+		const key = message.data.key;
+		const values = message.data.data.values;
+		const domain = message.data.domain;
+
+		const extent = 4096;
+		const layerName = 'contours';
+
+		const level = 1000;
+
+		const pbf = new Pbf();
+		const geom: number[] = [];
+		let cursor: [number, number] = [0, 0];
+
+		const segments = marchingSquares(values, level, x, y, z, domain);
+
+		if (segments.length > 0) {
+			// move to first point in segments
+			let xt0, yt0, xt1, yt1;
+			geom.push(encodeCommand(1, 1)); // MoveTo
+			[xt0, yt0] = segments[0];
+			geom.push(zigZag(xt0 - cursor[0]));
+			geom.push(zigZag(yt0 - cursor[1]));
+			cursor = [xt0, yt0];
+
+			for (const s of segments) {
+				[xt0, yt0, xt1, yt1] = s;
+
+				geom.push(encodeCommand(1, 1)); // MoveTo
+				geom.push(zigZag(xt0 - cursor[0]));
+				geom.push(zigZag(yt0 - cursor[1]));
+				cursor = [xt0, yt0];
+
+				geom.push(encodeCommand(2, 1)); // LineTo
+				geom.push(zigZag(xt1 - cursor[0]));
+				geom.push(zigZag(yt1 - cursor[1]));
+				cursor = [xt1, yt1];
+			}
+
+			// write Layer
+			pbf.writeMessage(3, writeLayer, {
+				name: layerName,
+				extent,
+				features: [
+					{
+						id: 1,
+						type: 2, // 2 = LineString
+						geom
+					}
+				]
+			});
+		}
+
+		postMessage({ type: 'returnArrayBuffer', tile: pbf.finish(), key: key });
 	}
 };
+
+// writer for VectorTileLayer
+function writeLayer(layer: any, pbf: Pbf) {
+	// name
+	pbf.writeStringField(1, layer.name);
+	// features
+	layer.features.forEach((feat: any) => {
+		pbf.writeMessage(2, writeFeature, feat);
+	});
+	// extent
+	pbf.writeVarintField(5, layer.extent);
+}
+
+// writer for VectorTileFeature
+function writeFeature(feat: any, pbf: Pbf) {
+	pbf.writeVarintField(1, feat.id); // id
+	pbf.writeVarintField(3, feat.type); // type (2 = LineString)
+	pbf.writePackedVarint(4, feat.geom); // geometry
+}
+
+// Encode geometry commands per MVT spec
+function encodeCommand(id: number, count: number) {
+	return (count << 3) | id;
+}
+function zigZag(n: number) {
+	return (n << 1) ^ (n >> 31);
+}

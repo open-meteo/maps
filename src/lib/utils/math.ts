@@ -13,13 +13,36 @@ export const tile2lat = (y: number, z: number): number => {
 	return r2d * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
 };
 
-export const tileToBBOX = (tile: [x: number, y: number, z: number]) => {
-	const e = tile2lon(tile[0] + 1, tile[2]);
-	const w = tile2lon(tile[0], tile[2]);
-	const s = tile2lat(tile[1] + 1, tile[2]);
-	const n = tile2lat(tile[1], tile[2]);
-	return [w, s, e, n];
+export const lon2tile = (lon: number, z: number): number => {
+	return Math.pow(2, z) * ((lon + 180) / 360);
 };
+
+export const lat2tile = (lat: number, z: number): number => {
+	return (
+		(Math.pow(2, z) *
+			(1 -
+				Math.log(Math.tan(degreesToRadians(lat)) + 1 / Math.cos(degreesToRadians(lat))) /
+					Math.PI)) /
+		2
+	);
+};
+
+export function latLon2Tile(
+	z: number,
+	x: number,
+	y: number,
+	latDeg: number,
+	lonDeg: number,
+	tileSize = 256
+) {
+	const worldPx = Math.floor(lon2tile(lonDeg, z) * tileSize);
+	const worldPy = Math.floor(lat2tile(latDeg, z) * tileSize);
+
+	const px = worldPx - x * tileSize;
+	const py = worldPy - y * tileSize;
+
+	return [px, py];
+}
 
 export const hermite = (t: number, p0: number, p1: number, m0: number, m1: number) => {
 	const t2 = t * t;
@@ -304,4 +327,30 @@ export const rotatePoint = (cx: number, cy: number, theta: number, x: number, y:
 	const yt = Math.sin(theta) * (x - cx) + Math.cos(theta) * (y - cy) + cy;
 
 	return [xt, yt];
+};
+
+export const getIndexAndFractions = (
+	lat: number,
+	lon: number,
+	domain: Domain,
+	projectionGrid: ProjectionGrid | null,
+	ranges = [
+		{ start: 0, end: domain.grid.ny },
+		{ start: 0, end: domain.grid.nx }
+	]
+) => {
+	let indexObject: IndexAndFractions;
+	if (domain.grid.projection && projectionGrid) {
+		indexObject = projectionGrid.findPointInterpolated(lat, lon, ranges);
+	} else {
+		indexObject = getIndexFromLatLong(lat, lon, domain, ranges);
+	}
+
+	return (
+		indexObject ?? {
+			index: NaN,
+			xFraction: 0,
+			yFraction: 0
+		}
+	);
 };

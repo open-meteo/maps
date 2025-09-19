@@ -12,6 +12,7 @@ import {
 	getIndicesFromBounds
 } from '$lib/utils/math';
 
+import { capitalize } from '$lib/utils/capitalize';
 import { getInterpolator } from '$lib/utils/color-scales';
 
 import { domainOptions } from '$lib/utils/domains';
@@ -85,14 +86,14 @@ let data: Data;
 const TILE_SIZE = Number(import.meta.env.VITE_TILE_SIZE) * 2;
 
 let worker: Worker;
-const pendingTiles = new Map<string, (tile: ImageBitmap) => void>();
 
+const pendingTiles = new Map<string, (tile: ImageBitmap | Uint8Array) => void>();
 const getWorker = () => {
 	// ensure this code only runs on the client
 	if (browser && !worker) {
 		worker = new TileWorker();
 		worker.onmessage = (message) => {
-			if (message.data.type === 'RT') {
+			if (message.data.type.startsWith('return')) {
 				const key = message.data.key;
 				const resolve = pendingTiles.get(key);
 				if (resolve) {
@@ -140,8 +141,12 @@ export const getValueFromLatLong = (
 	}
 };
 
-const getTile = async ({ z, x, y }: TileIndex, omUrl: string): Promise<ImageBitmap> => {
-	const key = `${omUrl}/${TILE_SIZE}/${z}/${x}/${y}`;
+const getTile = async (
+	{ z, x, y }: TileIndex,
+	omUrl: string,
+	type: 'image' | 'arrayBuffer'
+): Promise<ImageBitmap | Uint8Array<ArrayBufferLike>> => {
+	const key = `${omUrl}/${type}/${TILE_SIZE}/${z}/${x}/${y}`;
 
 	const tileWorker = getWorker();
 
@@ -151,7 +156,7 @@ const getTile = async ({ z, x, y }: TileIndex, omUrl: string): Promise<ImageBitm
 	}
 
 	tileWorker.postMessage({
-		type: 'GT',
+		type: 'get' + capitalize(type),
 		x,
 		y,
 		z,
@@ -164,12 +169,13 @@ const getTile = async ({ z, x, y }: TileIndex, omUrl: string): Promise<ImageBitm
 		mapBounds: mapBounds,
 		iconPixelData: iconList
 	});
-	return new Promise<ImageBitmap>((resolve) => {
+
+	return new Promise((resolve) => {
 		pendingTiles.set(key, resolve);
 	});
 };
 
-const renderTile = async (url: string) => {
+const renderData = async (url: string, type: 'image' | 'arrayBuffer') => {
 	// Read URL parameters
 	const re = new RegExp(/om:\/\/(.+)\/(\d+)\/(\d+)\/(\d+)/);
 	const result = url.match(re);
@@ -183,10 +189,7 @@ const renderTile = async (url: string) => {
 	const x = parseInt(result[3]);
 	const y = parseInt(result[4]);
 
-	// Read OM data
-	const tile = await getTile({ z, x, y }, omUrl);
-
-	return tile;
+	return await getTile({ z, x, y }, omUrl, type);
 };
 
 const getTilejson = async (fullUrl: string): Promise<TileJSON> => {
@@ -279,19 +282,20 @@ const initOMFile = (url: string): Promise<void> => {
 
 export const omProtocol = async (
 	params: RequestParameters
-): Promise<GetResourceResponse<TileJSON | ImageBitmap>> => {
+): Promise<GetResourceResponse<TileJSON | ImageBitmap | Uint8Array<ArrayBufferLike>>> => {
 	if (params.type == 'json') {
 		try {
 			await initOMFile(params.url);
 		} catch (e) {
-			throw new Error(e);
+			const error = e as Error;
+			throw new Error(error.name + ': ' + error.message);
 		}
 		return {
 			data: await getTilejson(params.url)
 		};
-	} else if (params.type == 'image') {
+	} else if (params.type && ['image', 'arrayBuffer'].includes(params.type)) {
 		return {
-			data: await renderTile(params.url)
+			data: await renderData(params.url, params.type as 'image' | 'arrayBuffer')
 		};
 	} else {
 		throw new Error(`Unsupported request type '${params.type}'`);
