@@ -375,6 +375,8 @@
 	let popup: maplibregl.Popup | undefined;
 
 	let mapBounds: maplibregl.LngLatBounds | undefined = $state();
+	let paddedBounds: maplibregl.LngLatBounds | undefined = $state();
+	const padding = 25; //%
 	let omFileSource: maplibregl.RasterTileSource | undefined;
 
 	let latest: DomainMetaData | undefined = $state();
@@ -536,6 +538,8 @@
 
 		map.on('load', async () => {
 			mapBounds = map.getBounds();
+			paddedBounds = mapBounds;
+			getPaddedBounds();
 
 			// addHillshadeLayer();
 
@@ -618,6 +622,14 @@
 					popup.setLngLat(coordinates).addTo(map);
 				}
 			});
+
+			map.on('zoom', () => {
+				checkBounds();
+			});
+
+			map.on('drag', () => {
+				checkBounds();
+			});
 		});
 	});
 
@@ -627,9 +639,47 @@
 		}
 	});
 
+	const checkBounds = () => {
+		mapBounds = map.getBounds();
+		let exceededPadding = false;
+		if (mapBounds.getSouth() < paddedBounds.getSouth()) {
+			exceededPadding = true;
+		}
+		if (mapBounds.getWest() < paddedBounds.getWest()) {
+			exceededPadding = true;
+		}
+		if (mapBounds.getNorth() > paddedBounds.getNorth()) {
+			exceededPadding = true;
+		}
+		if (mapBounds.getEast() > paddedBounds.getEast()) {
+			exceededPadding = true;
+		}
+		if (exceededPadding) {
+			console.log('exceeded');
+			getPaddedBounds();
+			changeOMfileURL();
+		}
+	};
+
+	const getPaddedBounds = () => {
+		let mapBoundsSW = mapBounds.getSouthWest();
+		let mapBoundsNE = mapBounds.getNorthEast();
+		let dLat = mapBoundsNE['lat'] - mapBoundsSW['lat'];
+		let dLon = mapBoundsNE['lng'] - mapBoundsSW['lng'];
+
+		paddedBounds?.setSouthWest([
+			mapBoundsSW['lng'] - (dLon * padding) / 100,
+			mapBoundsSW['lat'] - (dLat * padding) / 100
+		]);
+		paddedBounds?.setNorthEast([
+			mapBoundsNE['lng'] + (dLon * padding) / 100,
+			mapBoundsNE['lat'] + (dLat * padding) / 100
+		]);
+	};
+
 	const getOMUrl = () => {
-		if (mapBounds) {
-			return `https://map-tiles.open-meteo.com/data_spatial/${domain.value}/${modelRunSelected.getUTCFullYear()}/${pad(modelRunSelected.getUTCMonth() + 1)}/${pad(modelRunSelected.getUTCDate())}/${pad(modelRunSelected.getUTCHours())}00Z/${timeSelected.getUTCFullYear()}-${pad(timeSelected.getUTCMonth() + 1)}-${pad(timeSelected.getUTCDate())}T${pad(timeSelected.getUTCHours())}00.om?dark=${darkMode}&variable=${variable.value}&bounds=${mapBounds.getSouth()},${mapBounds.getWest()},${mapBounds.getNorth()},${mapBounds.getEast()}&partial=${partial}`;
+		if (paddedBounds) {
+			return `https://map-tiles.open-meteo.com/data_spatial/${domain.value}/${modelRunSelected.getUTCFullYear()}/${pad(modelRunSelected.getUTCMonth() + 1)}/${pad(modelRunSelected.getUTCDate())}/${pad(modelRunSelected.getUTCHours())}00Z/${timeSelected.getUTCFullYear()}-${pad(timeSelected.getUTCMonth() + 1)}-${pad(timeSelected.getUTCDate())}T${pad(timeSelected.getUTCHours())}00.om?dark=${darkMode}&variable=${variable.value}&bounds=${paddedBounds.getSouth()},${paddedBounds.getWest()},${paddedBounds.getNorth()},${paddedBounds.getEast()}&partial=${partial}`;
 		} else {
 			return `https://map-tiles.open-meteo.com/data_spatial/${domain.value}/${modelRunSelected.getUTCFullYear()}/${pad(modelRunSelected.getUTCMonth() + 1)}/${pad(modelRunSelected.getUTCDate())}/${pad(modelRunSelected.getUTCHours())}00Z/${timeSelected.getUTCFullYear()}-${pad(timeSelected.getUTCMonth() + 1)}-${pad(timeSelected.getUTCDate())}T${pad(timeSelected.getUTCHours())}00.om?dark=${darkMode}&variable=${variable.value}&partial=${partial}`;
 		}
