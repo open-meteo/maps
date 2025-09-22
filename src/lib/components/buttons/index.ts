@@ -12,13 +12,11 @@ export class PartialButton {
 	map;
 	url;
 	changeOMfileURL;
-
 	constructor(map: maplibregl.Map, url: URL, changeOMfileURL: () => void) {
 		this.map = map;
 		this.url = url;
 		this.changeOMfileURL = changeOMfileURL;
 	}
-
 	onAdd() {
 		const div = document.createElement('div');
 		div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
@@ -27,7 +25,6 @@ export class PartialButton {
 		const partialSVG = `<button style="display:flex;justify-content:center;align-items:center;color:rgb(51,181,229);">
 				<svg xmlns="http://www.w3.org/2000/svg" stroke-width="1.2" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-database-zap-icon lucide-database-zap"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 15 21.84"/><path d="M21 5V8"/><path d="M21 12L18 17H22L19 22"/><path d="M3 12A9 3 0 0 0 14.59 14.87"/></svg>
             </button>`;
-
 		const fullSVG = `<button style="display:flex;justify-content:center;align-items:center;">
 				<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" stroke-width="1.2" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-database-icon lucide-database"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
        </button>`;
@@ -42,10 +39,8 @@ export class PartialButton {
 			} else {
 				this.url.searchParams.delete('partial');
 			}
-			console.log(preferences);
-
 			pushState(this.url + this.map._hash.getHashString(), {});
-			setTimeout(() => this.changeOMfileURL(), 500);
+			this.changeOMfileURL();
 		});
 		return div;
 	}
@@ -91,7 +86,6 @@ export class DrawerButton {
 export class DarkModeButton {
 	map;
 	url;
-
 	constructor(map: maplibregl.Map, url: URL) {
 		this.map = map;
 		this.url = url;
@@ -121,7 +115,6 @@ export class DarkModeButton {
 			this.map.setStyle(
 				`https://maptiler.servert.nl/styles/minimal-world-maps${mode.current === 'dark' ? '-dark' : ''}/style.json`
 			);
-
 			this.map.once('styledata', () => {
 				setTimeout(() => {
 					if (preferences.hillshade) {

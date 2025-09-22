@@ -31,3 +31,4 @@ export const model = writable(new Date());
 
 export const sheet = writable(false);
 export const drawer = writable(false);
+export const drawerHeight = writable('20%');

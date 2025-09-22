@@ -15,14 +15,19 @@
 	import { pushState } from '$app/navigation';
 
 	import { omProtocol, getValueFromLatLong } from '../om-protocol';
+
 	import { pad } from '$lib/utils/pad';
 	import { domainOptions } from '$lib/utils/domains';
 	import { hideZero, variableOptions } from '$lib/utils/variables';
+	import { getColorScale } from '$lib/utils/color-scales';
 
 	import type { DomainMetaData } from '$lib/types';
 
 	import * as Sheet from '$lib/components/ui/sheet';
-	import * as Drawer from '$lib/components/ui/drawer';
+
+	import { Drawer } from 'vaul-svelte';
+
+	// import * as Drawer from '$lib/components/ui/drawer';
 
 	import Scale from '$lib/components/scale/scale.svelte';
 	import TimeSelector from '$lib/components/time/time-selector.svelte';
@@ -30,29 +35,34 @@
 	import SelectedVariables from '$lib/components/scale/selected-variables.svelte';
 
 	import {
-		DarkModeButton,
-		DrawerButton,
-		HillshadeButton,
+		TimeButton,
 		PartialButton,
+		DrawerButton,
 		SettingsButton,
-		TimeButton
+		HillshadeButton,
+		DarkModeButton
 	} from '$lib/components/buttons';
 
-	import { getColorScale } from '$lib/utils/color-scales';
-
 	import {
-		preferences,
+		time,
+		sheet,
+		model,
+		drawer,
 		domain,
 		variables,
-		sheet,
-		drawer,
-		time,
-		model
+		preferences,
+		drawerHeight
 	} from '$lib/stores/preferences';
 
-	import { checkClosestHourDomainInterval, urlParamsToPreferences } from '$lib';
+	import {
+		checkClosestHourDomainInterval,
+		checkClosestHourModelRun,
+		setMapControlSettings,
+		urlParamsToPreferences
+	} from '$lib';
 
 	import '../styles.css';
+	import clsx from 'clsx';
 
 	const darkMode = $derived(mode.current);
 
@@ -132,9 +142,6 @@
 
 	let url: URL;
 
-	const now = new SvelteDate();
-	now.setHours(now.getHours() + 1, 0, 0, 0);
-
 	const TILE_SIZE = Number(import.meta.env.VITE_TILE_SIZE);
 
 	let checked = 0;
@@ -160,7 +167,7 @@
 			}
 			mapBounds = map.getBounds();
 
-			checkClosestHourModelRun();
+			checkClosestHourModelRun(map, latest, url);
 
 			omUrl = getOMUrl();
 			omFileSource.setUrl('om://' + omUrl);
@@ -216,41 +223,7 @@
 			maxPitch: 85
 		});
 
-		map.touchZoomRotate.disableRotation();
-
-		const navigationControl = new maplibregl.NavigationControl({
-			visualizePitch: true,
-			showZoom: true,
-			showCompass: true
-		});
-		map.addControl(navigationControl);
-
-		let locateControl = new maplibregl.GeolocateControl({
-			fitBoundsOptions: {
-				maxZoom: 13.5
-			},
-			positionOptions: {
-				enableHighAccuracy: true
-			},
-			trackUserLocation: true
-		});
-		map.addControl(locateControl);
-
-		const globeControl = new maplibregl.GlobeControl();
-		map.addControl(globeControl);
-		globeControl._globeButton.addEventListener('click', () => {
-			$preferences.globe = !$preferences.globe;
-			if ($preferences.globe) {
-				url.searchParams.set('globe', String($preferences.globe));
-			} else {
-				url.searchParams.delete('globe');
-			}
-			pushState(url + map._hash.getHashString(), {});
-		});
-
-		// improved scrolling
-		map.scrollZoom.setZoomRate(1 / 85);
-		map.scrollZoom.setWheelZoomRate(1 / 85);
+		setMapControlSettings(map, url);
 
 		map.on('load', async () => {
 			mapBounds = map.getBounds();
@@ -277,9 +250,9 @@
 				map.addControl(terrainControl);
 
 				terrainControl._terrainButton.addEventListener('click', () => {
-					terrain = !terrain;
-					if (terrain) {
-						url.searchParams.set('terrain', String(terrain));
+					$preferences.terrain = !$preferences.terrain;
+					if ($preferences.terrain) {
+						url.searchParams.set('terrain', String($preferences.terrain));
 					} else {
 						url.searchParams.delete('terrain');
 					}
@@ -396,69 +369,7 @@
 		}
 	});
 
-	const checkClosestHourModelRun = () => {
-		let modelRunChanged = false;
-		const referenceTime = new Date(latest ? latest.reference_time : now);
-
-		const year = $time.getUTCFullYear();
-		const month = $time.getUTCMonth();
-		const date = $time.getUTCDate();
-
-		const closestModelRunUTCHour =
-			$time.getUTCHours() - ($time.getUTCHours() % $domain.model_interval);
-
-		const closestModelRun = new SvelteDate();
-		closestModelRun.setUTCFullYear(year);
-		closestModelRun.setUTCMonth(month);
-		closestModelRun.setUTCDate(date);
-		closestModelRun.setUTCHours(closestModelRunUTCHour);
-		closestModelRun.setUTCMinutes(0);
-		closestModelRun.setUTCSeconds(0);
-		closestModelRun.setUTCMilliseconds(0);
-
-		if ($time.getTime() < $model.getTime()) {
-			$model = new SvelteDate(closestModelRun);
-			modelRunChanged = true;
-		} else {
-			if (referenceTime.getTime() === $model.getTime()) {
-				url.searchParams.delete('model_run');
-				pushState(url + map._hash.getHashString(), {});
-			} else if (
-				$time.getTime() > referenceTime.getTime() &&
-				referenceTime.getTime() > $model.getTime()
-			) {
-				$model = new SvelteDate(referenceTime);
-				modelRunChanged = true;
-			} else if ($time.getTime() < referenceTime.getTime() - 24 * 60 * 60 * 1000) {
-				// Atleast yesterday, always update to nearest modelRun
-				if ($model.getTime() < closestModelRun.getTime()) {
-					$model = new SvelteDate(closestModelRun);
-					modelRunChanged = true;
-				}
-			}
-		}
-
-		if (modelRunChanged) {
-			url.searchParams.set('model_run', $model.toISOString().replace(/[:Z]/g, '').slice(0, 15));
-			pushState(url + map._hash.getHashString(), {});
-			toast(
-				'Model run set to: ' +
-					$model.getUTCFullYear() +
-					'-' +
-					pad($model.getUTCMonth() + 1) +
-					'-' +
-					pad($model.getUTCDate()) +
-					' ' +
-					pad($model.getUTCHours()) +
-					':' +
-					pad($model.getUTCMinutes())
-			);
-		}
-		// day the data structure was altered
-		if ($model.getTime() < 1752624000000) {
-			toast('Date selected probably too old, since data structure altered on 16th July 2025');
-		}
-	};
+	let activeSnapPoint = $state(0.4);
 </script>
 
 <svelte:head>
@@ -515,59 +426,69 @@
 		<Sheet.Content><div class="px-6 pt-12">Units</div></Sheet.Content>
 	</Sheet.Root>
 
-	<Drawer.Root bind:open={$drawer}>
-		<Drawer.Content class="h-1/3">
-			<div class="flex flex-col items-center overflow-y-scroll pb-12">
-				<div class="container mx-auto px-3">
-					<VariableSelection
-						time={$time}
-						model={$model}
-						domain={$domain}
-						variables={$variables}
-						{modelRuns}
-						{latestRequest}
-						{progressRequest}
-						domainChange={async (value: string): Promise<void> => {
-							$domain = domainOptions.find((dm) => dm.value === value) ?? domainOptions[0];
-							checkClosestHourDomainInterval(url);
-							url.searchParams.set('domain', $domain.value);
-							url.searchParams.set('time', $time.toISOString().replace(/[:Z]/g, '').slice(0, 15));
-							pushState(url + map._hash.getHashString(), {});
-							toast('Domain set to: ' + $domain.label);
-							latest = await getDomainData();
-							changeOMfileURL();
-						}}
-						modelRunChange={(mr: Date) => {
-							$model = mr;
-							url.searchParams.set(
-								'model_run',
-								$model.toISOString().replace(/[:Z]/g, '').slice(0, 15)
-							);
-							pushState(url + map._hash.getHashString(), {});
-							toast(
-								'Model run set to: ' +
-									mr.getUTCFullYear() +
-									'-' +
-									pad(mr.getUTCMonth() + 1) +
-									'-' +
-									pad(mr.getUTCDate()) +
-									' ' +
-									pad(mr.getUTCHours()) +
-									':' +
-									pad(mr.getUTCMinutes())
-							);
-							changeOMfileURL();
-						}}
-						variablesChange={(value: string) => {
-							$variables = [variableOptions.find((v) => v.value === value) ?? variableOptions[0]];
-							url.searchParams.set('variables', $variables[0].value);
-							pushState(url + map._hash.getHashString(), {});
-							toast('Variable set to: ' + $variables[0].label);
-							changeOMfileURL();
-						}}
-					/>
+	<Drawer.Root
+		bind:open={$drawer}
+		bind:activeSnapPoint
+		direction="bottom"
+		snapPoints={[0.3, 0.4, 0.5, 0.6, 0.7]}
+	>
+		<Drawer.Overlay class="fixed inset-0 bg-black/40" />
+		<Drawer.Portal>
+			<Drawer.Content
+				class="border-b-none fixed right-0 bottom-0 left-0 mx-[-1px] flex h-full max-h-[97%] flex-col rounded-t-[10px] border border-gray-200 bg-white"
+			>
+				<div class="flex flex-col items-center overflow-y-scroll pb-12">
+					<div class="container mx-auto px-3">
+						<VariableSelection
+							time={$time}
+							model={$model}
+							domain={$domain}
+							variables={$variables}
+							{modelRuns}
+							{latestRequest}
+							{progressRequest}
+							domainChange={async (value: string): Promise<void> => {
+								$domain = domainOptions.find((dm) => dm.value === value) ?? domainOptions[0];
+								checkClosestHourDomainInterval(url);
+								url.searchParams.set('domain', $domain.value);
+								url.searchParams.set('time', $time.toISOString().replace(/[:Z]/g, '').slice(0, 15));
+								pushState(url + map._hash.getHashString(), {});
+								toast('Domain set to: ' + $domain.label);
+								latest = await getDomainData();
+								changeOMfileURL();
+							}}
+							modelRunChange={(mr: Date) => {
+								$model = mr;
+								url.searchParams.set(
+									'model_run',
+									$model.toISOString().replace(/[:Z]/g, '').slice(0, 15)
+								);
+								pushState(url + map._hash.getHashString(), {});
+								toast(
+									'Model run set to: ' +
+										mr.getUTCFullYear() +
+										'-' +
+										pad(mr.getUTCMonth() + 1) +
+										'-' +
+										pad(mr.getUTCDate()) +
+										' ' +
+										pad(mr.getUTCHours()) +
+										':' +
+										pad(mr.getUTCMinutes())
+								);
+								changeOMfileURL();
+							}}
+							variablesChange={(value: string) => {
+								$variables = [variableOptions.find((v) => v.value === value) ?? variableOptions[0]];
+								url.searchParams.set('variables', $variables[0].value);
+								pushState(url + map._hash.getHashString(), {});
+								toast('Variable set to: ' + $variables[0].label);
+								changeOMfileURL();
+							}}
+						/>
+					</div>
 				</div>
-			</div>
-		</Drawer.Content>
+			</Drawer.Content>
+		</Drawer.Portal>
 	</Drawer.Root>
 </div>
