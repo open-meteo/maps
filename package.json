@@ -45,7 +45,7 @@
 		"bits-ui": "^2.8.6",
 		"clsx": "^2.1.1",
 		"d3": "^7.9.0",
-		"eslint": "^9.35.0",
+		"eslint": "^9.36.0",
 		"eslint-config-prettier": "^10.0.1",
 		"eslint-plugin-svelte": "^3.12.1",
 		"globals": "^16.0.0",
