@@ -42,7 +42,7 @@
 		"@tailwindcss/typography": "^0.5.15",
 		"@tailwindcss/vite": "^4.0.0",
 		"@vitest/browser": "^3.2.3",
-		"bits-ui": "^2.8.6",
+		"bits-ui": "^2.11.0",
 		"clsx": "^2.1.1",
 		"d3": "^7.9.0",
 		"eslint": "^9.35.0",
