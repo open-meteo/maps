@@ -37,7 +37,8 @@
 
 	import '../styles.css';
 
-	// let partial = $state(false);
+	let globe = $state(false);
+	let terrain = $state(false);
 	let hillshade = $state(false);
 	let showScale = $state(true);
 	let sheetOpen = $state(false);
@@ -196,7 +197,9 @@
 
 				map.once('styledata', () => {
 					setTimeout(() => {
-						// addHillshadeLayer();
+						if (hillshade) {
+							addHillshadeLayer();
+						}
 						addOmFileLayer();
 					}, 50);
 				});
@@ -212,8 +215,8 @@
 			div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
 			div.title = 'Partial requests';
 
-			const partialSVG = `<button style="display:flex;justify-content:center;align-items:center;">
-				<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" stroke-width="1.2" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-database-zap-icon lucide-database-zap"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 15 21.84"/><path d="M21 5V8"/><path d="M21 12L18 17H22L19 22"/><path d="M3 12A9 3 0 0 0 14.59 14.87"/></svg>
+			const partialSVG = `<button style="display:flex;justify-content:center;align-items:center;color:rgb(51,181,229);">
+				<svg xmlns="http://www.w3.org/2000/svg" stroke-width="1.2" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-database-zap-icon lucide-database-zap"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 15 21.84"/><path d="M21 5V8"/><path d="M21 12L18 17H22L19 22"/><path d="M3 12A9 3 0 0 0 14.59 14.87"/></svg>
              </button>`;
 
 			const fullSVG = `<button style="display:flex;justify-content:center;align-items:center;">
@@ -260,7 +263,94 @@
 			div.addEventListener('contextmenu', (e) => e.preventDefault());
 			div.addEventListener('click', () => {
 				showTimeSelector = !showTimeSelector;
+				if (showTimeSelector) {
+					url.searchParams.delete('time-selector');
+				} else {
+					url.searchParams.set('time-selector', String(showTimeSelector));
+				}
+				pushState(url + map._hash.getHashString(), {});
+
 				div.innerHTML = showTimeSelector ? clockSVG : calendarSVG;
+			});
+			return div;
+		}
+		onRemove() {}
+	}
+	let terrainControl: maplibregl.TerrainControl;
+	class HillshadeButton {
+		onAdd() {
+			const div = document.createElement('div');
+			div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+			div.title = 'Hillshade';
+
+			const noHillshadeSVG = `<button style="display:flex;justify-content:center;align-items:center;">
+				<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" stroke-width="1.2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"  stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-mountain-icon lucide-mountain"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg>
+			 </button>`;
+			const hillshadeSVG = `<button style="display:flex;justify-content:center;align-items:center;color:rgb(51,181,229);}">
+				<svg xmlns="http://www.w3.org/2000/svg" opacity="1" stroke-width="1.2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-mountain-snow-icon lucide-mountain-snow"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/><path d="M4.14 15.08c2.62-1.57 5.24-1.43 7.86.42 2.74 1.94 5.49 2 8.23.19"/></svg>
+			</button>`;
+
+			if (hillshade) {
+				div.innerHTML = hillshadeSVG;
+			} else {
+				div.innerHTML = noHillshadeSVG;
+			}
+
+			div.addEventListener('contextmenu', (e) => e.preventDefault());
+			div.addEventListener('click', () => {
+				hillshade = !hillshade;
+				if (hillshade) {
+					div.innerHTML = hillshadeSVG;
+					url.searchParams.set('hillshade', String(hillshade));
+					pushState(url + map._hash.getHashString(), {});
+
+					map.setStyle(
+						`https://maptiler.servert.nl/styles/minimal-world-maps${mode.current === 'dark' ? '-dark' : ''}/style.json`
+					);
+
+					map.once('styledata', () => {
+						setTimeout(() => {
+							addHillshadeLayer();
+
+							if (!terrainControl) {
+								terrainControl = new maplibregl.TerrainControl({
+									source: 'terrainSource',
+									exaggeration: 1
+								});
+							}
+							map.addControl(terrainControl);
+							terrainControl._terrainButton.addEventListener('click', () => {
+								terrain = !terrain;
+								if (terrain) {
+									url.searchParams.set('terrain', String(terrain));
+								} else {
+									url.searchParams.delete('terrain');
+								}
+								pushState(url + map._hash.getHashString(), {});
+							});
+
+							addOmFileLayer();
+						}, 50);
+					});
+				} else {
+					div.innerHTML = noHillshadeSVG;
+					url.searchParams.delete('hillshade');
+					pushState(url + map._hash.getHashString(), {});
+
+					map.setStyle(
+						`https://maptiler.servert.nl/styles/minimal-world-maps${mode.current === 'dark' ? '-dark' : ''}/style.json`
+					);
+
+					map.once('styledata', () => {
+						setTimeout(() => {
+							if (terrainControl) {
+								map.removeControl(terrainControl);
+							}
+
+							addOmFileLayer();
+						}, 50);
+					});
+				}
 			});
 			return div;
 		}
@@ -438,6 +528,10 @@
 				variableOptions.find((v) => v.value === params.get('variable')) ?? variableOptions[0];
 		}
 
+		if (params.get('globe')) {
+			globe = params.get('globe') === 'true';
+		}
+
 		if (params.get('partial')) {
 			$preferences.partial = params.get('partial') === 'true';
 		} else {
@@ -449,14 +543,43 @@
 		if (params.get('hillshade')) {
 			hillshade = params.get('hillshade') === 'true';
 		}
+
+		if (params.get('terrain')) {
+			terrain = params.get('terrain') === 'true';
+		}
+
+		if (params.get('hillshade')) {
+			hillshade = params.get('hillshade') === 'true';
+		}
+
+		if (params.get('time-selector')) {
+			showTimeSelector = params.get('time-selector') === 'true';
+		}
 	});
 
-	onMount(() => {
+	onMount(async () => {
 		maplibregl.addProtocol('om', omProtocol);
+
+		const style = await fetch(
+			`https://maptiler.servert.nl/styles/minimal-world-maps${mode.current === 'dark' ? '-dark' : ''}/style.json`
+		)
+			.then((response) => response.json())
+			.then((style) => {
+				if (globe) {
+					return {
+						...style,
+						projection: {
+							type: 'globe'
+						}
+					};
+				} else {
+					return style;
+				}
+			});
 
 		map = new maplibregl.Map({
 			container: mapContainer as HTMLElement,
-			style: `https://maptiler.servert.nl/styles/minimal-world-maps${mode.current === 'dark' ? '-dark' : ''}/style.json`,
+			style: style,
 			center: typeof domain.grid.center == 'object' ? domain.grid.center : [0, 0],
 			zoom: domain?.grid.zoom,
 			keyboard: false,
@@ -467,29 +590,35 @@
 
 		map.touchZoomRotate.disableRotation();
 
-		// Add zoom and rotation controls to the map.
-		map.addControl(
-			new maplibregl.NavigationControl({
-				visualizePitch: true,
-				showZoom: true,
-				showCompass: true
-			})
-		);
+		const navigationControl = new maplibregl.NavigationControl({
+			visualizePitch: true,
+			showZoom: true,
+			showCompass: true
+		});
+		map.addControl(navigationControl);
 
-		// Add geolocate control to the map.
-		map.addControl(
-			new maplibregl.GeolocateControl({
-				fitBoundsOptions: {
-					maxZoom: 13.5
-				},
-				positionOptions: {
-					enableHighAccuracy: true
-				},
-				trackUserLocation: true
-			})
-		);
+		let locateControl = new maplibregl.GeolocateControl({
+			fitBoundsOptions: {
+				maxZoom: 13.5
+			},
+			positionOptions: {
+				enableHighAccuracy: true
+			},
+			trackUserLocation: true
+		});
+		map.addControl(locateControl);
 
-		map.addControl(new maplibregl.GlobeControl());
+		const globeControl = new maplibregl.GlobeControl();
+		map.addControl(globeControl);
+		globeControl._globeButton.addEventListener('click', () => {
+			globe = !globe;
+			if (globe) {
+				url.searchParams.set('globe', String(globe));
+			} else {
+				url.searchParams.delete('globe');
+			}
+			pushState(url + map._hash.getHashString(), {});
+		});
 
 		// improved scrolling
 		map.scrollZoom.setZoomRate(1 / 85);
@@ -503,6 +632,32 @@
 			map.addControl(new VariableButton());
 			map.addControl(new PartialButton());
 			map.addControl(new TimeButton());
+			map.addControl(new HillshadeButton());
+
+			if (hillshade) {
+				addHillshadeLayer();
+				if (!terrainControl) {
+					terrainControl = new maplibregl.TerrainControl({
+						source: 'terrainSource',
+						exaggeration: 1
+					});
+				}
+				if (terrain) {
+					map.setTerrain({ source: 'terrainSource' });
+				}
+
+				map.addControl(terrainControl);
+
+				terrainControl._terrainButton.addEventListener('click', () => {
+					terrain = !terrain;
+					if (terrain) {
+						url.searchParams.set('terrain', String(terrain));
+					} else {
+						url.searchParams.delete('terrain');
+					}
+					pushState(url + map._hash.getHashString(), {});
+				});
+			}
 
 			map.addControl(new HillshadeButton());
 			if (hillshade) {
