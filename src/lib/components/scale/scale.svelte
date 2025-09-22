@@ -1,17 +1,17 @@
 <script lang="ts">
 	import { getColorScale } from '$lib/utils/color-scales';
 
-	import type { Variable } from '$lib/types';
+	import type { Variables } from '$lib/types';
 
 	interface Props {
 		showScale: boolean;
-		variable: Variable;
+		variables: Variables;
 	}
 
-	let { showScale, variable }: Props = $props();
+	let { showScale, variables }: Props = $props();
 
 	let colorScale = $derived.by(() => {
-		return getColorScale(variable);
+		return getColorScale(variables[0]);
 	});
 </script>
 

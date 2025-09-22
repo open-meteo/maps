@@ -41,10 +41,10 @@ export type TilePixel = {
 	tileIndex: TileIndex;
 };
 
-export type Variable = {
+export type Variables = {
 	value: string;
 	label: string;
-};
+}[];
 
 export type ColorScale = {
 	min: number;

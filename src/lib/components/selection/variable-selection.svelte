@@ -8,41 +8,41 @@
 
 	import * as Select from '$lib/components/ui/select';
 
-	import type { Domain, DomainMetaData, Variable } from '$lib/types';
+	import type { Domain, DomainMetaData, Variables } from '$lib/types';
 
 	interface Props {
+		time: Date;
+		model: Date;
 		domain: Domain;
-		variable: Variable;
+		variables: Variables;
 		modelRuns;
-		timeSelected: Date;
 		latestRequest: Promise<DomainMetaData>;
-		domainChange: Function;
-		variableChange: Function;
+		domainChange: (value: string) => Promise<void>;
+		variablesChange: (value: string) => void;
 		progressRequest: Promise<DomainMetaData>;
-		modelRunChange: Function;
-		modelRunSelected: Date;
+		modelRunChange: (mr: Date) => void;
 	}
 	let {
+		time,
+		model,
 		domain,
-		variable,
+		variables,
 		modelRuns,
-		timeSelected,
 		latestRequest,
 		domainChange,
-		variableChange,
+		variablesChange,
 		progressRequest,
-		modelRunChange,
-		modelRunSelected
+		modelRunChange
 	}: Props = $props();
 
 	let selectedDomain = $derived(domain.value);
-	let selectedVariable = $derived(variable.value);
+	let selectedVariable = $derived(variables[0].value);
 
 	const timeValid = $derived.by(async () => {
 		let latest = await latestRequest;
 		for (let vt of latest.valid_times) {
 			let d = new Date(vt);
-			if (timeSelected - d == 0) {
+			if (time - d == 0) {
 				return true;
 			}
 		}
@@ -97,8 +97,7 @@
 			<h2 class="mb-2 text-lg font-bold">Model runs</h2>
 			{#each modelRuns as mr, i (i)}
 				<Button
-					class="cursor-pointer bg-blue-200 hover:bg-blue-600 {mr.getTime() ===
-					modelRunSelected.getTime()
+					class="cursor-pointer bg-blue-200 hover:bg-blue-600 {mr.getTime() === model.getTime()
 						? 'bg-blue-400'
 						: ''}"
 					onclick={() => {
@@ -121,8 +120,7 @@
 
 					{@const ip = new Date(progress.reference_time)}
 					<Button
-						class="cursor-pointer bg-blue-200 hover:bg-blue-600 {ip.getTime() ===
-						modelRunSelected.getTime()
+						class="cursor-pointer bg-blue-200 hover:bg-blue-600 {ip.getTime() === model.getTime()
 							? 'bg-blue-400'
 							: ''}"
 						onclick={() => {
@@ -151,11 +149,11 @@
 						type="single"
 						bind:value={selectedVariable}
 						onValueChange={(value) => {
-							variableChange(value);
+							variablesChange(value);
 						}}
 					>
 						<Select.Trigger aria-label="Domain trigger" class="top-[0.35rem] !h-12 w-full  pt-6 "
-							>{variable?.label}</Select.Trigger
+							>{variables[0]?.label}</Select.Trigger
 						>
 						<Select.Content side="bottom">
 							{#each latest.variables as vr, i (i)}
