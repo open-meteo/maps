@@ -48,7 +48,7 @@
 		"eslint": "^9.35.0",
 		"eslint-config-prettier": "^10.0.1",
 		"eslint-plugin-svelte": "^3.12.1",
-		"globals": "^16.0.0",
+		"globals": "^16.4.0",
 		"maplibre-gl": "^5.7.1",
 		"mdsvex": "^0.12.3",
 		"mode-watcher": "^1.1.0",
