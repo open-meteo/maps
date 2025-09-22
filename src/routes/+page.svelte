@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 
+	import { get } from 'svelte/store';
+
 	import { fade } from 'svelte/transition';
 
 	import { SvelteDate } from 'svelte/reactivity';
@@ -31,9 +33,11 @@
 
 	import { getColorScale } from '$lib/utils/color-scales';
 
+	import { preferences } from '$lib/stores/preferences';
+
 	import '../styles.css';
 
-	let partial = $state(false);
+	// let partial = $state(false);
 	let hillshade = $state(false);
 	let showScale = $state(true);
 	let sheetOpen = $state(false);
@@ -215,13 +219,19 @@
 			const fullSVG = `<button style="display:flex;justify-content:center;align-items:center;">
 				<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" stroke-width="1.2" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-database-icon lucide-database"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
         </button>`;
-			div.innerHTML = partial ? partialSVG : fullSVG;
+			div.innerHTML = $preferences.partial ? partialSVG : fullSVG;
 			div.addEventListener('contextmenu', (e) => e.preventDefault());
 			div.addEventListener('click', () => {
-				partial = !partial;
-				div.innerHTML = partial ? partialSVG : fullSVG;
-				if (partial) {
-					url.searchParams.set('partial', String(partial));
+				// let partial = get(preferences)['partial'];
+				// preferences.update((pref) => {
+				// 	console.log(pref);
+				// 	pref['partial'] = !partial;
+				// 	return pref;
+				// });
+				$preferences.partial = !$preferences.partial;
+				div.innerHTML = $preferences.partial ? partialSVG : fullSVG;
+				if ($preferences.partial) {
+					url.searchParams.set('partial', String($preferences.partial));
 				} else {
 					url.searchParams.delete('partial');
 				}
@@ -429,7 +439,11 @@
 		}
 
 		if (params.get('partial')) {
-			partial = params.get('partial') === 'true';
+			$preferences.partial = params.get('partial') === 'true';
+		} else {
+			if ($preferences.partial) {
+				url.searchParams.set('partial', String($preferences.partial));
+			}
 		}
 
 		if (params.get('hillshade')) {
@@ -553,9 +567,9 @@
 
 	const getOMUrl = () => {
 		if (mapBounds) {
-			return `https://map-tiles.open-meteo.com/data_spatial/${domain.value}/${modelRunSelected.getUTCFullYear()}/${pad(modelRunSelected.getUTCMonth() + 1)}/${pad(modelRunSelected.getUTCDate())}/${pad(modelRunSelected.getUTCHours())}00Z/${timeSelected.getUTCFullYear()}-${pad(timeSelected.getUTCMonth() + 1)}-${pad(timeSelected.getUTCDate())}T${pad(timeSelected.getUTCHours())}00.om?dark=${darkMode}&variable=${variable.value}&bounds=${mapBounds.getSouth()},${mapBounds.getWest()},${mapBounds.getNorth()},${mapBounds.getEast()}&partial=${partial}`;
+			return `https://map-tiles.open-meteo.com/data_spatial/${domain.value}/${modelRunSelected.getUTCFullYear()}/${pad(modelRunSelected.getUTCMonth() + 1)}/${pad(modelRunSelected.getUTCDate())}/${pad(modelRunSelected.getUTCHours())}00Z/${timeSelected.getUTCFullYear()}-${pad(timeSelected.getUTCMonth() + 1)}-${pad(timeSelected.getUTCDate())}T${pad(timeSelected.getUTCHours())}00.om?dark=${darkMode}&variable=${variable.value}&bounds=${mapBounds.getSouth()},${mapBounds.getWest()},${mapBounds.getNorth()},${mapBounds.getEast()}&partial=${$preferences.partial}`;
 		} else {
-			return `https://map-tiles.open-meteo.com/data_spatial/${domain.value}/${modelRunSelected.getUTCFullYear()}/${pad(modelRunSelected.getUTCMonth() + 1)}/${pad(modelRunSelected.getUTCDate())}/${pad(modelRunSelected.getUTCHours())}00Z/${timeSelected.getUTCFullYear()}-${pad(timeSelected.getUTCMonth() + 1)}-${pad(timeSelected.getUTCDate())}T${pad(timeSelected.getUTCHours())}00.om?dark=${darkMode}&variable=${variable.value}&partial=${partial}`;
+			return `https://map-tiles.open-meteo.com/data_spatial/${domain.value}/${modelRunSelected.getUTCFullYear()}/${pad(modelRunSelected.getUTCMonth() + 1)}/${pad(modelRunSelected.getUTCDate())}/${pad(modelRunSelected.getUTCHours())}00Z/${timeSelected.getUTCFullYear()}-${pad(timeSelected.getUTCMonth() + 1)}-${pad(timeSelected.getUTCDate())}T${pad(timeSelected.getUTCHours())}00.om?dark=${darkMode}&variable=${variable.value}&partial=${$preferences.partial}`;
 		}
 	};
 
