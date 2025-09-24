@@ -390,6 +390,7 @@
 				popup.remove();
 			}
 			mapBounds = map.getBounds();
+			getPaddedBounds();
 
 			checkClosestHourModelRun();
 
@@ -623,11 +624,11 @@
 				}
 			});
 
-			map.on('zoom', () => {
+			map.on('zoomend', () => {
 				checkBounds();
 			});
 
-			map.on('drag', () => {
+			map.on('dragend', () => {
 				checkBounds();
 			});
 		});
@@ -642,38 +643,118 @@
 	const checkBounds = () => {
 		mapBounds = map.getBounds();
 		let exceededPadding = false;
-		if (mapBounds.getSouth() < paddedBounds.getSouth()) {
+
+		geojson.features[0].geometry.coordinates = [
+			[paddedBounds?.getSouthWest()['lng'], paddedBounds?.getSouthWest()['lat']],
+			[paddedBounds?.getNorthWest()['lng'], paddedBounds?.getNorthWest()['lat']],
+			[paddedBounds?.getNorthEast()['lng'], paddedBounds?.getNorthEast()['lat']],
+			[paddedBounds?.getSouthEast()['lng'], paddedBounds?.getSouthEast()['lat']],
+			[paddedBounds?.getSouthWest()['lng'], paddedBounds?.getSouthWest()['lat']]
+		];
+
+		paddedBoundsSource?.setData(geojson);
+		console.log(geojson);
+
+		if (
+			mapBounds.getSouth() < paddedBounds.getSouth() &&
+			paddedBounds.getSouth() >= domain.grid.latMin
+		) {
 			exceededPadding = true;
 		}
-		if (mapBounds.getWest() < paddedBounds.getWest()) {
+		if (
+			mapBounds.getWest() < paddedBounds.getWest() &&
+			paddedBounds.getWest() >= domain.grid.lonMin
+		) {
 			exceededPadding = true;
 		}
-		if (mapBounds.getNorth() > paddedBounds.getNorth()) {
+		if (
+			mapBounds.getNorth() > paddedBounds.getNorth() &&
+			paddedBounds.getNorth() <= domain.grid.latMin + domain.grid.ny * domain.grid.dy
+		) {
 			exceededPadding = true;
 		}
-		if (mapBounds.getEast() > paddedBounds.getEast()) {
+		if (
+			mapBounds.getEast() > paddedBounds.getEast() &&
+			paddedBounds.getEast() <= domain.grid.latMin + domain.grid.nx * domain.grid.dx
+		) {
 			exceededPadding = true;
 		}
 		if (exceededPadding) {
 			console.log('exceeded');
-			getPaddedBounds();
 			changeOMfileURL();
 		}
 	};
 
+	let geojson;
+	let paddedBoundsLayer: maplibregl.StyleLayer | undefined;
+	let paddedBoundsSource: maplibregl.GeoJSONSource | undefined;
 	const getPaddedBounds = () => {
+		if (!paddedBoundsSource) {
+			geojson = {
+				type: 'FeatureCollection',
+				features: [
+					{
+						type: 'Feature',
+						geometry: {
+							type: 'LineString',
+							properties: {},
+							coordinates: [
+								[domain.grid.lonMin, domain.grid.latMin],
+								[domain.grid.lonMin, domain.grid.latMin + domain.grid.ny * domain.grid.dy],
+								[
+									domain.grid.lonMin + domain.grid.nx * domain.grid.dx,
+									domain.grid.latMin + domain.grid.ny * domain.grid.dy
+								],
+								[domain.grid.lonMin + domain.grid.nx * domain.grid.dx, domain.grid.latMin],
+								[domain.grid.lonMin, domain.grid.latMin]
+							]
+						}
+					}
+				]
+			};
+
+			map.addSource('paddedBoundsSource', {
+				type: 'geojson',
+				data: geojson
+			});
+
+			paddedBoundsSource = map.getSource('paddedBoundsSource');
+
+			map.addLayer({
+				id: 'paddedBoundsLayer',
+				type: 'line',
+				source: 'paddedBoundsSource',
+				layout: {
+					'line-join': 'round',
+					'line-cap': 'round'
+				},
+				paint: {
+					'line-color': 'orange',
+					'line-width': 5
+				}
+			});
+
+			paddedBoundsLayer = map.getLayer('paddedBoundsLayer');
+		}
+
 		let mapBoundsSW = mapBounds.getSouthWest();
 		let mapBoundsNE = mapBounds.getNorthEast();
 		let dLat = mapBoundsNE['lat'] - mapBoundsSW['lat'];
 		let dLon = mapBoundsNE['lng'] - mapBoundsSW['lng'];
 
 		paddedBounds?.setSouthWest([
-			mapBoundsSW['lng'] - (dLon * padding) / 100,
-			mapBoundsSW['lat'] - (dLat * padding) / 100
+			Math.max(mapBoundsSW['lng'] - (dLon * padding) / 100, domain.grid.lonMin),
+			Math.max(mapBoundsSW['lat'] - (dLat * padding) / 100, domain.grid.latMin)
 		]);
 		paddedBounds?.setNorthEast([
-			mapBoundsNE['lng'] + (dLon * padding) / 100,
-			mapBoundsNE['lat'] + (dLat * padding) / 100
+			Math.min(
+				mapBoundsNE['lng'] + (dLon * padding) / 100,
+				domain.grid.lonMin + domain.grid.nx * domain.grid.dx
+			),
+			Math.min(
+				mapBoundsNE['lat'] + (dLat * padding) / 100,
+				domain.grid.latMin + domain.grid.ny * domain.grid.dy
+			)
 		]);
 	};
 
