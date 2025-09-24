@@ -651,36 +651,33 @@
 			[paddedBounds?.getSouthEast()['lng'], paddedBounds?.getSouthEast()['lat']],
 			[paddedBounds?.getSouthWest()['lng'], paddedBounds?.getSouthWest()['lat']]
 		];
-
 		paddedBoundsSource?.setData(geojson);
-		console.log(geojson);
 
 		if (
 			mapBounds.getSouth() < paddedBounds.getSouth() &&
-			paddedBounds.getSouth() >= domain.grid.latMin
+			paddedBounds.getSouth() > domain.grid.latMin
 		) {
 			exceededPadding = true;
 		}
 		if (
 			mapBounds.getWest() < paddedBounds.getWest() &&
-			paddedBounds.getWest() >= domain.grid.lonMin
+			paddedBounds.getWest() > domain.grid.lonMin
 		) {
 			exceededPadding = true;
 		}
 		if (
 			mapBounds.getNorth() > paddedBounds.getNorth() &&
-			paddedBounds.getNorth() <= domain.grid.latMin + domain.grid.ny * domain.grid.dy
+			paddedBounds.getNorth() < domain.grid.latMin + domain.grid.ny * domain.grid.dy
 		) {
 			exceededPadding = true;
 		}
 		if (
 			mapBounds.getEast() > paddedBounds.getEast() &&
-			paddedBounds.getEast() <= domain.grid.latMin + domain.grid.nx * domain.grid.dx
+			paddedBounds.getEast() < domain.grid.lonMin + domain.grid.nx * domain.grid.dx
 		) {
 			exceededPadding = true;
 		}
 		if (exceededPadding) {
-			console.log('exceeded');
 			changeOMfileURL();
 		}
 	};
