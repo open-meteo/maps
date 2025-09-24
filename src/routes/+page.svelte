@@ -7,27 +7,22 @@
 
 	import { toast } from 'svelte-sonner';
 
-	import { mode } from 'mode-watcher';
-
 	import * as maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
 
 	import { pushState } from '$app/navigation';
 
-	import { omProtocol, getValueFromLatLong } from '../om-protocol';
+	import { omProtocol } from '../om-protocol';
 
 	import { pad } from '$lib/utils/pad';
 	import { domainOptions } from '$lib/utils/domains';
-	import { hideZero, variableOptions } from '$lib/utils/variables';
-	import { getColorScale } from '$lib/utils/color-scales';
+	import { variableOptions } from '$lib/utils/variables';
 
 	import type { DomainMetaData } from '$lib/types';
 
 	import * as Sheet from '$lib/components/ui/sheet';
 
 	import { Drawer } from 'vaul-svelte';
-
-	// import * as Drawer from '$lib/components/ui/drawer';
 
 	import Scale from '$lib/components/scale/scale.svelte';
 	import TimeSelector from '$lib/components/time/time-selector.svelte';
@@ -48,144 +43,30 @@
 		sheet,
 		model,
 		drawer,
+		loading,
 		domain,
 		variables,
 		preferences,
+		mapBounds,
 		drawerHeight
 	} from '$lib/stores/preferences';
 
 	import {
-		checkClosestHourDomainInterval,
-		checkClosestHourModelRun,
+		getStyle,
+		addPopup,
+		addOmFileLayer,
+		changeOMfileURL,
 		setMapControlSettings,
-		urlParamsToPreferences
+		urlParamsToPreferences,
+		checkClosestHourDomainInterval
 	} from '$lib';
 
 	import '../styles.css';
-	import clsx from 'clsx';
-
-	const darkMode = $derived(mode.current);
-
-	const beforeLayer = 'waterway-tunnel';
-
-	const addHillshadeLayer = () => {
-		map.setSky({
-			'sky-color': '#000000',
-			'sky-horizon-blend': 0.8,
-			'horizon-color': '#80C1FF',
-			'horizon-fog-blend': 0.6,
-			'fog-color': '#D6EAFF',
-			'fog-ground-blend': 0
-		});
-
-		map.addSource('terrainSource', {
-			type: 'raster-dem',
-			tiles: ['https://mapproxy.servert.nl/wmts/copernicus/webmercator/{z}/{x}/{y}.png'],
-			tileSize: 512,
-			// @ts-expect-error scheme not supported in types, but still works
-			scheme: 'tms',
-			maxzoom: 10
-		});
-
-		map.addSource('hillshadeSource', {
-			type: 'raster-dem',
-			tiles: ['https://mapproxy.servert.nl/wmts/copernicus/webmercator/{z}/{x}/{y}.png'],
-			tileSize: 512,
-			// @ts-expect-error scheme not supported in types, but still works
-			scheme: 'tms',
-			maxzoom: 10
-		});
-
-		map.addLayer(
-			{
-				source: 'hillshadeSource',
-				id: 'hillshadeLayer',
-				type: 'hillshade',
-				paint: {
-					'hillshade-method': 'igor',
-					'hillshade-shadow-color': 'rgba(0,0,0,0.4)',
-					'hillshade-highlight-color': 'rgba(255,255,255,0.35)'
-				}
-			},
-			beforeLayer
-		);
-	};
-
-	const addOmFileLayer = () => {
-		map.addSource('omFileRasterSource', {
-			url: 'om://' + omUrl,
-			type: 'raster',
-			tileSize: TILE_SIZE
-		});
-
-		omFileSource = map.getSource('omFileRasterSource');
-		if (omFileSource) {
-			omFileSource.on('error', (e) => {
-				checked = 0;
-				loading = false;
-				clearInterval(checkSourceLoadedInterval);
-				toast(e.error.message);
-			});
-		}
-
-		map.addLayer(
-			{
-				id: 'omFileRasterLayer',
-				type: 'raster',
-				source: 'omFileRasterSource'
-			},
-			beforeLayer
-		);
-	};
-
-	let omUrl: string;
 
 	let url: URL;
-
-	const TILE_SIZE = Number(import.meta.env.VITE_TILE_SIZE);
-
-	let checked = 0;
-	let checkSourceLoadedInterval: ReturnType<typeof setInterval>;
-
 	let map: maplibregl.Map;
-	let mapContainer: HTMLElement | null;
-	let popup: maplibregl.Popup | undefined;
-
-	let mapBounds: maplibregl.LngLatBounds | undefined = $state();
-	let omFileSource: maplibregl.RasterTileSource | undefined;
-	let terrainControl: maplibregl.TerrainControl;
-
 	let latest: DomainMetaData | undefined = $state();
-	let loading = $state(false);
-	let showPopup = false;
-
-	const changeOMfileURL = () => {
-		if (map && omFileSource) {
-			loading = true;
-			if (popup) {
-				popup.remove();
-			}
-			mapBounds = map.getBounds();
-
-			checkClosestHourModelRun(map, latest, url);
-
-			omUrl = getOMUrl();
-			omFileSource.setUrl('om://' + omUrl);
-
-			checkSourceLoadedInterval = setInterval(() => {
-				checked++;
-				if ((omFileSource && omFileSource.loaded()) || checked >= 200) {
-					if (checked >= 200) {
-						// Timeout after 10s
-						toast('Request timed out');
-					}
-					checked = 0;
-					loading = false;
-					clearInterval(checkSourceLoadedInterval);
-				}
-			}, 50);
-		}
-	};
+	let mapContainer: HTMLElement | null;
 
 	onMount(() => {
 		url = new URL(document.location.href);
@@ -195,22 +76,7 @@
 	onMount(async () => {
 		maplibregl.addProtocol('om', omProtocol);
 
-		const style = await fetch(
-			`https://maptiler.servert.nl/styles/minimal-world-maps${mode.current === 'dark' ? '-dark' : ''}/style.json`
-		)
-			.then((response) => response.json())
-			.then((style) => {
-				if ($preferences.globe) {
-					return {
-						...style,
-						projection: {
-							type: 'globe'
-						}
-					};
-				} else {
-					return style;
-				}
-			});
+		const style = await getStyle();
 
 		map = new maplibregl.Map({
 			container: mapContainer as HTMLElement,
@@ -226,80 +92,19 @@
 		setMapControlSettings(map, url);
 
 		map.on('load', async () => {
-			mapBounds = map.getBounds();
+			mapBounds.set(map.getBounds());
 
 			map.addControl(new DarkModeButton(map, url));
 			map.addControl(new SettingsButton());
 			map.addControl(new DrawerButton());
-			map.addControl(new PartialButton(map, url, changeOMfileURL));
+			map.addControl(new PartialButton(map, url, latest));
 			map.addControl(new TimeButton(map, url));
 			map.addControl(new HillshadeButton(map, url));
 
-			if ($preferences.hillshade) {
-				addHillshadeLayer();
-				if (!terrainControl) {
-					terrainControl = new maplibregl.TerrainControl({
-						source: 'terrainSource',
-						exaggeration: 1
-					});
-				}
-				if ($preferences.terrain) {
-					map.setTerrain({ source: 'terrainSource' });
-				}
-
-				map.addControl(terrainControl);
-
-				terrainControl._terrainButton.addEventListener('click', () => {
-					$preferences.terrain = !$preferences.terrain;
-					if ($preferences.terrain) {
-						url.searchParams.set('terrain', String($preferences.terrain));
-					} else {
-						url.searchParams.delete('terrain');
-					}
-					pushState(url + map._hash.getHashString(), {});
-				});
-			}
-
 			latest = await getDomainData();
-			omUrl = getOMUrl();
 
-			addOmFileLayer();
-
-			map.on('mousemove', function (e) {
-				if (showPopup) {
-					const coordinates = e.lngLat;
-					if (!popup) {
-						popup = new maplibregl.Popup()
-							.setLngLat(coordinates)
-							.setHTML(`<span class="value-popup">Outside domain</span>`)
-							.addTo(map);
-					} else {
-						popup.addTo(map);
-					}
-					let { index, value } = getValueFromLatLong(coordinates.lat, coordinates.lng, colorScale);
-					if (index) {
-						if ((hideZero.includes($variables[0].value) && value <= 0.25) || !value) {
-							popup.remove();
-						} else {
-							let string = value.toFixed(1) + colorScale.unit;
-							popup.setLngLat(coordinates).setHTML(`<span class="value-popup">${string}</span>`);
-						}
-					} else {
-						popup.setLngLat(coordinates).setHTML(`<span class="value-popup">Outside domain</span>`);
-					}
-				}
-			});
-
-			map.on('click', (e) => {
-				showPopup = !showPopup;
-				if (!showPopup && popup) {
-					popup.remove();
-				}
-				if (showPopup && popup) {
-					const coordinates = e.lngLat;
-					popup.setLngLat(coordinates).addTo(map);
-				}
-			});
+			addOmFileLayer(map);
+			addPopup(map);
 		});
 	});
 
@@ -307,18 +112,6 @@
 		if (map) {
 			map.remove();
 		}
-	});
-
-	const getOMUrl = () => {
-		if (mapBounds) {
-			return `https://map-tiles.open-meteo.com/data_spatial/${$domain.value}/${$model.getUTCFullYear()}/${pad($model.getUTCMonth() + 1)}/${pad($model.getUTCDate())}/${pad($model.getUTCHours())}00Z/${$time.getUTCFullYear()}-${pad($time.getUTCMonth() + 1)}-${pad($time.getUTCDate())}T${pad($time.getUTCHours())}00.om?dark=${darkMode}&variable=${$variables[0].value}&bounds=${mapBounds.getSouth()},${mapBounds.getWest()},${mapBounds.getNorth()},${mapBounds.getEast()}&partial=${$preferences.partial}`;
-		} else {
-			return `https://map-tiles.open-meteo.com/data_spatial/${$domain.value}/${$model.getUTCFullYear()}/${pad($model.getUTCMonth() + 1)}/${pad($model.getUTCDate())}/${pad($model.getUTCHours())}00Z/${$time.getUTCFullYear()}-${pad($time.getUTCMonth() + 1)}-${pad($time.getUTCDate())}T${pad($time.getUTCHours())}00.om?dark=${darkMode}&variable=${$variables[0].value}&partial=${$preferences.partial}`;
-		}
-	};
-
-	let colorScale = $derived.by(() => {
-		return getColorScale($variables[0]);
 	});
 
 	const getDomainData = async (latest = true): Promise<DomainMetaData> => {
@@ -341,7 +134,7 @@
 						url.searchParams.set('variable', $variables[0].value);
 						pushState(url + map._hash.getHashString(), {});
 						toast('Variable set to: ' + $variables[0].label);
-						changeOMfileURL();
+						changeOMfileURL(map, url, latest);
 					}
 				}
 
@@ -369,14 +162,14 @@
 		}
 	});
 
-	let activeSnapPoint = $state(0.4);
+	let activeSnapPoint = $derived($drawerHeight);
 </script>
 
 <svelte:head>
 	<title>Open-Meteo Maps</title>
 </svelte:head>
 
-{#if loading}
+{#if $loading}
 	<div
 		in:fade={{ delay: 1200, duration: 400 }}
 		out:fade={{ duration: 150 }}
@@ -406,6 +199,8 @@
 <TimeSelector
 	bind:time={$time}
 	bind:domain={$domain}
+	disabled={$loading}
+	timeSelector={$preferences.timeSelector}
 	onDateChange={(date: Date) => {
 		$time = new SvelteDate(date);
 
@@ -416,10 +211,8 @@
 			toast('Timestep not in interval, maybe force reload page');
 		}
 
-		changeOMfileURL();
+		changeOMfileURL(map, url, latest);
 	}}
-	disabled={loading}
-	timeSelector={$preferences.timeSelector}
 />
 <div class="absolute">
 	<Sheet.Root bind:open={$sheet}>
@@ -431,6 +224,10 @@
 		bind:activeSnapPoint
 		direction="bottom"
 		snapPoints={[0.3, 0.4, 0.5, 0.6, 0.7]}
+		onActiveSnapPointChange={(e: string | number | null) => {
+			drawerHeight.set(e as number);
+			return e;
+		}}
 	>
 		<Drawer.Overlay class="fixed inset-0 bg-black/40" />
 		<Drawer.Portal>
@@ -455,7 +252,7 @@
 								pushState(url + map._hash.getHashString(), {});
 								toast('Domain set to: ' + $domain.label);
 								latest = await getDomainData();
-								changeOMfileURL();
+								changeOMfileURL(map, url, latest);
 							}}
 							modelRunChange={(mr: Date) => {
 								$model = mr;
@@ -476,14 +273,14 @@
 										':' +
 										pad(mr.getUTCMinutes())
 								);
-								changeOMfileURL();
+								changeOMfileURL(map, url, latest);
 							}}
 							variablesChange={(value: string) => {
 								$variables = [variableOptions.find((v) => v.value === value) ?? variableOptions[0]];
 								url.searchParams.set('variables', $variables[0].value);
 								pushState(url + map._hash.getHashString(), {});
 								toast('Variable set to: ' + $variables[0].label);
-								changeOMfileURL();
+								changeOMfileURL(map, url, latest);
 							}}
 						/>
 					</div>

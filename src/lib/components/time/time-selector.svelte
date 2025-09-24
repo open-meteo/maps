@@ -12,19 +12,19 @@
 	import type { Domain } from '$lib/types';
 
 	interface Props {
-		domain: Domain;
 		time: Date;
-		onDateChange: (date: Date) => void;
+		domain: Domain;
 		disabled: boolean;
 		timeSelector: boolean;
+		onDateChange: (date: Date) => void;
 	}
 
 	let {
-		domain = $bindable(),
 		time = $bindable(),
-		onDateChange,
+		domain = $bindable(),
 		disabled,
-		timeSelector
+		timeSelector,
+		onDateChange
 	}: Props = $props();
 
 	let currentDate = $derived(time);
@@ -169,9 +169,9 @@
 			type="range"
 			min="0"
 			max="24"
-			{disabled}
 			step={resolution}
 			value={currentHour}
+			{disabled}
 			oninput={(e) => {
 				const target = e.target as HTMLInputElement;
 				const value = target?.value;

@@ -1,4 +1,4 @@
-import { writable } from 'svelte/store';
+import { writable, type Writable } from 'svelte/store';
 
 import { persisted } from 'svelte-persisted-store';
 
@@ -31,4 +31,7 @@ export const model = writable(new Date());
 
 export const sheet = writable(false);
 export const drawer = writable(false);
-export const drawerHeight = writable('20%');
+export const drawerHeight = writable(0.4);
+
+export const loading = writable(false);
+export const mapBounds: Writable<maplibregl.LngLatBounds | null> = writable(null);

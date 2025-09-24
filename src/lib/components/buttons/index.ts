@@ -2,20 +2,27 @@ import { get } from 'svelte/store';
 
 import { setMode, mode } from 'mode-watcher';
 
+import * as maplibregl from 'maplibre-gl';
+
 import { pushState } from '$app/navigation';
 
 import { preferences as p, sheet, drawer } from '$lib/stores/preferences';
 
+import { addHillshadeLayer, addOmFileLayer, changeOMfileURL, terrainHandler } from '$lib';
+import type { DomainMetaData } from '$lib/types';
+
 const preferences = get(p);
+
+let terrainControl: maplibregl.TerrainControl;
 
 export class PartialButton {
 	map;
 	url;
-	changeOMfileURL;
-	constructor(map: maplibregl.Map, url: URL, changeOMfileURL: () => void) {
+	latest;
+	constructor(map: maplibregl.Map, url: URL, latest: DomainMetaData | undefined) {
 		this.map = map;
 		this.url = url;
-		this.changeOMfileURL = changeOMfileURL;
+		this.latest = latest;
 	}
 	onAdd() {
 		const div = document.createElement('div');
@@ -40,7 +47,7 @@ export class PartialButton {
 				this.url.searchParams.delete('partial');
 			}
 			pushState(this.url + this.map._hash.getHashString(), {});
-			this.changeOMfileURL();
+			changeOMfileURL(this.map, this.url, this.latest);
 		});
 		return div;
 	}
@@ -143,14 +150,18 @@ export class TimeButton {
 		div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
 		div.title = 'Time selector';
 
-		const clockSVG = `<button style="display:flex;justify-content:center;align-items:center;">
-				<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" stroke-width="1.2"  width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"  stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-calendar-clock-icon lucide-calendar-clock"><path d="M16 14v2.2l1.6 1"/><path d="M16 2v4"/><path d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5"/><path d="M3 10h5"/><path d="M8 2v4"/><circle cx="16" cy="16" r="6"/></svg>
+		const clockSVG = `<button style="display:flex;justify-content:center;align-items:center;color:rgb(51,181,229);">
+				<svg xmlns="http://www.w3.org/2000/svg" opacity="1" stroke-width="1.2"  width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"  stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-calendar-clock-icon lucide-calendar-clock"><path d="M16 14v2.2l1.6 1"/><path d="M16 2v4"/><path d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5"/><path d="M3 10h5"/><path d="M8 2v4"/><circle cx="16" cy="16" r="6"/></svg>
 			 </button>`;
 		const calendarSVG = `<button style="display:flex;justify-content:center;align-items:center;">
 				<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" stroke-width="1.2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"  stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-calendar-off-icon lucide-calendar-off"><path d="M4.2 4.2A2 2 0 0 0 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 1.82-1.18"/><path d="M21 15.5V6a2 2 0 0 0-2-2H9.5"/><path d="M16 2v4"/><path d="M3 10h7"/><path d="M21 10h-5.5"/><path d="m2 2 20 20"/></svg>
 			</button>`;
 
-		div.innerHTML = clockSVG;
+		if (preferences.timeSelector) {
+			div.innerHTML = clockSVG;
+		} else {
+			div.innerHTML = calendarSVG;
+		}
 		div.addEventListener('contextmenu', (e) => e.preventDefault());
 		div.addEventListener('click', () => {
 			preferences.timeSelector = !preferences.timeSelector;
@@ -186,8 +197,8 @@ export class HillshadeButton {
 		const noHillshadeSVG = `<button style="display:flex;justify-content:center;align-items:center;">
 				<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" stroke-width="1.2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"  stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-mountain-icon lucide-mountain"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg>
 			 </button>`;
-		const hillshadeSVG = `<button style="display:flex;justify-content:center;align-items:center;">
-				<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" stroke-width="1.2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-mountain-snow-icon lucide-mountain-snow"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/><path d="M4.14 15.08c2.62-1.57 5.24-1.43 7.86.42 2.74 1.94 5.49 2 8.23.19"/></svg>
+		const hillshadeSVG = `<button style="display:flex;justify-content:center;align-items:center;color:rgb(51,181,229);">
+				<svg xmlns="http://www.w3.org/2000/svg" opacity="1" stroke-width="1.2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-mountain-snow-icon lucide-mountain-snow"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/><path d="M4.14 15.08c2.62-1.57 5.24-1.43 7.86.42 2.74 1.94 5.49 2 8.23.19"/></svg>
 			</button>`;
 
 		if (preferences.hillshade) {
@@ -195,6 +206,28 @@ export class HillshadeButton {
 		} else {
 			div.innerHTML = noHillshadeSVG;
 		}
+
+		setTimeout(() => {
+			if (preferences.hillshade) {
+				addHillshadeLayer(this.map);
+
+				if (!terrainControl) {
+					terrainControl = new maplibregl.TerrainControl({
+						source: 'terrainSource',
+						exaggeration: 1
+					});
+				}
+				if (preferences.terrain) {
+					this.map.setTerrain({ source: 'terrainSource' });
+				}
+
+				this.map.addControl(terrainControl);
+
+				terrainControl._terrainButton.addEventListener('click', () =>
+					terrainHandler(this.map, this.url)
+				);
+			}
+		}, 100);
 
 		div.addEventListener('contextmenu', (e) => e.preventDefault());
 		div.addEventListener('click', () => {
@@ -211,15 +244,15 @@ export class HillshadeButton {
 
 				this.map.once('styledata', () => {
 					setTimeout(() => {
-						// addHillshadeLayer();
-						// if (!terrainControl) {
-						// 	terrainControl = new maplibregl.TerrainControl({
-						// 		source: 'terrainSource',
-						// 		exaggeration: 1
-						// 	});
-						// }
-						// this.map.addControl(terrainControl);
-						// addOmFileLayer();
+						addHillshadeLayer(this.map);
+						if (!terrainControl) {
+							terrainControl = new maplibregl.TerrainControl({
+								source: 'terrainSource',
+								exaggeration: 3
+							});
+						}
+						this.map.addControl(terrainControl);
+						addOmFileLayer(this.map);
 					}, 50);
 				});
 			} else {
@@ -233,10 +266,10 @@ export class HillshadeButton {
 
 				this.map.once('styledata', () => {
 					setTimeout(() => {
-						// if (terrainControl) {
-						// 	this.map.removeControl(terrainControl);
-						// }
-						// addOmFileLayer();
+						if (terrainControl) {
+							this.map.removeControl(terrainControl);
+						}
+						addOmFileLayer(this.map);
 					}, 50);
 				});
 			}

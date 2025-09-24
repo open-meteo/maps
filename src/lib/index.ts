@@ -4,23 +4,42 @@ import { SvelteDate } from 'svelte/reactivity';
 
 import { toast } from 'svelte-sonner';
 
+import { mode } from 'mode-watcher';
+
 import * as maplibregl from 'maplibre-gl';
 
 import { pushState } from '$app/navigation';
 
 import { pad } from '$lib/utils/pad';
 
-import { preferences as p, time, model, domain, variables } from '$lib/stores/preferences';
+import {
+	time,
+	model,
+	loading,
+	domain,
+	variables,
+	mapBounds,
+	preferences as p
+} from '$lib/stores/preferences';
 
 import { domainOptions } from '$lib/utils/domains';
-import { variableOptions } from '$lib/utils/variables';
+import { hideZero, variableOptions } from '$lib/utils/variables';
+import { getColorScale } from '$lib/utils/color-scales';
 
-import type { DomainMetaData } from './types';
+import type { DomainMetaData } from '$lib/types';
+
+import { getValueFromLatLong } from '../om-protocol';
+
+const TILE_SIZE = Number(import.meta.env.VITE_TILE_SIZE);
 
 const preferences = get(p);
 
+const beforeLayer = 'waterway-tunnel';
+
 const now = new SvelteDate();
 now.setHours(now.getHours() + 1, 0, 0, 0);
+
+let omUrl: string;
 
 export const urlParamsToPreferences = (url: URL) => {
 	const params = new URLSearchParams(url.search);
@@ -97,7 +116,7 @@ export const urlParamsToPreferences = (url: URL) => {
 	if (params.get('time-selector')) {
 		preferences.timeSelector = params.get('time-selector') === 'true';
 	} else {
-		if (preferences.timeSelector) {
+		if (!preferences.timeSelector) {
 			url.searchParams.set('time-selector', String(preferences.timeSelector));
 		}
 	}
@@ -120,8 +139,8 @@ export const checkClosestHourDomainInterval = (url: URL) => {
 
 export const checkClosestHourModelRun = (
 	map: maplibregl.Map,
-	latest: DomainMetaData | undefined,
-	url: URL
+	url: URL,
+	latest: DomainMetaData | undefined
 ) => {
 	const t = get(time);
 	const m = get(model);
@@ -209,18 +228,212 @@ export const setMapControlSettings = (map: maplibregl.Map, url: URL) => {
 
 	const globeControl = new maplibregl.GlobeControl();
 	map.addControl(globeControl);
-	globeControl._globeButton.addEventListener('click', () => {
-		preferences.globe = !preferences.globe;
-		p.set(preferences);
-		if (preferences.globe) {
-			url.searchParams.set('globe', String(preferences.globe));
-		} else {
-			url.searchParams.delete('globe');
-		}
-		pushState(url + map._hash.getHashString(), {});
-	});
+	globeControl._globeButton.addEventListener('click', () => globeHandler(map, url));
 
 	// improved scrolling
 	map.scrollZoom.setZoomRate(1 / 85);
 	map.scrollZoom.setWheelZoomRate(1 / 85);
+};
+
+export const addHillshadeLayer = (map: maplibregl.Map) => {
+	map.setSky({
+		'sky-color': '#000000',
+		'sky-horizon-blend': 0.8,
+		'horizon-color': '#80C1FF',
+		'horizon-fog-blend': 0.6,
+		'fog-color': '#D6EAFF',
+		'fog-ground-blend': 0
+	});
+
+	map.addSource('terrainSource', {
+		type: 'raster-dem',
+		tiles: ['https://mapproxy.servert.nl/wmts/copernicus/webmercator/{z}/{x}/{y}.png'],
+		tileSize: 512,
+		// @ts-expect-error scheme not supported in types, but still works
+		scheme: 'tms',
+		maxzoom: 10
+	});
+
+	map.addSource('hillshadeSource', {
+		type: 'raster-dem',
+		tiles: ['https://mapproxy.servert.nl/wmts/copernicus/webmercator/{z}/{x}/{y}.png'],
+		tileSize: 512,
+		// @ts-expect-error scheme not supported in types, but still works
+		scheme: 'tms',
+		maxzoom: 10
+	});
+
+	map.addLayer(
+		{
+			source: 'hillshadeSource',
+			id: 'hillshadeLayer',
+			type: 'hillshade',
+			paint: {
+				'hillshade-method': 'igor',
+				'hillshade-shadow-color': 'rgba(0,0,0,0.4)',
+				'hillshade-highlight-color': 'rgba(255,255,255,0.35)'
+			}
+		},
+		beforeLayer
+	);
+};
+
+let omFileSource: maplibregl.RasterTileSource | undefined;
+
+export const addOmFileLayer = (map: maplibregl.Map) => {
+	omUrl = getOMUrl();
+	map.addSource('omFileRasterSource', {
+		url: 'om://' + omUrl,
+		type: 'raster',
+		tileSize: TILE_SIZE
+	});
+
+	omFileSource = map.getSource('omFileRasterSource');
+	if (omFileSource) {
+		omFileSource.on('error', (e) => {
+			checked = 0;
+			loading.set(false);
+			clearInterval(checkSourceLoadedInterval);
+			toast(e.error.message);
+		});
+	}
+
+	map.addLayer(
+		{
+			id: 'omFileRasterLayer',
+			type: 'raster',
+			source: 'omFileRasterSource'
+		},
+		beforeLayer
+	);
+};
+
+export const terrainHandler = (map: maplibregl.Map, url: URL) => {
+	preferences.terrain = !preferences.terrain;
+	p.set(preferences);
+	if (preferences.terrain) {
+		url.searchParams.set('terrain', String(preferences.terrain));
+	} else {
+		url.searchParams.delete('terrain');
+	}
+	pushState(url + map._hash.getHashString(), {});
+};
+
+export const globeHandler = (map: maplibregl.Map, url: URL) => {
+	preferences.globe = !preferences.globe;
+	p.set(preferences);
+	if (preferences.globe) {
+		url.searchParams.set('globe', String(preferences.globe));
+	} else {
+		url.searchParams.delete('globe');
+	}
+	pushState(url + map._hash.getHashString(), {});
+};
+
+let checked = 0;
+let checkSourceLoadedInterval: ReturnType<typeof setInterval>;
+export const changeOMfileURL = (
+	map: maplibregl.Map,
+	url: URL,
+	latest: DomainMetaData | undefined
+) => {
+	if (map && omFileSource) {
+		loading.set(true);
+		if (popup) {
+			popup.remove();
+		}
+		mapBounds.set(map.getBounds());
+
+		checkClosestHourModelRun(map, url, latest);
+
+		omUrl = getOMUrl();
+		omFileSource.setUrl('om://' + omUrl);
+
+		checkSourceLoadedInterval = setInterval(() => {
+			checked++;
+			if ((omFileSource && omFileSource.loaded()) || checked >= 200) {
+				if (checked >= 200) {
+					// Timeout after 10s
+					toast('Request timed out');
+				}
+				checked = 0;
+				loading.set(false);
+				clearInterval(checkSourceLoadedInterval);
+			}
+		}, 50);
+	}
+};
+
+export const getStyle = async () => {
+	return await fetch(
+		`https://maptiler.servert.nl/styles/minimal-world-maps${mode.current === 'dark' ? '-dark' : ''}/style.json`
+	)
+		.then((response) => response.json())
+		.then((style) => {
+			if (preferences.globe) {
+				return {
+					...style,
+					projection: {
+						type: 'globe'
+					}
+				};
+			} else {
+				return style;
+			}
+		});
+};
+
+let popup: maplibregl.Popup | undefined;
+let showPopup = false;
+export const addPopup = (map: maplibregl.Map) => {
+	let variable = get(variables)[0];
+	let colorScale = getColorScale(variable.value);
+
+	map.on('mousemove', function (e) {
+		if (showPopup) {
+			const coordinates = e.lngLat;
+			if (!popup) {
+				popup = new maplibregl.Popup()
+					.setLngLat(coordinates)
+					.setHTML(`<span class="value-popup">Outside domain</span>`)
+					.addTo(map);
+			} else {
+				popup.addTo(map);
+			}
+			const { index, value } = getValueFromLatLong(coordinates.lat, coordinates.lng, colorScale);
+			if (index) {
+				if ((hideZero.includes(variable.value) && value <= 0.25) || !value) {
+					popup.remove();
+				} else {
+					const string = value.toFixed(1) + colorScale.unit;
+					popup.setLngLat(coordinates).setHTML(`<span class="value-popup">${string}</span>`);
+				}
+			} else {
+				popup.setLngLat(coordinates).setHTML(`<span class="value-popup">Outside domain</span>`);
+			}
+		}
+	});
+
+	map.on('click', (e: maplibregl.MapMouseEvent) => {
+		variable = get(variables)[0];
+		colorScale = getColorScale(get(variables)[0].value);
+
+		showPopup = !showPopup;
+		if (!showPopup && popup) {
+			popup.remove();
+		}
+		if (showPopup && popup) {
+			const coordinates = e.lngLat;
+			popup.setLngLat(coordinates).addTo(map);
+		}
+	});
+};
+
+export const getOMUrl = () => {
+	const mB = get(mapBounds);
+	if (mB) {
+		return `https://map-tiles.open-meteo.com/data_spatial/${get(domain).value}/${get(model).getUTCFullYear()}/${pad(get(model).getUTCMonth() + 1)}/${pad(get(model).getUTCDate())}/${pad(get(model).getUTCHours())}00Z/${get(time).getUTCFullYear()}-${pad(get(time).getUTCMonth() + 1)}-${pad(get(time).getUTCDate())}T${pad(get(time).getUTCHours())}00.om?dark=${mode.current === 'dark'}&variable=${get(variables)[0].value}&bounds=${mB.getSouth()},${mB.getWest()},${mB.getNorth()},${mB.getEast()}&partial=${preferences.partial}`;
+	} else {
+		return `https://map-tiles.open-meteo.com/data_spatial/${get(domain).value}/${get(model).getUTCFullYear()}/${pad(get(model).getUTCMonth() + 1)}/${pad(get(model).getUTCDate())}/${pad(get(model).getUTCHours())}00Z/${get(time).getUTCFullYear()}-${pad(get(time).getUTCMonth() + 1)}-${pad(get(time).getUTCDate())}T${pad(get(time).getUTCHours())}00.om?dark=${mode.current === 'dark'}&variable=${get(variables)[0].value}&partial=${preferences.partial}`;
+	}
 };

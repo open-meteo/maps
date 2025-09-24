@@ -11,7 +11,7 @@
 	let { showScale, variables }: Props = $props();
 
 	let colorScale = $derived.by(() => {
-		return getColorScale(variables[0]);
+		return getColorScale(variables[0].value);
 	});
 </script>
 
