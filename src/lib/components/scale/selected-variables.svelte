@@ -1,12 +1,12 @@
 <script lang="ts">
-	import type { Domain, Variable } from '$lib/types';
+	import type { Domain, Variables } from '$lib/types';
 
 	interface Props {
 		domain: Domain;
-		variable: Variable;
+		variables: Variables;
 	}
 
-	let { domain, variable }: Props = $props();
+	let { domain, variables }: Props = $props();
 </script>
 
 <div
@@ -17,7 +17,7 @@
 			Domain: {domain.label}
 		</p>
 		<p class="truncate">
-			Variable: {variable.label}
+			Variable: {variables[0].label}
 		</p>
 	</div>
 </div>

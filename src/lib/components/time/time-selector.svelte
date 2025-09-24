@@ -12,47 +12,47 @@
 	import type { Domain } from '$lib/types';
 
 	interface Props {
+		time: Date;
 		domain: Domain;
-		timeSelected: Date;
-		onDateChange: (date: Date) => void;
 		disabled: boolean;
-		showTimeSelector: boolean;
+		timeSelector: boolean;
+		onDateChange: (date: Date) => void;
 	}
 
 	let {
+		time = $bindable(),
 		domain = $bindable(),
-		timeSelected = $bindable(),
-		onDateChange,
 		disabled,
-		showTimeSelector
+		timeSelector,
+		onDateChange
 	}: Props = $props();
 
-	let currentDate = $derived(timeSelected);
+	let currentDate = $derived(time);
 	let currentHour = $derived(currentDate.getHours());
 
 	const resolution = $derived(domain.time_interval);
 
 	const previousHour = () => {
-		const date = new SvelteDate(timeSelected);
+		const date = new SvelteDate(time);
 		date.setHours(currentHour - resolution);
 		onDateChange(date);
 	};
 
 	const nextHour = () => {
-		const date = new SvelteDate(timeSelected);
+		const date = new SvelteDate(time);
 		date.setHours(currentHour + resolution);
 		onDateChange(date);
 	};
 
 	const previousDay = () => {
-		const date = new SvelteDate(timeSelected);
+		const date = new SvelteDate(time);
 		date.setDate(date.getDate() - 1);
 		date.setHours(currentHour);
 		onDateChange(date);
 	};
 
 	const nextDay = () => {
-		const date = new SvelteDate(timeSelected);
+		const date = new SvelteDate(time);
 		date.setDate(date.getDate() + 1);
 		date.setHours(currentHour);
 		onDateChange(date);
@@ -93,7 +93,7 @@
 </script>
 
 <div
-	class="time-selector bg-background/90 dark:bg-background/70 absolute bottom-14.5 left-[50%] mx-auto transform-[translate(-50%)] rounded-lg px-3 py-3 {!showTimeSelector
+	class="time-selector bg-background/90 dark:bg-background/70 absolute bottom-14.5 left-[50%] mx-auto transform-[translate(-50%)] rounded-lg px-3 py-3 {!timeSelector
 		? 'pointer-events-none opacity-0'
 		: 'opacity-100'}"
 >
@@ -169,20 +169,20 @@
 			type="range"
 			min="0"
 			max="24"
-			{disabled}
 			step={resolution}
 			value={currentHour}
+			{disabled}
 			oninput={(e) => {
 				const target = e.target as HTMLInputElement;
 				const value = target?.value;
-				let newDate = new SvelteDate(timeSelected);
+				let newDate = new SvelteDate(time);
 				newDate.setHours(Number(value));
 				currentDate = newDate;
 			}}
 			onchange={(e) => {
 				const target = e.target as HTMLInputElement;
 				const value = target?.value;
-				const date = new SvelteDate(timeSelected);
+				const date = new SvelteDate(time);
 				date.setHours(Number(value));
 				onDateChange(date);
 			}}

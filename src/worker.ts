@@ -166,7 +166,7 @@ self.onmessage = async (message) => {
 
 		const domain = message.data.domain;
 		const variable = message.data.variable;
-		const colorScale = getColorScale(message.data.variable);
+		const colorScale = getColorScale(message.data.variable.value);
 
 		const pixels = TILE_SIZE * TILE_SIZE;
 		const rgba = new Uint8ClampedArray(pixels * 4);

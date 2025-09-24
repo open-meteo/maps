@@ -76,5 +76,8 @@
 		"onlyBuiltDependencies": [
 			"esbuild"
 		]
+	},
+	"dependencies": {
+		"svelte-persisted-store": "^0.12.0"
 	}
 }

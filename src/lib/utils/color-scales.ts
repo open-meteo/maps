@@ -211,11 +211,11 @@ export const colorScales: ColorScales = {
 	}
 };
 
-export function getColorScale(variable: Variable) {
+export function getColorScale(variable: Variable['value']) {
 	return (
-		colorScales[variable.value] ??
-		colorScales[variable.value.split('_')[0]] ??
-		colorScales[variable.value.split('_')[0] + '_' + variable.value.split('_')[1]] ??
+		colorScales[variable] ??
+		colorScales[variable.split('_')[0]] ??
+		colorScales[variable.split('_')[0] + '_' + variable.split('_')[1]] ??
 		colorScales['temperature']
 	);
 }
