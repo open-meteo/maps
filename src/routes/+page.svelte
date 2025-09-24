@@ -375,6 +375,8 @@
 	let popup: maplibregl.Popup | undefined;
 
 	let mapBounds: maplibregl.LngLatBounds | undefined = $state();
+	let paddedBounds: maplibregl.LngLatBounds | undefined = $state();
+	const padding = 25; //%
 	let omFileSource: maplibregl.RasterTileSource | undefined;
 
 	let latest: DomainMetaData | undefined = $state();
@@ -388,6 +390,7 @@
 				popup.remove();
 			}
 			mapBounds = map.getBounds();
+			getPaddedBounds();
 
 			checkClosestHourModelRun();
 
@@ -536,6 +539,8 @@
 
 		map.on('load', async () => {
 			mapBounds = map.getBounds();
+			paddedBounds = mapBounds;
+			getPaddedBounds();
 
 			// addHillshadeLayer();
 
@@ -618,6 +623,14 @@
 					popup.setLngLat(coordinates).addTo(map);
 				}
 			});
+
+			map.on('zoomend', () => {
+				checkBounds();
+			});
+
+			map.on('dragend', () => {
+				checkBounds();
+			});
 		});
 	});
 
@@ -627,9 +640,124 @@
 		}
 	});
 
+	const checkBounds = () => {
+		mapBounds = map.getBounds();
+		let exceededPadding = false;
+
+		geojson.features[0].geometry.coordinates = [
+			[paddedBounds?.getSouthWest()['lng'], paddedBounds?.getSouthWest()['lat']],
+			[paddedBounds?.getNorthWest()['lng'], paddedBounds?.getNorthWest()['lat']],
+			[paddedBounds?.getNorthEast()['lng'], paddedBounds?.getNorthEast()['lat']],
+			[paddedBounds?.getSouthEast()['lng'], paddedBounds?.getSouthEast()['lat']],
+			[paddedBounds?.getSouthWest()['lng'], paddedBounds?.getSouthWest()['lat']]
+		];
+		paddedBoundsSource?.setData(geojson);
+
+		if (
+			mapBounds.getSouth() < paddedBounds.getSouth() &&
+			paddedBounds.getSouth() > domain.grid.latMin
+		) {
+			exceededPadding = true;
+		}
+		if (
+			mapBounds.getWest() < paddedBounds.getWest() &&
+			paddedBounds.getWest() > domain.grid.lonMin
+		) {
+			exceededPadding = true;
+		}
+		if (
+			mapBounds.getNorth() > paddedBounds.getNorth() &&
+			paddedBounds.getNorth() < domain.grid.latMin + domain.grid.ny * domain.grid.dy
+		) {
+			exceededPadding = true;
+		}
+		if (
+			mapBounds.getEast() > paddedBounds.getEast() &&
+			paddedBounds.getEast() < domain.grid.lonMin + domain.grid.nx * domain.grid.dx
+		) {
+			exceededPadding = true;
+		}
+		if (exceededPadding) {
+			changeOMfileURL();
+		}
+	};
+
+	let geojson;
+	let paddedBoundsLayer: maplibregl.StyleLayer | undefined;
+	let paddedBoundsSource: maplibregl.GeoJSONSource | undefined;
+	const getPaddedBounds = () => {
+		if (!paddedBoundsSource) {
+			geojson = {
+				type: 'FeatureCollection',
+				features: [
+					{
+						type: 'Feature',
+						geometry: {
+							type: 'LineString',
+							properties: {},
+							coordinates: [
+								[domain.grid.lonMin, domain.grid.latMin],
+								[domain.grid.lonMin, domain.grid.latMin + domain.grid.ny * domain.grid.dy],
+								[
+									domain.grid.lonMin + domain.grid.nx * domain.grid.dx,
+									domain.grid.latMin + domain.grid.ny * domain.grid.dy
+								],
+								[domain.grid.lonMin + domain.grid.nx * domain.grid.dx, domain.grid.latMin],
+								[domain.grid.lonMin, domain.grid.latMin]
+							]
+						}
+					}
+				]
+			};
+
+			map.addSource('paddedBoundsSource', {
+				type: 'geojson',
+				data: geojson
+			});
+
+			paddedBoundsSource = map.getSource('paddedBoundsSource');
+
+			map.addLayer({
+				id: 'paddedBoundsLayer',
+				type: 'line',
+				source: 'paddedBoundsSource',
+				layout: {
+					'line-join': 'round',
+					'line-cap': 'round'
+				},
+				paint: {
+					'line-color': 'orange',
+					'line-width': 5
+				}
+			});
+
+			paddedBoundsLayer = map.getLayer('paddedBoundsLayer');
+		}
+
+		let mapBoundsSW = mapBounds.getSouthWest();
+		let mapBoundsNE = mapBounds.getNorthEast();
+		let dLat = mapBoundsNE['lat'] - mapBoundsSW['lat'];
+		let dLon = mapBoundsNE['lng'] - mapBoundsSW['lng'];
+
+		paddedBounds?.setSouthWest([
+			Math.max(mapBoundsSW['lng'] - (dLon * padding) / 100, domain.grid.lonMin),
+			Math.max(mapBoundsSW['lat'] - (dLat * padding) / 100, domain.grid.latMin)
+		]);
+		paddedBounds?.setNorthEast([
+			Math.min(
+				mapBoundsNE['lng'] + (dLon * padding) / 100,
+				domain.grid.lonMin + domain.grid.nx * domain.grid.dx
+			),
+			Math.min(
+				mapBoundsNE['lat'] + (dLat * padding) / 100,
+				domain.grid.latMin + domain.grid.ny * domain.grid.dy
+			)
+		]);
+	};
+
 	const getOMUrl = () => {
-		if (mapBounds) {
-			return `https://map-tiles.open-meteo.com/data_spatial/${domain.value}/${modelRunSelected.getUTCFullYear()}/${pad(modelRunSelected.getUTCMonth() + 1)}/${pad(modelRunSelected.getUTCDate())}/${pad(modelRunSelected.getUTCHours())}00Z/${timeSelected.getUTCFullYear()}-${pad(timeSelected.getUTCMonth() + 1)}-${pad(timeSelected.getUTCDate())}T${pad(timeSelected.getUTCHours())}00.om?dark=${darkMode}&variable=${variable.value}&bounds=${mapBounds.getSouth()},${mapBounds.getWest()},${mapBounds.getNorth()},${mapBounds.getEast()}&partial=${partial}`;
+		if (paddedBounds) {
+			return `https://map-tiles.open-meteo.com/data_spatial/${domain.value}/${modelRunSelected.getUTCFullYear()}/${pad(modelRunSelected.getUTCMonth() + 1)}/${pad(modelRunSelected.getUTCDate())}/${pad(modelRunSelected.getUTCHours())}00Z/${timeSelected.getUTCFullYear()}-${pad(timeSelected.getUTCMonth() + 1)}-${pad(timeSelected.getUTCDate())}T${pad(timeSelected.getUTCHours())}00.om?dark=${darkMode}&variable=${variable.value}&bounds=${paddedBounds.getSouth()},${paddedBounds.getWest()},${paddedBounds.getNorth()},${paddedBounds.getEast()}&partial=${partial}`;
 		} else {
 			return `https://map-tiles.open-meteo.com/data_spatial/${domain.value}/${modelRunSelected.getUTCFullYear()}/${pad(modelRunSelected.getUTCMonth() + 1)}/${pad(modelRunSelected.getUTCDate())}/${pad(modelRunSelected.getUTCHours())}00Z/${timeSelected.getUTCFullYear()}-${pad(timeSelected.getUTCMonth() + 1)}-${pad(timeSelected.getUTCDate())}T${pad(timeSelected.getUTCHours())}00.om?dark=${darkMode}&variable=${variable.value}&partial=${partial}`;
 		}
