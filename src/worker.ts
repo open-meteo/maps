@@ -9,10 +9,7 @@ import {
 	tile2lon,
 	rotatePoint,
 	degreesToRadians,
-	getIndexAndFractions,
-	latLon2Tile,
-	lon2tile,
-	lat2tile
+	getIndexAndFractions
 } from '$lib/utils/math';
 
 import { getColor, getColorScale, getInterpolator, getOpacity } from '$lib/utils/color-scales';
@@ -23,6 +20,7 @@ import type { IconListPixels } from '$lib/utils/icons';
 
 import type { TypedArray } from '@openmeteo/file-reader';
 import { marchingSquares } from '$lib/utils/march';
+import { VectorTile, VectorTileLayer } from '@mapbox/vector-tile';
 
 const TILE_SIZE = Number(import.meta.env.VITE_TILE_SIZE) * 2;
 const OPACITY = Number(import.meta.env.VITE_TILE_OPACITY);
@@ -219,51 +217,54 @@ self.onmessage = async (message) => {
 		const extent = 4096;
 		const layerName = 'contours';
 
-		const level = 1000;
-
 		const pbf = new Pbf();
 		const geom: number[] = [];
 		let cursor: [number, number] = [0, 0];
 
-		const segments = marchingSquares(values, level, z, y, x, domain);
+		const features = [];
+		for (const level of [985, 990, 995, 1000, 1005, 1010, 1015]) {
+			const segments = marchingSquares(values, level, z, y, x, domain);
 
-		if (segments.length > 0) {
-			console.log(segments);
-			// move to first point in segments
-			let xt0, yt0, xt1, yt1;
-			geom.push(encodeCommand(1, 1)); // MoveTo
-			[xt0, yt0] = segments[0];
-			geom.push(zigZag(xt0 - cursor[0]));
-			geom.push(zigZag(yt0 - cursor[1]));
-			cursor = [xt0, yt0];
-
-			for (const s of segments) {
-				[xt0, yt0, xt1, yt1] = s;
-
+			if (segments.length > 0) {
+				// move to first point in segments
+				let xt0, yt0, xt1, yt1;
 				geom.push(encodeCommand(1, 1)); // MoveTo
+				[xt0, yt0] = segments[0];
 				geom.push(zigZag(xt0 - cursor[0]));
 				geom.push(zigZag(yt0 - cursor[1]));
 				cursor = [xt0, yt0];
 
-				geom.push(encodeCommand(2, 1)); // LineTo
-				geom.push(zigZag(xt1 - cursor[0]));
-				geom.push(zigZag(yt1 - cursor[1]));
-				cursor = [xt1, yt1];
-			}
+				for (const s of segments) {
+					[xt0, yt0, xt1, yt1] = s;
 
-			// write Layer
-			pbf.writeMessage(3, writeLayer, {
-				name: layerName,
-				extent,
-				features: [
-					{
-						id: 1,
-						type: 2, // 2 = LineString
-						geom
-					}
-				]
-			});
+					geom.push(encodeCommand(1, 1)); // MoveTo
+					geom.push(zigZag(xt0 - cursor[0]));
+					geom.push(zigZag(yt0 - cursor[1]));
+					cursor = [xt0, yt0];
+
+					geom.push(encodeCommand(2, 1)); // LineTo
+					geom.push(zigZag(xt1 - cursor[0]));
+					geom.push(zigZag(yt1 - cursor[1]));
+					cursor = [xt1, yt1];
+				}
+
+				features.push({
+					id: level,
+					type: 2, // 2 = LineString
+					tags: {
+						lw: level % 10 === 0 ? 2 : 0.5
+					},
+					geom
+				});
+			}
 		}
+
+		// write Layer
+		pbf.writeMessage(3, writeLayer, {
+			name: layerName,
+			extent,
+			features: features
+		});
 
 		postMessage({ type: 'returnArrayBuffer', tile: pbf.finish(), key: key });
 	}

@@ -106,7 +106,7 @@ export const colorScales: ColorScales = {
 			...interpolateColorScaleHSL(['#4444FF', '#FFFFFF'], 25), // 950 to 1000hPa
 			...interpolateColorScaleHSL(['#FFFFFF', '#FF4444'], 25) // 1000hPa to 1050hPa
 		],
-		interpolationMethod: 'linear',
+		interpolationMethod: 'none',
 		unit: 'hPa'
 	},
 	rain: precipScale,

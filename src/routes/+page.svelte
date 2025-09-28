@@ -139,8 +139,8 @@
 			source: 'omFileVectorSource',
 			'source-layer': 'contours',
 			paint: {
-				'line-color': 'blue',
-				'line-width': 2
+				'line-color': 'black',
+				'line-width': ['number', ['get', 'lw']]
 			}
 		});
 	};
