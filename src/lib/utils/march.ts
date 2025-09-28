@@ -1,6 +1,6 @@
 import type { Domain } from '$lib/types';
 
-import { lon2tile, lat2tile, latLon2Tile } from '$lib/utils/math';
+import { lon2tile, lat2tile } from '$lib/utils/math';
 
 import type { TypedArray } from '@openmeteo/file-reader';
 
@@ -39,21 +39,18 @@ function interpolate(
 	v1: number | bigint,
 	t0: number,
 	t1: number,
-	T: number
+	threshold: number
 ): number {
 	if (v0 === v1) return (t0 + t1) * 0.5; // degenerate cell
-	return t0 + ((T - Number(v0)) * (t1 - t0)) / (Number(v1) - Number(v0));
-
-	// t = (isolevel - valueAtVertexA) / (valueAtVertexB - valueAtVertexA);
-	// pointOnEdge = vertexA + t * (vertexB - vertexA);
+	return t0 + ((threshold - Number(v0)) * (t1 - t0)) / (Number(v1) - Number(v0));
 }
 
 export const marchingSquares = (
 	values: TypedArray,
-	level: number,
-	x: number,
-	y: number,
+	threshold: number,
 	z: number,
+	y: number,
+	x: number,
 	domain: Domain
 ): number[][] => {
 	const segments = [];
@@ -69,48 +66,70 @@ export const marchingSquares = (
 
 	const tileSize = 4096;
 	const margin = 256;
-	for (let i = 0; i < ny; i++) {
-		const worldPy = Math.floor(lat2tile(latMin + dy * i, z) * tileSize);
+	for (let j = 0; j < ny; j++) {
+		const lat = latMin + dy * j;
+		const worldPy = Math.floor(lat2tile(lat, z) * tileSize);
 		const py = worldPy - y * tileSize;
 		if (py > -margin && py <= tileSize + margin) {
-			for (let j = 0; j < nx; j++) {
-				const worldPx = Math.floor(lon2tile(lonMin + dx * j, z) * tileSize);
+			for (let i = 0; i < nx; i++) {
+				const lon = lonMin + dx * i;
+				const worldPx = Math.floor(lon2tile(lon, z) * tileSize);
 				const px = worldPx - x * tileSize;
-
 				if (px > -margin && px <= tileSize + margin) {
-					const index = i * nx + j;
+					const index = j * nx + i;
 
-					const v0 = values[index]; // (i, j)  west‑south
-					const v1 = values[index + 1]; // (i, j+1)  east‑south
-					const v2 = values[index + nx]; //  (i+1, j) west‑north
-					const v3 = values[index + nx + 1]; // (i+1, j+1) east‑north
+					/* v3 ------- v2
+					 * |      	  |
+					 * |      	  |
+					 * v0 -------- v1
+					 *
+					 * v0 = (i, j)
+					 * v1 = (i + 1, j)
+					 * v2 = (i + 1, j + 1)
+					 * v3 = (i, j + 1)
+					 */
 
-					// code
-					const c =
-						(v0 > level ? 1 : 0) |
-						((v1 > level ? 1 : 0) << 1) |
-						((v2 > level ? 1 : 0) << 2) |
-						((v3 > level ? 1 : 0) << 3);
+					const v0 = values[index]; // (i, j)  west‑south, or bottom-left
+					const v1 = values[index + 1]; // (i + 1, j)  east‑south, bottom-right
+					const v2 = values[index + nx + 1]; // (i + 1, j + 1) east‑north, or top-right
+					const v3 = values[index + nx]; //  (i, j + 1) west‑north, or top-left
 
-					if (c === 0 || c === 15) continue; // no contour inside this cell
+					const edgeCode =
+						(v0 > threshold ? 1 : 0) |
+						(v1 > threshold ? 2 : 0) |
+						(v2 > threshold ? 4 : 0) |
+						(v3 > threshold ? 8 : 0);
 
-					// ----- corners of 4 gridcells in tile coordinates ------------------------
-					const x0 = Math.floor(lon2tile(lonMin + dx * j, z) * tileSize) - x * tileSize;
-					const y0 = Math.floor(lat2tile(latMin + dy * i, z) * tileSize) - y * tileSize;
-					const x1 = Math.floor(lon2tile(lonMin + dx * (j + 1), z) * tileSize) - x * tileSize;
-					const y1 = Math.floor(lat2tile(latMin + dy * (i + 1), z) * tileSize) - y * tileSize;
+					if (edgeCode === 0 || edgeCode === 15) continue; // no contour inside this cell
 
-					// ----- fetch the edges that need intersections ----------
-					const edges = edgeTable[c];
+					// ----- fetch the edges that need intersections -----
+					const edges = edgeTable[edgeCode];
 
-					// compute the *intersection* points on those edges
+					/* 	 ---------- x1, y1
+					 * 	|      	  	|
+					 * 	|      	  	|
+					 * x0, y0 ----------
+					 *
+					 * x0 = px
+					 * y0 = py
+					 * x1 = ... + dx;
+					 * y1 = ... + dy
+					 */
+
+					// ----- corners of 4 gridcells in tile coordinates -----
+					// const x0 = px;
+					// const y0 = py;
+					// const x1 = Math.floor(lon2tile(lon + dx, z) * tileSize) - x * tileSize;
+					// const y1 = Math.floor(lat2tile(lat + dy, z) * tileSize) - y * tileSize;
+
+					// ----- corners of 4 gridcells in wgs84 coordinates -----
+					const x0 = lon;
+					const y0 = lat;
+					const x1 = lon + dx;
+					const y1 = lat + dy;
+
 					const pts = [];
 					for (const [ea, eb] of edges) {
-						// map edge number → (node index, value, coordinate)
-						// Edge 0 – (0,1)
-						// Edge 1 – (1,2)
-						// Edge 2 – (2,3)
-						// Edge 3 – (3,0)
 						let a: { x: number; y: number; v: number | bigint } = { x: 0, y: 0, v: 0 };
 						let b: { x: number; y: number; v: number | bigint } = { x: 0, y: 0, v: 0 };
 
@@ -143,9 +162,13 @@ export const marchingSquares = (
 								break;
 						}
 
-						const ix = interpolate(a.v, b.v, a.x, b.x, level);
-						const iy = interpolate(a.v, b.v, a.y, b.y, level);
-						pts.push([ix, iy]);
+						const ix = interpolate(a.v, b.v, a.x, b.x, threshold);
+						const iy = interpolate(a.v, b.v, a.y, b.y, threshold);
+
+						// project from wgs84 to webmercator
+						const xl = Math.floor(lon2tile(ix, z) * tileSize) - x * tileSize;
+						const yl = Math.floor(lat2tile(iy, z) * tileSize) - y * tileSize;
+						pts.push([xl, yl]);
 					}
 
 					if (pts.length === 2) {

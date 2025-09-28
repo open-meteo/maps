@@ -225,9 +225,10 @@ self.onmessage = async (message) => {
 		const geom: number[] = [];
 		let cursor: [number, number] = [0, 0];
 
-		const segments = marchingSquares(values, level, x, y, z, domain);
+		const segments = marchingSquares(values, level, z, y, x, domain);
 
 		if (segments.length > 0) {
+			console.log(segments);
 			// move to first point in segments
 			let xt0, yt0, xt1, yt1;
 			geom.push(encodeCommand(1, 1)); // MoveTo
