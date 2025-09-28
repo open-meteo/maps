@@ -1,7 +1,7 @@
 import type { DimensionRange } from '$lib/types';
 import type { TypedArray } from '@openmeteo/file-reader';
 
-export const noInterpolation = (values: TypedArray, nx: number, index: number): number => {
+export const noInterpolation = (values: TypedArray, index: number): number => {
 	return Number(values[index]);
 };
 
