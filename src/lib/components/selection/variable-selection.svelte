@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { pad } from '$lib/utils/pad';
 
-	import { domainGroups, domains } from '$lib/utils/domains';
-	import { variables } from '$lib/utils/variables';
+	import { domainGroups, domainOptions } from '$lib/utils/domains';
+	import { variableOptions } from '$lib/utils/variables';
 
 	import { Button } from '$lib/components/ui/button';
 
@@ -69,7 +69,7 @@
 					{#each domainGroups as { value: group, label: groupLabel } (group)}
 						<Select.Group>
 							<Select.GroupHeading>{groupLabel}</Select.GroupHeading>
-							{#each domains as { value, label } (value)}
+							{#each domainOptions as { value, label } (value)}
 								{#if value.startsWith(group)}
 									<Select.Item {value}>{label}</Select.Item>
 								{/if}
@@ -160,8 +160,8 @@
 						<Select.Content side="bottom">
 							{#each latest.variables as vr, i (i)}
 								{#if !vr.includes('v_component') && !vr.includes('_direction')}
-									{@const v = variables.find((vrb) => vrb.value === vr)
-										? variables.find((vrb) => vrb.value === vr)
+									{@const v = variableOptions.find((vo) => vo.value === vr)
+										? variableOptions.find((vo) => vo.value === vr)
 										: { value: vr, label: vr }}
 
 									<Select.Item value={v.value}>{v.label}</Select.Item>

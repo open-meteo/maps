@@ -49,7 +49,7 @@ export const getDomainOptions = (domainName: string) => {
 	const optGroups: DomainGroups = {};
 	for (const dg of domainGroups) {
 		const dgArray = [];
-		for (const d of domains) {
+		for (const d of domainOptions) {
 			if (d.value.startsWith(dg)) {
 				dgArray.push(d);
 			}
@@ -67,7 +67,7 @@ export const getDomainOptions = (domainName: string) => {
 	return string;
 };
 
-export const domains: Array<Domain> = [
+export const domainOptions: Array<Domain> = [
 	// BOM
 	// {
 	// 	value: 'bom_access_global',
@@ -894,7 +894,7 @@ export const domains: Array<Domain> = [
 	}
 ];
 
-for (const domain of domains) {
+for (const domain of domainOptions) {
 	if (domain.grid.center && typeof domain.grid.center == 'function') {
 		domain.grid.center();
 	}
