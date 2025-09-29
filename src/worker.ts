@@ -220,7 +220,7 @@ self.onmessage = async (message) => {
 		const pbf = new Pbf();
 
 		const features = [];
-		for (let level = 950; level < 1050; level = level + 5) {
+		for (let level = 950; level < 1050; level = level + 2) {
 			let cursor: [number, number] = [0, 0];
 
 			const segments = marchingSquares(values, level, z, y, x, domain);

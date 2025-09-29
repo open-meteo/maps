@@ -1,6 +1,6 @@
 import type { Domain } from '$lib/types';
 
-import { lon2tile, lat2tile } from '$lib/utils/math';
+import { lon2tile, lat2tile, tile2lat, tile2lon } from '$lib/utils/math';
 
 import type { TypedArray } from '@openmeteo/file-reader';
 
@@ -66,13 +66,21 @@ export const marchingSquares = (
 
 	const tileSize = 4096;
 	const margin = 256;
+
+	// const minLonTile = tile2lon(x, z);
+	// const minLatTile = tile2lat(y, z);
+	// const maxLonTile = tile2lon(x + 1, z);
+	// const maxLatTile = tile2lat(y + 1, z);
+
 	for (let j = 0; j < ny; j++) {
 		const lat = latMin + dy * j;
+		// if (lat > minLatTile && lat < maxLatTile) {
 		const worldPy = Math.floor(lat2tile(lat, z) * tileSize);
 		const py = worldPy - y * tileSize;
 		if (py > -margin && py <= tileSize + margin) {
 			for (let i = 0; i < nx; i++) {
 				const lon = lonMin + dx * i;
+				// if (lon > minLonTile && lon < maxLonTile) {
 				const worldPx = Math.floor(lon2tile(lon, z) * tileSize);
 				const px = worldPx - x * tileSize;
 				if (px > -margin && px <= tileSize + margin) {
@@ -86,8 +94,7 @@ export const marchingSquares = (
 					 * v0 = (i, j)
 					 * v1 = (i + 1, j)
 					 * v2 = (i + 1, j + 1)
-					 * v3 = (i, j + 1)
-					 */
+					 * v3 = (i, j + 1) */
 
 					const v0 = values[index]; // (i, j)  west‑south, or bottom-left
 					const v1 = values[index + 1]; // (i + 1, j)  east‑south, bottom-right
@@ -113,8 +120,7 @@ export const marchingSquares = (
 					 * x0 = px
 					 * y0 = py
 					 * x1 = ... + dx;
-					 * y1 = ... + dy
-					 */
+					 * y1 = ... + dy */
 
 					// ----- corners of 4 gridcells in tile coordinates -----
 					// const x0 = px;
@@ -127,6 +133,12 @@ export const marchingSquares = (
 					// const y0 = lat;
 					// const x1 = lon + dx;
 					// const y1 = lat + dy;
+
+					/* 	 ---- p2 ----
+					 * 	|		|
+					 *      p3	      p1
+					 * 	|      	  	|
+					 * 	 ---- p0 ----   */
 
 					const p0 = [Math.floor(lon2tile(lon + 0.5 * dx, z) * tileSize) - x * tileSize, py];
 					const p1 = [
@@ -182,6 +194,8 @@ export const marchingSquares = (
 							break;
 					}
 				}
+				// 	}
+				// }
 			}
 		}
 	}

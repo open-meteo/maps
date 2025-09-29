@@ -144,7 +144,7 @@
 			},
 			paint: {
 				'line-color': ['case', ['boolean', ['feature-state', 'hover'], false], 'red', 'black'],
-				'line-width': ['get', 'lw']
+				'line-width': ['case', ['boolean', ['feature-state', 'hover'], false], 5, ['get', 'lw']]
 			}
 		});
 
@@ -162,7 +162,6 @@
 		});
 
 		const omFileVectorLayer = map.getLayer('omFileVectorLayer');
-		console.log(omVectorSource, omFileVectorLayer);
 
 		let hoveredLevel = null;
 		// When the user moves their mouse over the state-fill layer, we'll update the
@@ -170,8 +169,6 @@
 		map.on('mouseenter', 'omFileVectorLayer', (e) => {
 			if (e.features.length > 0) {
 				hoveredLevel = e.features[0].id;
-				console.log(e.features[0].id);
-
 				map.setFeatureState(
 					{ source: 'omFileVectorSource', id: hoveredLevel, sourceLayer: 'contours' },
 					{ hover: true }
