@@ -238,10 +238,12 @@ self.onmessage = async (message) => {
 				for (const s of segments) {
 					[xt0, yt0, xt1, yt1] = s;
 
+					// if (Math.abs(xt1 - cursor[0]) > 10 || Math.abs(yt1 - cursor[1]) > 10) {
 					geom.push(command(1, 1)); // MoveTo
 					geom.push(zigzag(xt0 - cursor[0]));
 					geom.push(zigzag(yt0 - cursor[1]));
 					cursor = [xt0, yt0];
+					//}
 
 					geom.push(command(2, 1)); // LineTo
 					geom.push(zigzag(xt1 - cursor[0]));
@@ -254,7 +256,8 @@ self.onmessage = async (message) => {
 					id: level,
 					type: 2, // 2 = LineString
 					properties: {
-						lw: level % 100 === 0 ? 2 : level % 50 === 0 ? 1.5 : level % 10 === 0 ? 1 : 0.5
+						lw: level % 100 === 0 ? 2 : level % 50 === 0 ? 1.5 : level % 10 === 0 ? 1 : 0.5,
+						pressure: level
 					},
 					geom
 				});

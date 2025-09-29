@@ -144,21 +144,34 @@
 			},
 			paint: {
 				'line-color': ['case', ['boolean', ['feature-state', 'hover'], false], 'red', 'black'],
-				'line-width': ['case', ['boolean', ['feature-state', 'hover'], false], 5, ['get', 'lw']]
+				'line-width': [
+					'step',
+					['zoom'],
+					['case', ['boolean', ['feature-state', 'hover'], false], 4, ['get', 'lw']],
+					4,
+					['case', ['boolean', ['feature-state', 'hover'], false], 8, ['get', 'lw']],
+					8,
+					['case', ['boolean', ['feature-state', 'hover'], false], 12, ['get', 'lw']]
+				]
 			}
 		});
 
 		map.addLayer({
-			id: 'omFileVectorLayerLabels',
+			id: 'omFileVectorLabels',
 			type: 'symbol',
 			source: 'omFileVectorSource',
 			'source-layer': 'contours',
 			layout: {
-				'symbol-placement': 'line',
-				'text-field': '{id}',
-				'text-size': 16
-			},
-			paint: {}
+				'symbol-placement': 'line-center',
+				'text-font': ['Open Sans Regular'],
+				'text-field': ['to-string', ['get', 'pressure']],
+				'text-size': 16,
+				'icon-allow-overlap': true,
+				'text-allow-overlap': true,
+				'text-ignore-placement': true,
+
+				'icon-ignore-placement': true
+			}
 		});
 
 		const omFileVectorLayer = map.getLayer('omFileVectorLayer');
