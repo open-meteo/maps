@@ -58,7 +58,8 @@
 		changeOMfileURL,
 		setMapControlSettings,
 		urlParamsToPreferences,
-		checkClosestHourDomainInterval
+		checkClosestHourDomainInterval,
+		addHillshadeSources
 	} from '$lib';
 
 	import '../styles.css';
@@ -99,11 +100,12 @@
 			map.addControl(new DrawerButton());
 			map.addControl(new PartialButton(map, url, latest));
 			map.addControl(new TimeButton(map, url));
-			map.addControl(new HillshadeButton(map, url));
-
 			latest = await getDomainData();
 
 			addOmFileLayer(map);
+			addHillshadeSources(map);
+			map.addControl(new HillshadeButton(map, url));
+
 			addPopup(map);
 		});
 	});

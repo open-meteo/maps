@@ -235,7 +235,7 @@ export const setMapControlSettings = (map: maplibregl.Map, url: URL) => {
 	map.scrollZoom.setWheelZoomRate(1 / 85);
 };
 
-export const addHillshadeLayer = (map: maplibregl.Map) => {
+export const addHillshadeSources = (map: maplibregl.Map) => {
 	map.setSky({
 		'sky-color': '#000000',
 		'sky-horizon-blend': 0.8,
@@ -262,7 +262,9 @@ export const addHillshadeLayer = (map: maplibregl.Map) => {
 		scheme: 'tms',
 		maxzoom: 10
 	});
+};
 
+export const addHillshadeLayer = (map: maplibregl.Map) => {
 	map.addLayer(
 		{
 			source: 'hillshadeSource',

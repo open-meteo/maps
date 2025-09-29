@@ -7,8 +7,14 @@ import * as maplibregl from 'maplibre-gl';
 import { pushState } from '$app/navigation';
 
 import { preferences as p, sheet, drawer } from '$lib/stores/preferences';
-
-import { addHillshadeLayer, addOmFileLayer, changeOMfileURL, terrainHandler } from '$lib';
+import {
+	addHillshadeLayer,
+	addHillshadeSources,
+	addOmFileLayer,
+	changeOMfileURL,
+	getStyle,
+	terrainHandler
+} from '$lib';
 import type { DomainMetaData } from '$lib/types';
 
 const preferences = get(p);
@@ -119,16 +125,17 @@ export class DarkModeButton {
 				setMode('light');
 			}
 			div.innerHTML = mode.current !== 'dark' ? lightSVG : darkSVG;
-			this.map.setStyle(
-				`https://maptiler.servert.nl/styles/minimal-world-maps${mode.current === 'dark' ? '-dark' : ''}/style.json`
-			);
-			this.map.once('styledata', () => {
-				setTimeout(() => {
-					if (preferences.hillshade) {
-						// addHillshadeLayer();
-					}
-					// addOmFileLayer();
-				}, 50);
+			getStyle().then((style) => {
+				this.map.setStyle(style);
+				this.map.once('styledata', () => {
+					setTimeout(() => {
+						addOmFileLayer(this.map);
+						addHillshadeSources(this.map);
+						if (preferences.hillshade) {
+							addHillshadeLayer(this.map);
+						}
+					}, 50);
+				});
 			});
 		});
 		return div;
@@ -189,6 +196,30 @@ export class HillshadeButton {
 		this.url = url;
 	}
 
+	addTerrainControl = () => {
+		if (!this.map.hasControl(terrainControl)) {
+			terrainControl = new maplibregl.TerrainControl({
+				source: 'terrainSource',
+				exaggeration: 1
+			});
+
+			this.map.addControl(terrainControl);
+
+			terrainControl._terrainButton.addEventListener('click', () =>
+				terrainHandler(this.map, this.url)
+			);
+		}
+		if (preferences.terrain) {
+			this.map.setTerrain({ source: 'terrainSource' });
+		}
+	};
+	removeTerrainControl = () => {
+		if (this.map.hasControl(terrainControl)) {
+			this.map.removeControl(terrainControl);
+		}
+		this.map.setTerrain(null);
+	};
+
 	onAdd() {
 		const div = document.createElement('div');
 		div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
@@ -210,22 +241,7 @@ export class HillshadeButton {
 		setTimeout(() => {
 			if (preferences.hillshade) {
 				addHillshadeLayer(this.map);
-
-				if (!terrainControl) {
-					terrainControl = new maplibregl.TerrainControl({
-						source: 'terrainSource',
-						exaggeration: 1
-					});
-				}
-				if (preferences.terrain) {
-					this.map.setTerrain({ source: 'terrainSource' });
-				}
-
-				this.map.addControl(terrainControl);
-
-				terrainControl._terrainButton.addEventListener('click', () =>
-					terrainHandler(this.map, this.url)
-				);
+				this.addTerrainControl();
 			}
 		}, 100);
 
@@ -237,39 +253,22 @@ export class HillshadeButton {
 				div.innerHTML = hillshadeSVG;
 				this.url.searchParams.set('hillshade', String(preferences.hillshade));
 				pushState(this.url + this.map._hash.getHashString(), {});
-
-				this.map.setStyle(
-					`https://maptiler.servert.nl/styles/minimal-world-maps${mode.current === 'dark' ? '-dark' : ''}/style.json`
-				);
+				addHillshadeLayer(this.map);
 
 				this.map.once('styledata', () => {
 					setTimeout(() => {
-						addHillshadeLayer(this.map);
-						if (!terrainControl) {
-							terrainControl = new maplibregl.TerrainControl({
-								source: 'terrainSource',
-								exaggeration: 3
-							});
-						}
-						this.map.addControl(terrainControl);
-						addOmFileLayer(this.map);
+						this.addTerrainControl();
 					}, 50);
 				});
 			} else {
 				div.innerHTML = noHillshadeSVG;
 				this.url.searchParams.delete('hillshade');
 				pushState(this.url + this.map._hash.getHashString(), {});
-
-				this.map.setStyle(
-					`https://maptiler.servert.nl/styles/minimal-world-maps${mode.current === 'dark' ? '-dark' : ''}/style.json`
-				);
+				this.map.removeLayer('hillshadeLayer');
 
 				this.map.once('styledata', () => {
 					setTimeout(() => {
-						if (terrainControl) {
-							this.map.removeControl(terrainControl);
-						}
-						addOmFileLayer(this.map);
+						this.removeTerrainControl();
 					}, 50);
 				});
 			}
