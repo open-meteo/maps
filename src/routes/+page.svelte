@@ -138,10 +138,55 @@
 			type: 'line',
 			source: 'omFileVectorSource',
 			'source-layer': 'contours',
+			layout: {
+				'line-join': 'round',
+				'line-cap': 'round'
+			},
 			paint: {
-				'line-color': 'black',
-				'line-width': ['number', ['get', 'lw']]
+				'line-color': ['case', ['boolean', ['feature-state', 'hover'], false], 'red', 'black'],
+				'line-width': ['get', 'lw']
 			}
+		});
+
+		map.addLayer({
+			id: 'omFileVectorLayerLabels',
+			type: 'symbol',
+			source: 'omFileVectorSource',
+			'source-layer': 'contours',
+			layout: {
+				'symbol-placement': 'line',
+				'text-field': '{id}',
+				'text-size': 16
+			},
+			paint: {}
+		});
+
+		const omFileVectorLayer = map.getLayer('omFileVectorLayer');
+		console.log(omVectorSource, omFileVectorLayer);
+
+		let hoveredLevel = null;
+		// When the user moves their mouse over the state-fill layer, we'll update the
+		// feature state for the feature under the mouse.
+		map.on('mouseenter', 'omFileVectorLayer', (e) => {
+			if (e.features.length > 0) {
+				hoveredLevel = e.features[0].id;
+				console.log(e.features[0].id);
+
+				map.setFeatureState(
+					{ source: 'omFileVectorSource', id: hoveredLevel, sourceLayer: 'contours' },
+					{ hover: true }
+				);
+			}
+		});
+
+		// When the mouse leaves the state-fill layer, update the feature state of the
+		// previously hovered feature.
+		map.on('mouseleave', 'omFileVectorLayer', () => {
+			map.setFeatureState(
+				{ source: 'omFileVectorSource', id: hoveredLevel, sourceLayer: 'contours' },
+				{ hover: false }
+			);
+			hoveredLevel = null;
 		});
 	};
 

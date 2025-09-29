@@ -65,7 +65,7 @@ export const marchingSquares = (
 	const lonMin = domain.grid.lonMin;
 
 	const tileSize = 4096;
-	const margin = 512;
+	const margin = 256;
 	for (let j = 0; j < ny; j++) {
 		const lat = latMin + dy * j;
 		const worldPy = Math.floor(lat2tile(lat, z) * tileSize);

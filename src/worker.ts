@@ -218,41 +218,43 @@ self.onmessage = async (message) => {
 		const layerName = 'contours';
 
 		const pbf = new Pbf();
-		const geom: number[] = [];
-		let cursor: [number, number] = [0, 0];
 
 		const features = [];
-		for (const level of [985, 990, 995, 1000, 1005, 1010, 1015]) {
+		for (let level = 950; level < 1050; level = level + 5) {
+			let cursor: [number, number] = [0, 0];
+
 			const segments = marchingSquares(values, level, z, y, x, domain);
 
 			if (segments.length > 0) {
+				const geom: number[] = [];
 				// move to first point in segments
 				let xt0, yt0, xt1, yt1;
-				geom.push(encodeCommand(1, 1)); // MoveTo
+				geom.push(command(1, 1)); // MoveTo
 				[xt0, yt0] = segments[0];
-				geom.push(zigZag(xt0 - cursor[0]));
-				geom.push(zigZag(yt0 - cursor[1]));
+				geom.push(zigzag(xt0 - cursor[0]));
+				geom.push(zigzag(yt0 - cursor[1]));
 				cursor = [xt0, yt0];
 
 				for (const s of segments) {
 					[xt0, yt0, xt1, yt1] = s;
 
-					geom.push(encodeCommand(1, 1)); // MoveTo
-					geom.push(zigZag(xt0 - cursor[0]));
-					geom.push(zigZag(yt0 - cursor[1]));
+					geom.push(command(1, 1)); // MoveTo
+					geom.push(zigzag(xt0 - cursor[0]));
+					geom.push(zigzag(yt0 - cursor[1]));
 					cursor = [xt0, yt0];
 
-					geom.push(encodeCommand(2, 1)); // LineTo
-					geom.push(zigZag(xt1 - cursor[0]));
-					geom.push(zigZag(yt1 - cursor[1]));
+					geom.push(command(2, 1)); // LineTo
+					geom.push(zigzag(xt1 - cursor[0]));
+					geom.push(zigzag(yt1 - cursor[1]));
 					cursor = [xt1, yt1];
 				}
+				geom.push(command(7, 1)); // closepath
 
 				features.push({
 					id: level,
 					type: 2, // 2 = LineString
-					tags: {
-						lw: level % 10 === 0 ? 2 : 0.5
+					properties: {
+						lw: level % 100 === 0 ? 2 : level % 50 === 0 ? 1.5 : level % 10 === 0 ? 1 : 0.5
 					},
 					geom
 				});
@@ -270,29 +272,169 @@ self.onmessage = async (message) => {
 	}
 };
 
+interface Feature {
+	id: number;
+	type: number;
+	properties: {};
+	geom: number[];
+}
+
+interface Context {
+	feature: Feature | undefined;
+	keys: string[];
+	values: any[];
+	keycache: {};
+	valuecache: {};
+}
+
 // writer for VectorTileLayer
 function writeLayer(layer: any, pbf: Pbf) {
+	pbf.writeVarintField(15, layer.version || 2);
 	// name
 	pbf.writeStringField(1, layer.name);
-	// features
-	layer.features.forEach((feat: any) => {
-		pbf.writeMessage(2, writeFeature, feat);
-	});
 	// extent
 	pbf.writeVarintField(5, layer.extent);
+
+	const context: Context = {
+		feature: undefined,
+		keys: [],
+		values: [],
+		keycache: {},
+		valuecache: {}
+	};
+
+	// for (let i = 0; i < layer.length; i++) {
+	// 	context.feature = layer.feature(i);
+	// 	pbf.writeMessage(2, writeFeature, context);
+	// }
+
+	layer.features.forEach((feat: Feature) => {
+		context.feature = feat;
+		pbf.writeMessage(2, writeFeature, context);
+	});
+
+	const keys = context.keys;
+	for (let i = 0; i < keys.length; i++) {
+		pbf.writeStringField(3, keys[i]);
+	}
+
+	const values = context.values;
+	for (let i = 0; i < values.length; i++) {
+		pbf.writeMessage(4, writeValue, values[i]);
+	}
 }
 
-// writer for VectorTileFeature
-function writeFeature(feat: any, pbf: Pbf) {
-	pbf.writeVarintField(1, feat.id); // id
-	pbf.writeVarintField(3, feat.type); // type (2 = LineString)
-	pbf.writePackedVarint(4, feat.geom); // geometry
+function writeFeature(context: Context, pbf: Pbf) {
+	const feature = context.feature;
+
+	if (feature.id !== undefined) {
+		pbf.writeVarintField(1, feature.id);
+	}
+
+	pbf.writeMessage(2, writeProperties, context);
+	pbf.writeVarintField(3, feature.type);
+	pbf.writePackedVarint(4, feature.geom);
 }
 
-// Encode geometry commands per MVT spec
-function encodeCommand(id: number, count: number) {
-	return (count << 3) | id;
+// // writer for VectorTileFeature
+// function writeFeature(feat: any, pbf: Pbf) {
+// 	pbf.writeVarintField(1, feat.id); // id
+
+// 	// feature tags
+// 	pbf.writePackedVarint(2, [0, Number(feat.id) % 10 === 0 ? 0 : 1]);
+
+// 	pbf.writeVarintField(3, feat.type); // type (2 = LineString)
+// 	pbf.writePackedVarint(4, feat.geom); // geometry
+// }
+
+function command(cmd: number, length: number) {
+	return (length << 3) + (cmd & 0x7);
 }
-function zigZag(n: number) {
+
+function zigzag(n: number) {
 	return (n << 1) ^ (n >> 31);
+}
+
+function writeGeometry(feature, pbf: Pbf) {
+	const geometry = feature.loadGeometry();
+	const type = feature.type;
+	let x = 0;
+	let y = 0;
+	const rings = geometry.length;
+	for (let r = 0; r < rings; r++) {
+		const ring = geometry[r];
+		let count = 1;
+		if (type === 1) {
+			count = ring.length;
+		}
+		pbf.writeVarint(command(1, count)); // moveto
+		// do not write polygon closing path as lineto
+		const lineCount = type === 3 ? ring.length - 1 : ring.length;
+		for (let i = 0; i < lineCount; i++) {
+			if (i === 1 && type !== 1) {
+				pbf.writeVarint(command(2, lineCount - 1)); // lineto
+			}
+			const dx = ring[i].x - x;
+			const dy = ring[i].y - y;
+			pbf.writeVarint(zigzag(dx));
+			pbf.writeVarint(zigzag(dy));
+			x += dx;
+			y += dy;
+		}
+		if (type === 3) {
+			pbf.writeVarint(command(7, 1)); // closepath
+		}
+	}
+}
+
+function writeProperties(context, pbf: Pbf) {
+	const feature = context.feature;
+	const keys = context.keys;
+	const values = context.values;
+	const keycache = context.keycache;
+	const valuecache = context.valuecache;
+
+	for (const key in feature.properties) {
+		let value = feature.properties[key];
+
+		let keyIndex = keycache[key];
+		if (value === null) continue; // don't encode null value properties
+
+		if (typeof keyIndex === 'undefined') {
+			keys.push(key);
+			keyIndex = keys.length - 1;
+			keycache[key] = keyIndex;
+		}
+		pbf.writeVarint(keyIndex);
+
+		const type = typeof value;
+		if (type !== 'string' && type !== 'boolean' && type !== 'number') {
+			value = JSON.stringify(value);
+		}
+		const valueKey = type + ':' + value;
+		let valueIndex = valuecache[valueKey];
+		if (typeof valueIndex === 'undefined') {
+			values.push(value);
+			valueIndex = values.length - 1;
+			valuecache[valueKey] = valueIndex;
+		}
+		pbf.writeVarint(valueIndex);
+	}
+}
+
+function writeValue(value: any, pbf: Pbf) {
+	const type = typeof value;
+	if (type === 'string') {
+		pbf.writeStringField(1, value);
+	} else if (type === 'boolean') {
+		pbf.writeBooleanField(7, value);
+	} else if (type === 'number') {
+		if (value % 1 !== 0) {
+			pbf.writeDoubleField(3, value);
+		} else if (value < 0) {
+			pbf.writeSVarintField(6, value);
+		} else {
+			pbf.writeVarintField(5, value);
+		}
+	}
 }
