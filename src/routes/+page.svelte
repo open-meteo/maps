@@ -169,16 +169,14 @@
 				'icon-allow-overlap': true,
 				'text-allow-overlap': true,
 				'text-ignore-placement': true,
-
 				'icon-ignore-placement': true
 			}
 		});
 
-		const omFileVectorLayer = map.getLayer('omFileVectorLayer');
+		// const omFileVectorLayer = map.getLayer('omFileVectorLayer');
 
-		let hoveredLevel = null;
-		// When the user moves their mouse over the state-fill layer, we'll update the
-		// feature state for the feature under the mouse.
+		let hoveredLevel = 0;
+
 		map.on('mouseenter', 'omFileVectorLayer', (e) => {
 			if (e.features.length > 0) {
 				hoveredLevel = e.features[0].id;
@@ -189,8 +187,6 @@
 			}
 		});
 
-		// When the mouse leaves the state-fill layer, update the feature state of the
-		// previously hovered feature.
 		map.on('mouseleave', 'omFileVectorLayer', () => {
 			map.setFeatureState(
 				{ source: 'omFileVectorSource', id: hoveredLevel, sourceLayer: 'contours' },
