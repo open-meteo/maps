@@ -41,11 +41,11 @@
 	import {
 		time,
 		sheet,
-		model,
 		drawer,
 		loading,
 		domain,
 		variables,
+		modelRun,
 		preferences,
 		mapBounds,
 		drawerHeight
@@ -124,9 +124,9 @@
 				const json = await result.json();
 				if (latest) {
 					const referenceTime = json.reference_time;
-					$model = new SvelteDate(referenceTime);
+					$modelRun = new SvelteDate(referenceTime);
 
-					if ($model.getTime() - $time.getTime() > 0) {
+					if ($modelRun.getTime() - $time.getTime() > 0) {
 						$time = new SvelteDate(referenceTime);
 					}
 					if (!json.variables.includes($variables[0].value)) {
@@ -240,7 +240,7 @@
 					<div class="container mx-auto px-3">
 						<VariableSelection
 							time={$time}
-							model={$model}
+							model={$modelRun}
 							domain={$domain}
 							variables={$variables}
 							{modelRuns}
@@ -257,10 +257,10 @@
 								changeOMfileURL(map, url, latest);
 							}}
 							modelRunChange={(mr: Date) => {
-								$model = mr;
+								$modelRun = mr;
 								url.searchParams.set(
-									'model_run',
-									$model.toISOString().replace(/[:Z]/g, '').slice(0, 15)
+									'model-run',
+									$modelRun.toISOString().replace(/[:Z]/g, '').slice(0, 15)
 								);
 								pushState(url + map._hash.getHashString(), {});
 								toast(

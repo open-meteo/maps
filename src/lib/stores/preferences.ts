@@ -26,8 +26,9 @@ export const variables = persisted('variables', [
 
 const now = new Date();
 now.setHours(now.getHours() + 1, 0, 0, 0);
+
 export const time = writable(new Date(now));
-export const model = writable(new Date());
+export const modelRun = writable(new Date());
 
 export const sheet = writable(false);
 export const drawer = writable(false);

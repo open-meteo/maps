@@ -14,10 +14,10 @@ import { pad } from '$lib/utils/pad';
 
 import {
 	time,
-	model,
 	loading,
 	domain,
 	variables,
+	modelRun,
 	mapBounds,
 	preferences as p
 } from '$lib/stores/preferences';
@@ -44,7 +44,7 @@ let omUrl: string;
 export const urlParamsToPreferences = (url: URL) => {
 	const params = new URLSearchParams(url.search);
 
-	const urlModelTime = params.get('model_run');
+	const urlModelTime = params.get('model-run');
 	if (urlModelTime && urlModelTime.length == 15) {
 		const year = parseInt(urlModelTime.slice(0, 4));
 		const month = parseInt(urlModelTime.slice(5, 7)) - 1;
@@ -52,11 +52,11 @@ export const urlParamsToPreferences = (url: URL) => {
 		const hour = parseInt(urlModelTime.slice(11, 13));
 		const minute = parseInt(urlModelTime.slice(13, 15));
 		// Parse Date from UTC components (urlTime is in UTC)
-		model.set(new SvelteDate(Date.UTC(year, month, day, hour, minute, 0, 0)));
+		modelRun.set(new SvelteDate(Date.UTC(year, month, day, hour, minute, 0, 0)));
 	} else {
-		const m = get(model);
+		const m = get(modelRun);
 		m.setHours(0, 0, 0, 0);
-		model.set(m);
+		modelRun.set(m);
 	}
 
 	const urlTime = params.get('time');
@@ -143,8 +143,8 @@ export const checkClosestHourModelRun = (
 	latest: DomainMetaData | undefined
 ) => {
 	const t = get(time);
-	const m = get(model);
 	const d = get(domain);
+	const m = get(modelRun);
 
 	let modelRunChanged = false;
 	const referenceTime = new Date(latest ? latest.reference_time : now);
@@ -165,26 +165,26 @@ export const checkClosestHourModelRun = (
 	closestModelRun.setUTCMilliseconds(0);
 
 	if (t.getTime() < m.getTime()) {
-		model.set(new SvelteDate(closestModelRun));
+		modelRun.set(new SvelteDate(closestModelRun));
 		modelRunChanged = true;
 	} else {
 		if (referenceTime.getTime() === m.getTime()) {
-			url.searchParams.delete('model_run');
+			url.searchParams.delete('model-run');
 			pushState(url + map._hash.getHashString(), {});
 		} else if (t.getTime() > referenceTime.getTime() && referenceTime.getTime() > m.getTime()) {
-			model.set(new SvelteDate(referenceTime));
+			modelRun.set(new SvelteDate(referenceTime));
 			modelRunChanged = true;
 		} else if (t.getTime() < referenceTime.getTime() - 24 * 60 * 60 * 1000) {
 			// Atleast yesterday, always update to nearest modelRun
 			if (m.getTime() < closestModelRun.getTime()) {
-				model.set(new SvelteDate(closestModelRun));
+				modelRun.set(new SvelteDate(closestModelRun));
 				modelRunChanged = true;
 			}
 		}
 	}
 
 	if (modelRunChanged) {
-		url.searchParams.set('model_run', m.toISOString().replace(/[:Z]/g, '').slice(0, 15));
+		url.searchParams.set('model-run', m.toISOString().replace(/[:Z]/g, '').slice(0, 15));
 		pushState(url + map._hash.getHashString(), {});
 		toast(
 			'Model run set to: ' +
@@ -434,8 +434,8 @@ export const addPopup = (map: maplibregl.Map) => {
 export const getOMUrl = () => {
 	const mB = get(mapBounds);
 	if (mB) {
-		return `https://map-tiles.open-meteo.com/data_spatial/${get(domain).value}/${get(model).getUTCFullYear()}/${pad(get(model).getUTCMonth() + 1)}/${pad(get(model).getUTCDate())}/${pad(get(model).getUTCHours())}00Z/${get(time).getUTCFullYear()}-${pad(get(time).getUTCMonth() + 1)}-${pad(get(time).getUTCDate())}T${pad(get(time).getUTCHours())}00.om?dark=${mode.current === 'dark'}&variable=${get(variables)[0].value}&bounds=${mB.getSouth()},${mB.getWest()},${mB.getNorth()},${mB.getEast()}&partial=${preferences.partial}`;
+		return `https://map-tiles.open-meteo.com/data_spatial/${get(domain).value}/${get(modelRun).getUTCFullYear()}/${pad(get(modelRun).getUTCMonth() + 1)}/${pad(get(modelRun).getUTCDate())}/${pad(get(modelRun).getUTCHours())}00Z/${get(time).getUTCFullYear()}-${pad(get(time).getUTCMonth() + 1)}-${pad(get(time).getUTCDate())}T${pad(get(time).getUTCHours())}00.om?dark=${mode.current === 'dark'}&variable=${get(variables)[0].value}&bounds=${mB.getSouth()},${mB.getWest()},${mB.getNorth()},${mB.getEast()}&partial=${preferences.partial}`;
 	} else {
-		return `https://map-tiles.open-meteo.com/data_spatial/${get(domain).value}/${get(model).getUTCFullYear()}/${pad(get(model).getUTCMonth() + 1)}/${pad(get(model).getUTCDate())}/${pad(get(model).getUTCHours())}00Z/${get(time).getUTCFullYear()}-${pad(get(time).getUTCMonth() + 1)}-${pad(get(time).getUTCDate())}T${pad(get(time).getUTCHours())}00.om?dark=${mode.current === 'dark'}&variable=${get(variables)[0].value}&partial=${preferences.partial}`;
+		return `https://map-tiles.open-meteo.com/data_spatial/${get(domain).value}/${get(modelRun).getUTCFullYear()}/${pad(get(modelRun).getUTCMonth() + 1)}/${pad(get(modelRun).getUTCDate())}/${pad(get(modelRun).getUTCHours())}00Z/${get(time).getUTCFullYear()}-${pad(get(time).getUTCMonth() + 1)}-${pad(get(time).getUTCDate())}T${pad(get(time).getUTCHours())}00.om?dark=${mode.current === 'dark'}&variable=${get(variables)[0].value}&partial=${preferences.partial}`;
 	}
 };
