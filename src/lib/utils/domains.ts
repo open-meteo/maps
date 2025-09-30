@@ -67,7 +67,7 @@ export const getDomainOptions = (domainName: string) => {
 	return string;
 };
 
-export const domainOptions: Array<Domain> = [
+export const domainOptions: Domain[] = [
 	// BOM
 	// {
 	// 	value: 'bom_access_global',

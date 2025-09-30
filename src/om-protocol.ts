@@ -15,7 +15,7 @@ import {
 import { getInterpolator } from '$lib/utils/color-scales';
 
 import { domainOptions } from '$lib/utils/domains';
-import { variableOptions } from '$lib/utils/variables';
+import { variableOptionKeys, variableOptions } from '$lib/utils/variables';
 
 import { DynamicProjection, ProjectionGrid, type Projection } from '$lib/utils/projections';
 
@@ -35,10 +35,15 @@ import type {
 	DimensionRange
 } from '$lib/types';
 
+export interface Data {
+	[key: string]: TypedArray | undefined;
+}
+
+const data: Data = {};
 let dark = false;
 let partial = false;
 let domain: Domain;
-let variable: Variable;
+let variables: Variable[];
 let mapBounds: number[];
 let omapsFileReader: OMapsFileReader;
 let mapBoundsIndexes: number[];
@@ -46,6 +51,8 @@ let ranges: DimensionRange[];
 
 let projection: Projection;
 let projectionGrid: ProjectionGrid;
+
+let variableKeys = [];
 
 setupGlobalCache();
 
@@ -75,13 +82,6 @@ const initPixelData = async () => {
 	await Promise.all(Object.entries(arrowPixelsSource).map(([key, url]) => loadIcon(key, url)));
 };
 
-export interface Data {
-	values: TypedArray | undefined;
-	directions: TypedArray | undefined;
-}
-
-let data: Data;
-
 const TILE_SIZE = Number(import.meta.env.VITE_TILE_SIZE) * 2;
 
 let worker: Worker;
@@ -108,10 +108,11 @@ const getWorker = () => {
 export const getValueFromLatLong = (
 	lat: number,
 	lon: number,
+	variable: Variable,
 	colorScale: ColorScale
 ): { index: number; value: number; direction?: number } => {
 	if (data) {
-		const values = data.values;
+		const values = data[variable.value];
 
 		let indexObject;
 		if (domain.grid.projection) {
@@ -141,32 +142,63 @@ export const getValueFromLatLong = (
 };
 
 const getTile = async ({ z, x, y }: TileIndex, omUrl: string): Promise<ImageBitmap> => {
-	const key = `${omUrl}/${TILE_SIZE}/${z}/${x}/${y}`;
-
+	let iconList = {};
+	const tilePromises = [];
 	const tileWorker = getWorker();
 
-	let iconList = {};
-	if (variable.value.startsWith('wind') || variable.value.startsWith('wave')) {
-		iconList = arrowPixelData;
+	for (const variable of variables) {
+		const key = `${omUrl}/${variable.value}/${TILE_SIZE}/${z}/${x}/${y}`;
+
+		if (variable.value.startsWith('wind') || variable.value.startsWith('wave')) {
+			iconList = arrowPixelData;
+		}
+
+		tileWorker.postMessage({
+			type: 'GT',
+			x,
+			y,
+			z,
+			key,
+			values: data[variable.value],
+			directions: data[variable.value + 'directions'],
+			domain,
+			variable,
+			ranges,
+			dark: dark,
+			mapBounds: mapBounds,
+			iconPixelData: iconList
+		});
+		tilePromises.push(
+			new Promise<ImageBitmap>((resolve) => {
+				pendingTiles.set(key, resolve);
+			})
+		);
 	}
 
-	tileWorker.postMessage({
-		type: 'GT',
-		x,
-		y,
-		z,
-		key,
-		data,
-		domain,
-		variable,
-		ranges,
-		dark: dark,
-		mapBounds: mapBounds,
-		iconPixelData: iconList
-	});
-	return new Promise<ImageBitmap>((resolve) => {
-		pendingTiles.set(key, resolve);
-	});
+	if (tilePromises.length === 1) {
+		return tilePromises[0];
+	} else {
+		const canvas = window.document.createElement('canvas');
+		const ctx = canvas.getContext('2d');
+		canvas.width = TILE_SIZE;
+		canvas.height = TILE_SIZE;
+
+		await Promise.all(tilePromises).then((tiles) => {
+			if (ctx) {
+				ctx.globalAlpha = 0.95;
+				if (tiles.length > 2) {
+					ctx.globalAlpha = 0.85;
+				} else if (tiles.length > 4) {
+					ctx.globalAlpha = 0.75;
+				}
+				for (const tile of tiles) {
+					ctx.drawImage(tile, 0, 0);
+				}
+			}
+		});
+
+		return createImageBitmap(canvas);
+	}
 };
 
 const renderTile = async (url: string) => {
@@ -229,8 +261,23 @@ const initOMFile = (url: string): Promise<void> => {
 		dark = urlParams.get('dark') === 'true';
 		partial = urlParams.get('partial') === 'true';
 		domain = domainOptions.find((dm) => dm.value === omUrl.split('/')[4]) ?? domainOptions[0];
-		variable =
-			variableOptions.find((v) => urlParams.get('variable') === v.value) ?? variableOptions[0];
+
+		variableKeys = [];
+		variables = urlParams
+			.get('variables')
+			?.split(',')
+			.filter((v: string) => {
+				if (variableOptionKeys.includes(v)) {
+					return true;
+				} else {
+					return false;
+				}
+			})
+			.map((v: string) => {
+				variableKeys.push(v);
+				return variableOptions.find((vo) => v === vo.value);
+			});
+
 		mapBounds = urlParams
 			.get('bounds')
 			?.split(',')
@@ -263,13 +310,21 @@ const initOMFile = (url: string): Promise<void> => {
 		omapsFileReader.setReaderData(domain, partial);
 		omapsFileReader
 			.init(omUrl)
-			.then(() => {
-				omapsFileReader.readVariable(variable, ranges).then((values) => {
-					data = values;
-					resolve();
-					// prefetch first bytes of the previous and next timesteps to trigger CF caching
-					omapsFileReader.prefetch(omUrl);
-				});
+			.then(async () => {
+				const variablePromises = [];
+				for (const variable of variables) {
+					variablePromises.push(
+						omapsFileReader.readVariable(variable, ranges).then((dataObject) => {
+							data[variable.value] = dataObject['values'];
+							data[variable.value + 'directions'] = dataObject['directions'];
+
+							// prefetch first bytes of the previous and next timesteps to trigger CF caching
+							omapsFileReader.prefetch(omUrl);
+						})
+					);
+				}
+
+				await Promise.all(variablePromises).then(() => resolve());
 			})
 			.catch((e) => {
 				reject(e);
