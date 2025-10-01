@@ -35,4 +35,11 @@ export const drawer = writable(false);
 export const drawerHeight = writable(0.4);
 
 export const loading = writable(false);
+
 export const mapBounds: Writable<maplibregl.LngLatBounds | null> = writable(null);
+
+export const paddedBounds: Writable<maplibregl.LngLatBounds | null> = writable(null);
+export const paddedBoundsLayer: Writable<maplibregl.StyleLayer | undefined> = writable(undefined);
+export const paddedBoundsSource: Writable<maplibregl.GeoJSONSource | undefined> =
+	writable(undefined);
+export const paddedBoundsGeoJSON: Writable<GeoJSON.GeoJSON | null> = writable(null);

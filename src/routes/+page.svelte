@@ -48,7 +48,8 @@
 		modelRun,
 		preferences,
 		mapBounds,
-		drawerHeight
+		drawerHeight,
+		paddedBounds
 	} from '$lib/stores/preferences';
 
 	import {
@@ -59,7 +60,9 @@
 		setMapControlSettings,
 		urlParamsToPreferences,
 		checkClosestHourDomainInterval,
-		addHillshadeSources
+		addHillshadeSources,
+		checkBounds,
+		getPaddedBounds
 	} from '$lib';
 
 	import '../styles.css';
@@ -94,6 +97,8 @@
 
 		map.on('load', async () => {
 			mapBounds.set(map.getBounds());
+			paddedBounds.set(map.getBounds());
+			getPaddedBounds(map);
 
 			map.addControl(new DarkModeButton(map, url));
 			map.addControl(new SettingsButton());
@@ -107,6 +112,14 @@
 			map.addControl(new HillshadeButton(map, url));
 
 			addPopup(map);
+		});
+
+		map.on('zoomend', () => {
+			checkBounds(map, url);
+		});
+
+		map.on('dragend', () => {
+			checkBounds(map, url);
 		});
 	});
 
