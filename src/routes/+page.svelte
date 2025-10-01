@@ -188,29 +188,29 @@
 			});
 		}
 
-		// map.addLayer({
-		// 	id: 'omFileGridPoints',
-		// 	type: 'circle',
-		// 	source: 'omFileGridSource',
-		// 	'source-layer': 'grid',
-		// 	layout: {},
-		// 	paint: {
-		// 		'circle-radius': [
-		// 			'interpolate',
-		// 			['exponential', 2.5],
-		// 			['zoom'],
-		// 			// zoom is 0 -> circle radius will be 0.3px
-		// 			0,
-		// 			0.5,
-		// 			7,
-		// 			2,
-		// 			// zoom is 12 (or greater) -> circle radius will be 8px
-		// 			12,
-		// 			12
-		// 		],
-		// 		'circle-color': '#007cbf'
-		// 	}
-		// });
+		map.addLayer({
+			id: 'omFileGridPoints',
+			type: 'circle',
+			source: 'omFileGridSource',
+			'source-layer': 'grid',
+			layout: {},
+			paint: {
+				'circle-radius': [
+					'interpolate',
+					['exponential', 2.5],
+					['zoom'],
+					// zoom is 0 -> circle radius will be 0.3px
+					0,
+					0.5,
+					7,
+					2,
+					// zoom is 12 (or greater) -> circle radius will be 8px
+					12,
+					12
+				],
+				'circle-color': '#007cbf'
+			}
+		});
 
 		if (variable.value.includes('wind'))
 			map.addLayer({
@@ -241,11 +241,11 @@
 						'interpolate',
 						['exponential', 2.5],
 						['zoom'],
-						// zoom is 0 -> circle radius will be 0.3px
+						// zoom is 0 -> icon size will be 0.12em
 						0,
-						0.15,
+						0.12,
 
-						// zoom is 12 (or greater) -> circle radius will be 8px
+						// zoom is 12 (or greater) -> icon size will be 1em
 						12,
 						1
 					],

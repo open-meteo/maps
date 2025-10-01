@@ -255,7 +255,7 @@ self.onmessage = async (message) => {
 							const properties: { value?: number; direction?: number } = {};
 							properties.value = values[index].toFixed(2);
 							if (directions) {
-								properties.direction = directions[index] - 180;
+								properties.direction = directions[index];
 							}
 
 							if (!isNaN(value)) {
