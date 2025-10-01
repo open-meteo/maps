@@ -169,41 +169,41 @@ self.onmessage = async (message) => {
 			}
 		}
 
-		if (
-			(variable.value.startsWith('wave') && !variable.value.includes('_period')) ||
-			(variable.value.startsWith('wind') &&
-				!variable.value.includes('_gusts') &&
-				!variable.value.includes('_wave')) ||
-			drawOnTiles.includes(variable.value)
-		) {
-			if (variable.value.startsWith('wave') || variable.value.startsWith('wind')) {
-				const iconPixelData = message.data.iconPixelData;
-				const directions = message.data.data.directions;
+		// if (
+		// 	(variable.value.startsWith('wave') && !variable.value.includes('_period')) ||
+		// 	(variable.value.startsWith('wind') &&
+		// 		!variable.value.includes('_gusts') &&
+		// 		!variable.value.includes('_wave')) ||
+		// 	drawOnTiles.includes(variable.value)
+		// ) {
+		// 	if (variable.value.startsWith('wave') || variable.value.startsWith('wind')) {
+		// 		const iconPixelData = message.data.iconPixelData;
+		// 		const directions = message.data.data.directions;
 
-				const boxSize = Math.floor(TILE_SIZE / 16);
-				for (let i = 0; i < TILE_SIZE; i += boxSize) {
-					for (let j = 0; j < TILE_SIZE; j += boxSize) {
-						drawArrow(
-							rgba,
-							i,
-							j,
-							x,
-							y,
-							z,
-							ranges,
-							domain,
-							variable,
-							projectionGrid,
-							values,
-							directions,
-							boxSize,
-							iconPixelData,
-							interpolator
-						);
-					}
-				}
-			}
-		}
+		// 		const boxSize = Math.floor(TILE_SIZE / 16);
+		// 		for (let i = 0; i < TILE_SIZE; i += boxSize) {
+		// 			for (let j = 0; j < TILE_SIZE; j += boxSize) {
+		// 				drawArrow(
+		// 					rgba,
+		// 					i,
+		// 					j,
+		// 					x,
+		// 					y,
+		// 					z,
+		// 					ranges,
+		// 					domain,
+		// 					variable,
+		// 					projectionGrid,
+		// 					values,
+		// 					directions,
+		// 					boxSize,
+		// 					iconPixelData,
+		// 					interpolator
+		// 				);
+		// 			}
+		// 		}
+		// 	}
+		// }
 
 		const tile = await createImageBitmap(new ImageData(rgba, TILE_SIZE, TILE_SIZE));
 
@@ -214,7 +214,9 @@ self.onmessage = async (message) => {
 		const z = message.data.z;
 		const key = message.data.key;
 		const values = message.data.data.values;
+
 		const domain = message.data.domain;
+		const variable = message.data.variable;
 
 		const extent = 4096;
 		const margin = 256;
@@ -224,14 +226,24 @@ self.onmessage = async (message) => {
 
 		if (key.includes('grid=true')) {
 			const features = [];
+			const directions = message.data.data.directions;
 
-			for (let j = 0; j < domain.grid.ny; j++) {
+			let mod = 10;
+			if (z > 2) {
+				mod = 5;
+			} else if (z > 4) {
+				mod = 2;
+			} else if (z > 8) {
+				mod = 1;
+			}
+
+			for (let j = 0; j < domain.grid.ny; j += mod) {
 				const lat = domain.grid.latMin + domain.grid.dy * j;
 				// if (lat > minLatTile && lat < maxLatTile) {
 				const worldPy = Math.floor(lat2tile(lat, z) * extent);
 				const py = worldPy - y * extent;
 				if (py > -margin && py <= extent + margin) {
-					for (let i = 0; i < domain.grid.nx; i++) {
+					for (let i = 0; i < domain.grid.nx; i += mod) {
 						const lon = domain.grid.lonMin + domain.grid.dx * i;
 						// if (lon > minLonTile && lon < maxLonTile) {
 						const worldPx = Math.floor(lon2tile(lon, z) * extent);
@@ -239,13 +251,18 @@ self.onmessage = async (message) => {
 						if (px > -margin && px <= extent + margin) {
 							const index = j * domain.grid.nx + i;
 							const value = values[index];
+
+							const properties: { value?: number; direction?: number } = {};
+							properties.value = values[index].toFixed(2);
+							if (directions) {
+								properties.direction = directions[index] - 180;
+							}
+
 							if (!isNaN(value)) {
 								features.push({
 									id: index,
 									type: 1, // 1 = Point
-									properties: {
-										value: values[index]
-									},
+									properties: properties,
 									geom: [
 										command(1, 1), // MoveTo
 										zigzag(px),

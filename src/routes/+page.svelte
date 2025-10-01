@@ -89,7 +89,7 @@
 		);
 	};
 
-	const addOmFileLayer = () => {
+	const addOmFileLayer = async () => {
 		map.addSource('omFileRasterSource', {
 			url: 'om://' + omUrl,
 			type: 'raster',
@@ -188,17 +188,74 @@
 			});
 		}
 
-		map.addLayer({
-			id: 'omFileGridPoints',
-			type: 'circle',
-			source: 'omFileGridSource',
-			'source-layer': 'grid',
-			layout: {},
-			paint: {
-				'circle-radius': ['step', ['zoom'], 0.05, 2, 0.1, 4, 0.6, 6, 1.3, 8, 2],
-				'circle-color': '#007cbf'
-			}
-		});
+		// map.addLayer({
+		// 	id: 'omFileGridPoints',
+		// 	type: 'circle',
+		// 	source: 'omFileGridSource',
+		// 	'source-layer': 'grid',
+		// 	layout: {},
+		// 	paint: {
+		// 		'circle-radius': [
+		// 			'interpolate',
+		// 			['exponential', 2.5],
+		// 			['zoom'],
+		// 			// zoom is 0 -> circle radius will be 0.3px
+		// 			0,
+		// 			0.5,
+		// 			7,
+		// 			2,
+		// 			// zoom is 12 (or greater) -> circle radius will be 8px
+		// 			12,
+		// 			12
+		// 		],
+		// 		'circle-color': '#007cbf'
+		// 	}
+		// });
+
+		if (variable.value.includes('wind'))
+			map.addLayer({
+				id: 'omFileGridLabels',
+				type: 'symbol',
+				source: 'omFileGridSource',
+				'source-layer': 'grid',
+				layout: {
+					// 'text-offset': [
+					// 	'interpolate',
+					// 	['linear'],
+					// 	['zoom'],
+					// 	0,
+					// 	['literal', [0, 0]],
+					// 	6,
+					// 	['literal', [0, -0.75]],
+					// 	10,
+					// 	['literal', [0, -1]]
+					// ],
+					// 'text-font': ['Open Sans Regular'],
+					// 'text-field': ['to-string', ['get', 'value']],
+					// 'text-size': ['interpolate', ['linear'], ['zoom'], 0, 8, 8, 10, 10, 20]
+					// 'text-allow-overlap': true,
+					// 'text-ignore-placement': true,
+
+					'icon-image': '/images/weather-icons/wi-direction-up2.svg',
+					'icon-size': [
+						'interpolate',
+						['exponential', 2.5],
+						['zoom'],
+						// zoom is 0 -> circle radius will be 0.3px
+						0,
+						0.15,
+
+						// zoom is 12 (or greater) -> circle radius will be 8px
+						12,
+						1
+					],
+					'icon-rotate': ['get', 'direction'],
+					'icon-padding': -7
+
+					// 'icon-allow-overlap': true,
+					// 'icon-ignore-placement': true
+				}
+			});
 
 		let hoveredLevel = 0;
 		map.on('mouseenter', 'omFileVectorLayer', (e) => {
@@ -473,7 +530,7 @@
 	let showPopup = false;
 
 	const changeOMfileURL = () => {
-		if (map && omRasterSource && omVectorSource) {
+		if (map && omRasterSource && omVectorSource && omGridSource) {
 			loading = true;
 			if (popup) {
 				popup.remove();
@@ -483,6 +540,7 @@
 			checkClosestHourModelRun();
 
 			omUrl = getOMUrl();
+			omGridSource.setUrl('om://' + omUrl + '&grid=true');
 			omRasterSource.setUrl('om://' + omUrl);
 			omVectorSource.setUrl('om://' + omUrl);
 
@@ -627,6 +685,24 @@
 		map.scrollZoom.setWheelZoomRate(1 / 85);
 
 		map.on('load', async () => {
+			const existingImages = {};
+			map.on('styleimagemissing', async (e) => {
+				if (existingImages[e.id]) {
+					return;
+				}
+				existingImages[e.id] = true;
+				const response = await fetch(e.id);
+				const svgText = await response.text();
+				const svg = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgText);
+				const image = new Image();
+				const promise = new Promise((resolve) => {
+					image.onload = resolve;
+				});
+				image.src = svg;
+				await promise; // Wait for the image to load
+				map.addImage(e.id, image);
+			});
+
 			mapBounds = map.getBounds();
 
 			// addHillshadeLayer();
