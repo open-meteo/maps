@@ -173,10 +173,34 @@
 			}
 		});
 
-		// const omFileVectorLayer = map.getLayer('omFileVectorLayer');
+		map.addSource('omFileGridSource', {
+			url: 'om://' + omUrl + '?grid=true',
+			type: 'vector'
+		});
+
+		omGridSource = map.getSource('omFileGridSource');
+		if (omGridSource) {
+			omGridSource.on('error', (e) => {
+				checked = 0;
+				loading = false;
+				clearInterval(checkSourceLoadedInterval);
+				toast(e.error.message);
+			});
+		}
+
+		map.addLayer({
+			id: 'omFileGridPoints',
+			type: 'circle',
+			source: 'omFileGridSource',
+			'source-layer': 'grid',
+			layout: {},
+			paint: {
+				'circle-radius': ['step', ['zoom'], 0.05, 2, 0.1, 4, 0.6, 6, 1.3, 8, 2],
+				'circle-color': '#007cbf'
+			}
+		});
 
 		let hoveredLevel = 0;
-
 		map.on('mouseenter', 'omFileVectorLayer', (e) => {
 			if (e.features.length > 0) {
 				hoveredLevel = e.features[0].id;
@@ -440,8 +464,9 @@
 	let popup: maplibregl.Popup | undefined;
 
 	let mapBounds: maplibregl.LngLatBounds | undefined = $state();
-	let omRasterSource: maplibregl.RasterTileSource | undefined;
+	let omGridSource: maplibregl.VectorTileSource | undefined;
 	let omVectorSource: maplibregl.VectorTileSource | undefined;
+	let omRasterSource: maplibregl.RasterTileSource | undefined;
 
 	let latest: DomainMetaData | undefined = $state();
 	let loading = $state(false);

@@ -9,7 +9,9 @@ import {
 	tile2lon,
 	rotatePoint,
 	degreesToRadians,
-	getIndexAndFractions
+	getIndexAndFractions,
+	lat2tile,
+	lon2tile
 } from '$lib/utils/math';
 
 import { getColor, getColorScale, getInterpolator, getOpacity } from '$lib/utils/color-scales';
@@ -215,61 +217,106 @@ self.onmessage = async (message) => {
 		const domain = message.data.domain;
 
 		const extent = 4096;
+		const margin = 256;
 		const layerName = 'contours';
 
 		const pbf = new Pbf();
 
-		const features = [];
-		for (let level = 950; level < 1050; level = level + 2) {
-			let cursor: [number, number] = [0, 0];
+		if (key.includes('grid=true')) {
+			const features = [];
 
-			const segments = marchingSquares(values, level, z, y, x, domain);
+			for (let j = 0; j < domain.grid.ny; j++) {
+				const lat = domain.grid.latMin + domain.grid.dy * j;
+				// if (lat > minLatTile && lat < maxLatTile) {
+				const worldPy = Math.floor(lat2tile(lat, z) * extent);
+				const py = worldPy - y * extent;
+				if (py > -margin && py <= extent + margin) {
+					for (let i = 0; i < domain.grid.nx; i++) {
+						const lon = domain.grid.lonMin + domain.grid.dx * i;
+						// if (lon > minLonTile && lon < maxLonTile) {
+						const worldPx = Math.floor(lon2tile(lon, z) * extent);
+						const px = worldPx - x * extent;
+						if (px > -margin && px <= extent + margin) {
+							const index = j * domain.grid.nx + i;
+							const value = values[index];
+							if (!isNaN(value)) {
+								features.push({
+									id: index,
+									type: 1, // 1 = Point
+									properties: {
+										value: values[index]
+									},
+									geom: [
+										command(1, 1), // MoveTo
+										zigzag(px),
+										zigzag(py)
+									]
+								});
+							}
+						}
+					}
+				}
+			}
 
-			if (segments.length > 0) {
-				const geom: number[] = [];
-				// move to first point in segments
-				let xt0, yt0, xt1, yt1;
-				geom.push(command(1, 1)); // MoveTo
-				[xt0, yt0] = segments[0];
-				geom.push(zigzag(xt0 - cursor[0]));
-				geom.push(zigzag(yt0 - cursor[1]));
-				cursor = [xt0, yt0];
+			// write Layer
+			pbf.writeMessage(3, writeLayer, {
+				name: 'grid',
+				extent,
+				features: features
+			});
+		} else {
+			const features = [];
+			for (let level = 950; level < 1050; level = level + 2) {
+				let cursor: [number, number] = [0, 0];
 
-				for (const s of segments) {
-					[xt0, yt0, xt1, yt1] = s;
+				const segments = marchingSquares(values, level, z, y, x, domain);
 
-					// if (Math.abs(xt1 - cursor[0]) > 10 || Math.abs(yt1 - cursor[1]) > 10) {
+				if (segments.length > 0) {
+					const geom: number[] = [];
+					// move to first point in segments
+					let xt0, yt0, xt1, yt1;
 					geom.push(command(1, 1)); // MoveTo
+					[xt0, yt0] = segments[0];
 					geom.push(zigzag(xt0 - cursor[0]));
 					geom.push(zigzag(yt0 - cursor[1]));
 					cursor = [xt0, yt0];
-					//}
 
-					geom.push(command(2, 1)); // LineTo
-					geom.push(zigzag(xt1 - cursor[0]));
-					geom.push(zigzag(yt1 - cursor[1]));
-					cursor = [xt1, yt1];
+					for (const s of segments) {
+						[xt0, yt0, xt1, yt1] = s;
+
+						// if (Math.abs(xt1 - cursor[0]) > 10 || Math.abs(yt1 - cursor[1]) > 10) {
+						geom.push(command(1, 1)); // MoveTo
+						geom.push(zigzag(xt0 - cursor[0]));
+						geom.push(zigzag(yt0 - cursor[1]));
+						cursor = [xt0, yt0];
+						//}
+
+						geom.push(command(2, 1)); // LineTo
+						geom.push(zigzag(xt1 - cursor[0]));
+						geom.push(zigzag(yt1 - cursor[1]));
+						cursor = [xt1, yt1];
+					}
+					geom.push(command(7, 1)); // closepath
+
+					features.push({
+						id: level,
+						type: 2, // 2 = LineString
+						properties: {
+							lw: level % 100 === 0 ? 2 : level % 50 === 0 ? 1.5 : level % 10 === 0 ? 1 : 0.5,
+							pressure: level
+						},
+						geom
+					});
 				}
-				geom.push(command(7, 1)); // closepath
-
-				features.push({
-					id: level,
-					type: 2, // 2 = LineString
-					properties: {
-						lw: level % 100 === 0 ? 2 : level % 50 === 0 ? 1.5 : level % 10 === 0 ? 1 : 0.5,
-						pressure: level
-					},
-					geom
-				});
 			}
-		}
 
-		// write Layer
-		pbf.writeMessage(3, writeLayer, {
-			name: layerName,
-			extent,
-			features: features
-		});
+			// write Layer
+			pbf.writeMessage(3, writeLayer, {
+				name: layerName,
+				extent,
+				features: features
+			});
+		}
 
 		postMessage({ type: 'returnArrayBuffer', tile: pbf.finish(), key: key });
 	}
