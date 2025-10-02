@@ -247,7 +247,7 @@
 		<Drawer.Overlay class="fixed inset-0 bg-black/40" />
 		<Drawer.Portal>
 			<Drawer.Content
-				class="border-b-none fixed right-0 bottom-0 left-0 mx-[-1px] flex h-full max-h-[97%] flex-col rounded-t-[10px] border border-gray-200 bg-white"
+				class="border-b-none border-accent bg-background 0 fixed right-0 bottom-0 left-0 mx-[-1px] flex h-full max-h-[97%] flex-col rounded-t-[10px] border"
 			>
 				<div class="flex flex-col items-center overflow-y-scroll pb-12">
 					<div class="container mx-auto px-3">
