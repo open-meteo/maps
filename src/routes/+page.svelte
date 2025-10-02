@@ -55,14 +55,14 @@
 	import {
 		getStyle,
 		addPopup,
+		checkBounds,
 		addOmFileLayer,
 		changeOMfileURL,
+		getPaddedBounds,
+		addHillshadeSources,
 		setMapControlSettings,
 		urlParamsToPreferences,
-		checkClosestHourDomainInterval,
-		addHillshadeSources,
-		checkBounds,
-		getPaddedBounds
+		checkClosestHourDomainInterval
 	} from '$lib';
 
 	import '../styles.css';
@@ -115,11 +115,11 @@
 		});
 
 		map.on('zoomend', () => {
-			checkBounds(map, url);
+			checkBounds(map, url, latest);
 		});
 
 		map.on('dragend', () => {
-			checkBounds(map, url);
+			checkBounds(map, url, latest);
 		});
 	});
 
@@ -129,13 +129,13 @@
 		}
 	});
 
-	const getDomainData = async (latest = true): Promise<DomainMetaData> => {
+	const getDomainData = async (inProgress = false): Promise<DomainMetaData> => {
 		return new Promise((resolve) => {
 			fetch(
-				`https://map-tiles.open-meteo.com/data_spatial/${$domain.value}/${latest ? 'latest' : 'in-progress'}.json`
+				`https://map-tiles.open-meteo.com/data_spatial/${$domain.value}/${inProgress ? 'in-progress' : 'latest'}.json`
 			).then(async (result) => {
 				const json = await result.json();
-				if (latest) {
+				if (!inProgress) {
 					const referenceTime = json.reference_time;
 					$modelRun = new SvelteDate(referenceTime);
 
@@ -159,7 +159,7 @@
 	};
 
 	let latestRequest = $derived(getDomainData());
-	let progressRequest = $derived(getDomainData(false));
+	let progressRequest = $derived(getDomainData(true));
 
 	let modelRuns = $derived.by(() => {
 		if (latest) {

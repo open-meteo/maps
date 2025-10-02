@@ -6,15 +6,24 @@ import * as maplibregl from 'maplibre-gl';
 
 import { pushState } from '$app/navigation';
 
-import { preferences as p, sheet, drawer } from '$lib/stores/preferences';
 import {
-	addHillshadeLayer,
-	addHillshadeSources,
+	sheet,
+	drawer,
+	preferences as p,
+	paddedBoundsLayer,
+	paddedBoundsSource
+} from '$lib/stores/preferences';
+
+import {
+	getStyle,
+	terrainHandler,
 	addOmFileLayer,
 	changeOMfileURL,
-	getStyle,
-	terrainHandler
+	getPaddedBounds,
+	addHillshadeLayer,
+	addHillshadeSources
 } from '$lib';
+
 import type { DomainMetaData } from '$lib/types';
 
 const preferences = get(p);
@@ -49,8 +58,13 @@ export class PartialButton {
 			div.innerHTML = preferences.partial ? partialSVG : fullSVG;
 			if (preferences.partial) {
 				this.url.searchParams.set('partial', String(preferences.partial));
+				getPaddedBounds(this.map);
 			} else {
 				this.url.searchParams.delete('partial');
+				this.map.removeLayer('paddedBoundsLayer');
+				this.map.removeSource('paddedBoundsSource');
+				paddedBoundsLayer.set(undefined);
+				paddedBoundsSource.set(undefined);
 			}
 			pushState(this.url + this.map._hash.getHashString(), {});
 			changeOMfileURL(this.map, this.url, this.latest);

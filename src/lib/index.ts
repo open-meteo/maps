@@ -59,7 +59,7 @@ export const urlParamsToPreferences = (url: URL) => {
 		modelRun.set(new SvelteDate(Date.UTC(year, month, day, hour, minute, 0, 0)));
 	} else {
 		const m = get(modelRun);
-		m.setHours(0, 0, 0, 0);
+		m.setUTCHours(0, 0, 0, 0);
 		modelRun.set(m);
 	}
 
@@ -151,7 +151,10 @@ export const checkClosestHourModelRun = (
 	const domain = get(d);
 
 	let modelRunChanged = false;
-	const referenceTime = new Date(latest ? latest.reference_time : now);
+	let referenceTime: Date | undefined;
+	if (latest) {
+		referenceTime = new Date(latest.reference_time);
+	}
 
 	const year = t.getUTCFullYear();
 	const month = t.getUTCMonth();
@@ -172,17 +175,20 @@ export const checkClosestHourModelRun = (
 		modelRun.set(new SvelteDate(closestModelRun));
 		modelRunChanged = true;
 	} else {
-		if (referenceTime.getTime() === m.getTime()) {
-			url.searchParams.delete('model-run');
-			pushState(url + map._hash.getHashString(), {});
-		} else if (t.getTime() > referenceTime.getTime() && referenceTime.getTime() > m.getTime()) {
-			modelRun.set(new SvelteDate(referenceTime));
-			modelRunChanged = true;
-		} else if (t.getTime() < referenceTime.getTime() - 24 * 60 * 60 * 1000) {
-			// Atleast yesterday, always update to nearest modelRun
-			if (m.getTime() < closestModelRun.getTime()) {
-				modelRun.set(new SvelteDate(closestModelRun));
+		if (referenceTime) {
+			if (referenceTime.getTime() === m.getTime()) {
+				url.searchParams.delete('model-run');
+				pushState(url + map._hash.getHashString(), {});
+			} else if (t.getTime() > referenceTime.getTime() && referenceTime.getTime() > m.getTime()) {
+				modelRun.set(new SvelteDate(referenceTime));
 				modelRunChanged = true;
+			} else if (t.getTime() < referenceTime.getTime() - 24 * 60 * 60 * 1000) {
+				console.log('yesterday');
+				// Atleast yesterday, always update to nearest modelRun
+				if (m.getTime() < closestModelRun.getTime()) {
+					modelRun.set(new SvelteDate(closestModelRun));
+					modelRunChanged = true;
+				}
 			}
 		}
 	}
@@ -341,7 +347,8 @@ let checkSourceLoadedInterval: ReturnType<typeof setInterval>;
 export const changeOMfileURL = (
 	map: maplibregl.Map,
 	url: URL,
-	latest?: DomainMetaData | undefined
+	latest?: DomainMetaData | undefined,
+	resetBounds = true
 ) => {
 	if (map && omFileSource) {
 		loading.set(true);
@@ -349,6 +356,9 @@ export const changeOMfileURL = (
 			popup.remove();
 		}
 		mB.set(map.getBounds());
+		if (resetBounds) {
+			pB.set(map.getBounds());
+		}
 		getPaddedBounds(map);
 
 		checkClosestHourModelRun(map, url, latest);
@@ -436,9 +446,8 @@ export const addPopup = (map: maplibregl.Map) => {
 	});
 };
 
-let geojson;
 const padding = 25; //%
-export const checkBounds = (map: maplibregl.Map, url: URL) => {
+export const checkBounds = (map: maplibregl.Map, url: URL, latest: DomainMetaData | undefined) => {
 	const domain = get(d);
 	const geojson = get(paddedBoundsGeoJSON);
 	const paddedBounds = get(pB);
@@ -449,8 +458,6 @@ export const checkBounds = (map: maplibregl.Map, url: URL) => {
 
 	if (paddedBounds && preferences.partial) {
 		let exceededPadding = false;
-
-		console.log(geojson);
 
 		geojson.features[0].geometry.coordinates = [
 			[paddedBounds?.getSouthWest()['lng'], paddedBounds?.getSouthWest()['lat']],
@@ -486,7 +493,7 @@ export const checkBounds = (map: maplibregl.Map, url: URL) => {
 			exceededPadding = true;
 		}
 		if (exceededPadding) {
-			changeOMfileURL(map, url);
+			changeOMfileURL(map, url, latest, false);
 		}
 	}
 };
@@ -526,7 +533,6 @@ export const getPaddedBounds = (map: maplibregl.Map) => {
 				type: 'geojson',
 				data: get(paddedBoundsGeoJSON)
 			});
-
 			pBS.set(map.getSource('paddedBoundsSource'));
 
 			map.addLayer({
@@ -542,7 +548,6 @@ export const getPaddedBounds = (map: maplibregl.Map) => {
 					'line-width': 5
 				}
 			});
-
 			paddedBoundsLayer.set(map.getLayer('paddedBoundsLayer'));
 		}
 
