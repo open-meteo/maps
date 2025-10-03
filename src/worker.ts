@@ -10,16 +10,9 @@ import {
 	getIndexFromLatLong
 } from '$lib/utils/math';
 
-import { getColorScale, getInterpolator } from '$lib/utils/color-scales';
+import { getColor, getColorScale, getInterpolator, getOpacity } from '$lib/utils/color-scales';
 
-import type {
-	Domain,
-	Variable,
-	ColorScale,
-	Interpolator,
-	DimensionRange,
-	IndexAndFractions
-} from '$lib/types';
+import type { Domain, Variable, Interpolator, DimensionRange, IndexAndFractions } from '$lib/types';
 
 import type { IconListPixels } from '$lib/utils/icons';
 
@@ -101,34 +94,6 @@ const drawArrow = (
 	}
 };
 
-const getColor = (colorScale: ColorScale, px: number): number[] => {
-	return colorScale.colors[
-		Math.min(
-			colorScale.colors.length - 1,
-			Math.max(0, Math.floor((px - colorScale.min) * colorScale.scalefactor))
-		)
-	];
-};
-
-const getOpacity = (v: string, px: number, dark: boolean): number => {
-	if (v == 'cloud_cover' || v == 'thunderstorm_probability') {
-		// scale opacity with percentage
-		return 255 * (px ** 1.5 / 1000) * (OPACITY / 100);
-	} else if (v.startsWith('cloud_base')) {
-		// scale cloud base to 20900m
-		return Math.min(1 - px / 20900, 1) * 255 * (OPACITY / 100);
-	} else if (v.startsWith('precipitation')) {
-		// scale opacity with precip values below 1.5mm
-		return Math.min(px / 1.5, 1) * 255 * (OPACITY / 100);
-	} else if (v.startsWith('wind')) {
-		// scale opacity with wind values below 14kn
-		return Math.min((px - 2) / 12, 1) * 255 * (OPACITY / 100);
-	} else {
-		// else set the opacity with env variable and deduct 20% for darkmode
-		return 255 * (dark ? OPACITY / 100 - 0.2 : OPACITY / 100);
-	}
-};
-
 const getIndexAndFractions = (
 	lat: number,
 	lon: number,
@@ -166,7 +131,7 @@ self.onmessage = async (message) => {
 
 		const domain = message.data.domain;
 		const variable = message.data.variable;
-		const colorScale = getColorScale(message.data.variable.value);
+		const colorScale = message.data.colorScale;
 
 		const pixels = TILE_SIZE * TILE_SIZE;
 		const rgba = new Uint8ClampedArray(pixels * 4);

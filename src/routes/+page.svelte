@@ -239,9 +239,17 @@
 				<div class="mt-3 flex flex-col">
 					{#each Object.entries(colorScales) as [key, cs] (key)}
 						{@const variable = variableOptions.find((vO) => vO.value.startsWith(key))}
-						<div class="mt-3">
-							{variable.label}
-							<div class="flex w-[300px] justify-between">
+						<button
+							class="mt-3 flex cursor-pointer flex-col"
+							onclick={() => {
+								colorScales.custom = cs;
+								changeOMfileURL(map, url, latest);
+							}}
+						>
+							<div class="text-left">
+								{variable?.label}
+							</div>
+							<div class="flex max-w-[300px] justify-between">
 								<span>min: {cs.min}</span> <span>max: {cs.max}</span>
 							</div>
 							<div class="flex h-[25px] w-full rounded-md">
@@ -253,7 +261,7 @@
 									></div>
 								{/each}
 							</div>
-						</div>
+						</button>
 					{/each}
 				</div>
 			</div>
