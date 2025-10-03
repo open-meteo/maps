@@ -12,7 +12,7 @@ import {
 	getIndicesFromBounds
 } from '$lib/utils/math';
 
-import { getInterpolator } from '$lib/utils/color-scales';
+import { colorScales as defaultColorScales, getInterpolator } from '$lib/utils/color-scales';
 
 import { domainOptions } from '$lib/utils/domains';
 import { variableOptions } from '$lib/utils/variables';
@@ -278,11 +278,12 @@ const initOMFile = (url: string): Promise<void> => {
 };
 
 export const omProtocol = async (
-	params: RequestParameters
+	params: RequestParameters,
+	colorScales: ColorScales = defaultColorScales
 ): Promise<GetResourceResponse<TileJSON | ImageBitmap>> => {
 	if (params.type == 'json') {
 		try {
-			await initOMFile(params.url);
+			await initOMFile(params.url, colorScales);
 		} catch (e) {
 			throw new Error(e);
 		}

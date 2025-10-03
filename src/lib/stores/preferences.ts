@@ -1,9 +1,11 @@
 import { writable, type Writable } from 'svelte/store';
 
-import { persisted } from 'svelte-persisted-store';
+import { persisted, type Persisted } from 'svelte-persisted-store';
 
 import { domainOptions } from '$lib/utils/domains';
 import { variableOptions } from '$lib/utils/variables';
+
+import type { ColorScales } from '$lib/types';
 
 export const preferences = persisted('preferences', {
 	// buttons
@@ -43,3 +45,8 @@ export const paddedBoundsLayer: Writable<maplibregl.StyleLayer | undefined> = wr
 export const paddedBoundsSource: Writable<maplibregl.GeoJSONSource | undefined> =
 	writable(undefined);
 export const paddedBoundsGeoJSON: Writable<GeoJSON.GeoJSON | null> = writable(null);
+
+export const customColorScales: Persisted<ColorScales | undefined> = persisted(
+	'customColorScales',
+	undefined
+);

@@ -66,6 +66,7 @@
 	} from '$lib';
 
 	import '../styles.css';
+	import { colorScales } from '$lib/utils/color-scales';
 
 	let url: URL;
 	let map: maplibregl.Map;
@@ -78,7 +79,7 @@
 	});
 
 	onMount(async () => {
-		maplibregl.addProtocol('om', omProtocol);
+		maplibregl.addProtocol('om', (params) => omProtocol(params, colorScales));
 
 		const style = await getStyle();
 
@@ -231,7 +232,32 @@
 />
 <div class="absolute">
 	<Sheet.Root bind:open={$sheet}>
-		<Sheet.Content><div class="px-6 pt-12">Units</div></Sheet.Content>
+		<Sheet.Content class="overflow-y-auto"
+			><div class="px-6 pt-12"><h2 class="text-lg font-bold">Units</h2></div>
+			<div class="p-6">
+				<h2 class="text-lg font-bold">Colors</h2>
+				<div class="mt-3 flex flex-col">
+					{#each Object.entries(colorScales) as [key, cs] (key)}
+						{@const variable = variableOptions.find((vO) => vO.value.startsWith(key))}
+						<div class="mt-3">
+							{variable.label}
+							<div class="flex w-[300px] justify-between">
+								<span>min: {cs.min}</span> <span>max: {cs.max}</span>
+							</div>
+							<div class="flex h-[25px] w-full rounded-md">
+								{#each cs.colors as c, i (i)}
+									<div
+										style={'background: rgba(' +
+											c.join(',') +
+											`);  height: 25px; width: ${300 / ((cs.max - cs.min) * cs.scalefactor)}px;`}
+									></div>
+								{/each}
+							</div>
+						</div>
+					{/each}
+				</div>
+			</div>
+		</Sheet.Content>
 	</Sheet.Root>
 
 	<Drawer.Root
