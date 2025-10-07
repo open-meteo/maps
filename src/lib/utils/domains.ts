@@ -355,6 +355,27 @@ export const domainOptions: Array<Domain> = [
 
 	// ECWMF
 	{
+		value: 'ecmwf_ifs',
+		label: 'ECMWF IFS',
+		grid: {
+			identifier: 'O1280',
+			nx: 2560,
+			ny: 1920,
+			latMin: -90,
+			lonMin: -180,
+			dx: 360 / 2560,
+			dy: 180 / (1920 - 1),
+			zoom: 2,
+			center: function () {
+				this.center = getCenterPoint(this);
+				return this;
+			}
+		},
+		time_interval: 1,
+		model_interval: 1,
+		windUVComponents: true
+	},
+	{
 		value: 'ecmwf_ifs025',
 		label: 'ECMWF IFS 0.25°',
 		grid: {

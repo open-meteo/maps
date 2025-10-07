@@ -7,6 +7,7 @@ import { DynamicProjection, ProjectionGrid, type Projection } from '$lib/utils/p
 import type { Domain, DimensionRange, Variable } from '$lib/types';
 
 import type { Data } from './om-protocol';
+import { GaussianGrid } from '$lib/utils/gaussian';
 
 export class OMapsFileReader {
 	child;
@@ -56,6 +57,10 @@ export class OMapsFileReader {
 
 	async readVariable(variable: Variable, ranges: DimensionRange[] | null = null): Promise<Data> {
 		let values, directions;
+
+		const isO1280Grid = this.domain.grid.identifier === 'O1280';
+		console.log('isO1280Grid:', isO1280Grid);
+
 		if (variable.value.includes('_u_component')) {
 			// combine uv components, and calculate directions
 			const variableReaderU = await this.reader.getChildByName(variable.value);
@@ -101,6 +106,15 @@ export class OMapsFileReader {
 			);
 
 			directions = await variableReader.read(OmDataType.FloatArray, this.ranges);
+		}
+
+		if (isO1280Grid && values) {
+			const gaussianGrid = new GaussianGrid();
+
+			values = gaussianGrid.remapToRegularGrid(values, 2560, 1920);
+			if (directions) {
+				directions = gaussianGrid.remapToRegularGrid(directions, 2560, 1920);
+			}
 		}
 
 		return {
