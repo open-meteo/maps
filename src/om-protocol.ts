@@ -1,5 +1,3 @@
-import { browser } from '$app/environment';
-
 import { type GetResourceResponse, type RequestParameters } from 'maplibre-gl';
 
 import { setupGlobalCache, type TypedArray } from '@openmeteo/file-reader';
@@ -21,8 +19,6 @@ import { DynamicProjection, ProjectionGrid, type Projection } from '$lib/utils/p
 
 import { OMapsFileReader } from './omaps-reader';
 
-import TileWorker from './worker?worker';
-
 import arrowPixelsSource from '$lib/utils/arrow';
 
 import type {
@@ -34,6 +30,7 @@ import type {
 	ColorScale,
 	DimensionRange
 } from '$lib/types';
+import { WorkerPool } from './worker-pool';
 
 let dark = false;
 let partial = false;
@@ -83,27 +80,7 @@ export interface Data {
 let data: Data;
 
 const TILE_SIZE = Number(import.meta.env.VITE_TILE_SIZE) * 2;
-
-let worker: Worker;
-const pendingTiles = new Map<string, (tile: ImageBitmap) => void>();
-
-const getWorker = () => {
-	// ensure this code only runs on the client
-	if (browser && !worker) {
-		worker = new TileWorker();
-		worker.onmessage = (message) => {
-			if (message.data.type === 'RT') {
-				const key = message.data.key;
-				const resolve = pendingTiles.get(key);
-				if (resolve) {
-					resolve(message.data.tile);
-					pendingTiles.delete(key);
-				}
-			}
-		};
-	}
-	return worker;
-};
+const workerPool = new WorkerPool();
 
 export const getValueFromLatLong = (
 	lat: number,
@@ -143,14 +120,12 @@ export const getValueFromLatLong = (
 const getTile = async ({ z, x, y }: TileIndex, omUrl: string): Promise<ImageBitmap> => {
 	const key = `${omUrl}/${TILE_SIZE}/${z}/${x}/${y}`;
 
-	const tileWorker = getWorker();
-
 	let iconList = {};
 	if (variable.value.startsWith('wind') || variable.value.startsWith('wave')) {
 		iconList = arrowPixelData;
 	}
 
-	tileWorker.postMessage({
+	return await workerPool.requestTile({
 		type: 'GT',
 		x,
 		y,
@@ -163,9 +138,6 @@ const getTile = async ({ z, x, y }: TileIndex, omUrl: string): Promise<ImageBitm
 		dark: dark,
 		mapBounds: mapBounds,
 		iconPixelData: iconList
-	});
-	return new Promise<ImageBitmap>((resolve) => {
-		pendingTiles.set(key, resolve);
 	});
 };
 
