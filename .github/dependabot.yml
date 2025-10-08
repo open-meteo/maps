@@ -14,43 +14,46 @@ updates:
     commit-message:
       prefix: 'fix: '
     groups:
-      svelte:
+      openmeteo:
         patterns:
-          - 'vite'
-          - 'svelte'
+          - '*'
+      # svelte:
+      #   patterns:
+      #     - 'vite'
+      #     - 'svelte'
 
-          - 'vite-*'
-          - 'rollup*'
-          - 'svelte-*'
-          - '@sveltejs/*'
+      #     - 'vite-*'
+      #     - 'rollup*'
+      #     - 'svelte-*'
+      #     - '@sveltejs/*'
 
-          - 'mdsvex'
-          - 'mode-watcher'
-      eslint:
-        patterns:
-          - 'eslint'
-          - 'prettier'
-          - 'typescript'
+      #     - 'mdsvex'
+      #     - 'mode-watcher'
+      # eslint:
+      #   patterns:
+      #     - 'eslint'
+      #     - 'prettier'
+      #     - 'typescript'
 
-          - 'eslint-*'
-          - 'prettier-*'
-          - '@typescript-eslint/*'
+      #     - 'eslint-*'
+      #     - 'prettier-*'
+      #     - '@typescript-eslint/*'
 
-          - '@eslint/compat'
-      shadcn:
-        patterns:
-          - 'zod'
-          - 'simple-icons'
+      #     - '@eslint/compat'
+      # shadcn:
+      #   patterns:
+      #     - 'zod'
+      #     - 'simple-icons'
 
-          - '@lucide/svelte'
-          - 'lucide-svelte'
-          - 'lucide-static'
-      tailwind:
-        patterns:
-          - 'tailwindcss'
+      #     - '@lucide/svelte'
+      #     - 'lucide-svelte'
+      #     - 'lucide-static'
+      # tailwind:
+      #   patterns:
+      #     - 'tailwindcss'
 
-          - 'tailwind-*'
-          - '@tailwindcss*'
+      #     - 'tailwind-*'
+      #     - '@tailwindcss*'
   - package-ecosystem: 'github-actions'
     directory: '/'
     schedule:
