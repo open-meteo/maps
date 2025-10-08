@@ -48,13 +48,18 @@ export type Variable = {
 
 export type Variables = Variable[];
 
-export type ColorScale = {
+export interface ColorScale {
 	min: number;
 	max: number;
 	unit: string;
+	steps: number;
 	colors: number[][];
 	scalefactor: number;
 	interpolationMethod: InterpolationMethod;
+}
+
+export type ColorScales = {
+	[key: string]: ColorScale;
 };
 
 export type InterpolationMethod = 'none' | 'linear' | 'hermite2d';
