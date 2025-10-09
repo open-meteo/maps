@@ -41,14 +41,14 @@
 </script>
 
 {#await latestRequest}
-	<div class="absolute top-1 left-1 max-h-[300px]"></div>
+	<div class="absolute top-2.5 left-2.5 max-h-[300px]"></div>
 {:then latest}
 	<div
-		class="absolute top-1 flex max-h-[300px] gap-1 duration-300 {variableSelectionExtended
-			? 'left-1'
+		class="absolute top-2.5 flex max-h-[300px] gap-2.5 duration-300 {variableSelectionExtended
+			? 'left-2.5'
 			: '-left-[200px]'} "
 	>
-		<div class="flex flex-col gap-1">
+		<div class="flex flex-col gap-2.5">
 			<Popover.Root bind:open={domainSelectionOpen}>
 				<Popover.Trigger>
 					<Button
@@ -63,9 +63,9 @@
 						<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
 					</Button>
 				</Popover.Trigger>
-				<Popover.Content class="ml-1 w-[243px] bg-transparent p-0">
-					<Command.Root>
-						<Command.Input placeholder="Search variables..." />
+				<Popover.Content class="ml-2.5 w-[250px] bg-transparent p-0">
+					<Command.Root autofocus={false}>
+						<Command.Input autofocus={false} placeholder="Search variables..." />
 						<Command.List>
 							<Command.Empty>No domains found.</Command.Empty>
 							{#each domainGroups as { value: group, label: groupLabel } (group)}
@@ -111,9 +111,9 @@
 						<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
 					</Button>
 				</Popover.Trigger>
-				<Popover.Content class="ml-1 w-[243px] bg-transparent p-0">
-					<Command.Root>
-						<Command.Input placeholder="Search variables..." />
+				<Popover.Content class="ml-2.5 w-[250px] bg-transparent p-0">
+					<Command.Root autofocus={false}>
+						<Command.Input autofocus={false} placeholder="Search variables..." />
 						<Command.List>
 							<Command.Empty>No variables found.</Command.Empty>
 							<Command.Group>
@@ -150,7 +150,7 @@
 		</div>
 
 		<button
-			class="bg-background/90 dark:bg-background/70 hover:!bg-background flex h-9 w-10 cursor-pointer items-center rounded-md p-1"
+			class="border-border bg-background/90 dark:bg-background/70 hover:!bg-background flex h-9 w-10 cursor-pointer items-center rounded-md border p-0.5"
 			onclick={() => {
 				variableSelectionExtended = !variableSelectionExtended;
 			}}
