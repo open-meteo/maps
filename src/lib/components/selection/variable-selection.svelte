@@ -68,16 +68,17 @@
 	<div class="absolute top-2.5 left-2.5 max-h-[300px]"></div>
 {:then latest}
 	<div
-		class="absolute top-2.5 flex max-h-[300px] gap-2.5 duration-300 {variableSelectionExtended
+		class="absolute top-[10px] flex max-h-[300px] gap-2.5 duration-300 {variableSelectionExtended
 			? 'left-2.5'
-			: '-left-[200px]'} "
+			: '-left-[182px]'} "
 	>
 		<div class="flex flex-col gap-2.5">
 			<Popover.Root bind:open={domainSelectionOpen}>
 				<Popover.Trigger>
 					<Button
 						variant="outline"
-						class="bg-background/90 dark:bg-background/70 hover:!bg-background w-[200px] cursor-pointer justify-between"
+						style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
+						class="bg-background/90 dark:bg-background/70 hover:!bg-background h-7.25 w-[180px] cursor-pointer justify-between rounded-[4px] border-none !p-1.5"
 						role="combobox"
 						aria-expanded={domainSelectionOpen}
 					>
@@ -87,8 +88,12 @@
 						<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
 					</Button>
 				</Popover.Trigger>
-				<Popover.Content class="ml-2.5 w-[250px] bg-transparent p-0">
-					<Command.Root autofocus={false}>
+				<Popover.Content class="ml-2.5 w-[250px] rounded-[4px] border-none bg-transparent p-0">
+					<Command.Root
+						style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
+						class="rounded-[3px]"
+						autofocus={false}
+					>
 						<Command.Input autofocus={false} placeholder="Search domains..." />
 						<Command.List>
 							<Command.Empty>No domains found.</Command.Empty>
@@ -125,7 +130,8 @@
 				<Popover.Trigger class={domainSelectionOpen ? 'hidden' : ''}>
 					<Button
 						variant="outline"
-						class="bg-background/90 dark:bg-background/70 hover:!bg-background w-[200px] cursor-pointer justify-between"
+						style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
+						class="bg-background/90 dark:bg-background/70 hover:!bg-background h-7.25 w-[180px] cursor-pointer justify-between rounded-[4px] border-none !p-1.5"
 						role="combobox"
 						aria-expanded={variableSelectionOpen}
 					>
@@ -135,8 +141,12 @@
 						<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
 					</Button>
 				</Popover.Trigger>
-				<Popover.Content class="ml-2.5 w-[250px] bg-transparent p-0">
-					<Command.Root autofocus={false}>
+				<Popover.Content class="ml-2.5 w-[250px] rounded-[4px] border-none bg-transparent p-0">
+					<Command.Root
+						style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
+						class="rounded-[3px]"
+						autofocus={false}
+					>
 						<Command.Input autofocus={false} placeholder="Search variables..." />
 						<Command.List>
 							<Command.Empty>No variables found.</Command.Empty>
@@ -174,7 +184,8 @@
 		</div>
 
 		<button
-			class="border-border bg-background/90 dark:bg-background/70 hover:!bg-background flex h-9 w-10 cursor-pointer items-center rounded-md border p-0.5"
+			style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
+			class=" bg-background/90 dark:bg-background/70 hover:!bg-background flex h-7.25 w-7.25 cursor-pointer items-center rounded-[4px] p-0"
 			onclick={() => {
 				variableSelectionExtended = !variableSelectionExtended;
 			}}
@@ -183,36 +194,36 @@
 			{#if variableSelectionExtended}
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
-					width="16"
-					height="16"
+					width="17"
+					height="17"
 					viewBox="0 0 24 24"
 					fill="none"
 					stroke="currentColor"
-					stroke-width="1.5"
+					stroke-width="2"
 					stroke-linecap="round"
 					stroke-linejoin="round"
-					class="lucide lucide-chevron-left-icon lucide-chevron-left -mr-0.75"
+					class="lucide lucide-chevron-left-icon lucide-chevron-left -mr-1.25"
 					><path d="m15 18-6-6 6-6" /></svg
 				>
 			{:else}
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
-					width="16"
-					height="16"
+					width="17"
+					height="17"
 					viewBox="0 0 24 24"
 					fill="none"
 					stroke="currentColor"
-					stroke-width="1.5"
+					stroke-width="2"
 					stroke-linecap="round"
 					stroke-linejoin="round"
-					class="lucide lucide-chevron-right-icon lucide-chevron-right -mr-0.75"
+					class="lucide lucide-chevron-right-icon lucide-chevron-right -mr-1.25"
 					><path d="m9 18 6-6-6-6" /></svg
 				>
 			{/if}
 			<svg
 				xmlns="http://www.w3.org/2000/svg"
 				opacity="0.75"
-				stroke-width="1.5"
+				stroke-width="1.75"
 				width="24"
 				height="24"
 				viewBox="0 0 24 24"

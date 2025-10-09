@@ -180,9 +180,7 @@
 {/if}
 
 <div class="map" id="#map_container" bind:this={mapContainer}></div>
-<div class="absolute bottom-1 left-1 max-h-[300px]">
-	<Scale showScale={$preferences.showScale} variables={$variables} />
-</div>
+<Scale showScale={$preferences.showScale} variables={$variables} />
 <VariableSelection
 	domain={$domain}
 	variables={$variables}

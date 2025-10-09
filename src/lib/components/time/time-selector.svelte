@@ -99,7 +99,8 @@
 </script>
 
 <div
-	class="time-selector bg-background/90 dark:bg-background/70 absolute bottom-14.5 left-[50%] mx-auto transform-[translate(-50%)] rounded-lg px-3 py-3 {!timeSelector
+	style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
+	class="time-selector bg-background/90 dark:bg-background/70 absolute bottom-14.5 left-[50%] mx-auto transform-[translate(-50%)] rounded-[4px] px-3 py-3 {!timeSelector
 		? 'pointer-events-none opacity-0'
 		: 'opacity-100'}"
 >
