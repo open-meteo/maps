@@ -90,8 +90,7 @@
 			keyboard: false,
 			hash: true,
 			maxZoom: 11,
-			maxPitch: 85,
-			renderWorldCopies: false
+			maxPitch: 85
 		});
 
 		setMapControlSettings(map, url);
