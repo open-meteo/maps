@@ -54,6 +54,16 @@ export class OMapsFileReader {
 		}
 	}
 
+	/** Creates a Float32Array with the specified length.
+	 * If cross-origin isolation is enabled and SharedArrayBuffer is supported,
+	 * a SharedArrayBuffer is used to create the Float32Array.
+	 * Otherwise, a regular Float32Array is created.
+	 */
+	makeFloat32Array = (len: number) =>
+		crossOriginIsolated && typeof SharedArrayBuffer !== 'undefined'
+			? new Float32Array(new SharedArrayBuffer(len * Float32Array.BYTES_PER_ELEMENT))
+			: new Float32Array(len);
+
 	async readVariable(variable: Variable, ranges: DimensionRange[] | null = null): Promise<Data> {
 		let values, directions: TypedArray | undefined;
 		if (variable.value.includes('_u_component')) {
@@ -74,8 +84,8 @@ export class OMapsFileReader {
 				valuesVPromise
 			]);
 
-			values = new Float32Array(valuesU.length);
-			directions = new Float32Array(valuesU.length);
+			values = this.makeFloat32Array(valuesU.length);
+			directions = this.makeFloat32Array(valuesU.length);
 			for (const [i, uValue] of valuesU.entries()) {
 				values[i] = Math.sqrt(Math.pow(uValue, 2) + Math.pow(valuesV[i], 2)) * 1.94384; // convert from m/s to knots
 				directions[i] = (Math.atan2(uValue, valuesV[i]) * (180 / Math.PI) + 360) % 360;
@@ -85,16 +95,7 @@ export class OMapsFileReader {
 			const dimensions = variableReader.getDimensions();
 			this.setRanges(ranges, dimensions);
 
-			console.log('crossoriginisolated', crossOriginIsolated);
-			const rawValues = await variableReader.read(OmDataType.FloatArray, this.ranges);
-			if (crossOriginIsolated) {
-				const sab = new SharedArrayBuffer(rawValues.length * Float32Array.BYTES_PER_ELEMENT);
-				const sabValues = new Float32Array(sab);
-				sabValues.set(rawValues);
-				values = sabValues;
-			} else {
-				values = rawValues;
-			}
+			values = await variableReader.read(OmDataType.FloatArray, this.ranges);
 		}
 
 		if (variable.value.includes('_speed_')) {
@@ -112,6 +113,24 @@ export class OMapsFileReader {
 			);
 
 			directions = await variableReader.read(OmDataType.FloatArray, this.ranges);
+		}
+
+		// Check if the array storage buffers are SABs. If not, convert them to SABs
+		console.log('crossoriginisolated', crossOriginIsolated);
+		if (crossOriginIsolated) {
+			if (!(values.buffer instanceof SharedArrayBuffer)) {
+				console.log('Converting values buffer to SharedArrayBuffer');
+				const sab = new SharedArrayBuffer(values.length * Float32Array.BYTES_PER_ELEMENT);
+				const temp = new Float32Array(sab);
+				temp.set(values);
+				values = temp;
+			}
+			if (directions && !(directions.buffer instanceof SharedArrayBuffer)) {
+				const sab = new SharedArrayBuffer(directions.length * Float32Array.BYTES_PER_ELEMENT);
+				const temp = new Float32Array(sab);
+				temp.set(directions);
+				directions = temp;
+			}
 		}
 
 		return {
