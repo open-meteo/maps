@@ -75,7 +75,7 @@
 					break;
 			}
 		} else {
-			toast('Still loading another OM file');
+			toast.warning('Still loading another OM file');
 		}
 	};
 

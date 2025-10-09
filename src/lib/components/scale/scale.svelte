@@ -35,7 +35,7 @@
 		{/each}
 		{#if colorScale.unit}
 			<div
-				class="bg-background absolute top-[-20px] w-[25px] rounded-t-sm py-1 text-center text-xs"
+				class="bg-background/90 dark:bg-background/70 absolute top-[-20px] w-[25px] rounded-t-sm py-1 text-center text-xs"
 			>
 				{colorScale.unit}
 			</div>

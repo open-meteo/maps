@@ -200,7 +200,7 @@ export const checkClosestModelRun = (
 	if (modelRunChanged) {
 		url.searchParams.set('model-run', modelRun.toISOString().replace(/[:Z]/g, '').slice(0, 15));
 		pushState(url + map._hash.getHashString(), {});
-		toast(
+		toast.info(
 			'Model run set to: ' +
 				modelRun.getUTCFullYear() +
 				'-' +
@@ -215,7 +215,7 @@ export const checkClosestModelRun = (
 	}
 	// day the data structure was altered
 	if (modelRun.getTime() < 1752624000000) {
-		toast('Date selected probably too old, since data structure altered on 16th July 2025');
+		toast.warning('Date selected probably too old, since data structure altered on 16th July 2025');
 	}
 };
 
@@ -310,7 +310,7 @@ export const addOmFileLayer = (map: maplibregl.Map) => {
 			checked = 0;
 			loading.set(false);
 			clearInterval(checkSourceLoadedInterval);
-			toast(e.error.message);
+			toast.error(e.error.message);
 		});
 	}
 
@@ -375,7 +375,7 @@ export const changeOMfileURL = (
 			if ((omFileSource && omFileSource.loaded()) || checked >= 200) {
 				if (checked >= 200) {
 					// Timeout after 10s
-					toast('Request timed out');
+					toast.error('Request timed out');
 				}
 				checked = 0;
 				loading.set(false);

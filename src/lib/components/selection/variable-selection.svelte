@@ -1,179 +1,207 @@
 <script lang="ts">
-	import { pad } from '$lib';
+	import { MediaQuery } from 'svelte/reactivity';
+
+	import { Button } from '$lib/components/ui/button';
+
+	import CheckIcon from '@lucide/svelte/icons/check';
+	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down';
+
+	import * as Popover from '$lib/components/ui/popover';
+	import * as Command from '$lib/components/ui/command';
 
 	import { domainGroups, domainOptions } from '$lib/utils/domains';
 	import { variableOptions } from '$lib/utils/variables';
 
-	import { Button } from '$lib/components/ui/button';
-
-	import * as Select from '$lib/components/ui/select';
-
 	import type { Domain, DomainMetaData, Variables } from '$lib/types';
+	import { onMount } from 'svelte';
 
 	interface Props {
-		time: Date;
-		model: Date;
 		domain: Domain;
 		variables: Variables;
-		modelRuns;
 		latestRequest: Promise<DomainMetaData>;
 		domainChange: (value: string) => Promise<void>;
 		variablesChange: (value: string) => void;
-		progressRequest: Promise<DomainMetaData>;
-		modelRunChange: (mr: Date) => void;
 	}
-	let {
-		time,
-		model,
-		domain,
-		variables,
-		modelRuns,
-		latestRequest,
-		domainChange,
-		variablesChange,
-		progressRequest,
-		modelRunChange
-	}: Props = $props();
+	let { domain, variables, latestRequest, domainChange, variablesChange }: Props = $props();
 
-	let selectedDomain = $derived(domain.value);
-	let selectedVariable = $derived(variables[0].value);
+	let selectedDomain = $derived(domain);
+	let selectedVariable = $derived(variables[0]);
 
-	const timeValid = $derived.by(async () => {
-		let latest = await latestRequest;
-		for (let vt of latest.valid_times) {
-			let d = new Date(vt);
-			if (time - d == 0) {
-				return true;
-			}
+	let domainSelectionOpen = $state(false);
+	let variableSelectionOpen = $state(false);
+
+	let variableSelectionExtended = $state(false);
+
+	const desktop = new MediaQuery('min-width: 768px');
+	onMount(() => {
+		if (desktop.current) {
+			variableSelectionExtended = true;
 		}
-		return false;
 	});
 </script>
 
-<div class="mt-3 flex w-full flex-col flex-wrap gap-6 sm:flex-row sm:gap-0">
-	<div class="flex flex-col gap-3 sm:w-1/2 md:w-1/3 md:pr-3">
-		<h2 class="text-lg font-bold">Domains</h2>
-		<div class="relative">
-			<Select.Root
-				name="domains"
-				type="single"
-				bind:value={selectedDomain}
-				onValueChange={(value) => {
-					domainChange(value);
-				}}
-			>
-				<Select.Trigger
-					aria-label="Domain Selection Trigger"
-					class="top-[0.35rem] !h-12 w-full  pt-6 ">{domain?.label}</Select.Trigger
-				>
-				<Select.Content side="bottom">
-					{#each domainGroups as { value: group, label: groupLabel } (group)}
-						<Select.Group>
-							<Select.GroupHeading>{groupLabel}</Select.GroupHeading>
-							{#each domainOptions as { value, label } (value)}
-								{#if value.startsWith(group)}
-									<Select.Item {value}>{label}</Select.Item>
-								{/if}
-							{/each}
-						</Select.Group>
-					{/each}
-				</Select.Content>
-				<Select.Label class="absolute top-0 left-2 z-10 px-1 text-xs">Domain</Select.Label>
-			</Select.Root>
-		</div>
-	</div>
-
-	{#await latestRequest}
-		<div class="flex flex-col gap-1 sm:w-1/2 md:w-1/3 md:px-3">
-			<h2 class="mb-2 text-lg font-bold">Model runs</h2>
-			Loading latest model runs...
-		</div>
-
-		<div class="flex flex-col gap-1 sm:w-1/2 md:w-1/3 md:pl-3">
-			<h2 class="mb-2 text-lg font-bold">Variables</h2>
-			Loading domain variables...
-		</div>
-	{:then latest}
-		<div class="flex flex-col gap-1 sm:w-1/2 md:w-1/3 md:px-3">
-			<h2 class="mb-2 text-lg font-bold">Model runs</h2>
-			{#each modelRuns as mr, i (i)}
-				<Button
-					class="cursor-pointer bg-blue-200 hover:bg-blue-600 {mr.getTime() === model.getTime()
-						? 'bg-blue-400'
-						: ''}"
-					onclick={() => {
-						modelRunChange(mr);
-					}}
-					>{mr.getUTCFullYear() +
-						'-' +
-						pad(mr.getUTCMonth() + 1) +
-						'-' +
-						pad(mr.getUTCDate()) +
-						' ' +
-						pad(mr.getUTCHours()) +
-						':' +
-						pad(mr.getUTCMinutes())}</Button
-				>
-			{/each}
-			{#await progressRequest then progress}
-				{#if progress.completed !== true}
-					<h2 class="mt-4 mb-2 text-lg font-bold">In progress</h2>
-
-					{@const ip = new Date(progress.reference_time)}
+{#await latestRequest}
+	<div class="absolute top-1 left-1 max-h-[300px]"></div>
+{:then latest}
+	<div
+		class="absolute top-1 flex max-h-[300px] gap-1 duration-300 {variableSelectionExtended
+			? 'left-1'
+			: '-left-[200px]'} "
+	>
+		<div class="flex flex-col gap-1">
+			<Popover.Root bind:open={domainSelectionOpen}>
+				<Popover.Trigger>
 					<Button
-						class="cursor-pointer bg-blue-200 hover:bg-blue-600 {ip.getTime() === model.getTime()
-							? 'bg-blue-400'
-							: ''}"
-						onclick={() => {
-							modelRunChange(ip);
-						}}
-						>{ip.getUTCFullYear() +
-							'-' +
-							pad(ip.getUTCMonth() + 1) +
-							'-' +
-							pad(ip.getUTCDate()) +
-							' ' +
-							pad(ip.getUTCHours()) +
-							':' +
-							pad(ip.getUTCMinutes())}</Button
+						variant="outline"
+						class="bg-background/90 dark:bg-background/70 hover:!bg-background w-[200px] cursor-pointer justify-between"
+						role="combobox"
+						aria-expanded={domainSelectionOpen}
 					>
-				{/if}
-			{/await}
-		</div>
-		{#if timeValid}
-			<div class="flex flex-col gap-1 sm:w-1/2 md:w-1/3 md:pl-3">
-				<h2 class="mb-2 text-lg font-bold">Variables</h2>
-
-				<div class="relative">
-					<Select.Root
-						name="variables"
-						type="single"
-						bind:value={selectedVariable}
-						onValueChange={(value) => {
-							variablesChange(value);
-						}}
-					>
-						<Select.Trigger
-							aria-label="Variable Selection Trigger"
-							class="top-[0.35rem] !h-12 w-full  pt-6 ">{variables[0]?.label}</Select.Trigger
-						>
-						<Select.Content side="bottom">
-							{#each latest.variables as vr, i (i)}
-								{#if !vr.includes('v_component') && !vr.includes('_direction')}
-									{@const v = variableOptions.find((vo) => vo.value === vr)
-										? variableOptions.find((vo) => vo.value === vr)
-										: { value: vr, label: vr }}
-
-									<Select.Item value={v.value}>{v.label}</Select.Item>
-								{/if}
+						<div class="truncate">
+							{selectedDomain?.label || 'Select a domain...'}
+						</div>
+						<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
+					</Button>
+				</Popover.Trigger>
+				<Popover.Content class="ml-1 w-[243px] bg-transparent p-0">
+					<Command.Root>
+						<Command.Input placeholder="Search variables..." />
+						<Command.List>
+							<Command.Empty>No domains found.</Command.Empty>
+							{#each domainGroups as { value: group, label: groupLabel } (group)}
+								<Command.Group heading={groupLabel}>
+									{#each domainOptions as { value, label } (value)}
+										{#if value.startsWith(group)}
+											<Command.Item
+												{value}
+												class="cursor-pointer"
+												onSelect={async () => {
+													domainChange(value);
+												}}
+											>
+												<div class="flex w-full items-center justify-between">
+													{label}
+													<CheckIcon
+														class="size-4 {selectedDomain.value !== value
+															? 'text-transparent'
+															: ''}"
+													/>
+												</div>
+											</Command.Item>
+										{/if}
+									{/each}
+								</Command.Group>
 							{/each}
-						</Select.Content>
-						<Select.Label class="absolute top-0 left-2 z-10 px-1 text-xs">Variable</Select.Label>
-					</Select.Root>
-				</div>
-			</div>
-		{:else}
-			<div class="flex min-w-1/4 flex-col gap-1">No valid time selected</div>
-		{/if}
-	{/await}
-</div>
+						</Command.List>
+					</Command.Root>
+				</Popover.Content>
+			</Popover.Root>
+			<Popover.Root bind:open={variableSelectionOpen}>
+				<Popover.Trigger class={domainSelectionOpen ? 'hidden' : ''}>
+					<Button
+						variant="outline"
+						class="bg-background/90 dark:bg-background/70 hover:!bg-background w-[200px] cursor-pointer justify-between"
+						role="combobox"
+						aria-expanded={variableSelectionOpen}
+					>
+						<div class="truncate">
+							{selectedVariable?.label || 'Select a variable...'}
+						</div>
+						<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
+					</Button>
+				</Popover.Trigger>
+				<Popover.Content class="ml-1 w-[243px] bg-transparent p-0">
+					<Command.Root>
+						<Command.Input placeholder="Search variables..." />
+						<Command.List>
+							<Command.Empty>No variables found.</Command.Empty>
+							<Command.Group>
+								{#each latest.variables as vr, i (i)}
+									{#if !vr.includes('v_component') && !vr.includes('_direction')}
+										{@const v = variableOptions.find((vo) => vo.value === vr)
+											? variableOptions.find((vo) => vo.value === vr)
+											: { value: vr, label: vr }}
+
+										<Command.Item
+											value={v.value}
+											class="cursor-pointer"
+											onSelect={() => {
+												variablesChange(v.value);
+											}}
+										>
+											<div class="flex w-full items-center justify-between">
+												{v.label}
+												<CheckIcon
+													class="size-4 {selectedVariable.value !== v.value
+														? 'text-transparent'
+														: ''}"
+												/>
+											</div>
+										</Command.Item>
+									{/if}
+								{/each}
+							</Command.Group>
+						</Command.List>
+					</Command.Root>
+				</Popover.Content>
+			</Popover.Root>
+		</div>
+
+		<button
+			class="bg-background/90 dark:bg-background/70 hover:!bg-background flex h-9 w-10 cursor-pointer items-center rounded-md p-1"
+			onclick={() => {
+				variableSelectionExtended = !variableSelectionExtended;
+			}}
+			aria-label="Hide Variable Selection"
+		>
+			{#if variableSelectionExtended}
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="16"
+					height="16"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="1.5"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					class="lucide lucide-chevron-left-icon lucide-chevron-left -mr-0.75"
+					><path d="m15 18-6-6 6-6" /></svg
+				>
+			{:else}
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="16"
+					height="16"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="1.5"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					class="lucide lucide-chevron-right-icon lucide-chevron-right -mr-0.75"
+					><path d="m9 18 6-6-6-6" /></svg
+				>
+			{/if}
+			<svg
+				xmlns="http://www.w3.org/2000/svg"
+				opacity="0.75"
+				stroke-width="1.5"
+				width="24"
+				height="24"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				class="lucide lucide-variable-icon lucide-variable"
+				><path d="M8 21s-4-3-4-9 4-9 4-9" /><path d="M16 3s4 3 4 9-4 9-4 9" /><line
+					x1="15"
+					x2="9"
+					y1="9"
+					y2="15"
+				/><line x1="9" x2="15" y1="9" y2="15" /></svg
+			>
+		</button>
+	</div>
+{/await}

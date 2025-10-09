@@ -8,7 +8,6 @@ import { pushState } from '$app/navigation';
 
 import {
 	sheet,
-	drawer,
 	preferences as p,
 	paddedBoundsLayer,
 	paddedBoundsSource
@@ -85,24 +84,6 @@ export class SettingsButton {
 		div.addEventListener('contextmenu', (e) => e.preventDefault());
 		div.addEventListener('click', () => {
 			sheet.set(!get(sheet));
-		});
-
-		return div;
-	}
-	onRemove() {}
-}
-
-export class DrawerButton {
-	onAdd() {
-		const div = document.createElement('div');
-		div.title = 'Variables';
-		div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
-		div.innerHTML = `<button style="display:flex;justify-content:center;align-items:center;">
-				<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" stroke-width="1.2"  width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-variable-icon lucide-variable"><path d="M8 21s-4-3-4-9 4-9 4-9"/><path d="M16 3s4 3 4 9-4 9-4 9"/><line x1="15" x2="9" y1="9" y2="15"/><line x1="9" x2="15" y1="9" y2="15"/></svg>
-       </button>`;
-		div.addEventListener('contextmenu', (e) => e.preventDefault());
-		div.addEventListener('click', () => {
-			drawer.set(!get(drawer));
 		});
 
 		return div;
