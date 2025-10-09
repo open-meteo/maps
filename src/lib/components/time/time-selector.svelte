@@ -9,7 +9,10 @@
 
 	import { pad } from '$lib';
 
+	import { modelRun as mR } from '$lib/stores/preferences';
+
 	import type { Domain } from '$lib/types';
+	import { get } from 'svelte/store';
 
 	interface Props {
 		time: Date;
@@ -27,6 +30,7 @@
 		onDateChange
 	}: Props = $props();
 
+	const now = new Date();
 	let currentDate = $derived(time);
 	let currentHour = $derived(currentDate.getHours());
 
@@ -90,6 +94,8 @@
 			window.removeEventListener('keydown', keydownEvent);
 		}
 	});
+
+	const modelRun = $derived(get(mR));
 </script>
 
 <div
@@ -121,7 +127,7 @@
 					><path d="m15 18-6-6 6-6" /></svg
 				></button
 			>
-			<div class="-mt-0.5 flex flex-col items-center">
+			<div class=" flex flex-col items-center">
 				<span
 					class="min-w-[150px] text-center whitespace-nowrap delay-75 duration-200 {disabled
 						? ' text-black/50 dark:text-white/50 '
@@ -130,13 +136,37 @@
 					>{`${currentDate.getFullYear()}-${pad(currentDate.getMonth() + 1)}-${pad(currentDate.getDate())}T${pad(currentDate.getHours())}:00`}</span
 				>
 				<span
-					class="text-xs delay-75 duration-200 {disabled
+					class="-mt-0.5 text-xs delay-75 duration-200 {disabled
 						? ' text-black/50 dark:text-white/50 '
 						: ' text-black  dark:text-white'}"
 				>
 					{Intl.DateTimeFormat().resolvedOptions().timeZone} ({currentDate.getTimezoneOffset() < 0
 						? '+'
 						: '-'}{-currentDate.getTimezoneOffset() / 60}:00)
+				</span>
+				<span
+					class="mt-0.5 text-[9px] delay-75 duration-200 {disabled
+						? ' text-black/50 dark:text-white/50 '
+						: ' text-black  dark:text-white'}"
+				>
+					Model Run:
+					<input
+						class="date-time-selection h-4 rounded-[2px] bg-white p-0 text-sm text-[8px] delay-75 duration-200 dark:bg-[#646464cc] {disabled
+							? 'border-foreground/50  text-black/50 dark:text-white/50 '
+							: ' border-foreground/75 text-black  dark:text-white'}"
+						{disabled}
+						type="datetime-local"
+						step={domain.time_interval * 60}
+						min={`${now.getUTCFullYear()}-${pad(now.getUTCMonth() - 1)}-${pad(now.getUTCDate())}T00:00`}
+						max={`${now.getUTCFullYear()}-${pad(now.getUTCMonth() + 1)}-${pad(now.getUTCDate())}T23:00`}
+						onchange={(e) => {
+							const target = e.target as HTMLInputElement;
+							console.log(target);
+							let newMR = new Date(target.value);
+							mR.set(newMR);
+						}}
+						value={`${modelRun.getUTCFullYear()}-${pad(modelRun.getUTCMonth() + 1)}-${pad(modelRun.getUTCDate())}T${pad(modelRun.getUTCHours())}:00`}
+					/>
 				</span>
 			</div>
 
