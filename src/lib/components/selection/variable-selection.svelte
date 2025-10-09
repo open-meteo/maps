@@ -62,8 +62,9 @@
 					domainChange(value);
 				}}
 			>
-				<Select.Trigger aria-label="Domain trigger" class="top-[0.35rem] !h-12 w-full  pt-6 "
-					>{domain?.label}</Select.Trigger
+				<Select.Trigger
+					aria-label="Domain Selection Trigger"
+					class="top-[0.35rem] !h-12 w-full  pt-6 ">{domain?.label}</Select.Trigger
 				>
 				<Select.Content side="bottom">
 					{#each domainGroups as { value: group, label: groupLabel } (group)}
@@ -152,8 +153,9 @@
 							variablesChange(value);
 						}}
 					>
-						<Select.Trigger aria-label="Domain trigger" class="top-[0.35rem] !h-12 w-full  pt-6 "
-							>{variables[0]?.label}</Select.Trigger
+						<Select.Trigger
+							aria-label="Variable Selection Trigger"
+							class="top-[0.35rem] !h-12 w-full  pt-6 ">{variables[0]?.label}</Select.Trigger
 						>
 						<Select.Content side="bottom">
 							{#each latest.variables as vr, i (i)}

@@ -15,10 +15,17 @@
 	import { pushState } from '$app/navigation';
 
 	import { omProtocol } from '../om-protocol';
-	import { domainOptions } from '$lib/utils/domains';
+	import { domainGroups, domainOptions } from '$lib/utils/domains';
 	import { variableOptions } from '$lib/utils/variables';
 
+	import CheckIcon from '@lucide/svelte/icons/check';
+	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down';
+
+	import { Button } from '$lib/components/ui/button';
+
 	import * as Sheet from '$lib/components/ui/sheet';
+	import * as Popover from '$lib/components/ui/popover';
+	import * as Command from '$lib/components/ui/command';
 
 	import Scale from '$lib/components/scale/scale.svelte';
 	import TimeSelector from '$lib/components/time/time-selector.svelte';
@@ -65,6 +72,8 @@
 	} from '$lib';
 
 	import '../styles.css';
+
+	import { cn } from 'tailwind-variants';
 
 	let url: URL;
 	let map: maplibregl.Map;
@@ -178,6 +187,14 @@
 	});
 
 	let activeSnapPoint = $derived($drawerHeight);
+
+	let selectedDomain = $derived($domain ? $domain : { value: 'dwd_icon_d2' });
+	let selectedVariable = $derived($variables ? $variables[0] : 'temperature_2m');
+
+	let domainSelectionOpen = $state(false);
+	let variableSelectionOpen = $state(false);
+
+	let variableSelectionExtended = $state(true);
 </script>
 
 <svelte:head>
@@ -209,8 +226,155 @@
 <div class="map" id="#map_container" bind:this={mapContainer}></div>
 <div class="absolute bottom-1 left-1 max-h-[300px]">
 	<Scale showScale={$preferences.showScale} variables={$variables} />
-	<SelectedVariables domain={$domain} variables={$variables} />
+	<!-- <SelectedVariables domain={$domain} variables={$variables} /> -->
 </div>
+{#await latestRequest}
+	<div class="absolute top-1 left-1 max-h-[300px]"></div>
+{:then l}
+	<div
+		class="absolute top-1 flex max-h-[300px] gap-1 duration-300 {variableSelectionExtended
+			? 'left-1'
+			: '-left-[200px]'} "
+	>
+		<div class="flex flex-col gap-1">
+			<Popover.Root bind:open={domainSelectionOpen}>
+				<Popover.Trigger>
+					<Button
+						variant="outline"
+						class="w-[200px] justify-between"
+						role="combobox"
+						aria-expanded={domainSelectionOpen}
+					>
+						{selectedDomain?.label || 'Select a variable...'}
+						<ChevronsUpDownIcon class="ml-2 size-4 shrink-0 opacity-50" />
+					</Button>
+				</Popover.Trigger>
+				<Popover.Content class="w-[200px] p-0">
+					<Command.Root>
+						<Command.Input placeholder="Search variables..." />
+						<Command.List>
+							<Command.Empty>No variables found.</Command.Empty>
+							<Command.Group>
+								{#each domainGroups as { value: group, label: groupLabel } (group)}
+									{#each domainOptions as { value, label } (value)}
+										{#if value.startsWith(group)}
+											<Command.Item
+												{value}
+												onSelect={async () => {
+													$domain =
+														domainOptions.find((dm) => dm.value === value) ?? domainOptions[0];
+													checkClosestDomainInterval(url);
+													url.searchParams.set('domain', $domain.value);
+													url.searchParams.set(
+														'time',
+														$time.toISOString().replace(/[:Z]/g, '').slice(0, 15)
+													);
+													pushState(url + map._hash.getHashString(), {});
+													toast('Domain set to: ' + $domain.label);
+													latest = await getDomainData();
+													changeOMfileURL(map, url, latest);
+												}}
+											>
+												<div class="flex w-full items-center justify-between">
+													{label}
+													<CheckIcon
+														class="size-4 {selectedDomain.value !== value
+															? 'text-transparent'
+															: ''}"
+													/>
+												</div>
+											</Command.Item>
+										{/if}
+									{/each}
+								{/each}
+							</Command.Group>
+						</Command.List>
+					</Command.Root>
+				</Popover.Content>
+			</Popover.Root>
+			<Popover.Root bind:open={variableSelectionOpen}>
+				<Popover.Trigger>
+					<Button
+						variant="outline"
+						class="w-[200px] justify-between"
+						role="combobox"
+						aria-expanded={variableSelectionOpen}
+					>
+						{selectedVariable?.label || 'Select a variable...'}
+						<ChevronsUpDownIcon class="ml-2 size-4 shrink-0 opacity-50" />
+					</Button>
+				</Popover.Trigger>
+				<Popover.Content class="w-[200px] p-0">
+					<Command.Root>
+						<Command.Input placeholder="Search variables..." />
+						<Command.List>
+							<Command.Empty>No variables found.</Command.Empty>
+							<Command.Group>
+								{#each l.variables as vr, i (i)}
+									{#if !vr.includes('v_component') && !vr.includes('_direction')}
+										{@const v = variableOptions.find((vo) => vo.value === vr)
+											? variableOptions.find((vo) => vo.value === vr)
+											: { value: vr, label: vr }}
+
+										<Command.Item
+											value={v.value}
+											onSelect={() => {
+												$variables = [v];
+												url.searchParams.set('variables', $variables[0].value);
+												pushState(url + map._hash.getHashString(), {});
+												toast('Variable set to: ' + $variables[0].label);
+												changeOMfileURL(map, url, latest);
+											}}
+										>
+											<div class="flex w-full items-center justify-between">
+												{v.label}
+												<CheckIcon
+													class="size-4 {selectedVariable.value !== v.value
+														? 'text-transparent'
+														: ''}"
+												/>
+											</div>
+										</Command.Item>
+									{/if}
+								{/each}
+							</Command.Group>
+						</Command.List>
+					</Command.Root>
+				</Popover.Content>
+			</Popover.Root>
+		</div>
+
+		<button
+			class="bg-background flex h-9 cursor-pointer items-center rounded-md p-1"
+			onclick={() => {
+				variableSelectionExtended = !variableSelectionExtended;
+			}}
+			aria-label="Hide Variable Selection"
+		>
+			{variableSelectionExtended ? '<' : '>'}
+			<svg
+				xmlns="http://www.w3.org/2000/svg"
+				opacity="0.75"
+				stroke-width="1.2"
+				width="24"
+				height="24"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				class="lucide lucide-variable-icon lucide-variable"
+				><path d="M8 21s-4-3-4-9 4-9 4-9" /><path d="M16 3s4 3 4 9-4 9-4 9" /><line
+					x1="15"
+					x2="9"
+					y1="9"
+					y2="15"
+				/><line x1="9" x2="15" y1="9" y2="15" /></svg
+			>
+		</button>
+	</div>
+{/await}
+
 <TimeSelector
 	bind:time={$time}
 	bind:domain={$domain}
