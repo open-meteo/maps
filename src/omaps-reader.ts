@@ -1,4 +1,4 @@
-import { OmDataType, OmHttpBackend } from '@openmeteo/file-reader';
+import { OmDataType, OmHttpBackend, type TypedArray } from '@openmeteo/file-reader';
 
 import { pad } from '$lib/utils/pad';
 
@@ -55,7 +55,7 @@ export class OMapsFileReader {
 	}
 
 	async readVariable(variable: Variable, ranges: DimensionRange[] | null = null): Promise<Data> {
-		let values, directions;
+		let values, directions: TypedArray | undefined;
 		if (variable.value.includes('_u_component')) {
 			// combine uv components, and calculate directions
 			const variableReaderU = await this.reader.getChildByName(variable.value);
@@ -69,21 +69,32 @@ export class OMapsFileReader {
 			const valuesUPromise = variableReaderU.read(OmDataType.FloatArray, this.ranges);
 			const valuesVPromise = variableReaderV.read(OmDataType.FloatArray, this.ranges);
 
-			const [valuesU, valuesV] = await Promise.all([valuesUPromise, valuesVPromise]);
+			const [valuesU, valuesV]: [Float32Array, Float32Array] = await Promise.all([
+				valuesUPromise,
+				valuesVPromise
+			]);
 
-			values = [];
-			directions = [];
+			values = new Float32Array(valuesU.length);
+			directions = new Float32Array(valuesU.length);
 			for (const [i, uValue] of valuesU.entries()) {
-				values.push(Math.sqrt(Math.pow(uValue, 2) + Math.pow(valuesV[i], 2)) * 1.94384); // convert from m/s to knots
-				directions.push((Math.atan2(uValue, valuesV[i]) * (180 / Math.PI) + 360) % 360);
+				values[i] = Math.sqrt(Math.pow(uValue, 2) + Math.pow(valuesV[i], 2)) * 1.94384; // convert from m/s to knots
+				directions[i] = (Math.atan2(uValue, valuesV[i]) * (180 / Math.PI) + 360) % 360;
 			}
 		} else {
 			const variableReader = await this.reader.getChildByName(variable.value);
 			const dimensions = variableReader.getDimensions();
-
 			this.setRanges(ranges, dimensions);
 
-			values = await variableReader.read(OmDataType.FloatArray, this.ranges);
+			console.log('crossoriginisolated', crossOriginIsolated);
+			const rawValues = await variableReader.read(OmDataType.FloatArray, this.ranges);
+			if (crossOriginIsolated) {
+				const sab = new SharedArrayBuffer(rawValues.length * Float32Array.BYTES_PER_ELEMENT);
+				const sabValues = new Float32Array(sab);
+				sabValues.set(rawValues);
+				values = sabValues;
+			} else {
+				values = rawValues;
+			}
 		}
 
 		if (variable.value.includes('_speed_')) {
