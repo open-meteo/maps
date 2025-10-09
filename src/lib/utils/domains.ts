@@ -8,6 +8,7 @@ import {
 import type { Domain, DomainGroups } from '$lib/types';
 
 import { DynamicProjection, ProjectionGrid, type Projection } from './projections';
+import { GaussianGridToRegularGrid } from './gaussian';
 
 export const domainGroups = [
 	//'bom',
@@ -354,6 +355,27 @@ export const domainOptions: Array<Domain> = [
 	},
 
 	// ECWMF
+	{
+		value: 'ecmwf_ifs',
+		label: 'ECMWF IFS',
+		grid: {
+			remapper: true,
+			nx: 2560,
+			ny: 1420,
+			latMin: -90,
+			lonMin: -180,
+			dx: 360 / 2560,
+			dy: 180 / (1420 - 1),
+			zoom: 1,
+			center: function () {
+				this.center = getCenterPoint(this);
+				return this;
+			}
+		},
+		time_interval: 1,
+		model_interval: 1,
+		windUVComponents: true
+	},
 	{
 		value: 'ecmwf_ifs025',
 		label: 'ECMWF IFS 0.25°',
