@@ -13,7 +13,8 @@
 	import { variableOptions } from '$lib/utils/variables';
 
 	import type { Domain, DomainMetaData, Variables } from '$lib/types';
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
+	import { browser } from '$app/environment';
 
 	interface Props {
 		domain: Domain;
@@ -32,10 +33,33 @@
 
 	let variableSelectionExtended = $state(false);
 
+	const keydownEvent = (event: KeyboardEvent) => {
+		if (!variableSelectionOpen && !domainSelectionOpen) {
+			switch (event.key) {
+				case 'v':
+					variableSelectionOpen = true;
+					break;
+				case 'd':
+					domainSelectionOpen = true;
+					break;
+			}
+		}
+	};
+
 	const desktop = new MediaQuery('min-width: 768px');
 	onMount(() => {
 		if (desktop.current) {
 			variableSelectionExtended = true;
+		}
+
+		if (browser) {
+			window.addEventListener('keydown', keydownEvent);
+		}
+	});
+
+	onDestroy(() => {
+		if (browser) {
+			window.removeEventListener('keydown', keydownEvent);
 		}
 	});
 </script>
@@ -65,7 +89,7 @@
 				</Popover.Trigger>
 				<Popover.Content class="ml-2.5 w-[250px] bg-transparent p-0">
 					<Command.Root autofocus={false}>
-						<Command.Input autofocus={false} placeholder="Search variables..." />
+						<Command.Input autofocus={false} placeholder="Search domains..." />
 						<Command.List>
 							<Command.Empty>No domains found.</Command.Empty>
 							{#each domainGroups as { value: group, label: groupLabel } (group)}
