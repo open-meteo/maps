@@ -79,52 +79,80 @@ export class GaussianGrid {
 
 		return { y, x, nx };
 	}
+}
+
+export class GaussianGridToRegularGrid {
+	private gaussianGrid: GaussianGrid;
+	private lookupTable: Int32Array;
+	private readonly targetWidth: number;
+	private readonly targetHeight: number;
 
 	/**
-	 * Remap Gaussian grid data to a regular lat-lon grid
-	 * @param values - Original Gaussian grid data
-	 * @param targetWidth - Target grid width
-	 * @param targetHeight - Target grid height
-	 * @param bounds - Optional bounds for the output grid
-	 * @param latitudeIncreasing - If true, latitude increases with row index (south to north),
-	 *                           if false (default), latitude decreases with row index (north to south)
-	 * @returns Remapped data in regular grid format
+	 * Create a new remapper for a specific target grid size
+	 * @param targetWidth - Width of the target regular grid
+	 * @param targetHeight - Height of the target regular grid
+	 * @param bounds - Lat/lon bounds for the target grid
 	 */
-	remapToRegularGrid(
-		values: Float32Array,
+	constructor(
 		targetWidth: number,
 		targetHeight: number,
 		bounds = { minLat: -90, maxLat: 90, minLon: -180, maxLon: 180 }
-	): Float32Array {
-		console.time('Remapping Gaussian grid');
+	) {
+		this.gaussianGrid = new GaussianGrid();
+		this.targetWidth = targetWidth;
+		this.targetHeight = targetHeight;
 
-		// Create a result array for the regular grid
-		const result = new Float32Array(targetWidth * targetHeight);
+		// Build the lookup table during initialization
+		this.lookupTable = this.buildLookupTable(bounds);
+		console.log(`GaussianGridRemapper created for ${targetWidth}x${targetHeight} grid`);
+	}
 
-		// Calculate lat/lon spans
+	/**
+	 * Build a lookup table mapping each target grid cell to its corresponding Gaussian grid point
+	 * @private
+	 */
+	private buildLookupTable(bounds: {
+		minLat: number;
+		maxLat: number;
+		minLon: number;
+		maxLon: number;
+	}): Int32Array {
+		console.time('Building Gaussian grid lookup table');
+
+		const lookup = new Int32Array(this.targetWidth * this.targetHeight);
 		const latSpan = bounds.maxLat - bounds.minLat;
 		const lonSpan = bounds.maxLon - bounds.minLon;
 
-		// For each point in the regular grid
-		for (let y = 0; y < targetHeight; y++) {
-			// Calculate latitude for this row based on direction preference
-			const lat = bounds.minLat + (y / targetHeight) * latSpan;
+		// For each point in the target regular grid
+		for (let y = 0; y < this.targetHeight; y++) {
+			const lat = bounds.minLat + (y / this.targetHeight) * latSpan;
 
-			for (let x = 0; x < targetWidth; x++) {
-				// Calculate longitude for this column
-				const lon = (x / targetWidth) * lonSpan + bounds.minLon;
+			for (let x = 0; x < this.targetWidth; x++) {
+				const lon = (x / this.targetWidth) * lonSpan + bounds.minLon;
 
-				// Find the nearest Gaussian grid point
-				const gridpoint = this.findPoint(lat, lon);
-
-				// Copy the data value if it's valid
-				if (gridpoint >= 0 && gridpoint < values.length) {
-					result[y * targetWidth + x] = values[gridpoint];
-				}
+				const gridpoint = this.gaussianGrid.findPoint(lat, lon);
+				lookup[y * this.targetWidth + x] = gridpoint;
 			}
 		}
 
-		console.timeEnd('Remapping Gaussian grid');
+		console.timeEnd('Building Gaussian grid lookup table');
+		return lookup;
+	}
+
+	/**
+	 * Remap Gaussian grid data to the target regular grid using pre-computed lookup table
+	 */
+	remapData(values: Float32Array): Float32Array {
+		console.time('Remapping Gaussian grid with lookup table');
+
+		const result = new Float32Array(this.targetWidth * this.targetHeight);
+
+		for (let i = 0; i < this.lookupTable.length; i++) {
+			const gaussianIndex = this.lookupTable[i];
+			result[i] = values[gaussianIndex];
+		}
+
+		console.timeEnd('Remapping Gaussian grid with lookup table');
 		return result;
 	}
 }
