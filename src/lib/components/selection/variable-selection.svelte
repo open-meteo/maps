@@ -77,6 +77,7 @@
 												class="cursor-pointer"
 												onSelect={async () => {
 													domainChange(value);
+													domainSelectionOpen = false;
 												}}
 											>
 												<div class="flex w-full items-center justify-between">
@@ -127,6 +128,7 @@
 											class="cursor-pointer"
 											onSelect={() => {
 												variablesChange(v.value);
+												variableSelectionOpen = false;
 											}}
 										>
 											<div class="flex w-full items-center justify-between">
