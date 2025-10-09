@@ -88,13 +88,17 @@
 						<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
 					</Button>
 				</Popover.Trigger>
-				<Popover.Content class="ml-2.5 w-[250px] rounded-[4px] border-none bg-transparent p-0">
+				<Popover.Content
+					onOpenAutoFocus={(e) => {
+						e.preventDefault();
+					}}
+					class="ml-2.5 w-[250px] rounded-[4px] border-none bg-transparent p-0"
+				>
 					<Command.Root
 						style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
 						class="rounded-[3px]"
-						autofocus={false}
 					>
-						<Command.Input autofocus={false} placeholder="Search domains..." />
+						<Command.Input placeholder="Search domains..." />
 						<Command.List>
 							<Command.Empty>No domains found.</Command.Empty>
 							{#each domainGroups as { value: group, label: groupLabel } (group)}
@@ -141,13 +145,17 @@
 						<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
 					</Button>
 				</Popover.Trigger>
-				<Popover.Content class="ml-2.5 w-[250px] rounded-[4px] border-none bg-transparent p-0">
+				<Popover.Content
+					onOpenAutoFocus={(e) => {
+						e.preventDefault();
+					}}
+					class="ml-2.5 w-[250px] rounded-[4px] border-none bg-transparent p-0"
+				>
 					<Command.Root
 						style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
 						class="rounded-[3px]"
-						autofocus={false}
 					>
-						<Command.Input autofocus={false} placeholder="Search variables..." />
+						<Command.Input placeholder="Search variables..." />
 						<Command.List>
 							<Command.Empty>No variables found.</Command.Empty>
 							<Command.Group>
