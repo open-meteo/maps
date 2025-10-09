@@ -1,6 +1,6 @@
 import { OmDataType, OmHttpBackend } from '@openmeteo/file-reader';
 
-import { pad } from '$lib/utils/pad';
+import { pad } from '$lib';
 
 import { DynamicProjection, ProjectionGrid, type Projection } from '$lib/utils/projections';
 

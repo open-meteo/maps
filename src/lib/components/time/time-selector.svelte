@@ -7,7 +7,7 @@
 
 	import { browser } from '$app/environment';
 
-	import { pad } from '$lib/utils/pad';
+	import { pad } from '$lib';
 
 	import type { Domain } from '$lib/types';
 

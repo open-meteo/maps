@@ -185,8 +185,8 @@ const getTilejson = async (fullUrl: string): Promise<TileJSON> => {
 		tilejson: '2.2.0',
 		tiles: [fullUrl + '/{z}/{x}/{y}'],
 		attribution: '<a href="https://open-meteo.com">Open-Meteo</a>',
-		minzoom: 1,
-		maxzoom: 15,
+		minzoom: 0,
+		maxzoom: 12,
 		bounds: bounds
 	};
 };

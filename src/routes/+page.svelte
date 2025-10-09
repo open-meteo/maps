@@ -5,6 +5,8 @@
 
 	import { SvelteDate } from 'svelte/reactivity';
 
+	import { Drawer } from 'vaul-svelte';
+
 	import { toast } from 'svelte-sonner';
 
 	import * as maplibregl from 'maplibre-gl';
@@ -13,21 +15,17 @@
 	import { pushState } from '$app/navigation';
 
 	import { omProtocol } from '../om-protocol';
-
-	import { pad } from '$lib/utils/pad';
 	import { domainOptions } from '$lib/utils/domains';
 	import { variableOptions } from '$lib/utils/variables';
 
-	import type { DomainMetaData } from '$lib/types';
-
 	import * as Sheet from '$lib/components/ui/sheet';
-
-	import { Drawer } from 'vaul-svelte';
 
 	import Scale from '$lib/components/scale/scale.svelte';
 	import TimeSelector from '$lib/components/time/time-selector.svelte';
 	import VariableSelection from '$lib/components/selection/variable-selection.svelte';
 	import SelectedVariables from '$lib/components/scale/selected-variables.svelte';
+
+	import type { DomainMetaData } from '$lib/types';
 
 	import {
 		TimeButton,
@@ -53,6 +51,7 @@
 	} from '$lib/stores/preferences';
 
 	import {
+		pad,
 		getStyle,
 		addPopup,
 		checkBounds,
@@ -62,7 +61,7 @@
 		addHillshadeSources,
 		setMapControlSettings,
 		urlParamsToPreferences,
-		checkClosestHourDomainInterval
+		checkClosestDomainInterval
 	} from '$lib';
 
 	import '../styles.css';
@@ -219,14 +218,11 @@
 	timeSelector={$preferences.timeSelector}
 	onDateChange={(date: Date) => {
 		$time = new SvelteDate(date);
-
 		url.searchParams.set('time', $time.toISOString().replace(/[:Z]/g, '').slice(0, 15));
 		pushState(url + map._hash.getHashString(), {});
-
 		if ($time.getUTCHours() % $domain.time_interval > 0) {
 			toast('Timestep not in interval, maybe force reload page');
 		}
-
 		changeOMfileURL(map, url, latest);
 	}}
 />
@@ -240,6 +236,7 @@
 		bind:activeSnapPoint
 		direction="bottom"
 		snapPoints={[0.3, 0.4, 0.5, 0.6, 0.7]}
+		shouldScaleBackground={true}
 		onActiveSnapPointChange={(e: string | number | null) => {
 			drawerHeight.set(e as number);
 			return e;
@@ -262,7 +259,7 @@
 							{progressRequest}
 							domainChange={async (value: string): Promise<void> => {
 								$domain = domainOptions.find((dm) => dm.value === value) ?? domainOptions[0];
-								checkClosestHourDomainInterval(url);
+								checkClosestDomainInterval(url);
 								url.searchParams.set('domain', $domain.value);
 								url.searchParams.set('time', $time.toISOString().replace(/[:Z]/g, '').slice(0, 15));
 								pushState(url + map._hash.getHashString(), {});

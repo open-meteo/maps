@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { pad } from '$lib/utils/pad';
+	import { pad } from '$lib';
 
 	import { domainGroups, domainOptions } from '$lib/utils/domains';
 	import { variableOptions } from '$lib/utils/variables';
