@@ -91,15 +91,15 @@ export class GaussianGrid {
 	 * @returns Remapped data in regular grid format
 	 */
 	remapToRegularGrid(
-		values: number[],
+		values: Float32Array,
 		targetWidth: number,
 		targetHeight: number,
 		bounds = { minLat: -90, maxLat: 90, minLon: -180, maxLon: 180 }
-	): number[] {
+	): Float32Array {
 		console.time('Remapping Gaussian grid');
 
 		// Create a result array for the regular grid
-		const result = new Array(targetWidth * targetHeight).fill(NaN);
+		const result = new Float32Array(targetWidth * targetHeight);
 
 		// Calculate lat/lon spans
 		const latSpan = bounds.maxLat - bounds.minLat;
