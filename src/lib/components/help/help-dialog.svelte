@@ -41,16 +41,16 @@
 				<div class="flex flex-col">
 					<h2 class="mb-2 text-lg">Time Selector</h2>
 					<div class="flex flex-col gap-1">
-						<div>
+						<div class="flex items-center gap-2">
 							<Kbd.Root>↓</Kbd.Root> Previous Day
 						</div>
-						<div>
+						<div class="flex items-center gap-2">
 							<Kbd.Root>↑</Kbd.Root> Next Day
 						</div>
-						<div>
+						<div class="flex items-center gap-2">
 							<Kbd.Root>←</Kbd.Root> Previous Hour
 						</div>
-						<div>
+						<div class="flex items-center gap-2">
 							<Kbd.Root>→</Kbd.Root> Next Hour
 						</div>
 					</div>
@@ -60,21 +60,11 @@
 					<h2 class="mb-2 text-lg">Variables</h2>
 
 					<div class="flex flex-col gap-1">
-						<div>
+						<div class="flex items-center gap-2">
 							<Kbd.Root>d</Kbd.Root> Domain Selection
 						</div>
-						<div>
+						<div class="flex items-center gap-2">
 							<Kbd.Root>v</Kbd.Root> Variable Selection
-						</div>
-					</div>
-				</div>
-
-				<div>
-					<h2 class="mb-2 text-lg">Other</h2>
-
-					<div class="flex flex-col gap-1">
-						<div>
-							<Kbd.Root>Ctrl + Shift</Kbd.Root> Fly to Hagen
 						</div>
 					</div>
 				</div>
