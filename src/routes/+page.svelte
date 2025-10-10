@@ -58,7 +58,6 @@
 	} from '$lib';
 
 	import '../styles.css';
-	import { page } from '$app/state';
 
 	let url: URL;
 	let map: maplibregl.Map;
@@ -152,14 +151,6 @@
 	};
 
 	let latestRequest = $derived(getDomainData());
-
-	let searchParams = $derived(page.url.searchParams);
-
-	$effect(() => {
-		if (searchParams.get('variable-open') === 'true') {
-			console.log('variable-open');
-		}
-	});
 </script>
 
 <svelte:head>
