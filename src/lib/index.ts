@@ -21,7 +21,8 @@ import {
 	paddedBounds as pB,
 	paddedBoundsLayer,
 	paddedBoundsSource as pBS,
-	paddedBoundsGeoJSON
+	paddedBoundsGeoJSON,
+	variableSelectionExtended
 } from '$lib/stores/preferences';
 
 import { domainOptions } from '$lib/utils/domains';
@@ -125,6 +126,10 @@ export const urlParamsToPreferences = (url: URL) => {
 		if (!preferences.timeSelector) {
 			url.searchParams.set('time-selector', String(preferences.timeSelector));
 		}
+	}
+
+	if (params.get('variables-open')) {
+		variableSelectionExtended.set(true);
 	}
 
 	p.set(preferences);

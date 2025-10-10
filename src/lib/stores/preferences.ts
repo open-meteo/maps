@@ -1,6 +1,6 @@
 import { writable, type Writable } from 'svelte/store';
 
-import { persisted } from 'svelte-persisted-store';
+import { persisted, type Persisted } from 'svelte-persisted-store';
 
 import { domainOptions } from '$lib/utils/domains';
 import { variableOptions } from '$lib/utils/variables';
@@ -31,10 +31,14 @@ export const time = writable(new Date(now));
 export const modelRun = writable(new Date());
 
 export const sheet = writable(false);
-export const drawer = writable(false);
-export const drawerHeight = writable(0.4);
-
 export const loading = writable(false);
+
+export const domainSelectionOpen = writable(false);
+export const variableSelectionOpen = writable(false);
+export const variableSelectionExtended: Persisted<boolean | undefined> = persisted(
+	'variables-open',
+	undefined
+);
 
 export const mapBounds: Writable<maplibregl.LngLatBounds | null> = writable(null);
 

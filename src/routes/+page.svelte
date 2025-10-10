@@ -58,6 +58,7 @@
 	} from '$lib';
 
 	import '../styles.css';
+	import { page } from '$app/state';
 
 	let url: URL;
 	let map: maplibregl.Map;
@@ -151,6 +152,14 @@
 	};
 
 	let latestRequest = $derived(getDomainData());
+
+	let searchParams = $derived(page.url.searchParams);
+
+	$effect(() => {
+		if (searchParams.get('variable-open') === 'true') {
+			console.log('variable-open');
+		}
+	});
 </script>
 
 <svelte:head>
@@ -182,6 +191,8 @@
 <div class="map" id="#map_container" bind:this={mapContainer}></div>
 <Scale showScale={$preferences.showScale} variables={$variables} />
 <VariableSelection
+	{url}
+	{map}
 	domain={$domain}
 	variables={$variables}
 	{latestRequest}
@@ -195,7 +206,7 @@
 		latest = await getDomainData();
 		changeOMfileURL(map, url, latest);
 	}}
-	variablesChange={(value: string) => {
+	variablesChange={(value: string | undefined) => {
 		$variables = [variableOptions.find((v) => v.value === value) ?? variableOptions[0]];
 		url.searchParams.set('variables', $variables[0].value);
 		pushState(url + map._hash.getHashString(), {});

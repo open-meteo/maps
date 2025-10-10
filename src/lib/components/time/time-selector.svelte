@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 
+	import { get } from 'svelte/store';
+
 	import { SvelteDate } from 'svelte/reactivity';
 
 	import { toast } from 'svelte-sonner';
@@ -9,10 +11,12 @@
 
 	import { pad } from '$lib';
 
-	import { modelRun as mR } from '$lib/stores/preferences';
+	import {
+		domainSelectionOpen as dSO,
+		variableSelectionOpen as vSO
+	} from '$lib/stores/preferences';
 
 	import type { Domain } from '$lib/types';
-	import { get } from 'svelte/store';
 
 	interface Props {
 		time: Date;
@@ -30,7 +34,6 @@
 		onDateChange
 	}: Props = $props();
 
-	const now = new Date();
 	let currentDate = $derived(time);
 	let currentHour = $derived(currentDate.getHours());
 
@@ -62,24 +65,36 @@
 		onDateChange(date);
 	};
 
+	let domainSelectionOpen = $state(get(dSO));
+	dSO.subscribe((dO) => {
+		domainSelectionOpen = dO;
+	});
+
+	let variableSelectionOpen = $state(get(vSO));
+	vSO.subscribe((vO) => {
+		variableSelectionOpen = vO;
+	});
+
 	const keydownEvent = (event: KeyboardEvent) => {
-		if (!disabled) {
-			switch (event.key) {
-				case 'ArrowLeft':
-					previousHour();
-					break;
-				case 'ArrowRight':
-					nextHour();
-					break;
-				case 'ArrowDown':
-					previousDay();
-					break;
-				case 'ArrowUp':
-					nextDay();
-					break;
+		if (!(domainSelectionOpen || variableSelectionOpen)) {
+			if (!disabled) {
+				switch (event.key) {
+					case 'ArrowLeft':
+						previousHour();
+						break;
+					case 'ArrowRight':
+						nextHour();
+						break;
+					case 'ArrowDown':
+						previousDay();
+						break;
+					case 'ArrowUp':
+						nextDay();
+						break;
+				}
+			} else {
+				toast.warning('Still loading another OM file');
 			}
-		} else {
-			toast.warning('Still loading another OM file');
 		}
 	};
 
@@ -94,8 +109,6 @@
 			window.removeEventListener('keydown', keydownEvent);
 		}
 	});
-
-	const modelRun = $derived(get(mR));
 </script>
 
 <div
