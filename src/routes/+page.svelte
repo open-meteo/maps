@@ -59,8 +59,8 @@
 
 	import '../styles.css';
 
-	let url: URL;
-	let map: maplibregl.Map;
+	let url: URL = $state();
+	let map: maplibregl.Map = $state();
 	let latest: DomainMetaData | undefined = $state();
 	let mapContainer: HTMLElement | null;
 
