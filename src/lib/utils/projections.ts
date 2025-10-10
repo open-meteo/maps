@@ -245,8 +245,10 @@ const projections = {
 	LambertAzimuthalEqualAreaProjection
 };
 
+export type ProjectionName = keyof typeof projections;
+
 export class DynamicProjection {
-	constructor(projName: string, opts: Domain['grid']['projection']) {
+	constructor(projName: ProjectionName, opts: Domain['grid']['projection']) {
 		return new projections[projName](opts);
 	}
 }

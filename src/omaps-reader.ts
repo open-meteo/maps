@@ -1,8 +1,18 @@
-import { OmDataType, OmFileReader, OmHttpBackend, type TypedArray } from '@openmeteo/file-reader';
+import {
+	OmDataType,
+	OmHttpBackend,
+	type TypedArray,
+	type OmFileReader
+} from '@openmeteo/file-reader';
 
 import { pad } from '$lib';
 
-import { DynamicProjection, ProjectionGrid, type Projection } from '$lib/utils/projections';
+import {
+	DynamicProjection,
+	ProjectionGrid,
+	type Projection,
+	type ProjectionName
+} from '$lib/utils/projections';
 
 import type { Domain, DimensionRange, Variable } from '$lib/types';
 
@@ -38,7 +48,10 @@ export class OMapsFileReader {
 		this.domain = domain;
 		if (domain.grid.projection) {
 			const projectionName = domain.grid.projection.name;
-			this.projection = new DynamicProjection(projectionName, domain.grid.projection) as Projection;
+			this.projection = new DynamicProjection(
+				projectionName as ProjectionName,
+				domain.grid.projection
+			) as Projection;
 			this.projectionGrid = new ProjectionGrid(this.projection, domain.grid);
 		}
 	}

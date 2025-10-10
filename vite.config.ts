@@ -28,6 +28,7 @@ export default ({ mode }: { mode: string }) => {
 				// Allow serving files from one level up to the project root
 				allow: ['..']
 			}
-		}
+		},
+		build: { chunkSizeWarningLimit: 1500 }
 	});
 };
