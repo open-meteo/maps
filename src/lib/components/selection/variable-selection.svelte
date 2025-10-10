@@ -43,6 +43,45 @@
 
 	let selectedDomain = $derived(domain);
 	let selectedVariable = $derived(variables[0]);
+	let previewDomain = $state<string | null>(null);
+	let previewVariable = $state<string | null>(null);
+
+	let domainFocusIndex = $derived(() => {
+		const targetValue = previewDomain || selectedDomain.value;
+		const index = availableDomainOptions.findIndex((opt) => opt.value === targetValue);
+		return Math.max(0, index);
+	});
+
+	let variableFocusIndex = $state(0);
+	$effect(() => {
+		const targetValue = previewVariable || selectedVariable?.value;
+		if (targetValue) {
+			availableVariableOptions().then((options) => {
+				const index = options.findIndex((opt) => opt.value === targetValue);
+				variableFocusIndex = Math.max(0, index);
+			});
+		} else {
+			variableFocusIndex = 0;
+		}
+	});
+
+	$effect(() => {
+		if (previewDomain && domainSelectionOpen) {
+			const element = document.querySelector(
+				`[data-value="${previewDomain}"][data-slot="command-item"]`
+			);
+			element?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+		}
+	});
+
+	$effect(() => {
+		if (previewVariable && variableSelectionOpen) {
+			const element = document.querySelector(
+				`[data-value="${previewVariable}"][data-slot="command-item"]`
+			);
+			element?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+		}
+	});
 
 	let domainSelectionOpen = $state(get(dSO));
 	dSO.subscribe((dO) => {
@@ -67,16 +106,87 @@
 		}
 	});
 
+	let availableDomainOptions = domainGroups.flatMap((group) =>
+		domainOptions.filter((option) => option.value.startsWith(group.value))
+	);
+
+	let availableVariableOptions = $derived(() => {
+		return latestRequest.then((latest) =>
+			latest.variables
+				.filter((vr) => !vr.includes('v_component') && !vr.includes('_direction'))
+				.map((vr) => variableOptions.find((vo) => vo.value === vr) || { value: vr, label: vr })
+		);
+	});
+
 	const keydownEvent = (event: KeyboardEvent) => {
 		if (variableSelectionExtended && !variableSelectionOpen && !domainSelectionOpen) {
 			switch (event.key) {
 				case 'v':
 					vSO.set(true);
+					previewVariable = selectedVariable.value;
 					break;
 				case 'd':
 					dSO.set(true);
+					previewDomain = selectedDomain.value;
 					break;
 			}
+		}
+
+		// Arrow key navigation for open popovers
+		if (domainSelectionOpen) {
+			const options = availableDomainOptions;
+			switch (event.key) {
+				case 'ArrowDown':
+					event.preventDefault();
+					previewDomain = options[(domainFocusIndex() + 1) % options.length].value;
+					break;
+
+				case 'ArrowUp':
+					event.preventDefault();
+					previewDomain = options[(domainFocusIndex() - 1) % options.length].value;
+					break;
+
+				case 'Enter':
+					event.preventDefault();
+					if (previewDomain) {
+						domainChange(previewDomain);
+						dSO.set(false);
+					}
+					break;
+
+				case 'Escape':
+					event.preventDefault();
+					dSO.set(false);
+					break;
+			}
+		} else if (variableSelectionOpen) {
+			availableVariableOptions().then((options) => {
+				switch (event.key) {
+					case 'ArrowDown':
+						event.preventDefault();
+						previewVariable = options[(variableFocusIndex + 1) % options.length].value;
+						break;
+
+					case 'ArrowUp':
+						event.preventDefault();
+						previewVariable =
+							options[(variableFocusIndex - 1 + options.length) % options.length].value;
+						break;
+
+					case 'Enter':
+						event.preventDefault();
+						if (previewVariable) {
+							variablesChange(previewVariable);
+							vSO.set(false);
+						}
+						break;
+
+					case 'Escape':
+						event.preventDefault();
+						vSO.set(false);
+						break;
+				}
+			});
 		}
 	};
 
@@ -135,6 +245,9 @@
 				bind:open={domainSelectionOpen}
 				onOpenChange={(e) => {
 					dSO.set(e);
+					if (!e) {
+						previewDomain = null;
+					}
 				}}
 			>
 				<Popover.Trigger>
@@ -151,23 +264,7 @@
 						<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
 					</Button>
 				</Popover.Trigger>
-				<Popover.Content
-					onOpenAutoFocus={(e) => {
-						e.preventDefault();
-						const query = document.querySelector(
-							'[data-value=' + selectedDomain.value + ']'
-						) as HTMLElement;
-						if (query) {
-							const firstChild = query.querySelector(
-								'[data-value=' + selectedDomain.value + ']'
-							) as HTMLElement;
-							firstChild.scrollIntoView({ block: 'center' });
-							firstChild.setAttribute('tabindex', '0');
-							firstChild.focus();
-						}
-					}}
-					class="ml-2.5 w-[250px] rounded-[4px] border-none bg-transparent p-0"
-				>
+				<Popover.Content class="ml-2.5 w-[250px] rounded-[4px] border-none bg-transparent p-0">
 					<Popover.Close
 						class="absolute top-0.5 right-0.5 flex h-5 w-5 cursor-pointer items-center justify-center"
 						><button aria-label="Close popover"
@@ -200,19 +297,20 @@
 										{#if value.startsWith(group)}
 											<Command.Item
 												{value}
-												class="hover:!bg-primary/25 cursor-pointer {selectedDomain.value === value
+												class="hover:!bg-primary/25 cursor-pointer {previewDomain === value ||
+												(!previewDomain && selectedDomain.value === value)
 													? '!bg-primary/15'
 													: ''}"
 												onSelect={async () => {
 													domainChange(value);
 													dSO.set(false);
 												}}
-												aria-selected={selectedDomain.value === value}
+												aria-selected={(previewDomain || selectedDomain.value) === value}
 											>
 												<div class="flex w-full items-center justify-between">
 													{label}
 													<CheckIcon
-														class="size-4 {selectedDomain.value !== value
+														class="size-4 {(previewDomain || selectedDomain.value) !== value
 															? 'text-transparent'
 															: ''}"
 													/>
@@ -230,6 +328,9 @@
 				bind:open={variableSelectionOpen}
 				onOpenChange={(e) => {
 					vSO.set(e);
+					if (!e) {
+						previewVariable = null;
+					}
 				}}
 			>
 				<Popover.Trigger class={domainSelectionOpen ? 'hidden' : ''}>
@@ -248,21 +349,6 @@
 				</Popover.Trigger>
 				<Popover.Content
 					tabindex={0}
-					onOpenAutoFocus={(e) => {
-						e.preventDefault();
-						const query = document.querySelector(
-							'[data-value=' + selectedVariable.value + ']'
-						) as HTMLElement;
-						if (query) {
-							const firstChild = query.querySelector(
-								'[data-value=' + selectedVariable.value + ']'
-							) as HTMLElement;
-
-							firstChild.scrollIntoView({ block: 'center' });
-							firstChild.setAttribute('tabindex', '0');
-							firstChild.focus();
-						}
-					}}
 					class="ml-2.5 w-[250px] rounded-[4px] border-none bg-transparent p-0"
 				>
 					<Popover.Close
@@ -300,19 +386,20 @@
 
 										<Command.Item
 											value={v?.value}
-											class="hover:!bg-primary/25 cursor-pointer {selectedVariable.value ===
-											v?.value
+											class="hover:!bg-primary/25 cursor-pointer {(previewVariable ||
+												selectedVariable.value) === v?.value
 												? '!bg-primary/15'
 												: ''}"
 											onSelect={() => {
 												variablesChange(v?.value);
 												vSO.set(false);
+												previewVariable = null;
 											}}
 										>
 											<div class="flex w-full items-center justify-between">
 												{v?.label}
 												<CheckIcon
-													class="size-4 {selectedVariable.value !== v?.value
+													class="size-4 {(previewVariable || selectedVariable.value) !== v?.value
 														? 'text-transparent'
 														: ''}"
 												/>
