@@ -143,7 +143,7 @@
 
 				case 'ArrowUp':
 					event.preventDefault();
-					previewDomain = options[(domainFocusIndex() - 1) % options.length].value;
+					previewDomain = options[(domainFocusIndex() - 1 + options.length) % options.length].value;
 					break;
 			}
 		} else if (variableSelectionOpen) {
