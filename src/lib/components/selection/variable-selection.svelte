@@ -162,6 +162,7 @@
 								'[data-value=' + selectedDomain.value + ']'
 							) as HTMLElement;
 							firstChild.scrollIntoView({ block: 'center' });
+							firstChild.setAttribute('tabindex', '0');
 							firstChild.focus();
 						}
 					}}
@@ -246,6 +247,7 @@
 					</Button>
 				</Popover.Trigger>
 				<Popover.Content
+					tabindex={0}
 					onOpenAutoFocus={(e) => {
 						e.preventDefault();
 						const query = document.querySelector(
@@ -255,7 +257,9 @@
 							const firstChild = query.querySelector(
 								'[data-value=' + selectedVariable.value + ']'
 							) as HTMLElement;
+
 							firstChild.scrollIntoView({ block: 'center' });
+							firstChild.setAttribute('tabindex', '0');
 							firstChild.focus();
 						}
 					}}
@@ -304,7 +308,6 @@
 												variablesChange(v?.value);
 												vSO.set(false);
 											}}
-											aria-selected={selectedVariable.value === v?.value}
 										>
 											<div class="flex w-full items-center justify-between">
 												{v?.label}
