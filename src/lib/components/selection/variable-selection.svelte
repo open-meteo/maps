@@ -123,11 +123,9 @@
 			switch (event.key) {
 				case 'v':
 					vSO.set(true);
-					previewVariable = selectedVariable.value;
 					break;
 				case 'd':
 					dSO.set(true);
-					previewDomain = selectedDomain.value;
 					break;
 			}
 		}
@@ -219,7 +217,9 @@
 				bind:open={domainSelectionOpen}
 				onOpenChange={(e) => {
 					dSO.set(e);
-					if (!e) {
+					if (e) {
+						previewDomain = selectedDomain.value;
+					} else {
 						if (previewDomain && previewDomain !== selectedDomain.value) {
 							domainChange(previewDomain);
 							previewDomain = null;
@@ -305,7 +305,9 @@
 				bind:open={variableSelectionOpen}
 				onOpenChange={(e) => {
 					vSO.set(e);
-					if (!e) {
+					if (e) {
+						previewVariable = selectedVariable.value;
+					} else {
 						if (previewVariable && previewVariable !== selectedVariable.value) {
 							variablesChange(previewVariable);
 							previewVariable = null;
