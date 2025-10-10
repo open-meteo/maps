@@ -2,6 +2,8 @@ import { type GetResourceResponse, type RequestParameters } from 'maplibre-gl';
 
 import { setupGlobalCache, type TypedArray } from '@openmeteo/file-reader';
 
+import { WorkerPool } from './worker-pool';
+
 import {
 	getBorderPoints,
 	getBoundsFromGrid,
@@ -15,7 +17,12 @@ import { getInterpolator } from '$lib/utils/color-scales';
 import { domainOptions } from '$lib/utils/domains';
 import { variableOptions } from '$lib/utils/variables';
 
-import { DynamicProjection, ProjectionGrid, type Projection } from '$lib/utils/projections';
+import {
+	DynamicProjection,
+	ProjectionGrid,
+	type Projection,
+	type ProjectionName
+} from '$lib/utils/projections';
 
 import { OMapsFileReader } from './omaps-reader';
 
@@ -30,7 +37,6 @@ import type {
 	ColorScale,
 	DimensionRange
 } from '$lib/types';
-import { WorkerPool } from './worker-pool';
 
 let dark = false;
 let partial = false;
@@ -165,7 +171,10 @@ const getTilejson = async (fullUrl: string): Promise<TileJSON> => {
 	let bounds: Bounds;
 	if (domain.grid.projection) {
 		const projectionName = domain.grid.projection.name;
-		projection = new DynamicProjection(projectionName, domain.grid.projection) as Projection;
+		projection = new DynamicProjection(
+			projectionName as ProjectionName,
+			domain.grid.projection
+		) as Projection;
 		projectionGrid = new ProjectionGrid(projection, domain.grid);
 
 		const borderPoints = getBorderPoints(projectionGrid);
@@ -185,8 +194,8 @@ const getTilejson = async (fullUrl: string): Promise<TileJSON> => {
 		tilejson: '2.2.0',
 		tiles: [fullUrl + '/{z}/{x}/{y}'],
 		attribution: '<a href="https://open-meteo.com">Open-Meteo</a>',
-		minzoom: 1,
-		maxzoom: 15,
+		minzoom: 0,
+		maxzoom: 12,
 		bounds: bounds
 	};
 };
@@ -256,7 +265,7 @@ export const omProtocol = async (
 		try {
 			await initOMFile(params.url);
 		} catch (e) {
-			throw new Error(e);
+			throw new Error(e as string);
 		}
 		return {
 			data: await getTilejson(params.url)

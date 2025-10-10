@@ -1,0 +1,330 @@
+<script lang="ts">
+	import { MediaQuery } from 'svelte/reactivity';
+
+	import * as Kbd from '$lib/components/ui/kbd';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import { browser } from '$app/environment';
+	import { onDestroy, onMount } from 'svelte';
+
+	const keydownEvent = (event: KeyboardEvent) => {
+		switch (event.key) {
+			case 'h':
+				helpOpen = true;
+				break;
+		}
+	};
+
+	onMount(() => {
+		if (browser) {
+			window.addEventListener('keydown', keydownEvent);
+		}
+	});
+
+	onDestroy(() => {
+		if (browser) {
+			window.removeEventListener('keydown', keydownEvent);
+		}
+	});
+
+	const desktop = new MediaQuery('min-width: 640px');
+
+	let helpOpen = $state(false);
+</script>
+
+<Dialog.Root bind:open={helpOpen}>
+	<Dialog.Content class="min-h-1/4">
+		<Dialog.Header>
+			<Dialog.Title>Help</Dialog.Title>
+		</Dialog.Header>
+		{#if desktop.current}
+			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+				<div class="flex flex-col">
+					<h2 class="mb-2 text-lg">Time Selector</h2>
+					<div class="flex flex-col gap-1">
+						<div class="flex items-center gap-2">
+							<Kbd.Root>↓</Kbd.Root> Previous Day
+						</div>
+						<div class="flex items-center gap-2">
+							<Kbd.Root>↑</Kbd.Root> Next Day
+						</div>
+						<div class="flex items-center gap-2">
+							<Kbd.Root>←</Kbd.Root> Previous Hour
+						</div>
+						<div class="flex items-center gap-2">
+							<Kbd.Root>→</Kbd.Root> Next Hour
+						</div>
+					</div>
+				</div>
+
+				<div>
+					<h2 class="mb-2 text-lg">Variables</h2>
+
+					<div class="flex flex-col gap-1">
+						<div class="flex items-center gap-2">
+							<Kbd.Root>d</Kbd.Root> Domain Selection
+						</div>
+						<div class="flex items-center gap-2">
+							<Kbd.Root>v</Kbd.Root> Variable Selection
+						</div>
+					</div>
+				</div>
+			</div>
+		{/if}
+		<h2 class="text-lg">Buttons</h2>
+		<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+			<div class="flex flex-col gap-3">
+				<div class="flex items-center gap-2">
+					<div class="maplibregl-ctrl maplibregl-ctrl-group">
+						<button
+							class="maplibregl-ctrl-zoom-in"
+							type="button"
+							title="Zoom in"
+							aria-label="Explanation Zoom in"
+							aria-disabled="false"
+							><span class="maplibregl-ctrl-icon" aria-hidden="true"></span></button
+						><button
+							class="maplibregl-ctrl-zoom-out"
+							type="button"
+							title="Zoom out"
+							aria-label="Explanation Zoom out"
+							aria-disabled="false"
+							><span class="maplibregl-ctrl-icon" aria-hidden="true"></span></button
+						><button
+							class="maplibregl-ctrl-compass"
+							type="button"
+							title="Reset bearing to north"
+							aria-label="Explanation Reset bearing to north"
+							><span
+								class="maplibregl-ctrl-icon"
+								aria-hidden="true"
+								style="transform: scale(1) rotateZ(0deg) rotateX(0deg) rotateZ(0deg);"
+							></span></button
+						>
+					</div>
+					<div class="flex flex-col gap-1.75">
+						<div class="truncate">Zoom in</div>
+						<div class="truncate">Zoom out</div>
+						<div class="truncate">Reset tilt / rotation</div>
+					</div>
+				</div>
+
+				<div class="flex items-center gap-2">
+					<div class="maplibregl-ctrl maplibregl-ctrl-group">
+						<button
+							class="maplibregl-ctrl-geolocate"
+							type="button"
+							title="Find my location"
+							aria-label="Explanation Find my location"
+							aria-pressed="false"
+							><span class="maplibregl-ctrl-icon" aria-hidden="true"></span></button
+						>
+					</div>
+					<div class="truncate">Locate User</div>
+				</div>
+
+				<div class="flex items-center gap-2">
+					<div class="maplibregl-ctrl maplibregl-ctrl-group">
+						<button
+							class="maplibregl-ctrl-globe"
+							aria-label="Explanation Globe Button"
+							type="button"
+							title="Enable globe"
+							><span class="maplibregl-ctrl-icon" aria-hidden="true"></span></button
+						>
+					</div>
+					<div class="truncate">Globe Projection</div>
+				</div>
+				<div class="flex items-center gap-2">
+					<div title="Darkmode" class="maplibregl-ctrl maplibregl-ctrl-group">
+						<button
+							aria-label="Explanation Darkmode Button"
+							style="display:flex;justify-content:center;align-items:center;"
+						>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								opacity="0.75"
+								stroke-width="1.2"
+								width="24"
+								height="24"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								class="lucide lucide-moon-icon lucide-moon"
+								><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg
+							>
+						</button>
+					</div>
+					<div class="truncate">Darkmode / Brightmode</div>
+				</div>
+				<div class="flex items-center gap-2">
+					<div title="Settings" class="maplibregl-ctrl maplibregl-ctrl-group">
+						<button
+							style="display:flex;justify-content:center;align-items:center;"
+							aria-label="Explanation Settings Button"
+						>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								opacity="0.75"
+								width="24"
+								height="24"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="1.2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								class="lucide lucide-settings-icon lucide-settings"
+								><path
+									d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"
+								></path><circle cx="12" cy="12" r="3"></circle></svg
+							>
+						</button>
+					</div>
+					<div class="truncate">Additional Settings</div>
+				</div>
+			</div>
+			<div class="flex flex-col gap-3">
+				<div class="flex items-center gap-2">
+					<div class="maplibregl-ctrl maplibregl-ctrl-group" title="Partial requests">
+						<button
+							style="display:flex;justify-content:center;align-items:center;"
+							aria-label="Explanation Partial Button"
+						>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								opacity="0.75"
+								stroke-width="1.2"
+								width="22"
+								height="22"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								class="lucide lucide-database-icon lucide-database"
+								><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5V19A9 3 0 0 0 21 19V5"
+								></path><path d="M3 12A9 3 0 0 0 21 12"></path></svg
+							>
+						</button>
+					</div>
+					<div class="truncate">Enable / Disable Partial Requests</div>
+				</div>
+
+				<div class="flex items-center gap-2">
+					<div class="maplibregl-ctrl maplibregl-ctrl-group" title="Time selector">
+						<button
+							style="display:flex;justify-content:center;align-items:center;"
+							aria-label="Explanation Time Selector Button"
+						>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								opacity="0.75"
+								stroke-width="1.2"
+								width="24"
+								height="24"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								class="lucide lucide-calendar-off-icon lucide-calendar-off"
+								><path d="M16 14v2.2l1.6 1"></path><path d="M16 2v4"></path><path
+									d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5"
+								></path><path d="M3 10h5"></path><path d="M8 2v4"></path><circle
+									cx="16"
+									cy="16"
+									r="6"
+								></circle></svg
+							>
+						</button>
+					</div>
+					<div class="truncate">Enable / Disable Time Selector</div>
+				</div>
+
+				<div class="flex items-center gap-2">
+					<div class="maplibregl-ctrl maplibregl-ctrl-group" title="Hillshade">
+						<button
+							style="display:flex;justify-content:center;align-items:center;"
+							aria-label="Explanation Hillshade Button"
+						>
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								opacity="0.75"
+								stroke-width="1.2"
+								width="24"
+								height="24"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								class="lucide lucide-mountain-snow-icon lucide-mountain-snow"
+								><path d="m8 3 4 8 5-5 5 15H2L8 3z"></path><path
+									d="M4.14 15.08c2.62-1.57 5.24-1.43 7.86.42 2.74 1.94 5.49 2 8.23.19"
+								></path></svg
+							>
+						</button>
+					</div>
+					<div class="truncate">Hillshade</div>
+				</div>
+
+				<div class="flex items-center gap-2">
+					<div class="maplibregl-ctrl maplibregl-ctrl-group">
+						<button
+							class="maplibregl-ctrl-terrain"
+							aria-label="Explanation 3D Terrain Button"
+							type="button"
+							title="Enable terrain"
+							><span class="maplibregl-ctrl-icon opacity-75" aria-hidden="true"></span></button
+						>
+					</div>
+					<div class="truncate">3D Terrain</div>
+				</div>
+
+				<div class="flex items-center gap-2">
+					<button
+						style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
+						class="bg-background/90 dark:bg-background/70 hover:!bg-background flex h-7.25 w-7.25 cursor-pointer items-center rounded-[4px] p-0"
+						aria-label="Hide Variable Selection"
+						><svg
+							opacity="0.75"
+							xmlns="http://www.w3.org/2000/svg"
+							width="17"
+							height="17"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							class="lucide lucide-chevron-left-icon lucide-chevron-left -mr-1.25"
+							><path d="m9 18 6-6-6-6" /></svg
+						>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							opacity="0.65"
+							stroke-width="1.75"
+							width="24"
+							height="24"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							class="lucide lucide-variable-icon lucide-variable"
+							><path d="M8 21s-4-3-4-9 4-9 4-9"></path><path d="M16 3s4 3 4 9-4 9-4 9"></path><line
+								x1="15"
+								x2="9"
+								y1="9"
+								y2="15"
+							></line><line x1="9" x2="15" y1="9" y2="15"></line></svg
+						></button
+					>
+					<div class="truncate">Show / Hide Variable Selection</div>
+				</div>
+			</div>
+		</div>
+	</Dialog.Content>
+</Dialog.Root>

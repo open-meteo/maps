@@ -94,7 +94,7 @@ const drawArrow = (
 					rgba[4 * indTile] = 0;
 					rgba[4 * indTile + 1] = 0;
 					rgba[4 * indTile + 2] = 0;
-					rgba[4 * indTile + 3] = northArrow[4 * ind + 3] * opacityValue * (OPACITY / 50);
+					rgba[4 * indTile + 3] = Number(northArrow[4 * ind + 3]) * opacityValue * (OPACITY / 50);
 				}
 			}
 		}

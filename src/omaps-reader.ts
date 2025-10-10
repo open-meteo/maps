@@ -1,23 +1,33 @@
-import { OmDataType, OmHttpBackend } from '@openmeteo/file-reader';
+import {
+	OmDataType,
+	OmHttpBackend,
+	type TypedArray,
+	type OmFileReader
+} from '@openmeteo/file-reader';
 
-import { pad } from '$lib/utils/pad';
+import { pad } from '$lib';
 
-import { DynamicProjection, ProjectionGrid, type Projection } from '$lib/utils/projections';
+import {
+	DynamicProjection,
+	ProjectionGrid,
+	type Projection,
+	type ProjectionName
+} from '$lib/utils/projections';
 
 import type { Domain, DimensionRange, Variable } from '$lib/types';
 
 import type { Data } from './om-protocol';
 
 export class OMapsFileReader {
-	child;
-	reader;
+	child?: OmFileReader;
+	reader?: OmFileReader;
 
-	partial;
-	ranges;
+	partial!: boolean;
+	ranges!: DimensionRange[];
 
-	domain;
-	projection;
-	projectionGrid;
+	domain!: Domain;
+	projection!: Projection;
+	projectionGrid!: ProjectionGrid;
 
 	constructor(domain: Domain, partial: boolean) {
 		this.setReaderData(domain, partial);
@@ -38,13 +48,16 @@ export class OMapsFileReader {
 		this.domain = domain;
 		if (domain.grid.projection) {
 			const projectionName = domain.grid.projection.name;
-			this.projection = new DynamicProjection(projectionName, domain.grid.projection) as Projection;
+			this.projection = new DynamicProjection(
+				projectionName as ProjectionName,
+				domain.grid.projection
+			) as Projection;
 			this.projectionGrid = new ProjectionGrid(this.projection, domain.grid);
 		}
 	}
 
-	setRanges(ranges: DimensionRange[] | null, dimensions: number[]) {
-		if (this.partial) {
+	setRanges(ranges: DimensionRange[] | null, dimensions: number[] | undefined) {
+		if (this.partial || !dimensions) {
 			this.ranges = ranges ?? this.ranges;
 		} else {
 			this.ranges = [
@@ -58,54 +71,59 @@ export class OMapsFileReader {
 		let values, directions;
 		if (variable.value.includes('_u_component')) {
 			// combine uv components, and calculate directions
-			const variableReaderU = await this.reader.getChildByName(variable.value);
-			const variableReaderV = await this.reader.getChildByName(
+			const variableReaderU = await this.reader?.getChildByName(variable.value);
+			const variableReaderV = await this.reader?.getChildByName(
 				variable.value.replace('_u_component', '_v_component')
 			);
-			const dimensions = variableReaderU.getDimensions();
+			const dimensions = variableReaderU?.getDimensions();
 
 			this.setRanges(ranges, dimensions);
 
-			const valuesUPromise = variableReaderU.read(OmDataType.FloatArray, this.ranges);
-			const valuesVPromise = variableReaderV.read(OmDataType.FloatArray, this.ranges);
+			const valuesUPromise = variableReaderU?.read(OmDataType.FloatArray, this.ranges);
+			const valuesVPromise = variableReaderV?.read(OmDataType.FloatArray, this.ranges);
 
 			const [valuesU, valuesV] = await Promise.all([valuesUPromise, valuesVPromise]);
 
 			values = [];
 			directions = [];
-			for (const [i, uValue] of valuesU.entries()) {
-				values.push(Math.sqrt(Math.pow(uValue, 2) + Math.pow(valuesV[i], 2)) * 1.94384); // convert from m/s to knots
-				directions.push((Math.atan2(uValue, valuesV[i]) * (180 / Math.PI) + 360) % 360);
-			}
+			if (valuesU && valuesV)
+				for (const [i, uValue] of valuesU.entries()) {
+					values.push(
+						Math.sqrt(Math.pow(Number(uValue), 2) + Math.pow(Number(valuesV[i]), 2)) * 1.94384
+					); // convert from m/s to knots
+					directions.push(
+						(Math.atan2(Number(uValue), Number(valuesV[i])) * (180 / Math.PI) + 360) % 360
+					);
+				}
 		} else {
-			const variableReader = await this.reader.getChildByName(variable.value);
-			const dimensions = variableReader.getDimensions();
+			const variableReader = await this.reader?.getChildByName(variable.value);
+			const dimensions = variableReader?.getDimensions();
 
 			this.setRanges(ranges, dimensions);
 
-			values = await variableReader.read(OmDataType.FloatArray, this.ranges);
+			values = await variableReader?.read(OmDataType.FloatArray, this.ranges);
 		}
 
 		if (variable.value.includes('_speed_')) {
 			// also get the direction for speed values
-			const variableReader = await this.reader.getChildByName(
+			const variableReader = await this.reader?.getChildByName(
 				variable.value.replace('_speed_', '_direction_')
 			);
 
-			directions = await variableReader.read(OmDataType.FloatArray, this.ranges);
+			directions = await variableReader?.read(OmDataType.FloatArray, this.ranges);
 		}
 		if (variable.value === 'wave_height') {
 			// also get the direction for speed values
-			const variableReader = await this.reader.getChildByName(
+			const variableReader = await this.reader?.getChildByName(
 				variable.value.replace('wave_height', 'wave_direction')
 			);
 
-			directions = await variableReader.read(OmDataType.FloatArray, this.ranges);
+			directions = await variableReader?.read(OmDataType.FloatArray, this.ranges);
 		}
 
 		return {
-			values: values,
-			directions: directions
+			values: values as TypedArray,
+			directions: directions as TypedArray
 		};
 	}
 
