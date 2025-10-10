@@ -45,28 +45,6 @@ const getCenterPoint = (grid: Domain['grid']) => {
 	}
 };
 
-export const getDomainOptions = (domainName: string) => {
-	const optGroups: DomainGroups = {};
-	for (const dg of domainGroups) {
-		const dgArray = [];
-		for (const d of domainOptions) {
-			if (d.value.startsWith(dg)) {
-				dgArray.push(d);
-			}
-		}
-		optGroups[dg] = dgArray;
-	}
-	let string = '';
-	for (const [og, doms] of Object.entries(optGroups)) {
-		string += `<optgroup label="${og.replace('_', ' ')}">`;
-		for (const d of doms) {
-			string += `<option value=${d.value} ${domainName === d.value ? 'selected' : ''}>${d.label}</option>`;
-		}
-		string += `</optgroup>`;
-	}
-	return string;
-};
-
 export const domainOptions: Array<Domain> = [
 	// BOM
 	// {

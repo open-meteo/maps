@@ -7,7 +7,7 @@ const dmiDomain = domainOptions.find((d) => d.value === 'dmi_harmonie_arome_euro
 const knmiDomain = domainOptions.find((d) => d.value === 'knmi_harmonie_arome_europe');
 
 test('Test LambertConformalConicProjection for DMI', () => {
-	const proj = new LambertConformalConicProjection(dmiDomain.grid.projection);
+	const proj = new LambertConformalConicProjection(dmiDomain?.grid.projection);
 	expect(proj.ρ0).toBe(0.6872809586016131);
 	expect(proj.F).toBe(1.801897704650192);
 	expect(proj.n).toBe(0.8241261886220157);
@@ -22,7 +22,7 @@ test('Test LambertConformalConicProjection for DMI', () => {
 });
 
 test('Test RotatedLatLon for KNMI', () => {
-	const proj = new RotatedLatLonProjection(knmiDomain.grid.projection);
+	const proj = new RotatedLatLonProjection(knmiDomain?.grid.projection);
 	expect(proj.θ).toBe(0.9599310885968813);
 	expect(proj.ϕ).toBe(-0.13962634015954636);
 

@@ -9,7 +9,7 @@ import type { Domain, DimensionRange, Variable } from '$lib/types';
 import type { Data } from './om-protocol';
 
 export class OMapsFileReader {
-	child?: Promise<OmFileReader>;
+	child?: OmFileReader;
 	reader?: OmFileReader;
 
 	partial!: boolean;

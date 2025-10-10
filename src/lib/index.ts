@@ -468,14 +468,17 @@ export const checkBounds = (map: maplibregl.Map, url: URL, latest: DomainMetaDat
 	if (paddedBounds && preferences.partial) {
 		let exceededPadding = false;
 
-		geojson.features[0].geometry.coordinates = [
-			[paddedBounds?.getSouthWest()['lng'], paddedBounds?.getSouthWest()['lat']],
-			[paddedBounds?.getNorthWest()['lng'], paddedBounds?.getNorthWest()['lat']],
-			[paddedBounds?.getNorthEast()['lng'], paddedBounds?.getNorthEast()['lat']],
-			[paddedBounds?.getSouthEast()['lng'], paddedBounds?.getSouthEast()['lat']],
-			[paddedBounds?.getSouthWest()['lng'], paddedBounds?.getSouthWest()['lat']]
-		];
-		paddedBoundsSource?.setData(geojson);
+		if (geojson) {
+			// @ts-expect-error stupid conflicting types from geojson
+			geojson.features[0].geometry.coordinates = [
+				[paddedBounds?.getSouthWest()['lng'], paddedBounds?.getSouthWest()['lat']],
+				[paddedBounds?.getNorthWest()['lng'], paddedBounds?.getNorthWest()['lat']],
+				[paddedBounds?.getNorthEast()['lng'], paddedBounds?.getNorthEast()['lat']],
+				[paddedBounds?.getSouthEast()['lng'], paddedBounds?.getSouthEast()['lat']],
+				[paddedBounds?.getSouthWest()['lng'], paddedBounds?.getSouthWest()['lat']]
+			];
+			paddedBoundsSource?.setData(geojson);
+		}
 
 		if (
 			mapBounds.getSouth() < paddedBounds.getSouth() &&
@@ -522,6 +525,7 @@ export const getPaddedBounds = (map: maplibregl.Map) => {
 						type: 'Feature',
 						geometry: {
 							type: 'LineString',
+							// @ts-expect-error stupid conflicting types from geojson
 							properties: {},
 							coordinates: [
 								[domain.grid.lonMin, domain.grid.latMin],
@@ -540,7 +544,7 @@ export const getPaddedBounds = (map: maplibregl.Map) => {
 
 			map.addSource('paddedBoundsSource', {
 				type: 'geojson',
-				data: get(paddedBoundsGeoJSON)
+				data: get(paddedBoundsGeoJSON) as GeoJSON.GeoJSON
 			});
 			pBS.set(map.getSource('paddedBoundsSource'));
 

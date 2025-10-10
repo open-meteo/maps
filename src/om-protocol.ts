@@ -256,7 +256,7 @@ export const omProtocol = async (
 		try {
 			await initOMFile(params.url);
 		} catch (e) {
-			throw new Error(e);
+			throw new Error(e as string);
 		}
 		return {
 			data: await getTilejson(params.url)
