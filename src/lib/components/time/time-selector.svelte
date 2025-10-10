@@ -76,25 +76,23 @@
 	});
 
 	const keydownEvent = (event: KeyboardEvent) => {
-		if (!(domainSelectionOpen || variableSelectionOpen)) {
-			if (!disabled) {
-				switch (event.key) {
-					case 'ArrowLeft':
-						previousHour();
-						break;
-					case 'ArrowRight':
-						nextHour();
-						break;
-					case 'ArrowDown':
-						previousDay();
-						break;
-					case 'ArrowUp':
-						nextDay();
-						break;
-				}
-			} else {
-				toast.warning('Still loading another OM file');
-			}
+		const canNavigate = !(domainSelectionOpen || variableSelectionOpen);
+		if (!canNavigate) return;
+
+		const actions: Record<string, () => void> = {
+			ArrowLeft: previousHour,
+			ArrowRight: nextHour,
+			ArrowDown: previousDay,
+			ArrowUp: nextDay
+		};
+
+		const action = actions[event.key];
+		if (!action) return;
+
+		if (!disabled) {
+			action();
+		} else {
+			toast.warning('Still loading another OM file');
 		}
 	};
 

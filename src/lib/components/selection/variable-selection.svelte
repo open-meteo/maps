@@ -86,11 +86,28 @@
 	let domainSelectionOpen = $state(get(dSO));
 	dSO.subscribe((dO) => {
 		domainSelectionOpen = dO;
+		if (dO) {
+			previewDomain = selectedDomain.value;
+		} else {
+			if (previewDomain && previewDomain !== selectedDomain.value) {
+				domainChange(previewDomain);
+			}
+			previewDomain = null;
+		}
 	});
 
 	let variableSelectionOpen = $state(get(vSO));
 	vSO.subscribe((vO) => {
 		variableSelectionOpen = vO;
+		if (vO) {
+			previewVariable = selectedVariable?.value;
+		} else {
+			if (previewVariable && previewVariable !== selectedVariable?.value) {
+				const temp = previewVariable;
+				previewVariable = null;
+				variablesChange(temp);
+			}
+		}
 	});
 
 	let variableSelectionExtended = $state(get(vSE));
@@ -143,6 +160,10 @@
 					event.preventDefault();
 					previewDomain = options[(domainFocusIndex() - 1 + options.length) % options.length].value;
 					break;
+
+				case 'Escape':
+					previewDomain = null;
+					break;
 			}
 		} else if (variableSelectionOpen) {
 			availableVariableOptions().then((options) => {
@@ -156,6 +177,10 @@
 						event.preventDefault();
 						previewVariable =
 							options[(variableFocusIndex - 1 + options.length) % options.length].value;
+						break;
+
+					case 'Escape':
+						previewVariable = null;
 						break;
 				}
 			});
@@ -217,14 +242,6 @@
 				bind:open={domainSelectionOpen}
 				onOpenChange={(e) => {
 					dSO.set(e);
-					if (e) {
-						previewDomain = selectedDomain.value;
-					} else {
-						if (previewDomain && previewDomain !== selectedDomain.value) {
-							domainChange(previewDomain);
-							previewDomain = null;
-						}
-					}
 				}}
 			>
 				<Popover.Trigger>
@@ -279,8 +296,8 @@
 													: selectedDomain.value === value
 														? '!bg-primary/15'
 														: ''}"
-												onSelect={async () => {
-													domainChange(value);
+												onSelect={() => {
+													previewDomain = value;
 													dSO.set(false);
 												}}
 												aria-selected={selectedDomain.value === value}
@@ -306,14 +323,6 @@
 				bind:open={variableSelectionOpen}
 				onOpenChange={(e) => {
 					vSO.set(e);
-					if (e) {
-						previewVariable = selectedVariable.value;
-					} else {
-						if (previewVariable && previewVariable !== selectedVariable.value) {
-							variablesChange(previewVariable);
-							previewVariable = null;
-						}
-					}
 				}}
 			>
 				<Popover.Trigger class={domainSelectionOpen ? 'hidden' : ''}>
@@ -375,9 +384,8 @@
 													? '!bg-primary/15'
 													: ''}"
 											onSelect={() => {
-												variablesChange(v?.value);
+												previewVariable = v?.value ?? null;
 												vSO.set(false);
-												previewVariable = null;
 											}}
 										>
 											<div class="flex w-full items-center justify-between">
