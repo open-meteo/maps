@@ -102,12 +102,14 @@ export const interpolateCardinal2D = (
 };
 
 export const interpolate2DHermite = (
-	values: Float32Array<ArrayBufferLike>,
-	nx: number,
+	values: TypedArray,
 	index: number,
 	xFraction: number,
-	yFraction: number
+	yFraction: number,
+	ranges: DimensionRange[]
 ) => {
+	const nx = ranges[1]['end'] - ranges[1]['start'];
+
 	// tension = 0 is Hermite with Catmull-Rom. Tension = 1 is bilinear interpolation
 	// 0.5 is somewhat in the middle
 	return interpolateCardinal2D(values, nx, index, xFraction, yFraction, 0.3);

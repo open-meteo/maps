@@ -5,7 +5,7 @@
 	let { children } = $props();
 </script>
 
-<Toaster position="top-center" />
+<Toaster closeButton={true} richColors={true} />
 
 {@render children()}
 <ModeWatcher />

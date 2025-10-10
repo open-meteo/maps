@@ -22,16 +22,9 @@ const viteServerConfig = () => ({
 	}
 });
 
-export default ({ mode }) => {
+export default ({ mode }: { mode: string }) => {
 	process.env = { ...process.env, ...loadEnv(mode, process.cwd()) };
-	const input =
-		process.env.GH_PAGES === 'true'
-			? {
-					index: 'src/main.ts'
-				}
-			: {
-					index: 'src/index.ts'
-				};
+
 	return defineConfig({
 		plugins: [
 			tailwindcss(),
@@ -50,6 +43,7 @@ export default ({ mode }) => {
 				// Allow serving files from one level up to the project root
 				allow: ['..']
 			}
-		}
+		},
+		build: { chunkSizeWarningLimit: 1500 }
 	});
 };

@@ -1,4 +1,9 @@
-import { DynamicProjection, ProjectionGrid, type Projection } from './projections';
+import {
+	DynamicProjection,
+	ProjectionGrid,
+	type Projection,
+	type ProjectionName
+} from './projections';
 
 import type { DimensionRange, Domain, Bounds, Center, IndexAndFractions } from '$lib/types';
 
@@ -103,7 +108,10 @@ export const getIndicesFromBounds = (
 
 	if (domain.grid.projection) {
 		const projectionName = domain.grid.projection.name;
-		const projection = new DynamicProjection(projectionName, domain.grid.projection) as Projection;
+		const projection = new DynamicProjection(
+			projectionName as ProjectionName,
+			domain.grid.projection
+		) as Projection;
 		const projectionGrid = new ProjectionGrid(projection, domain.grid);
 
 		[s, w, n, e] = getRotatedSWNE(domain, projection, [south, west, north, east]);

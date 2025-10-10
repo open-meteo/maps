@@ -5,9 +5,14 @@ import {
 	getCenterFromGrid
 } from './math';
 
-import type { Domain, DomainGroups } from '$lib/types';
+import type { Domain } from '$lib/types';
 
-import { DynamicProjection, ProjectionGrid, type Projection } from './projections';
+import {
+	DynamicProjection,
+	ProjectionGrid,
+	type Projection,
+	type ProjectionName
+} from './projections';
 
 export const domainGroups = [
 	//'bom',
@@ -29,7 +34,10 @@ export const domainGroups = [
 const getCenterPoint = (grid: Domain['grid']) => {
 	let center;
 	if (grid.projection) {
-		const projection = new DynamicProjection(grid.projection.name, grid.projection) as Projection;
+		const projection = new DynamicProjection(
+			grid.projection.name as ProjectionName,
+			grid.projection
+		) as Projection;
 		const projectionGrid = new ProjectionGrid(projection, grid);
 		const borderPoints = getBorderPoints(projectionGrid);
 		const bounds = getBoundsFromBorderPoints(borderPoints, projection);
@@ -43,28 +51,6 @@ const getCenterPoint = (grid: Domain['grid']) => {
 	} else {
 		return center;
 	}
-};
-
-export const getDomainOptions = (domainName: string) => {
-	const optGroups: DomainGroups = {};
-	for (const dg of domainGroups) {
-		const dgArray = [];
-		for (const d of domainOptions) {
-			if (d.value.startsWith(dg)) {
-				dgArray.push(d);
-			}
-		}
-		optGroups[dg] = dgArray;
-	}
-	let string = '';
-	for (const [og, doms] of Object.entries(optGroups)) {
-		string += `<optgroup label="${og.replace('_', ' ')}">`;
-		for (const d of doms) {
-			string += `<option value=${d.value} ${domainName === d.value ? 'selected' : ''}>${d.label}</option>`;
-		}
-		string += `</optgroup>`;
-	}
-	return string;
 };
 
 export const domainOptions: Array<Domain> = [
