@@ -70,7 +70,7 @@
 			const element = document.querySelector(
 				`[data-value="${previewDomain}"][data-slot="command-item"]`
 			);
-			element?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+			element?.scrollIntoView({ block: 'center' });
 		}
 	});
 
@@ -79,7 +79,7 @@
 			const element = document.querySelector(
 				`[data-value="${previewVariable}"][data-slot="command-item"]`
 			);
-			element?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+			element?.scrollIntoView({ block: 'center' });
 		}
 	});
 
@@ -409,6 +409,7 @@
 	>
 		{#if variableSelectionExtended}
 			<svg
+				opacity="0.75"
 				xmlns="http://www.w3.org/2000/svg"
 				width="17"
 				height="17"
@@ -423,6 +424,7 @@
 			>
 		{:else}
 			<svg
+				opacity="0.75"
 				xmlns="http://www.w3.org/2000/svg"
 				width="17"
 				height="17"
@@ -438,7 +440,7 @@
 		{/if}
 		<svg
 			xmlns="http://www.w3.org/2000/svg"
-			opacity="0.75"
+			opacity="0.65"
 			stroke-width="1.75"
 			width="24"
 			height="24"
