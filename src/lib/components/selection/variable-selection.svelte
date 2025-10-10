@@ -157,11 +157,13 @@
 						const query = document.querySelector(
 							'[data-value=' + selectedDomain.value + ']'
 						) as HTMLElement;
-						const firstChild = query.querySelector(
-							'[data-value=' + selectedDomain.value + ']'
-						) as HTMLElement;
-						firstChild.scrollIntoView({ block: 'center' });
-						firstChild.focus();
+						if (query) {
+							const firstChild = query.querySelector(
+								'[data-value=' + selectedDomain.value + ']'
+							) as HTMLElement;
+							firstChild.scrollIntoView({ block: 'center' });
+							firstChild.focus();
+						}
 					}}
 					class="ml-2.5 w-[250px] rounded-[4px] border-none bg-transparent p-0"
 				>
@@ -249,11 +251,13 @@
 						const query = document.querySelector(
 							'[data-value=' + selectedVariable.value + ']'
 						) as HTMLElement;
-						const firstChild = query.querySelector(
-							'[data-value=' + selectedVariable.value + ']'
-						) as HTMLElement;
-						firstChild.scrollIntoView({ block: 'center' });
-						firstChild.focus();
+						if (query) {
+							const firstChild = query.querySelector(
+								'[data-value=' + selectedVariable.value + ']'
+							) as HTMLElement;
+							firstChild.scrollIntoView({ block: 'center' });
+							firstChild.focus();
+						}
 					}}
 					class="ml-2.5 w-[250px] rounded-[4px] border-none bg-transparent p-0"
 				>
