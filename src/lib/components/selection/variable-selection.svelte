@@ -145,19 +145,6 @@
 					event.preventDefault();
 					previewDomain = options[(domainFocusIndex() - 1) % options.length].value;
 					break;
-
-				case 'Enter':
-					event.preventDefault();
-					if (previewDomain) {
-						domainChange(previewDomain);
-						dSO.set(false);
-					}
-					break;
-
-				case 'Escape':
-					event.preventDefault();
-					dSO.set(false);
-					break;
 			}
 		} else if (variableSelectionOpen) {
 			availableVariableOptions().then((options) => {
@@ -171,19 +158,6 @@
 						event.preventDefault();
 						previewVariable =
 							options[(variableFocusIndex - 1 + options.length) % options.length].value;
-						break;
-
-					case 'Enter':
-						event.preventDefault();
-						if (previewVariable) {
-							variablesChange(previewVariable);
-							vSO.set(false);
-						}
-						break;
-
-					case 'Escape':
-						event.preventDefault();
-						vSO.set(false);
 						break;
 				}
 			});
@@ -246,7 +220,10 @@
 				onOpenChange={(e) => {
 					dSO.set(e);
 					if (!e) {
-						previewDomain = null;
+						if (previewDomain && previewDomain !== selectedDomain.value) {
+							domainChange(previewDomain);
+							previewDomain = null;
+						}
 					}
 				}}
 			>
@@ -329,7 +306,10 @@
 				onOpenChange={(e) => {
 					vSO.set(e);
 					if (!e) {
-						previewVariable = null;
+						if (previewVariable && previewVariable !== selectedVariable.value) {
+							variablesChange(previewVariable);
+							previewVariable = null;
+						}
 					}
 				}}
 			>
