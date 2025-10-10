@@ -58,6 +58,7 @@
 	} from '$lib';
 
 	import '../styles.css';
+	import HelpDialog from '$lib/components/help/help-dialog.svelte';
 
 	let url: URL = $state();
 	let map: maplibregl.Map = $state();
@@ -181,6 +182,7 @@
 
 <div class="map" id="#map_container" bind:this={mapContainer}></div>
 <Scale showScale={$preferences.showScale} variables={$variables} />
+<HelpDialog />
 <VariableSelection
 	{url}
 	{map}
