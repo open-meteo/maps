@@ -274,20 +274,21 @@
 										{#if value.startsWith(group)}
 											<Command.Item
 												{value}
-												class="hover:!bg-primary/25 cursor-pointer {previewDomain === value ||
-												(!previewDomain && selectedDomain.value === value)
-													? '!bg-primary/15'
-													: ''}"
+												class="hover:!bg-primary/25 cursor-pointer {previewDomain === value
+													? '!bg-primary/25'
+													: selectedDomain.value === value
+														? '!bg-primary/15'
+														: ''}"
 												onSelect={async () => {
 													domainChange(value);
 													dSO.set(false);
 												}}
-												aria-selected={(previewDomain || selectedDomain.value) === value}
+												aria-selected={selectedDomain.value === value}
 											>
 												<div class="flex w-full items-center justify-between">
 													{label}
 													<CheckIcon
-														class="size-4 {(previewDomain || selectedDomain.value) !== value
+														class="size-4 {selectedDomain.value !== value
 															? 'text-transparent'
 															: ''}"
 													/>
@@ -368,10 +369,11 @@
 
 										<Command.Item
 											value={v?.value}
-											class="hover:!bg-primary/25 cursor-pointer {(previewVariable ||
-												selectedVariable.value) === v?.value
-												? '!bg-primary/15'
-												: ''}"
+											class="hover:!bg-primary/25 cursor-pointer {previewVariable === v?.value
+												? '!bg-primary/25'
+												: selectedVariable.value === v?.value
+													? '!bg-primary/15'
+													: ''}"
 											onSelect={() => {
 												variablesChange(v?.value);
 												vSO.set(false);
@@ -381,7 +383,7 @@
 											<div class="flex w-full items-center justify-between">
 												{v?.label}
 												<CheckIcon
-													class="size-4 {(previewVariable || selectedVariable.value) !== v?.value
+													class="size-4 {selectedVariable.value !== v?.value
 														? 'text-transparent'
 														: ''}"
 												/>
