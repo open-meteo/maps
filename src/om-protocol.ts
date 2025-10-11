@@ -1,8 +1,10 @@
-import { browser } from '$app/environment';
-
 import { type GetResourceResponse, type RequestParameters } from 'maplibre-gl';
 
 import { setupGlobalCache, type TypedArray } from '@openmeteo/file-reader';
+
+import { OMapsFileReader } from './omaps-reader';
+
+import { WorkerPool } from './worker-pool';
 
 import {
 	getBorderPoints,
@@ -12,17 +14,19 @@ import {
 	getIndicesFromBounds
 } from '$lib/utils/math';
 
-import { capitalize } from '$lib/utils/capitalize';
 import { getInterpolator } from '$lib/utils/color-scales';
 
 import { domainOptions } from '$lib/utils/domains';
 import { variableOptions } from '$lib/utils/variables';
 
-import { DynamicProjection, ProjectionGrid, type Projection } from '$lib/utils/projections';
+import {
+	DynamicProjection,
+	ProjectionGrid,
+	type Projection,
+	type ProjectionName
+} from '$lib/utils/projections';
 
-import { OMapsFileReader } from './omaps-reader';
-
-import TileWorker from './worker?worker';
+import { capitalize } from '$lib';
 
 import arrowPixelsSource from '$lib/utils/arrow';
 
@@ -84,27 +88,7 @@ export interface Data {
 let data: Data;
 
 const TILE_SIZE = Number(import.meta.env.VITE_TILE_SIZE) * 2;
-
-let worker: Worker;
-
-const pendingTiles = new Map<string, (tile: ImageBitmap | Uint8Array) => void>();
-const getWorker = () => {
-	// ensure this code only runs on the client
-	if (browser && !worker) {
-		worker = new TileWorker();
-		worker.onmessage = (message) => {
-			if (message.data.type.startsWith('return')) {
-				const key = message.data.key;
-				const resolve = pendingTiles.get(key);
-				if (resolve) {
-					resolve(message.data.tile);
-					pendingTiles.delete(key);
-				}
-			}
-		};
-	}
-	return worker;
-};
+const workerPool = new WorkerPool();
 
 export const getValueFromLatLong = (
 	lat: number,
@@ -145,18 +129,16 @@ const getTile = async (
 	{ z, x, y }: TileIndex,
 	omUrl: string,
 	type: 'image' | 'arrayBuffer'
-): Promise<ImageBitmap | Uint8Array<ArrayBufferLike>> => {
+): Promise<ImageBitmap> => {
 	const key = `${omUrl}/${type}/${TILE_SIZE}/${z}/${x}/${y}`;
-
-	const tileWorker = getWorker();
 
 	let iconList = {};
 	if (variable.value.startsWith('wind') || variable.value.startsWith('wave')) {
 		iconList = arrowPixelData;
 	}
 
-	tileWorker.postMessage({
-		type: 'get' + capitalize(type),
+	return await workerPool.requestTile({
+		type: ('get' + capitalize(type)) as 'getImage' | 'getArrayBuffer',
 		x,
 		y,
 		z,
@@ -169,13 +151,9 @@ const getTile = async (
 		mapBounds: mapBounds,
 		iconPixelData: iconList
 	});
-
-	return new Promise((resolve) => {
-		pendingTiles.set(key, resolve);
-	});
 };
 
-const renderData = async (url: string, type: 'image' | 'arrayBuffer') => {
+const renderTile = async (url: string, type: 'image' | 'arrayBuffer') => {
 	// Read URL parameters
 	const re = new RegExp(/om:\/\/(.+)\/(\d+)\/(\d+)\/(\d+)/);
 	const result = url.match(re);
@@ -196,7 +174,10 @@ const getTilejson = async (fullUrl: string): Promise<TileJSON> => {
 	let bounds: Bounds;
 	if (domain.grid.projection) {
 		const projectionName = domain.grid.projection.name;
-		projection = new DynamicProjection(projectionName, domain.grid.projection) as Projection;
+		projection = new DynamicProjection(
+			projectionName as ProjectionName,
+			domain.grid.projection
+		) as Projection;
 		projectionGrid = new ProjectionGrid(projection, domain.grid);
 
 		const borderPoints = getBorderPoints(projectionGrid);
@@ -216,8 +197,8 @@ const getTilejson = async (fullUrl: string): Promise<TileJSON> => {
 		tilejson: '2.2.0',
 		tiles: [fullUrl + '/{z}/{x}/{y}'],
 		attribution: '<a href="https://open-meteo.com">Open-Meteo</a>',
-		minzoom: 1,
-		maxzoom: 15,
+		minzoom: 0,
+		maxzoom: 12,
 		bounds: bounds
 	};
 };
@@ -282,20 +263,19 @@ const initOMFile = (url: string): Promise<void> => {
 
 export const omProtocol = async (
 	params: RequestParameters
-): Promise<GetResourceResponse<TileJSON | ImageBitmap | Uint8Array<ArrayBufferLike>>> => {
+): Promise<GetResourceResponse<TileJSON | ImageBitmap>> => {
 	if (params.type == 'json') {
 		try {
 			await initOMFile(params.url);
 		} catch (e) {
-			const error = e as Error;
-			throw new Error(error.name + ': ' + error.message);
+			throw new Error(e as string);
 		}
 		return {
 			data: await getTilejson(params.url)
 		};
 	} else if (params.type && ['image', 'arrayBuffer'].includes(params.type)) {
 		return {
-			data: await renderData(params.url, params.type as 'image' | 'arrayBuffer')
+			data: await renderTile(params.url, params.type as 'image' | 'arrayBuffer')
 		};
 	} else {
 		throw new Error(`Unsupported request type '${params.type}'`);

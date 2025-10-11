@@ -26,7 +26,7 @@ export const variableOptions = [
 	{ value: 'convective_cloud_top', label: 'Convective Cloud Top' },
 	{ value: 'convective_inhibition', label: 'Convective Inhibition' },
 
-	{ value: 'diffuse_radiation', label: 'Difuse Radiation' },
+	{ value: 'diffuse_radiation', label: 'Diffuse Radiation' },
 	{ value: 'direct_radiation', label: 'Direct Radiation' },
 
 	{ value: 'freezing_level_height', label: 'Freezing Level Height' },
@@ -73,7 +73,7 @@ export const variableOptions = [
 	{ value: 'secondary_swell_wave_height', label: 'Secondary Swell Wave Height' },
 	{ value: 'secondary_swell_wave_period', label: 'Secondary Swell Wave Period' },
 
-	{ value: 'thunderstorm_probability', label: 'Thunderstorm probability' },
+	{ value: 'thunderstorm_probability', label: 'Thunderstorm Probability' },
 
 	{ value: 'total_column_integrated_water_vapour', label: 'Total Column Integrated Water Vapour' },
 

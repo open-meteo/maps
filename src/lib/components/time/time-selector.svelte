@@ -1,81 +1,98 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 
+	import { get } from 'svelte/store';
+
 	import { SvelteDate } from 'svelte/reactivity';
 
 	import { toast } from 'svelte-sonner';
 
 	import { browser } from '$app/environment';
 
-	import { pad } from '$lib/utils/pad';
+	import { pad } from '$lib';
+
+	import {
+		domainSelectionOpen as dSO,
+		variableSelectionOpen as vSO
+	} from '$lib/stores/preferences';
 
 	import type { Domain } from '$lib/types';
 
 	interface Props {
+		time: Date;
 		domain: Domain;
-		timeSelected: Date;
-		onDateChange: (date: Date) => void;
 		disabled: boolean;
-		showTimeSelector: boolean;
+		timeSelector: boolean;
+		onDateChange: (date: Date) => void;
 	}
 
 	let {
+		time = $bindable(),
 		domain = $bindable(),
-		timeSelected = $bindable(),
-		onDateChange,
 		disabled,
-		showTimeSelector
+		timeSelector,
+		onDateChange
 	}: Props = $props();
 
-	let currentDate = $derived(timeSelected);
+	let currentDate = $derived(time);
 	let currentHour = $derived(currentDate.getHours());
 
 	const resolution = $derived(domain.time_interval);
 
 	const previousHour = () => {
-		const date = new SvelteDate(timeSelected);
+		const date = new SvelteDate(time);
 		date.setHours(currentHour - resolution);
 		onDateChange(date);
 	};
 
 	const nextHour = () => {
-		const date = new SvelteDate(timeSelected);
+		const date = new SvelteDate(time);
 		date.setHours(currentHour + resolution);
 		onDateChange(date);
 	};
 
 	const previousDay = () => {
-		const date = new SvelteDate(timeSelected);
+		const date = new SvelteDate(time);
 		date.setDate(date.getDate() - 1);
 		date.setHours(currentHour);
 		onDateChange(date);
 	};
 
 	const nextDay = () => {
-		const date = new SvelteDate(timeSelected);
+		const date = new SvelteDate(time);
 		date.setDate(date.getDate() + 1);
 		date.setHours(currentHour);
 		onDateChange(date);
 	};
 
+	let domainSelectionOpen = $state(get(dSO));
+	dSO.subscribe((dO) => {
+		domainSelectionOpen = dO;
+	});
+
+	let variableSelectionOpen = $state(get(vSO));
+	vSO.subscribe((vO) => {
+		variableSelectionOpen = vO;
+	});
+
 	const keydownEvent = (event: KeyboardEvent) => {
+		const canNavigate = !(domainSelectionOpen || variableSelectionOpen);
+		if (!canNavigate) return;
+
+		const actions: Record<string, () => void> = {
+			ArrowLeft: previousHour,
+			ArrowRight: nextHour,
+			ArrowDown: previousDay,
+			ArrowUp: nextDay
+		};
+
+		const action = actions[event.key];
+		if (!action) return;
+
 		if (!disabled) {
-			switch (event.key) {
-				case 'ArrowLeft':
-					previousHour();
-					break;
-				case 'ArrowRight':
-					nextHour();
-					break;
-				case 'ArrowDown':
-					previousDay();
-					break;
-				case 'ArrowUp':
-					nextDay();
-					break;
-			}
+			action();
 		} else {
-			toast('Still loading another OM file');
+			toast.warning('Still loading another OM file');
 		}
 	};
 
@@ -93,7 +110,8 @@
 </script>
 
 <div
-	class="time-selector bg-background/90 dark:bg-background/70 absolute bottom-14.5 left-[50%] mx-auto transform-[translate(-50%)] rounded-lg px-3 py-3 {!showTimeSelector
+	style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
+	class="time-selector bg-background/90 dark:bg-background/70 absolute bottom-14.5 left-[50%] mx-auto transform-[translate(-50%)] rounded-[4px] px-3 py-3 {!timeSelector
 		? 'pointer-events-none opacity-0'
 		: 'opacity-100'}"
 >
@@ -121,7 +139,7 @@
 					><path d="m15 18-6-6 6-6" /></svg
 				></button
 			>
-			<div class="-mt-0.5 flex flex-col items-center">
+			<div class=" flex flex-col items-center">
 				<span
 					class="min-w-[150px] text-center whitespace-nowrap delay-75 duration-200 {disabled
 						? ' text-black/50 dark:text-white/50 '
@@ -169,20 +187,20 @@
 			type="range"
 			min="0"
 			max="24"
-			{disabled}
 			step={resolution}
 			value={currentHour}
+			{disabled}
 			oninput={(e) => {
 				const target = e.target as HTMLInputElement;
 				const value = target?.value;
-				let newDate = new SvelteDate(timeSelected);
+				let newDate = new SvelteDate(time);
 				newDate.setHours(Number(value));
 				currentDate = newDate;
 			}}
 			onchange={(e) => {
 				const target = e.target as HTMLInputElement;
 				const value = target?.value;
-				const date = new SvelteDate(timeSelected);
+				const date = new SvelteDate(time);
 				date.setHours(Number(value));
 				onDateChange(date);
 			}}

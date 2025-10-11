@@ -46,6 +46,8 @@ export type Variable = {
 	label: string;
 };
 
+export type Variables = Variable[];
+
 export type ColorScale = {
 	min: number;
 	max: number;

@@ -93,7 +93,7 @@ const drawArrow = (
 					rgba[4 * indTile] = 0;
 					rgba[4 * indTile + 1] = 0;
 					rgba[4 * indTile + 2] = 0;
-					rgba[4 * indTile + 3] = northArrow[4 * ind + 3] * opacityValue * (OPACITY / 50);
+					rgba[4 * indTile + 3] = Number(northArrow[4 * ind + 3]) * opacityValue * (OPACITY / 50);
 				}
 			}
 		}
@@ -111,7 +111,7 @@ self.onmessage = async (message) => {
 
 		const domain = message.data.domain;
 		const variable = message.data.variable;
-		const colorScale = getColorScale(message.data.variable);
+		const colorScale = getColorScale(message.data.variable.value);
 
 		const pixels = TILE_SIZE * TILE_SIZE;
 		const rgba = new Uint8ClampedArray(pixels * 4);
@@ -214,9 +214,7 @@ self.onmessage = async (message) => {
 		const z = message.data.z;
 		const key = message.data.key;
 		const values = message.data.data.values;
-
 		const domain = message.data.domain;
-		const variable = message.data.variable;
 
 		const extent = 4096;
 		const margin = 256;
