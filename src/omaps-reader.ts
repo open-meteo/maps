@@ -67,8 +67,18 @@ export class OMapsFileReader {
 		}
 	}
 
+	/** Creates a Float32Array with the specified length.
+	 * If cross-origin isolation is enabled and SharedArrayBuffer is supported,
+	 * a SharedArrayBuffer is used to create the Float32Array.
+	 * Otherwise, a regular Float32Array is created.
+	 */
+	makeFloat32Array = (len: number) =>
+		crossOriginIsolated && typeof SharedArrayBuffer !== 'undefined'
+			? new Float32Array(new SharedArrayBuffer(len * Float32Array.BYTES_PER_ELEMENT))
+			: new Float32Array(len);
+
 	async readVariable(variable: Variable, ranges: DimensionRange[] | null = null): Promise<Data> {
-		let values, directions;
+		let values, directions: TypedArray | undefined;
 		if (variable.value.includes('_u_component')) {
 			// combine uv components, and calculate directions
 			const variableReaderU = await this.reader?.getChildByName(variable.value);
@@ -82,23 +92,20 @@ export class OMapsFileReader {
 			const valuesUPromise = variableReaderU?.read(OmDataType.FloatArray, this.ranges);
 			const valuesVPromise = variableReaderV?.read(OmDataType.FloatArray, this.ranges);
 
-			const [valuesU, valuesV] = await Promise.all([valuesUPromise, valuesVPromise]);
+			const [valuesU, valuesV]: [Float32Array, Float32Array] = (await Promise.all([
+				valuesUPromise,
+				valuesVPromise
+			])) as [Float32Array, Float32Array];
 
-			values = [];
-			directions = [];
-			if (valuesU && valuesV)
-				for (const [i, uValue] of valuesU.entries()) {
-					values.push(
-						Math.sqrt(Math.pow(Number(uValue), 2) + Math.pow(Number(valuesV[i]), 2)) * 1.94384
-					); // convert from m/s to knots
-					directions.push(
-						(Math.atan2(Number(uValue), Number(valuesV[i])) * (180 / Math.PI) + 360) % 360
-					);
-				}
+			values = this.makeFloat32Array(valuesU.length);
+			directions = this.makeFloat32Array(valuesU.length);
+			for (const [i, uValue] of valuesU.entries()) {
+				values[i] = Math.sqrt(Math.pow(uValue, 2) + Math.pow(valuesV[i], 2)) * 1.94384; // convert from m/s to knots
+				directions[i] = (Math.atan2(uValue, valuesV[i]) * (180 / Math.PI) + 360) % 360;
+			}
 		} else {
 			const variableReader = await this.reader?.getChildByName(variable.value);
 			const dimensions = variableReader?.getDimensions();
-
 			this.setRanges(ranges, dimensions);
 
 			values = await variableReader?.read(OmDataType.FloatArray, this.ranges);
@@ -119,6 +126,24 @@ export class OMapsFileReader {
 			);
 
 			directions = await variableReader?.read(OmDataType.FloatArray, this.ranges);
+		}
+
+		// Check if the array storage buffers are SABs. If not, convert them to SABs
+		console.log('crossoriginisolated', crossOriginIsolated);
+		if (crossOriginIsolated) {
+			if (values && !(values.buffer instanceof SharedArrayBuffer)) {
+				console.log('Converting values buffer to SharedArrayBuffer');
+				const sab = new SharedArrayBuffer(values?.length * Float32Array.BYTES_PER_ELEMENT);
+				const temp = new Float32Array(sab);
+				temp.set(values as Float32Array);
+				values = temp;
+			}
+			if (directions && !(directions.buffer instanceof SharedArrayBuffer)) {
+				const sab = new SharedArrayBuffer(directions.length * Float32Array.BYTES_PER_ELEMENT);
+				const temp = new Float32Array(sab);
+				temp.set(directions as Float32Array);
+				directions = temp;
+			}
 		}
 
 		return {
