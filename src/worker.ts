@@ -226,12 +226,14 @@ self.onmessage = async (message) => {
 			const features = [];
 			const directions = message.data.data.directions;
 
-			let mod = 10;
+			let mod = 4;
+			if (z > 1) {
+				mod = 3;
+			}
 			if (z > 2) {
-				mod = 5;
-			} else if (z > 4) {
 				mod = 2;
-			} else if (z > 8) {
+			}
+			if (z > 3) {
 				mod = 1;
 			}
 
