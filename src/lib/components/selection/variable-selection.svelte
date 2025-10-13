@@ -11,8 +11,8 @@
 	import * as Popover from '$lib/components/ui/popover';
 	import * as Command from '$lib/components/ui/command';
 
-	import { variableOptions } from '$lib/utils/variables';
-	import { domainGroups, domainOptions } from '$lib/utils/domains';
+	import { variableOptions } from '@openmeteo/mapbox-layer/dist/utils/variables';
+	import { domainGroups, domainOptions } from '@openmeteo/mapbox-layer/dist/utils/domains';
 
 	import { onDestroy, onMount } from 'svelte';
 	import { browser } from '$app/environment';

@@ -25,13 +25,13 @@ import {
 	variableSelectionExtended
 } from '$lib/stores/preferences';
 
-import { domainOptions } from '$lib/utils/domains';
-import { hideZero, variableOptions } from '$lib/utils/variables';
-import { getColorScale } from '$lib/utils/color-scales';
+import { domainOptions } from '@openmeteo/mapbox-layer/dist/utils/domains';
+import { hideZero, variableOptions } from '@openmeteo/mapbox-layer/dist/utils/variables';
+import { getColorScale } from '@openmeteo/mapbox-layer/dist/utils/color-scales';
 
 import type { DomainMetaData } from '$lib/types';
 
-import { getValueFromLatLong } from '../om-protocol';
+import { getValueFromLatLong } from '@openmeteo/mapbox-layer';
 
 const TILE_SIZE = Number(import.meta.env.VITE_TILE_SIZE);
 
