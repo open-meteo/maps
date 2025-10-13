@@ -1,29 +1,41 @@
 import {
-	DynamicProjection,
 	ProjectionGrid,
+	DynamicProjection,
 	type Projection,
 	type ProjectionName
 } from './projections';
 
 import type { DimensionRange, Domain, Bounds, Center, IndexAndFractions } from '$lib/types';
 
-const r2d = 180 / Math.PI;
+const PI = Math.PI;
+
+export const degreesToRadians = (degree: number) => {
+	return degree * (PI / 180);
+};
+
+export const radiansToDegrees = (rad: number) => {
+	return rad * (180 / PI);
+};
 
 export const tile2lon = (x: number, z: number): number => {
 	return (x / Math.pow(2, z)) * 360 - 180;
 };
 
 export const tile2lat = (y: number, z: number): number => {
-	const n = Math.PI - (2 * Math.PI * y) / Math.pow(2, z);
-	return r2d * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+	const n = PI - (2 * PI * y) / Math.pow(2, z);
+	return radiansToDegrees(Math.atan(0.5 * (Math.exp(n) - Math.exp(-n))));
 };
 
-export const tileToBBOX = (tile: [x: number, y: number, z: number]) => {
-	const e = tile2lon(tile[0] + 1, tile[2]);
-	const w = tile2lon(tile[0], tile[2]);
-	const s = tile2lat(tile[1] + 1, tile[2]);
-	const n = tile2lat(tile[1], tile[2]);
-	return [w, s, e, n];
+export const lon2tile = (lon: number, z: number): number => {
+	return Math.pow(2, z) * ((lon + 180) / 360);
+};
+
+export const lat2tile = (lat: number, z: number): number => {
+	return (
+		(Math.pow(2, z) *
+			(1 - Math.log(Math.tan(degreesToRadians(lat)) + 1 / Math.cos(degreesToRadians(lat))) / PI)) /
+		2
+	);
 };
 
 export const hermite = (t: number, p0: number, p1: number, m0: number, m1: number) => {
@@ -51,30 +63,24 @@ export const secondDerivative = (fm1: number, f0: number, fp1: number): number =
 export const getIndexFromLatLong = (
 	lat: number,
 	lon: number,
-	domain: Domain,
-	ranges: DimensionRange[] = [
-		{ start: 0, end: domain.grid.ny },
-		{ start: 0, end: domain.grid.nx }
-	]
+	dx: number,
+	dy: number,
+	nx: number,
+	latLonMinMax: [minLat: number, minLon: number, maxLat: number, maxLon: number]
 ): IndexAndFractions => {
-	const dx = domain.grid.dx;
-	const dy = domain.grid.dy;
-
-	const lonMin = domain.grid.lonMin + dx * ranges[1]['start'];
-	const latMin = domain.grid.latMin + dy * ranges[0]['start'];
-	const lonMax = domain.grid.lonMin + dx * ranges[1]['end'];
-	const latMax = domain.grid.latMin + dy * ranges[0]['end'];
-
-	if (lat < latMin || lat >= latMax || lon < lonMin || lon >= lonMax) {
+	if (
+		lat < latLonMinMax[0] ||
+		lat >= latLonMinMax[2] ||
+		lon < latLonMinMax[1] ||
+		lon >= latLonMinMax[3]
+	) {
 		return { index: NaN, xFraction: 0, yFraction: 0 };
 	} else {
-		const nx = ranges[1]['end'] - ranges[1]['start'];
+		const x = Math.floor((lon - latLonMinMax[1]) / dx);
+		const y = Math.floor((lat - latLonMinMax[0]) / dy);
 
-		const x = Math.floor((lon - lonMin) / dx);
-		const y = Math.floor((lat - latMin) / dy);
-
-		const xFraction = ((lon - lonMin) % dx) / dx;
-		const yFraction = ((lat - latMin) % dy) / dy;
+		const xFraction = ((lon - latLonMinMax[1]) % dx) / dx;
+		const yFraction = ((lat - latLonMinMax[0]) % dy) / dy;
 
 		const index = y * nx + x;
 		return { index, xFraction, yFraction };
@@ -297,14 +303,6 @@ export const getCenterFromGrid = (grid: Domain['grid']): Center => {
 		lng: grid.lonMin + grid.dx * (grid.nx * 0.5),
 		lat: grid.latMin + grid.dy * (grid.ny * 0.5)
 	};
-};
-
-export const degreesToRadians = (degree: number) => {
-	return degree * (Math.PI / 180);
-};
-
-export const radiansToDegrees = (rad: number) => {
-	return rad * (180 / Math.PI);
 };
 
 export const rotatePoint = (cx: number, cy: number, theta: number, x: number, y: number) => {

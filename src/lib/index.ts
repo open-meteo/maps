@@ -431,11 +431,12 @@ export const addPopup = (map: maplibregl.Map) => {
 				if ((hideZero.includes(variable.value) && value <= 0.25) || !value) {
 					popup.remove();
 				} else {
-					const string = value.toFixed(1) + colorScale.unit;
-					popup.setLngLat(coordinates).setHTML(`<span class="value-popup">${string}</span>`);
+					const string =
+						'<span class="popup-value">' + value.toFixed(1) + '</span>' + colorScale.unit;
+					popup.setLngLat(coordinates).setHTML(`<span class="popup-string">${string}</span>`);
 				}
 			} else {
-				popup.setLngLat(coordinates).setHTML(`<span class="value-popup">Outside domain</span>`);
+				popup.setLngLat(coordinates).setHTML(`<span class="popup-string">Outside domain</span>`);
 			}
 		}
 	});
