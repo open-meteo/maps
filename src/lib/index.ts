@@ -29,7 +29,7 @@ import { domainOptions } from '@openmeteo/mapbox-layer/dist/utils/domains';
 import { hideZero, variableOptions } from '@openmeteo/mapbox-layer/dist/utils/variables';
 import { getColorScale } from '@openmeteo/mapbox-layer/dist/utils/color-scales';
 
-import type { DomainMetaData } from '$lib/types';
+import type { DomainMetaData } from '@openmeteo/mapbox-layer/dist/types';
 
 import { getValueFromLatLong } from '@openmeteo/mapbox-layer';
 

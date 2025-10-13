@@ -20,6 +20,7 @@
 	import * as Sheet from '$lib/components/ui/sheet';
 
 	import Scale from '$lib/components/scale/scale.svelte';
+	import HelpDialog from '$lib/components/help/help-dialog.svelte';
 	import TimeSelector from '$lib/components/time/time-selector.svelte';
 	import VariableSelection from '$lib/components/selection/variable-selection.svelte';
 
@@ -59,7 +60,6 @@
 	} from '$lib';
 
 	import '../styles.css';
-	import HelpDialog from '$lib/components/help/help-dialog.svelte';
 
 	let url: URL = $state();
 	let map: maplibregl.Map = $state();
