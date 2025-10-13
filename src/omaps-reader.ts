@@ -89,8 +89,16 @@ export class OMapsFileReader {
 
 			this.setRanges(ranges, dimensions);
 
-			const valuesUPromise = variableReaderU?.read(OmDataType.FloatArray, this.ranges);
-			const valuesVPromise = variableReaderV?.read(OmDataType.FloatArray, this.ranges);
+			const valuesUPromise = variableReaderU?.read({
+				type: OmDataType.FloatArray,
+				ranges: this.ranges,
+				intoSAB: true
+			});
+			const valuesVPromise = variableReaderV?.read({
+				type: OmDataType.FloatArray,
+				ranges: this.ranges,
+				intoSAB: true
+			});
 
 			const [valuesU, valuesV]: [Float32Array, Float32Array] = (await Promise.all([
 				valuesUPromise,
@@ -108,7 +116,11 @@ export class OMapsFileReader {
 			const dimensions = variableReader?.getDimensions();
 			this.setRanges(ranges, dimensions);
 
-			values = await variableReader?.read(OmDataType.FloatArray, this.ranges);
+			values = await variableReader?.read({
+				type: OmDataType.FloatArray,
+				ranges: this.ranges,
+				intoSAB: true
+			});
 		}
 
 		if (variable.value.includes('_speed_')) {
@@ -117,7 +129,11 @@ export class OMapsFileReader {
 				variable.value.replace('_speed_', '_direction_')
 			);
 
-			directions = await variableReader?.read(OmDataType.FloatArray, this.ranges);
+			directions = await variableReader?.read({
+				type: OmDataType.FloatArray,
+				ranges: this.ranges,
+				intoSAB: true
+			});
 		}
 		if (variable.value === 'wave_height') {
 			// also get the direction for speed values
@@ -125,25 +141,11 @@ export class OMapsFileReader {
 				variable.value.replace('wave_height', 'wave_direction')
 			);
 
-			directions = await variableReader?.read(OmDataType.FloatArray, this.ranges);
-		}
-
-		// Check if the array storage buffers are SABs. If not, convert them to SABs
-		console.log('crossoriginisolated', crossOriginIsolated);
-		if (crossOriginIsolated) {
-			if (values && !(values.buffer instanceof SharedArrayBuffer)) {
-				console.log('Converting values buffer to SharedArrayBuffer');
-				const sab = new SharedArrayBuffer(values?.length * Float32Array.BYTES_PER_ELEMENT);
-				const temp = new Float32Array(sab);
-				temp.set(values as Float32Array);
-				values = temp;
-			}
-			if (directions && !(directions.buffer instanceof SharedArrayBuffer)) {
-				const sab = new SharedArrayBuffer(directions.length * Float32Array.BYTES_PER_ELEMENT);
-				const temp = new Float32Array(sab);
-				temp.set(directions as Float32Array);
-				directions = temp;
-			}
+			directions = await variableReader?.read({
+				type: OmDataType.FloatArray,
+				ranges: this.ranges,
+				intoSAB: true
+			});
 		}
 
 		return {
