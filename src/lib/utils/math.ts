@@ -5,7 +5,7 @@ import {
 	type ProjectionName
 } from './projections';
 
-import type { DimensionRange, Domain, Bounds, Center, IndexAndFractions } from '$lib/types';
+import type { Domain, Bounds, Center, IndexAndFractions } from '$lib/types';
 
 const PI = Math.PI;
 
