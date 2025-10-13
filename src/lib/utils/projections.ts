@@ -1,10 +1,25 @@
-import { degreesToRadians, radiansToDegrees } from './math';
+import { degreesToRadians, lat2tile, lon2tile, radiansToDegrees, tile2lat, tile2lon } from './math';
+
 import type { Domain } from '$lib/types';
 import type { DimensionRange } from '$lib/types';
 
 export interface Projection {
 	forward(latitude: number, longitude: number): [x: number, y: number];
 	reverse(x: number, y: number): [latitude: number, longitude: number];
+}
+
+export class MercatorProjection implements Projection {
+	forward(latitude: number, longitude: number): [x: number, y: number] {
+		const x = lon2tile(longitude, 0);
+		const y = lat2tile(latitude, 0);
+		return [x, y];
+	}
+
+	reverse(x: number, y: number): [latitude: number, longitude: number] {
+		const lon = tile2lon(x, 0);
+		const lat = tile2lat(y, 0);
+		return [lat, lon];
+	}
 }
 
 export class RotatedLatLonProjection implements Projection {
@@ -24,41 +39,48 @@ export class RotatedLatLonProjection implements Projection {
 		const lon = degreesToRadians(longitude);
 		const lat = degreesToRadians(latitude);
 
-		const x = Math.cos(lon) * Math.cos(lat);
-		const y = Math.sin(lon) * Math.cos(lat);
-		const z = Math.sin(lat);
+		const x1 = Math.cos(lon) * Math.cos(lat);
+		const y1 = Math.sin(lon) * Math.cos(lat);
+		const z1 = Math.sin(lat);
 
 		const x2 =
-			Math.cos(this.θ) * Math.cos(this.ϕ) * x +
-			Math.cos(this.θ) * Math.sin(this.ϕ) * y +
-			Math.sin(this.θ) * z;
-		const y2 = -Math.sin(this.ϕ) * x + Math.cos(this.ϕ) * y;
+			Math.cos(this.θ) * Math.cos(this.ϕ) * x1 +
+			Math.cos(this.θ) * Math.sin(this.ϕ) * y1 +
+			Math.sin(this.θ) * z1;
+		const y2 = -Math.sin(this.ϕ) * x1 + Math.cos(this.ϕ) * y1;
 		const z2 =
-			-Math.sin(this.θ) * Math.cos(this.ϕ) * x -
-			Math.sin(this.θ) * Math.sin(this.ϕ) * y +
-			Math.cos(this.θ) * z;
+			-Math.sin(this.θ) * Math.cos(this.ϕ) * x1 -
+			Math.sin(this.θ) * Math.sin(this.ϕ) * y1 +
+			Math.cos(this.θ) * z1;
 
-		return [-1 * radiansToDegrees(Math.atan2(y2, x2)), -1 * radiansToDegrees(Math.asin(z2))];
+		const x = -1 * radiansToDegrees(Math.atan2(y2, x2));
+		const y = -1 * radiansToDegrees(Math.asin(z2));
+
+		return [x, y];
 	}
 
 	reverse(x: number, y: number): [latitude: number, longitude: number] {
-		const lon = degreesToRadians(x);
-		const lat = degreesToRadians(y);
+		const lon1 = degreesToRadians(x);
+		const lat1 = degreesToRadians(y);
 
 		// quick solution without conversion in cartesian space
 		const lat2 =
 			-1 *
 			Math.asin(
-				Math.cos(this.θ) * Math.sin(lat) - Math.cos(lon) * Math.sin(this.θ) * Math.cos(lat)
+				Math.cos(this.θ) * Math.sin(lat1) - Math.cos(lon1) * Math.sin(this.θ) * Math.cos(lat1)
 			);
 		const lon2 =
 			-1 *
 			(Math.atan2(
-				Math.sin(lon),
-				Math.tan(lat) * Math.sin(this.θ) + Math.cos(lon) * Math.cos(this.θ)
+				Math.sin(lon1),
+				Math.tan(lat1) * Math.sin(this.θ) + Math.cos(lon1) * Math.cos(this.θ)
 			) -
 				this.ϕ);
-		return [radiansToDegrees(lat2), ((radiansToDegrees(lon2) + 180) % 360) - 180];
+
+		const lon = ((radiansToDegrees(lon2) + 180) % 360) - 180;
+		const lat = radiansToDegrees(lat2);
+
+		return [lat, lon];
 	}
 }
 
@@ -132,10 +154,12 @@ export class LambertConformalConicProjection implements Projection {
 		const ϕ_rad = 2 * Math.atan(Math.pow(this.F / ρ, 1 / this.n)) - Math.PI / 2;
 		const λ_rad = this.λ0 + θ / this.n;
 
-		const ϕ = radiansToDegrees(ϕ_rad);
 		const λ = radiansToDegrees(λ_rad);
 
-		return [ϕ, λ > 180 ? λ - 360 : λ];
+		const lat = radiansToDegrees(ϕ_rad);
+		const lon = λ > 180 ? λ - 360 : λ;
+
+		return [lat, lon];
 	}
 }
 
@@ -183,18 +207,20 @@ export class LambertAzimuthalEqualAreaProjection implements Projection {
 		y = y / this.R;
 		const ρ = Math.sqrt(x * x + y * y);
 		const c = 2 * Math.asin(0.5 * ρ);
-		let ϕ = Math.asin(Math.cos(c) * Math.sin(this.ϕ1) + (y * Math.sin(c) * Math.cos(this.ϕ1)) / ρ);
-		let λ =
+		const ϕ = Math.asin(
+			Math.cos(c) * Math.sin(this.ϕ1) + (y * Math.sin(c) * Math.cos(this.ϕ1)) / ρ
+		);
+		const λ =
 			this.λ0 +
 			Math.atan(
 				(x * Math.sin(c)) /
 					(ρ * Math.cos(this.ϕ1) * Math.cos(c) - y * Math.sin(this.ϕ1) * Math.sin(c))
 			);
 
-		ϕ = radiansToDegrees(ϕ);
-		λ = radiansToDegrees(λ);
+		const lat = radiansToDegrees(ϕ);
+		const lon = radiansToDegrees(λ);
 
-		return [ϕ, λ];
+		return [lat, lon];
 	}
 }
 
@@ -234,11 +260,16 @@ export class StereograpicProjection implements Projection {
 		const λ =
 			this.λ0 +
 			Math.atan2(x * Math.sin(c), p * this.cosϕ1 * Math.cos(c) - y * this.sinϕ1 * Math.sin(c));
-		return [radiansToDegrees(ϕ), radiansToDegrees(λ)];
+
+		const lat = radiansToDegrees(ϕ);
+		const lon = radiansToDegrees(λ);
+
+		return [lat, lon];
 	}
 }
 
 const projections = {
+	MercatorProjection,
 	StereograpicProjection,
 	RotatedLatLonProjection,
 	LambertConformalConicProjection,

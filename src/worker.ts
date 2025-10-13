@@ -137,13 +137,21 @@ const getIndexAndFractions = (
 	ranges = [
 		{ start: 0, end: domain.grid.ny },
 		{ start: 0, end: domain.grid.nx }
-	]
+	],
+	latLonMinMax: [minLat: number, minLon: number, maxLat: number, maxLon: number]
 ) => {
 	let indexObject: IndexAndFractions;
 	if (domain.grid.projection && projectionGrid) {
 		indexObject = projectionGrid.findPointInterpolated(lat, lon, ranges);
 	} else {
-		indexObject = getIndexFromLatLong(lat, lon, domain, ranges);
+		indexObject = getIndexFromLatLong(
+			lat,
+			lon,
+			domain.grid.dx,
+			domain.grid.dy,
+			ranges[1]['end'] - ranges[1]['start'],
+			latLonMinMax
+		);
 	}
 
 	return (
@@ -184,6 +192,11 @@ self.onmessage = async (message) => {
 
 		const interpolator = getInterpolator(colorScale);
 
+		const lonMin = domain.grid.lonMin + domain.grid.dx * ranges[1]['start'];
+		const latMin = domain.grid.latMin + domain.grid.dy * ranges[0]['start'];
+		const lonMax = domain.grid.lonMin + domain.grid.dx * ranges[1]['end'];
+		const latMax = domain.grid.latMin + domain.grid.dy * ranges[0]['end'];
+
 		for (let i = 0; i < TILE_SIZE; i++) {
 			const lat = tile2lat(y + i / TILE_SIZE, z);
 			for (let j = 0; j < TILE_SIZE; j++) {
@@ -195,7 +208,8 @@ self.onmessage = async (message) => {
 					lon,
 					domain,
 					projectionGrid,
-					ranges
+					ranges,
+					[latMin, lonMin, latMax, lonMax]
 				);
 
 				let px = interpolator(values as Float32Array, index, xFraction, yFraction, ranges);

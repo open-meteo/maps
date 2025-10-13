@@ -218,11 +218,18 @@ body {
 	padding: 3px 5px;
 }
 
-.value-popup {
+.popup-string {
 	color: black;
 }
 
-.dark .value-popup {
+.popup-value {
+	display: inline-block;
+	min-width: 24px;
+	text-align: right;
+	margin-right: 2px;
+}
+
+.dark .popup-string {
 	color: white;
 }
 

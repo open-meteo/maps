@@ -96,11 +96,23 @@ export const getValueFromLatLong = (
 	if (data) {
 		const values = data.values;
 
+		const lonMin = domain.grid.lonMin + domain.grid.dx * ranges[1]['start'];
+		const latMin = domain.grid.latMin + domain.grid.dy * ranges[0]['start'];
+		const lonMax = domain.grid.lonMin + domain.grid.dx * ranges[1]['end'];
+		const latMax = domain.grid.latMin + domain.grid.dy * ranges[0]['end'];
+
 		let indexObject;
 		if (domain.grid.projection) {
 			indexObject = projectionGrid.findPointInterpolated(lat, lon, ranges);
 		} else {
-			indexObject = getIndexFromLatLong(lat, lon, domain, ranges);
+			indexObject = getIndexFromLatLong(
+				lat,
+				lon,
+				domain.grid.dx,
+				domain.grid.dy,
+				ranges[1]['end'] - ranges[1]['start'],
+				[latMin, lonMin, latMax, lonMax]
+			);
 		}
 
 		const { index, xFraction, yFraction } = indexObject ?? {
