@@ -12,9 +12,10 @@
 
 	import { pushState } from '$app/navigation';
 
-	import { omProtocol } from '../om-protocol';
-	import { domainOptions } from '$lib/utils/domains';
-	import { variableOptions } from '$lib/utils/variables';
+	import { omProtocol } from '@openmeteo/mapbox-layer';
+
+	import { domainOptions } from '@openmeteo/mapbox-layer/dist/utils/domains';
+	import { variableOptions } from '@openmeteo/mapbox-layer/dist/utils/variables';
 
 	import * as Sheet from '$lib/components/ui/sheet';
 
