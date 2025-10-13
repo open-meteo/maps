@@ -14,8 +14,8 @@
 
 	import { omProtocol } from '@openmeteo/mapbox-layer';
 
-	import { domainOptions } from '@openmeteo/mapbox-layer/dist/utils/domains';
-	import { variableOptions } from '@openmeteo/mapbox-layer/dist/utils/variables';
+	import { domainOptions } from '@openmeteo/mapbox-layer/utils/domains';
+	import { variableOptions } from '@openmeteo/mapbox-layer/utils/variables';
 
 	import * as Sheet from '$lib/components/ui/sheet';
 

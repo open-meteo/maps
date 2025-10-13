@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getColorScale } from '@openmeteo/mapbox-layer/dist/utils/color-scales';
+	import { getColorScale } from '@openmeteo/mapbox-layer/utils/color-scales';
 
 	import type { Variables } from '$lib/types';
 

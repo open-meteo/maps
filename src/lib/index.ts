@@ -25,9 +25,9 @@ import {
 	variableSelectionExtended
 } from '$lib/stores/preferences';
 
-import { domainOptions } from '@openmeteo/mapbox-layer/dist/utils/domains';
-import { hideZero, variableOptions } from '@openmeteo/mapbox-layer/dist/utils/variables';
-import { getColorScale } from '@openmeteo/mapbox-layer/dist/utils/color-scales';
+import { domainOptions } from '@openmeteo/mapbox-layer/utils/domains';
+import { hideZero, variableOptions } from '@openmeteo/mapbox-layer/utils/variables';
+import { getColorScale } from '@openmeteo/mapbox-layer/utils/color-scales';
 
 import type { DomainMetaData } from '@openmeteo/mapbox-layer/dist/types';
 
