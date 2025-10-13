@@ -48,6 +48,10 @@ export const pad = (n: string | number) => {
 	return ('0' + n).slice(-2);
 };
 
+export function capitalize(s: string) {
+	return String(s[0]).toUpperCase() + String(s).slice(1);
+}
+
 export const urlParamsToPreferences = (url: URL) => {
 	const params = new URLSearchParams(url.search);
 
@@ -299,7 +303,9 @@ export const addHillshadeLayer = (map: maplibregl.Map) => {
 	);
 };
 
-let omFileSource: maplibregl.RasterTileSource | undefined;
+let omGridSource: maplibregl.VectorTileSource | undefined;
+let omRasterSource: maplibregl.RasterTileSource | undefined;
+let omVectorSource: maplibregl.VectorTileSource | undefined;
 
 export const addOmFileLayer = (map: maplibregl.Map) => {
 	omUrl = getOMUrl();
@@ -309,9 +315,9 @@ export const addOmFileLayer = (map: maplibregl.Map) => {
 		tileSize: TILE_SIZE
 	});
 
-	omFileSource = map.getSource('omFileRasterSource');
-	if (omFileSource) {
-		omFileSource.on('error', (e) => {
+	omRasterSource = map.getSource('omFileRasterSource');
+	if (omRasterSource) {
+		omRasterSource.on('error', (e) => {
 			checked = 0;
 			loading.set(false);
 			clearInterval(checkSourceLoadedInterval);
@@ -327,6 +333,158 @@ export const addOmFileLayer = (map: maplibregl.Map) => {
 		},
 		beforeLayer
 	);
+
+	map.addSource('omFileVectorSource', {
+		url: 'om://' + omUrl,
+		type: 'vector'
+	});
+
+	omVectorSource = map.getSource('omFileVectorSource');
+	if (omVectorSource) {
+		omVectorSource.on('error', (e) => {
+			toast(e.error.message);
+		});
+	}
+
+	map.addLayer({
+		id: 'omFileVectorLayer',
+		type: 'line',
+		source: 'omFileVectorSource',
+		'source-layer': 'contours',
+		layout: {
+			'line-join': 'round',
+			'line-cap': 'round'
+		},
+		paint: {
+			'line-color': ['case', ['boolean', ['feature-state', 'hover'], false], 'red', 'black'],
+			'line-width': [
+				'step',
+				['zoom'],
+				['case', ['boolean', ['feature-state', 'hover'], false], 4, ['get', 'lw']],
+				4,
+				['case', ['boolean', ['feature-state', 'hover'], false], 8, ['get', 'lw']],
+				8,
+				['case', ['boolean', ['feature-state', 'hover'], false], 12, ['get', 'lw']]
+			]
+		}
+	});
+
+	map.addLayer({
+		id: 'omFileVectorLabels',
+		type: 'symbol',
+		source: 'omFileVectorSource',
+		'source-layer': 'contours',
+		layout: {
+			'symbol-placement': 'line-center',
+			'text-font': ['Open Sans Regular'],
+			'text-field': ['to-string', ['get', 'pressure']],
+			'text-size': 16,
+			'icon-allow-overlap': true,
+			'text-allow-overlap': true,
+			'text-ignore-placement': true,
+			'icon-ignore-placement': true
+		}
+	});
+
+	map.addSource('omFileGridSource', {
+		url: 'om://' + omUrl + '?grid=true',
+		type: 'vector'
+	});
+
+	omGridSource = map.getSource('omFileGridSource');
+	if (omGridSource) {
+		omGridSource.on('error', (e) => {
+			toast(e.error.message);
+		});
+	}
+
+	map.addLayer({
+		id: 'omFileGridPoints',
+		type: 'circle',
+		source: 'omFileGridSource',
+		'source-layer': 'grid',
+		layout: {},
+		paint: {
+			'circle-radius': [
+				'interpolate',
+				['exponential', 2.5],
+				['zoom'],
+				// zoom is 0 -> circle radius will be 0.3px
+				0,
+				0.5,
+				7,
+				2,
+				// zoom is 12 (or greater) -> circle radius will be 8px
+				12,
+				12
+			],
+			'circle-color': '#007cbf'
+		}
+	});
+
+	if (get(variables)[0].value.includes('wind'))
+		map.addLayer({
+			id: 'omFileGridLabels',
+			type: 'symbol',
+			source: 'omFileGridSource',
+			'source-layer': 'grid',
+			layout: {
+				// 'text-offset': [
+				// 	'interpolate',
+				// 	['linear'],
+				// 	['zoom'],
+				// 	0,
+				// 	['literal', [0, 0]],
+				// 	6,
+				// 	['literal', [0, -0.75]],
+				// 	10,
+				// 	['literal', [0, -1]]
+				// ],
+				// 'text-font': ['Open Sans Regular'],
+				// 'text-field': ['to-string', ['get', 'value']],
+				// 'text-size': ['interpolate', ['linear'], ['zoom'], 0, 8, 8, 10, 10, 20]
+				// 'text-allow-overlap': true,
+				// 'text-ignore-placement': true,
+
+				'icon-image': '/images/weather-icons/wi-direction-up2.svg',
+				'icon-size': [
+					'interpolate',
+					['exponential', 2.5],
+					['zoom'],
+					// zoom is 0 -> icon size will be 0.12em
+					0,
+					0.12,
+
+					// zoom is 12 (or greater) -> icon size will be 1em
+					12,
+					1
+				],
+				'icon-rotate': ['get', 'direction'],
+				'icon-padding': -7
+
+				// 'icon-allow-overlap': true,
+				// 'icon-ignore-placement': true
+			}
+		});
+
+	let hoveredLevel = 0;
+	map.on('mouseenter', 'omFileVectorLayer', (e) => {
+		if (e.features.length > 0) {
+			hoveredLevel = e.features[0].id;
+			map.setFeatureState(
+				{ source: 'omFileVectorSource', id: hoveredLevel, sourceLayer: 'contours' },
+				{ hover: true }
+			);
+		}
+	});
+
+	map.on('mouseleave', 'omFileVectorLayer', () => {
+		map.setFeatureState(
+			{ source: 'omFileVectorSource', id: hoveredLevel, sourceLayer: 'contours' },
+			{ hover: false }
+		);
+		hoveredLevel = null;
+	});
 };
 
 export const terrainHandler = (map: maplibregl.Map, url: URL) => {
@@ -359,7 +517,7 @@ export const changeOMfileURL = (
 	latest?: DomainMetaData | undefined,
 	resetBounds = true
 ) => {
-	if (map && omFileSource) {
+	if (map && omRasterSource && omVectorSource && omGridSource) {
 		loading.set(true);
 		if (popup) {
 			popup.remove();
@@ -373,11 +531,13 @@ export const changeOMfileURL = (
 		checkClosestModelRun(map, url, latest);
 
 		omUrl = getOMUrl();
-		omFileSource.setUrl('om://' + omUrl);
+		omGridSource.setUrl('om://' + omUrl + '&grid=true');
+		omRasterSource.setUrl('om://' + omUrl);
+		omVectorSource.setUrl('om://' + omUrl);
 
 		checkSourceLoadedInterval = setInterval(() => {
 			checked++;
-			if ((omFileSource && omFileSource.loaded()) || checked >= 200) {
+			if ((omRasterSource && omRasterSource.loaded()) || checked >= 200) {
 				if (checked >= 200) {
 					// Timeout after 10s
 					toast.error('Request timed out');

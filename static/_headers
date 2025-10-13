@@ -1,0 +1,7 @@
+# Configure headers on cloudflare pages
+# Enable crossOriginIsolation for all resources
+/*
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp

@@ -2,6 +2,8 @@ import { type GetResourceResponse, type RequestParameters } from 'maplibre-gl';
 
 import { setupGlobalCache, type TypedArray } from '@openmeteo/file-reader';
 
+import { OMapsFileReader } from './omaps-reader';
+
 import { WorkerPool } from './worker-pool';
 
 import {
@@ -24,7 +26,7 @@ import {
 	type ProjectionName
 } from '$lib/utils/projections';
 
-import { OMapsFileReader } from './omaps-reader';
+import { capitalize } from '$lib';
 
 import arrowPixelsSource from '$lib/utils/arrow';
 
@@ -123,8 +125,12 @@ export const getValueFromLatLong = (
 	}
 };
 
-const getTile = async ({ z, x, y }: TileIndex, omUrl: string): Promise<ImageBitmap> => {
-	const key = `${omUrl}/${TILE_SIZE}/${z}/${x}/${y}`;
+const getTile = async (
+	{ z, x, y }: TileIndex,
+	omUrl: string,
+	type: 'image' | 'arrayBuffer'
+): Promise<ImageBitmap> => {
+	const key = `${omUrl}/${type}/${TILE_SIZE}/${z}/${x}/${y}`;
 
 	let iconList = {};
 	if (variable.value.startsWith('wind') || variable.value.startsWith('wave')) {
@@ -132,7 +138,7 @@ const getTile = async ({ z, x, y }: TileIndex, omUrl: string): Promise<ImageBitm
 	}
 
 	return await workerPool.requestTile({
-		type: 'GT',
+		type: ('get' + capitalize(type)) as 'getImage' | 'getArrayBuffer',
 		x,
 		y,
 		z,
@@ -147,7 +153,7 @@ const getTile = async ({ z, x, y }: TileIndex, omUrl: string): Promise<ImageBitm
 	});
 };
 
-const renderTile = async (url: string) => {
+const renderTile = async (url: string, type: 'image' | 'arrayBuffer') => {
 	// Read URL parameters
 	const re = new RegExp(/om:\/\/(.+)\/(\d+)\/(\d+)\/(\d+)/);
 	const result = url.match(re);
@@ -161,10 +167,7 @@ const renderTile = async (url: string) => {
 	const x = parseInt(result[3]);
 	const y = parseInt(result[4]);
 
-	// Read OM data
-	const tile = await getTile({ z, x, y }, omUrl);
-
-	return tile;
+	return await getTile({ z, x, y }, omUrl, type);
 };
 
 const getTilejson = async (fullUrl: string): Promise<TileJSON> => {
@@ -270,9 +273,9 @@ export const omProtocol = async (
 		return {
 			data: await getTilejson(params.url)
 		};
-	} else if (params.type == 'image') {
+	} else if (params.type && ['image', 'arrayBuffer'].includes(params.type)) {
 		return {
-			data: await renderTile(params.url)
+			data: await renderTile(params.url, params.type as 'image' | 'arrayBuffer')
 		};
 	} else {
 		throw new Error(`Unsupported request type '${params.type}'`);
