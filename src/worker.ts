@@ -37,6 +37,7 @@ const drawArrow = (
 	z: number,
 	ranges: DimensionRange[],
 	domain: Domain,
+	latLonMinMax: [minLat: number, minLon: number, maxLat: number, maxLon: number],
 	variable: Variable,
 	projectionGrid: ProjectionGrid | null,
 	values: TypedArray,
@@ -58,7 +59,8 @@ const drawArrow = (
 		lon,
 		domain,
 		projectionGrid,
-		ranges
+		ranges,
+		latLonMinMax
 	);
 
 	const px = interpolator(values as Float32Array, index, xFraction, yFraction, ranges);
@@ -261,6 +263,7 @@ self.onmessage = async (message) => {
 							z,
 							ranges,
 							domain,
+							[latMin, lonMin, latMax, lonMax],
 							variable,
 							projectionGrid,
 							values,
