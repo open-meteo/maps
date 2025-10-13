@@ -21,7 +21,7 @@
 			style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
 			class="flex flex-col-reverse overflow-hidden rounded-[4px]"
 		>
-			<div class="flex max-h-[270px] flex-col">
+			<div class="flex max-h-[270px] flex-col-reverse">
 				{#each colorScale.colors as cs, i (i)}
 					<div
 						style={'background: rgba(' +
