@@ -79,7 +79,7 @@ export class OMapsFileReader {
 	}
 
 	async readVariable(variable: Variable, ranges: DimensionRange[] | null = null): Promise<Data> {
-		let values, directions: TypedArray | undefined;
+		let values, directions: Float32Array | undefined;
 		if (variable.value.includes('_u_component')) {
 			// combine uv components, and calculate directions
 			const variableReaderU = await this.reader?.getChildByName(variable.value);

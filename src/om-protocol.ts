@@ -1,6 +1,6 @@
 import { type GetResourceResponse, type RequestParameters } from 'maplibre-gl';
 
-import { setupGlobalCache, type TypedArray } from '@openmeteo/file-reader';
+import { setupGlobalCache } from '@openmeteo/file-reader';
 
 import { WorkerPool } from './worker-pool';
 
@@ -79,8 +79,8 @@ const initPixelData = async () => {
 };
 
 export interface Data {
-	values: TypedArray | undefined;
-	directions: TypedArray | undefined;
+	values: Float32Array | undefined;
+	directions: Float32Array | undefined;
 }
 
 let data: Data;
@@ -124,7 +124,7 @@ export const getValueFromLatLong = (
 		if (values && index) {
 			const interpolator = getInterpolator(colorScale);
 
-			const px = interpolator(values as Float32Array, index, xFraction, yFraction, ranges);
+			const px = interpolator(values, index, xFraction, yFraction, ranges);
 
 			return { index: index, value: px };
 		} else {
