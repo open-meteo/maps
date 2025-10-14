@@ -8,6 +8,23 @@ import {
 import type { Domain, Bounds, Center, IndexAndFractions } from '$lib/types';
 
 const PI = Math.PI;
+const ONEQTR_PI = Math.PI / 4;
+const THRQTR_PI = (3 * Math.PI) / 4;
+
+// https://gist.github.com/volkansalma/2972237#file-atan2_approximation-c-L29
+export const fastAtan2 = (y: number, x: number) => {
+	const abs_y = Math.abs(y) + 1e-10; // kludge to prevent 0/0 condition
+	let angle, r;
+	if (x < 0) {
+		r = (x + abs_y) / (abs_y - x);
+		angle = THRQTR_PI;
+	} else {
+		r = (x - abs_y) / (x + abs_y);
+		angle = ONEQTR_PI;
+	}
+	angle += (0.1963 * r * r - 0.9817) * r;
+	return y < 0 ? -angle : angle;
+};
 
 export const degreesToRadians = (degree: number) => {
 	return degree * (PI / 180);

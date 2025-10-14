@@ -17,8 +17,14 @@ import {
 import type { Domain, DimensionRange, Variable } from '$lib/types';
 
 import type { Data } from './om-protocol';
+import { fastAtan2 } from '$lib/utils/math';
+
+const RAD2DEG = 180 / Math.PI;
+const MS_TO_KNOTS = 1.94384;
 
 export class OMapsFileReader {
+	static s3BackendCache: Map<string, OmHttpBackend> = new Map();
+
 	child?: OmFileReader;
 	reader?: OmFileReader;
 
@@ -35,11 +41,16 @@ export class OMapsFileReader {
 
 	async init(omUrl: string) {
 		this.dispose();
-		const s3_backend = new OmHttpBackend({
-			url: omUrl,
-			eTagValidation: false,
-			retries: 2
-		});
+
+		let s3_backend = OMapsFileReader.s3BackendCache.get(omUrl);
+		if (!s3_backend) {
+			s3_backend = new OmHttpBackend({
+				url: omUrl,
+				eTagValidation: false,
+				retries: 2
+			});
+			OMapsFileReader.s3BackendCache.set(omUrl, s3_backend);
+		}
 		this.reader = await s3_backend.asCachedReader();
 	}
 
@@ -66,16 +77,6 @@ export class OMapsFileReader {
 			];
 		}
 	}
-
-	/** Creates a Float32Array with the specified length.
-	 * If cross-origin isolation is enabled and SharedArrayBuffer is supported,
-	 * a SharedArrayBuffer is used to create the Float32Array.
-	 * Otherwise, a regular Float32Array is created.
-	 */
-	makeFloat32Array = (len: number) =>
-		crossOriginIsolated && typeof SharedArrayBuffer !== 'undefined'
-			? new Float32Array(new SharedArrayBuffer(len * Float32Array.BYTES_PER_ELEMENT))
-			: new Float32Array(len);
 
 	async readVariable(variable: Variable, ranges: DimensionRange[] | null = null): Promise<Data> {
 		let values, directions: TypedArray | undefined;
@@ -105,11 +106,15 @@ export class OMapsFileReader {
 				valuesVPromise
 			])) as [Float32Array, Float32Array];
 
-			values = this.makeFloat32Array(valuesU.length);
-			directions = this.makeFloat32Array(valuesU.length);
-			for (const [i, uValue] of valuesU.entries()) {
-				values[i] = Math.sqrt(Math.pow(uValue, 2) + Math.pow(valuesV[i], 2)) * 1.94384; // convert from m/s to knots
-				directions[i] = (Math.atan2(uValue, valuesV[i]) * (180 / Math.PI) + 360) % 360;
+			const BufferConstructor = valuesU.buffer.constructor as typeof ArrayBuffer;
+			values = new Float32Array(new BufferConstructor(valuesU.byteLength));
+			directions = new Float32Array(new BufferConstructor(valuesU.byteLength));
+
+			for (let i = 0; i < valuesU.length; ++i) {
+				const u = valuesU[i];
+				const v = valuesV[i];
+				values[i] = Math.sqrt(u * u + v * v) * MS_TO_KNOTS;
+				directions[i] = (fastAtan2(u, v) * RAD2DEG + 360) % 360;
 			}
 		} else {
 			const variableReader = await this.reader?.getChildByName(variable.value);
