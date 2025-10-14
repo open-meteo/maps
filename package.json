@@ -1,13 +1,10 @@
 {
-	"name": "@openmeteo/maplibre-om-protocol",
+	"name": "@openmeteo/maps",
 	"version": "0.0.1",
 	"type": "module",
-	"main": "dist/index.js",
-	"types": "dist/index.d.ts",
 	"author": "Open-Meteo <info@open-meteo.com>",
-	"module": "dist/index.js",
 	"repository": "git://github.com/open-meteo/maps",
-	"description": "Protocol to read OMfiles and parse them to tiles for Mapbox / Maplibre",
+	"description": "UI for using the Open-Meteo maps-protocol using Maplibre GL JS ",
 	"keywords": [
 		"open-meteo",
 		"meteorological-data",
