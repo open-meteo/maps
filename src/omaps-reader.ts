@@ -184,14 +184,24 @@ export class OMapsFileReader {
 		const nextOmUrls = this.getNextUrls(omUrl);
 		if (nextOmUrls) {
 			for (const nextOmUrl of nextOmUrls) {
-				fetch(nextOmUrl, {
-					method: 'GET',
-					headers: {
-						Range: 'bytes=0-255' // Just fetch first 256 bytes to trigger caching
-					}
-				}).catch(() => {
-					// Silently ignore errors for pretches
-				});
+				// If not already cached, create and cache the backend
+				if (!OMapsFileReader.s3BackendCache.has(nextOmUrl)) {
+					const s3_backend = new OmHttpBackend({
+						url: nextOmUrl,
+						eTagValidation: false,
+						retries: 2
+					});
+					OMapsFileReader.s3BackendCache.set(nextOmUrl, s3_backend);
+					// Trigger a small fetch to prepare CF to already cache the file
+					fetch(nextOmUrl, {
+						method: 'GET',
+						headers: {
+							Range: 'bytes=0-255' // Just fetch first 256 bytes to trigger caching
+						}
+					}).catch(() => {
+						// Silently ignore errors for prefetches
+					});
+				}
 			}
 		}
 	}
