@@ -8,11 +8,13 @@ import devtoolsJson from 'vite-plugin-devtools-json';
 
 import dts from 'vite-plugin-dts';
 
-/** @type {import('vite').Plugin} */
-const viteServerConfig = () => ({
+import type { Plugin, ViteDevServer } from 'vite';
+import type { IncomingMessage, ServerResponse } from 'http';
+
+const viteServerConfig = (): Plugin => ({
 	name: 'add-headers',
-	configureServer: (server) => {
-		server.middlewares.use((req, res, next) => {
+	configureServer: (server: ViteDevServer) => {
+		server.middlewares.use((req: IncomingMessage, res: ServerResponse, next: () => void) => {
 			res.setHeader('Access-Control-Allow-Origin', '*');
 			res.setHeader('Access-Control-Allow-Methods', 'GET');
 			res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');

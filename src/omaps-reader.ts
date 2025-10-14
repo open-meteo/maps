@@ -1,9 +1,4 @@
-import {
-	OmDataType,
-	OmHttpBackend,
-	type TypedArray,
-	type OmFileReader
-} from '@openmeteo/file-reader';
+import { OmDataType, OmHttpBackend, type OmFileReader } from '@openmeteo/file-reader';
 
 import { pad } from '$lib';
 
@@ -154,8 +149,8 @@ export class OMapsFileReader {
 		}
 
 		return {
-			values: values as TypedArray,
-			directions: directions as TypedArray
+			values,
+			directions
 		};
 	}
 
