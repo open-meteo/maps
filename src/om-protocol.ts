@@ -75,6 +75,10 @@ const initPixelData = async () => {
 		});
 	};
 
+	if (Object.keys(arrowPixelData).length > 0) {
+		return; // Already loaded
+	}
+
 	await Promise.all(Object.entries(arrowPixelsSource).map(([key, url]) => loadIcon(key, url)));
 };
 
@@ -159,10 +163,11 @@ const getTile = async ({ z, x, y }: TileIndex, omUrl: string): Promise<ImageBitm
 	});
 };
 
+const URL_REGEX = /^om:\/\/(.+)\/(\d+)\/(\d+)\/(\d+)$/;
+
 const renderTile = async (url: string) => {
 	// Read URL parameters
-	const re = new RegExp(/om:\/\/(.+)\/(\d+)\/(\d+)\/(\d+)/);
-	const result = url.match(re);
+	const result = url.match(URL_REGEX);
 	if (!result) {
 		throw new Error(`Invalid OM protocol URL '${url}'`);
 	}
