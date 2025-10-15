@@ -8,22 +8,46 @@ import {
 import type { Domain, Bounds, Center, IndexAndFractions } from '$lib/types';
 
 const PI = Math.PI;
-const ONEQTR_PI = Math.PI / 4;
-const THRQTR_PI = (3 * Math.PI) / 4;
 
 // https://gist.github.com/volkansalma/2972237#file-atan2_approximation-c-L29
+// https://dspguru.com/dsp/tricks/fixed-point-atan2-with-self-normalization/
+// maximum error is about 0.01 radians
+// export const fastAtan2 = (y: number, x: number) => {
+//   const ONEQTR_PI = Math.PI / 4;
+//   const THRQTR_PI = (3 * Math.PI) / 4;
+// 	const abs_y = Math.abs(y) + 1e-10; // kludge to prevent 0/0 condition
+// 	let angle, r;
+// 	if (x < 0) {
+// 		r = (x + abs_y) / (abs_y - x);
+// 		angle = THRQTR_PI;
+// 	} else {
+// 		r = (x - abs_y) / (x + abs_y);
+// 		angle = ONEQTR_PI;
+// 	}
+// 	angle += (0.1963 * r * r - 0.9817) * r;
+// 	return y < 0 ? -angle : angle;
+// };
+
+// https://mazzo.li/posts/vectorized-atan2.html
 export const fastAtan2 = (y: number, x: number) => {
-	const abs_y = Math.abs(y) + 1e-10; // kludge to prevent 0/0 condition
-	let angle, r;
-	if (x < 0) {
-		r = (x + abs_y) / (abs_y - x);
-		angle = THRQTR_PI;
-	} else {
-		r = (x - abs_y) / (x + abs_y);
-		angle = ONEQTR_PI;
-	}
-	angle += (0.1963 * r * r - 0.9817) * r;
-	return y < 0 ? -angle : angle;
+	const swap = Math.abs(x) < Math.abs(y);
+	const denominator = (swap ? y : x) === 0 ? 0.00000001 : swap ? y : x;
+	const atan_input = (swap ? x : y) / denominator;
+
+	const a1 = 0.99997726;
+	const a3 = -0.33262347;
+	const a5 = 0.19354346;
+	const a7 = -0.11643287;
+	const a9 = 0.05265332;
+	const a11 = -0.0117212;
+
+	const z_sq = atan_input * atan_input;
+	let res = atan_input * (a1 + z_sq * (a3 + z_sq * (a5 + z_sq * (a7 + z_sq * (a9 + z_sq * a11)))));
+
+	if (swap) res = (Math.sign(atan_input) * PI) / 2 - res;
+	if (x < 0.0) res = Math.sign(y) * PI + res;
+
+	return res;
 };
 
 export const degreesToRadians = (degree: number) => {
