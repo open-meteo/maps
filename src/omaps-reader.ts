@@ -12,10 +12,9 @@ import {
 import type { Domain, DimensionRange, Variable } from '$lib/types';
 
 import type { Data } from './om-protocol';
-import { fastAtan2 } from '$lib/utils/math';
+import { fastAtan2, radiansToDegrees } from '$lib/utils/math';
 
-const RAD2DEG = 180 / Math.PI;
-const MS_TO_KNOTS = 1.94384;
+import { MS_TO_KNOTS } from '$lib/constants';
 
 export class OMapsFileReader {
 	static s3BackendCache: Map<string, OmHttpBackend> = new Map();
@@ -109,7 +108,7 @@ export class OMapsFileReader {
 				const u = valuesU[i];
 				const v = valuesV[i];
 				values[i] = Math.sqrt(u * u + v * v) * MS_TO_KNOTS;
-				directions[i] = (fastAtan2(u, v) * RAD2DEG + 360) % 360;
+				directions[i] = (radiansToDegrees(fastAtan2(u, v)) + 360) % 360;
 			}
 		} else {
 			const variableReader = await this.reader?.getChildByName(variable.value);
