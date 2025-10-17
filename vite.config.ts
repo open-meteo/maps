@@ -1,11 +1,7 @@
 import { defineConfig, loadEnv } from 'vite';
-
 import { sveltekit } from '@sveltejs/kit/vite';
-
 import tailwindcss from '@tailwindcss/vite';
-
 import devtoolsJson from 'vite-plugin-devtools-json';
-
 import dts from 'vite-plugin-dts';
 
 import type { Plugin, ViteDevServer } from 'vite';
@@ -43,9 +39,11 @@ export default ({ mode }: { mode: string }) => {
 		server: {
 			fs: {
 				// Allow serving files from one level up to the project root
-				allow: ['..']
+				allow: ['./mapbox-layer']
 			}
 		},
-		build: { chunkSizeWarningLimit: 1500 }
+		build: {
+			chunkSizeWarningLimit: 1500
+		}
 	});
 };

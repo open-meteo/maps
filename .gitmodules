@@ -1,0 +1,3 @@
+[submodule "mapbox-layer"]
+	path = mapbox-layer
+	url = https://github.com/open-meteo/mapbox-layer
