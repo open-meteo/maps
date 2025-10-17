@@ -11,8 +11,7 @@
 	import * as Popover from '$lib/components/ui/popover';
 	import * as Command from '$lib/components/ui/command';
 
-	import { variableOptions } from '@openmeteo/mapbox-layer/utils/variables';
-	import { domainGroups, domainOptions } from '@openmeteo/mapbox-layer/utils/domains';
+	import { domainGroups, variableOptions, domainOptions } from '@openmeteo/mapbox-layer';
 
 	import { onDestroy, onMount } from 'svelte';
 	import { browser } from '$app/environment';
@@ -171,7 +170,7 @@
 					class="ml-2.5 w-[250px] rounded-[4px] border-none bg-transparent p-0"
 				>
 					<Popover.Close
-						class="absolute top-0.5 right-0.5 flex h-5 w-5 cursor-pointer items-center justify-center"
+						class="absolute right-0.5 top-0.5 flex h-5 w-5 cursor-pointer items-center justify-center"
 						><button aria-label="Close popover"
 							><svg
 								xmlns="http://www.w3.org/2000/svg"
@@ -268,7 +267,7 @@
 					class="ml-2.5 w-[250px] rounded-[4px] border-none bg-transparent p-0"
 				>
 					<Popover.Close
-						class="absolute top-0.5 right-0.5 flex h-5 w-5 cursor-pointer items-center justify-center"
+						class="absolute right-0.5 top-0.5 flex h-5 w-5 cursor-pointer items-center justify-center"
 						><button aria-label="Close popover"
 							><svg
 								xmlns="http://www.w3.org/2000/svg"
@@ -332,7 +331,7 @@
 
 	<button
 		style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
-		class=" bg-background/90 dark:bg-background/70 hover:!bg-background flex h-7.25 w-7.25 cursor-pointer items-center rounded-[4px] p-0"
+		class=" bg-background/90 dark:bg-background/70 hover:!bg-background h-7.25 w-7.25 flex cursor-pointer items-center rounded-[4px] p-0"
 		onclick={() => {
 			vSE.set(!get(vSE));
 		}}

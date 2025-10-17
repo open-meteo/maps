@@ -12,10 +12,7 @@
 
 	import { pushState } from '$app/navigation';
 
-	import { omProtocol } from '@openmeteo/mapbox-layer';
-
-	import { domainOptions } from '@openmeteo/mapbox-layer/utils/domains';
-	import { variableOptions } from '@openmeteo/mapbox-layer/utils/variables';
+	import { omProtocol, variableOptions, domainOptions } from '@openmeteo/mapbox-layer';
 
 	import * as Sheet from '$lib/components/ui/sheet';
 
@@ -162,7 +159,7 @@
 	<div
 		in:fade={{ delay: 1200, duration: 400 }}
 		out:fade={{ duration: 150 }}
-		class="pointer-events-none absolute top-[50%] left-[50%] z-50 transform-[translate(-50%,-50%)]"
+		class="transform-[translate(-50%,-50%)] pointer-events-none absolute left-[50%] top-[50%] z-50"
 	>
 		<svg
 			xmlns="http://www.w3.org/2000/svg"
