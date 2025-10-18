@@ -12,7 +12,12 @@
 
 	import { pushState } from '$app/navigation';
 
-	import { omProtocol, variableOptions, domainOptions } from '@openmeteo/mapbox-layer';
+	import {
+		omProtocol,
+		variableOptions,
+		domainOptions,
+		type DomainMetaData
+	} from '@openmeteo/mapbox-layer';
 
 	import * as Sheet from '$lib/components/ui/sheet';
 
@@ -20,8 +25,6 @@
 	import HelpDialog from '$lib/components/help/help-dialog.svelte';
 	import TimeSelector from '$lib/components/time/time-selector.svelte';
 	import VariableSelection from '$lib/components/selection/variable-selection.svelte';
-
-	import type { DomainMetaData } from '$lib/types';
 
 	import {
 		TimeButton,

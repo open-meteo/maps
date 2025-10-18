@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getColorScale } from '@openmeteo/mapbox-layer';
 
-	import type { Variables } from '$lib/types';
+	import type { Variables } from '@openmeteo/mapbox-layer';
 
 	interface Props {
 		showScale: boolean;

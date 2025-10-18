@@ -24,7 +24,7 @@
 
 	import type { Map } from 'maplibre-gl';
 
-	import type { Domain, DomainMetaData, Variables } from '$lib/types';
+	import type { Domain, DomainMetaData, Variables } from '@openmeteo/mapbox-layer';
 	import { pushState } from '$app/navigation';
 
 	interface Props {
