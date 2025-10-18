@@ -69,7 +69,7 @@
 	});
 
 	onMount(async () => {
-		maplibregl.addProtocol('om', omProtocol);
+		maplibregl.addProtocol('om', (params) => omProtocol(params, undefined, true));
 
 		const style = await getStyle();
 
@@ -142,7 +142,6 @@
 						changeOMfileURL(map, url, latest);
 					}
 				}
-
 				resolve(json);
 			});
 		});
@@ -159,7 +158,7 @@
 	<div
 		in:fade={{ delay: 1200, duration: 400 }}
 		out:fade={{ duration: 150 }}
-		class="transform-[translate(-50%,-50%)] pointer-events-none absolute left-[50%] top-[50%] z-50"
+		class="pointer-events-none absolute top-[50%] left-[50%] z-50 transform-[translate(-50%,-50%)]"
 	>
 		<svg
 			xmlns="http://www.w3.org/2000/svg"
