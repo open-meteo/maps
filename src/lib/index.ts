@@ -26,6 +26,7 @@ import {
 } from '$lib/stores/preferences';
 
 import { domainOptions, hideZero, variableOptions, getColorScale } from '@openmeteo/mapbox-layer';
+import type { DomainMetaData } from '@openmeteo/mapbox-layer/dist/types';
 
 const TILE_SIZE = Number(import.meta.env.VITE_TILE_SIZE);
 
