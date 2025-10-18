@@ -23,7 +23,7 @@ import {
 	addHillshadeSources
 } from '$lib';
 
-import type { DomainMetaData } from '$lib/types';
+import type { DomainMetaData } from '@openmeteo/mapbox-layer';
 
 const preferences = get(p);
 

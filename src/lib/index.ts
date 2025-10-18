@@ -25,13 +25,15 @@ import {
 	variableSelectionExtended
 } from '$lib/stores/preferences';
 
-import { domainOptions } from '$lib/utils/domains';
-import { hideZero, variableOptions } from '$lib/utils/variables';
-import { getColorScale } from '$lib/utils/color-scales';
+import {
+	hideZero,
+	getColorScale,
+	domainOptions,
+	variableOptions,
+	getValueFromLatLong
+} from '@openmeteo/mapbox-layer';
 
-import type { DomainMetaData } from '$lib/types';
-
-import { getValueFromLatLong } from '../om-protocol';
+import type { DomainMetaData } from '@openmeteo/mapbox-layer';
 
 const TILE_SIZE = Number(import.meta.env.VITE_TILE_SIZE);
 

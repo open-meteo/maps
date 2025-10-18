@@ -1,13 +1,10 @@
 {
-	"name": "@openmeteo/maplibre-om-protocol",
+	"name": "@openmeteo/maps",
 	"version": "0.0.1",
 	"type": "module",
-	"main": "dist/index.js",
-	"types": "dist/index.d.ts",
 	"author": "Open-Meteo <info@open-meteo.com>",
-	"module": "dist/index.js",
 	"repository": "git://github.com/open-meteo/maps",
-	"description": "Protocol to read OMfiles and parse them to tiles for Mapbox / Maplibre",
+	"description": "UI for using the Open-Meteo maps-protocol using Maplibre GL JS ",
 	"keywords": [
 		"open-meteo",
 		"meteorological-data",
@@ -34,19 +31,15 @@
 		"@eslint/js": "^9.37.0",
 		"@internationalized/date": "^3.10.0",
 		"@lucide/svelte": "^0.545.0",
-		"@openmeteo/file-reader": "^0.0.11",
 		"@sveltejs/adapter-static": "^3.0.8",
 		"@sveltejs/kit": "^2.46.3",
 		"@sveltejs/vite-plugin-svelte": "^6.2.0",
 		"@tailwindcss/forms": "^0.5.9",
 		"@tailwindcss/typography": "^0.5.15",
 		"@tailwindcss/vite": "^4.0.0",
-		"@types/d3": "^7.4.3",
-		"@types/node": "^24.7.1",
-		"@vitest/browser": "^3.2.3",
+		"@vitest/browser": "^3.2.4",
 		"bits-ui": "^2.11.0",
 		"clsx": "^2.1.1",
-		"d3": "^7.9.0",
 		"eslint": "^9.37.0",
 		"eslint-config-prettier": "^10.0.1",
 		"eslint-plugin-svelte": "^3.12.1",
@@ -54,7 +47,6 @@
 		"maplibre-gl": "^5.9.0",
 		"mdsvex": "^0.12.3",
 		"mode-watcher": "^1.1.0",
-		"playwright": "^1.56.0",
 		"prettier": "^3.4.2",
 		"prettier-plugin-svelte": "^3.3.3",
 		"prettier-plugin-tailwindcss": "^0.6.11",
@@ -68,16 +60,13 @@
 		"tw-animate-css": "^1.4.0",
 		"typescript": "^5.0.0",
 		"typescript-eslint": "^8.46.0",
-		"vaul-svelte": "1.0.0-next.7",
-		"vite": "^7.0.4",
+		"vite": "^7.1.10",
 		"vite-plugin-devtools-json": "^1.0.0",
 		"vite-plugin-dts": "^4.5.4",
-		"vitest": "^3.2.3",
+		"vitest": "^3.2.4",
 		"vitest-browser-svelte": "^1.1.0"
 	},
-	"pnpm": {
-		"onlyBuiltDependencies": [
-			"esbuild"
-		]
+	"dependencies": {
+		"@openmeteo/mapbox-layer": "github:open-meteo/mapbox-layer"
 	}
 }

@@ -16,7 +16,7 @@
 		variableSelectionOpen as vSO
 	} from '$lib/stores/preferences';
 
-	import type { Domain } from '$lib/types';
+	import type { Domain } from '@openmeteo/mapbox-layer';
 
 	interface Props {
 		time: Date;
@@ -111,7 +111,7 @@
 
 <div
 	style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
-	class="time-selector bg-background/90 dark:bg-background/70 absolute bottom-14.5 left-[50%] mx-auto transform-[translate(-50%)] rounded-[4px] px-3 py-3 {!timeSelector
+	class="time-selector bg-background/90 dark:bg-background/70 bottom-14.5 transform-[translate(-50%)] absolute left-[50%] mx-auto rounded-[4px] px-3 py-3 {!timeSelector
 		? 'pointer-events-none opacity-0'
 		: 'opacity-100'}"
 >
@@ -141,7 +141,7 @@
 			>
 			<div class=" flex flex-col items-center">
 				<span
-					class="min-w-[150px] text-center whitespace-nowrap delay-75 duration-200 {disabled
+					class="min-w-[150px] whitespace-nowrap text-center delay-75 duration-200 {disabled
 						? ' text-black/50 dark:text-white/50 '
 						: ' text-black  dark:text-white'}"
 					id="slider_time_label"

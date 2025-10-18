@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Domain, Variables } from '$lib/types';
+	import type { Domain, Variables } from '@openmeteo/mapbox-layer';
 
 	interface Props {
 		domain: Domain;
@@ -10,7 +10,7 @@
 </script>
 
 <div
-	class=" bg-background/90 dark:bg-background/70 absolute bottom-0 left-8 w-[165px] rounded px-2 py-2 text-xs overflow-ellipsis"
+	class=" bg-background/90 dark:bg-background/70 absolute bottom-0 left-8 w-[165px] overflow-ellipsis rounded px-2 py-2 text-xs"
 >
 	<div class=" overflow-hidden">
 		<p class="truncate">
