@@ -10,6 +10,7 @@ export const preferences = persisted('preferences', {
 	partial: false,
 	terrain: false,
 	hillshade: false,
+	clipWater: false,
 	showScale: true,
 	timeSelector: true
 });

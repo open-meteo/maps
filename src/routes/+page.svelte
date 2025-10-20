@@ -31,7 +31,8 @@
 		PartialButton,
 		SettingsButton,
 		HillshadeButton,
-		DarkModeButton
+		DarkModeButton,
+		ClipWaterButton
 	} from '$lib/components/buttons';
 
 	import {
@@ -97,6 +98,7 @@
 			map.addControl(new DarkModeButton(map, url));
 			map.addControl(new SettingsButton());
 			map.addControl(new PartialButton(map, url, latest));
+			map.addControl(new ClipWaterButton(map, url, latest));
 			map.addControl(new TimeButton(map, url));
 			latest = await getDomainData();
 

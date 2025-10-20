@@ -272,3 +272,53 @@ export class HillshadeButton {
 	}
 	onRemove() {}
 }
+
+export class ClipWaterButton {
+	map;
+	url;
+	latest;
+	constructor(map: maplibregl.Map, url: URL, latest: DomainMetaData | undefined) {
+		this.map = map;
+		this.url = url;
+		this.latest = latest;
+	}
+	onAdd() {
+		const div = document.createElement('div');
+		div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+		div.title = 'Clip Water';
+
+		const clipWater = `<button style="display:flex;justify-content:center;align-items:center;color:rgb(51,181,229);">
+			<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-waves-icon lucide-waves"><path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/></svg>
+            </button>`;
+		const dontClipWater = `<button style="display:flex;justify-content:center;align-items:center;">
+			<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-waves-icon lucide-waves"><path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/></svg>
+       </button>`;
+		div.innerHTML = preferences.clipWater ? clipWater : dontClipWater;
+		div.addEventListener('contextmenu', (e) => e.preventDefault());
+		div.addEventListener('click', () => {
+			preferences.clipWater = !preferences.clipWater;
+			p.set(preferences);
+			div.innerHTML = preferences.clipWater ? clipWater : dontClipWater;
+			if (preferences.clipWater) {
+				this.url.searchParams.set('clip-water', String(preferences.clipWater));
+			} else {
+				this.url.searchParams.delete('clip-water');
+			}
+			pushState(this.url + this.map._hash.getHashString(), {});
+			getStyle().then((style) => {
+				this.map.setStyle(style);
+				this.map.once('styledata', () => {
+					setTimeout(() => {
+						addOmFileLayer(this.map);
+						addHillshadeSources(this.map);
+						if (preferences.hillshade) {
+							addHillshadeLayer(this.map);
+						}
+					}, 50);
+				});
+			});
+		});
+		return div;
+	}
+	onRemove() {}
+}

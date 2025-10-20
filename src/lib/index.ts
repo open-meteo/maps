@@ -130,6 +130,14 @@ export const urlParamsToPreferences = (url: URL) => {
 		}
 	}
 
+	if (params.get('clip-water')) {
+		preferences.clipWater = params.get('clip-water') === 'true';
+	} else {
+		if (!preferences.clipWater) {
+			url.searchParams.set('clip-water', String(preferences.clipWater));
+		}
+	}
+
 	if (params.get('variables-open')) {
 		variableSelectionExtended.set(true);
 	}
@@ -394,7 +402,7 @@ export const changeOMfileURL = (
 
 export const getStyle = async () => {
 	return await fetch(
-		`https://maptiler.servert.nl/styles/minimal-world-maps${mode.current === 'dark' ? '-dark' : ''}/style.json`
+		`https://maptiler.servert.nl/styles/minimal-world-maps${mode.current === 'dark' ? '-dark' : ''}${preferences.clipWater ? '-water-clip' : ''}/style.json`
 	)
 		.then((response) => response.json())
 		.then((style) => {
