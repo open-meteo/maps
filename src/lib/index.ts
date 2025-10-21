@@ -436,7 +436,12 @@ export const addPopup = (map: maplibregl.Map) => {
 			} else {
 				popup.addTo(map);
 			}
-			const { index, value } = getValueFromLatLong(coordinates.lat, coordinates.lng, colorScale);
+			const { index, value } = getValueFromLatLong(
+				coordinates.lat,
+				coordinates.lng,
+				variable,
+				colorScale
+			);
 			if (index) {
 				if ((hideZero.includes(variable.value) && value <= 0.25) || !value) {
 					popup.remove();
