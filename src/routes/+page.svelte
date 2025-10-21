@@ -10,6 +10,8 @@
 	import * as maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
 
+	import { Protocol } from 'pmtiles';
+
 	import { pushState } from '$app/navigation';
 
 	import {
@@ -73,6 +75,9 @@
 	});
 
 	onMount(async () => {
+		let protocol = new Protocol();
+
+		maplibregl.addProtocol('pmtiles', protocol.tile);
 		maplibregl.addProtocol('om', (params) => omProtocol(params, undefined, true));
 
 		const style = await getStyle();

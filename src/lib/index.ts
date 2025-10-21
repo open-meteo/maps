@@ -276,20 +276,20 @@ export const addHillshadeSources = (map: maplibregl.Map) => {
 
 	map.addSource('terrainSource', {
 		type: 'raster-dem',
-		tiles: ['https://mapproxy.servert.nl/wmts/copernicus/webmercator/{z}/{x}/{y}.png'],
-		tileSize: 512,
-		// @ts-expect-error scheme not supported in types, but still works
-		scheme: 'tms',
-		maxzoom: 10
+		url: 'pmtiles://https://download.mapterhorn.com/planet.pmtiles'
+		//tileSize: 512,
+		// // @ts-expect-error scheme not supported in types, but still works
+		// scheme: 'tms',
+		// maxzoom: 10
 	});
 
 	map.addSource('hillshadeSource', {
 		type: 'raster-dem',
-		tiles: ['https://mapproxy.servert.nl/wmts/copernicus/webmercator/{z}/{x}/{y}.png'],
-		tileSize: 512,
-		// @ts-expect-error scheme not supported in types, but still works
-		scheme: 'tms',
-		maxzoom: 10
+		url: 'pmtiles://https://download.mapterhorn.com/planet.pmtiles'
+		// tileSize: 512,
+		// // @ts-expect-error scheme not supported in types, but still works
+		// scheme: 'tms',
+		// maxzoom: 10
 	});
 };
 
