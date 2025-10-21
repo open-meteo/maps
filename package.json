@@ -67,6 +67,6 @@
 		"vitest-browser-svelte": "^1.1.0"
 	},
 	"dependencies": {
-		"@openmeteo/mapbox-layer": "github:open-meteo/mapbox-layer#453bed1644859a05d361202e2d7c5f73a172ac97"
+		"@openmeteo/mapbox-layer": "github:open-meteo/mapbox-layer#50f30edf89a9f06808a13c4240112bf8755a862c"
 	}
 }
