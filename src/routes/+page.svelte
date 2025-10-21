@@ -95,7 +95,6 @@
 			zoom: $domain?.grid.zoom,
 			keyboard: false,
 			hash: true,
-			maxZoom: 11,
 			maxPitch: 85
 		});
 
