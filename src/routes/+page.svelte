@@ -79,7 +79,7 @@
 		maplibregl.addProtocol('mapterhorn', async (params, abortController) => {
 			const [z, x, y] = params.url.replace('mapterhorn://', '').split('/').map(Number);
 			const name = z <= 12 ? 'planet' : `6-${x >> (z - 6)}-${y >> (z - 6)}`;
-			const url = `pmtiles://https://download.mapterhorn.com/${name}.pmtiles/${z}/${x}/${y}.webp`;
+			const url = `pmtiles://https://mapterhorn.servert.ch/${name}.pmtiles/${z}/${x}/${y}.webp`;
 			const response = await protocol.tile({ ...params, url }, abortController);
 			if (response['data'] === null) throw new Error(`Tile z=${z} x=${x} y=${y} not found.`);
 			return response;
