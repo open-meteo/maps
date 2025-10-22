@@ -411,6 +411,10 @@ export const getStyle = async () => {
 		});
 };
 
+export const textWhite = ([r, g, b]: [number, number, number]): boolean => {
+	return r * 0.299 + g * 0.587 + b * 0.114 <= 186;
+};
+
 let popup: maplibregl.Popup | undefined;
 let showPopup = false;
 export const addPopup = (map: maplibregl.Map) => {
@@ -435,21 +439,24 @@ export const addPopup = (map: maplibregl.Map) => {
 				colorScale
 			);
 
-			popup._content.style.backgroundColor = `none`;
 			if (index) {
 				if ((hideZero.includes(variable.value) && value <= 0.25) || !value) {
 					popup.remove();
 				} else {
 					const color = getColor(colorScale, value);
 					const opacity = getOpacity(variable.value, value, mode.current === 'dark', colorScale);
-					popup._content.style.backgroundColor = `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${opacity / 100})`;
-
-					const string =
+					const content =
 						'<span class="popup-value">' + value.toFixed(1) + '</span>' + colorScale.unit;
-					popup.setLngLat(coordinates).setHTML(`<span class="popup-string">${string}</span>`);
+					popup
+						.setLngLat(coordinates)
+						.setHTML(
+							`<div style="font-weight: bold; background-color: rgba(${color[0]}, ${color[1]}, ${color[2]}, ${opacity / 255}); color: ${textWhite(color) ? 'white' : 'black'};" class="popup-div">${content}</div>`
+						);
 				}
 			} else {
-				popup.setLngLat(coordinates).setHTML(`<span class="popup-string">Outside domain</span>`);
+				popup
+					.setLngLat(coordinates)
+					.setHTML(`<span style="padding: 3px 5px;" class="popup-string">Outside domain</span>`);
 			}
 		}
 	});

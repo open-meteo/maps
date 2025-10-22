@@ -216,16 +216,22 @@ body {
 
 .maplibregl-popup .maplibregl-popup-content {
 	border: 3px solid rgba(100, 100, 100, 1);
-	padding: 3px 5px;
-	background-color: attr(data-color);
-	color: white;
+	padding: 0;
+	background-color: white;
 }
 
-.popup-value {
+.dark .maplibregl-popup .maplibregl-popup-content {
+	background-color: rgba(230, 230, 230, 1);
+}
+
+.popup-div {
+	width: 100%;
+	height: 100%;
 	display: inline-block;
 	min-width: 24px;
 	text-align: right;
 	margin-right: 2px;
+	padding: 3px 5px;
 }
 
 .maplibregl-popup-anchor-top .maplibregl-popup-tip {
@@ -239,10 +245,6 @@ body {
 }
 .maplibregl-popup-anchor-left .maplibregl-popup-tip {
 	border-right-color: rgba(100, 100, 100, 1);
-}
-
-.maplibregl-popup .maplibregl-popup-content {
-	background-color: rgba(100, 100, 100, 1);
 }
 
 .maplibregl-popup .maplibregl-popup-close-button {

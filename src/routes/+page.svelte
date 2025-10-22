@@ -85,7 +85,7 @@
 		});
 
 		maplibregl.addProtocol('om', (params) =>
-			omProtocol(params, undefined, { ...defaultOmProtocolSettings, prefetch: true })
+			omProtocol(params, undefined, { ...defaultOmProtocolSettings, useSAB: true, prefetch: true })
 		);
 
 		const style = await getStyle();
