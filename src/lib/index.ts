@@ -31,7 +31,8 @@ import {
 	domainOptions,
 	variableOptions,
 	getValueFromLatLong,
-	getColor
+	getColor,
+	getOpacity
 } from '@openmeteo/mapbox-layer';
 
 import type { DomainMetaData } from '@openmeteo/mapbox-layer';
@@ -434,12 +435,15 @@ export const addPopup = (map: maplibregl.Map) => {
 				colorScale
 			);
 
-			const color = getColor(colorScale, value);
-			popup._content.dataset.color = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+			popup._content.style.backgroundColor = `none`;
 			if (index) {
 				if ((hideZero.includes(variable.value) && value <= 0.25) || !value) {
 					popup.remove();
 				} else {
+					const color = getColor(colorScale, value);
+					const opacity = getOpacity(variable.value, value, mode.current === 'dark', colorScale);
+					popup._content.style.backgroundColor = `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${opacity / 100})`;
+
 					const string =
 						'<span class="popup-value">' + value.toFixed(1) + '</span>' + colorScale.unit;
 					popup.setLngLat(coordinates).setHTML(`<span class="popup-string">${string}</span>`);

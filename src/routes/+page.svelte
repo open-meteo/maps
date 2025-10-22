@@ -18,7 +18,8 @@
 		omProtocol,
 		variableOptions,
 		domainOptions,
-		type DomainMetaData
+		type DomainMetaData,
+		defaultOmProtocolSettings
 	} from '@openmeteo/mapbox-layer';
 
 	import * as Sheet from '$lib/components/ui/sheet';
@@ -82,7 +83,10 @@
 			const url = `pmtiles://https://mapterhorn.servert.ch/${name}.pmtiles/${z}/${x}/${y}.webp`;
 			return await protocol.tile({ ...params, url }, abortController);
 		});
-		maplibregl.addProtocol('om', (params) => omProtocol(params, undefined, true));
+
+		maplibregl.addProtocol('om', (params) =>
+			omProtocol(params, undefined, { ...defaultOmProtocolSettings, prefetch: true })
+		);
 
 		const style = await getStyle();
 

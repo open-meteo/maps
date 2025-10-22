@@ -218,10 +218,7 @@ body {
 	border: 3px solid rgba(100, 100, 100, 1);
 	padding: 3px 5px;
 	background-color: attr(data-color);
-}
-
-.popup-string {
-	color: black;
+	color: white;
 }
 
 .popup-value {
@@ -231,24 +228,20 @@ body {
 	margin-right: 2px;
 }
 
-.dark .popup-string {
-	color: white;
-}
-
-.dark .maplibregl-popup-anchor-top .maplibregl-popup-tip {
+.maplibregl-popup-anchor-top .maplibregl-popup-tip {
 	border-bottom-color: rgba(100, 100, 100, 1);
 }
-.dark .maplibregl-popup-anchor-right .maplibregl-popup-tip {
+.maplibregl-popup-anchor-right .maplibregl-popup-tip {
 	border-left-color: rgba(100, 100, 100, 1);
 }
-.dark .maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
+.maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
 	border-top-color: rgba(100, 100, 100, 1);
 }
-.dark .maplibregl-popup-anchor-left .maplibregl-popup-tip {
+.maplibregl-popup-anchor-left .maplibregl-popup-tip {
 	border-right-color: rgba(100, 100, 100, 1);
 }
 
-.dark .maplibregl-popup .maplibregl-popup-content {
+.maplibregl-popup .maplibregl-popup-content {
 	background-color: rgba(100, 100, 100, 1);
 }
 
