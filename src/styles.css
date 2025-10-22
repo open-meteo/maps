@@ -215,7 +215,9 @@ body {
 }
 
 .maplibregl-popup .maplibregl-popup-content {
+	border: 3px solid rgba(100, 100, 100, 1);
 	padding: 3px 5px;
+	background-color: attr(data-color);
 }
 
 .popup-string {

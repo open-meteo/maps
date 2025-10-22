@@ -30,7 +30,8 @@ import {
 	getColorScale,
 	domainOptions,
 	variableOptions,
-	getValueFromLatLong
+	getValueFromLatLong,
+	getColor
 } from '@openmeteo/mapbox-layer';
 
 import type { DomainMetaData } from '@openmeteo/mapbox-layer';
@@ -432,6 +433,9 @@ export const addPopup = (map: maplibregl.Map) => {
 				variable,
 				colorScale
 			);
+
+			const color = getColor(colorScale, value);
+			popup._content.dataset.color = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
 			if (index) {
 				if ((hideZero.includes(variable.value) && value <= 0.25) || !value) {
 					popup.remove();
