@@ -64,9 +64,8 @@
 		"vite-plugin-devtools-json": "^1.0.0",
 		"vite-plugin-dts": "^4.5.4",
 		"vitest": "^3.2.4",
-		"vitest-browser-svelte": "^1.1.0"
-	},
-	"dependencies": {
+		"vitest-browser-svelte": "^1.1.0",
+		"pmtiles": "^4.3.0",
 		"@openmeteo/mapbox-layer": "^0.0.2"
 	}
 }

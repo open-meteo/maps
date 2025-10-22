@@ -276,27 +276,17 @@ export const addHillshadeSources = (map: maplibregl.Map) => {
 
 	map.addSource('terrainSource', {
 		type: 'raster-dem',
-		tiles: ['https://mapproxy.servert.nl/wmts/copernicus/webmercator/{z}/{x}/{y}.png'],
+		tiles: ['mapterhorn://{z}/{x}/{y}'],
+		encoding: 'terrarium',
 		tileSize: 512,
-		// @ts-expect-error scheme not supported in types, but still works
-		scheme: 'tms',
-		maxzoom: 10
-	});
-
-	map.addSource('hillshadeSource', {
-		type: 'raster-dem',
-		tiles: ['https://mapproxy.servert.nl/wmts/copernicus/webmercator/{z}/{x}/{y}.png'],
-		tileSize: 512,
-		// @ts-expect-error scheme not supported in types, but still works
-		scheme: 'tms',
-		maxzoom: 10
+		attribution: '<a href="https://mapterhorn.com/attribution">© Mapterhorn</a>'
 	});
 };
 
 export const addHillshadeLayer = (map: maplibregl.Map) => {
 	map.addLayer(
 		{
-			source: 'hillshadeSource',
+			source: 'terrainSource',
 			id: 'hillshadeLayer',
 			type: 'hillshade',
 			paint: {
