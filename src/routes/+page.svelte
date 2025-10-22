@@ -75,14 +75,12 @@
 	});
 
 	onMount(async () => {
-		const protocol = new Protocol({ metadata: true, errorOnMissingTile: true });
+		const protocol = new Protocol({ metadata: true });
 		maplibregl.addProtocol('mapterhorn', async (params, abortController) => {
 			const [z, x, y] = params.url.replace('mapterhorn://', '').split('/').map(Number);
 			const name = z <= 12 ? 'planet' : `6-${x >> (z - 6)}-${y >> (z - 6)}`;
 			const url = `pmtiles://https://mapterhorn.servert.ch/${name}.pmtiles/${z}/${x}/${y}.webp`;
-			const response = await protocol.tile({ ...params, url }, abortController);
-			if (response['data'] === null) throw new Error(`Tile z=${z} x=${x} y=${y} not found.`);
-			return response;
+			return await protocol.tile({ ...params, url }, abortController);
 		});
 		maplibregl.addProtocol('om', (params) => omProtocol(params, undefined, true));
 
