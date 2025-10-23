@@ -381,7 +381,22 @@ export const addVectorLayer = (map: maplibregl.Map) => {
 		source: 'omVectorSource',
 		'source-layer': 'contours',
 		paint: {
-			'line-color': 'rgba(0,0,0,0.5)',
+			'line-color': [
+				'case',
+				['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
+				'rgba(0,0,0,0.5)',
+				[
+					'case',
+					['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
+					'rgba(0,0,0,0.4)',
+					[
+						'case',
+						['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
+						'rgba(0,0,0,0.35)',
+						'rgba(0,0,0,0.3)'
+					]
+				]
+			],
 			'line-width': [
 				'case',
 				['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
@@ -389,13 +404,8 @@ export const addVectorLayer = (map: maplibregl.Map) => {
 				[
 					'case',
 					['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
-					2,
-					[
-						'case',
-						['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
-						1.5,
-						1
-					]
+					2.5,
+					['case', ['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false], 2, 1]
 				]
 			]
 		}

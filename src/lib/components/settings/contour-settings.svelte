@@ -19,7 +19,7 @@
 
 	let { map = $bindable(), url }: Props = $props();
 
-	let preferences = $state(get(p));
+	let preferences = $state(get(p) ?? { contours: false });
 	let contourInterval = $derived(get(cI));
 </script>
 
