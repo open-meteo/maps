@@ -6,6 +6,7 @@
 	import { SvelteDate } from 'svelte/reactivity';
 
 	import { toast } from 'svelte-sonner';
+	import { type RequestParameters } from 'maplibregl';
 
 	import * as maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
@@ -20,8 +21,7 @@
 		domainOptions,
 		type DomainMetaData,
 		defaultOmProtocolSettings,
-		OMapsFileReader,
-		type Data
+		OMapsFileReader
 	} from '@openmeteo/mapbox-layer';
 
 	import * as Sheet from '$lib/components/ui/sheet';
@@ -79,14 +79,17 @@
 
 	onMount(async () => {
 		const protocol = new Protocol({ metadata: true });
-		maplibregl.addProtocol('mapterhorn', async (params, abortController) => {
-			const [z, x, y] = params.url.replace('mapterhorn://', '').split('/').map(Number);
-			const name = z <= 12 ? 'planet' : `6-${x >> (z - 6)}-${y >> (z - 6)}`;
-			const url = `pmtiles://https://mapterhorn.servert.ch/${name}.pmtiles/${z}/${x}/${y}.webp`;
-			return await protocol.tile({ ...params, url }, abortController);
-		});
+		maplibregl.addProtocol(
+			'mapterhorn',
+			async (params: RequestParameters, abortController: AbortController) => {
+				const [z, x, y] = params.url.replace('mapterhorn://', '').split('/').map(Number);
+				const name = z <= 12 ? 'planet' : `6-${x >> (z - 6)}-${y >> (z - 6)}`;
+				const url = `pmtiles://https://mapterhorn.servert.ch/${name}.pmtiles/${z}/${x}/${y}.webp`;
+				return await protocol.tile({ ...params, url }, abortController);
+			}
+		);
 
-		maplibregl.addProtocol('om', (params) =>
+		maplibregl.addProtocol('om', (params: RequestParameters) =>
 			omProtocol(params, undefined, {
 				...defaultOmProtocolSettings,
 				tileSize: 256,
