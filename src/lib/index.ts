@@ -134,7 +134,7 @@ export const urlParamsToPreferences = (url: URL) => {
 	if (params.get('clip-water')) {
 		preferences.clipWater = params.get('clip-water') === 'true';
 	} else {
-		if (!preferences.clipWater) {
+		if (preferences.clipWater) {
 			url.searchParams.set('clip-water', String(preferences.clipWater));
 		}
 	}
