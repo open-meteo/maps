@@ -254,7 +254,7 @@
 	<Sheet.Root bind:open={$sheet}>
 		<Sheet.Content
 			><div class="px-6 pt-12">
-				<div>Units</div>
+				<div><h2 class="text-lg font-bold">Units</h2></div>
 				<ContourSettings {map} {url} />
 			</div></Sheet.Content
 		>

@@ -139,6 +139,22 @@ export const urlParamsToPreferences = (url: URL) => {
 		}
 	}
 
+	if (params.get('contours')) {
+		preferences.contours = params.get('contours') === 'true';
+	} else {
+		if (preferences.contours) {
+			url.searchParams.set('contours', String(preferences.contours));
+		}
+	}
+
+	if (params.get('interval')) {
+		contourInterval.set(Number(params.get('contours')));
+	} else {
+		if (get(contourInterval) !== 2) {
+			url.searchParams.set('interval', String(get(contourInterval)));
+		}
+	}
+
 	if (params.get('variables-open')) {
 		variableSelectionExtended.set(true);
 	}
@@ -300,8 +316,6 @@ export const addHillshadeLayer = (map: maplibregl.Map) => {
 	);
 };
 
-let omGridSource: maplibregl.VectorTileSource | undefined;
-let omVectorSource: maplibregl.VectorTileSource | undefined;
 let omRasterSource: maplibregl.RasterTileSource | undefined;
 export const addOmFileLayers = (map: maplibregl.Map) => {
 	omUrl = getOMUrl();
@@ -331,6 +345,17 @@ export const addOmFileLayers = (map: maplibregl.Map) => {
 		beforeLayer
 	);
 
+	if (preferences.contours) {
+		addVectorLayer(map);
+	}
+};
+
+let omGridLayer: maplibregl.StyleLayer | undefined;
+let omGridSource: maplibregl.VectorTileSource | undefined;
+let omVectorLayer: maplibregl.StyleLayer | undefined;
+let omVectorSource: maplibregl.VectorTileSource | undefined;
+let omVectorLayerLabels: maplibregl.StyleLayer | undefined;
+export const addVectorLayer = (map: maplibregl.Map) => {
 	// grid points
 	// map.addSource('omGridSource', {
 	// 	url: 'om://' + omUrl + '&grid=true',
@@ -375,6 +400,7 @@ export const addOmFileLayers = (map: maplibregl.Map) => {
 			]
 		}
 	});
+	omVectorLayer = map.getLayer('omVectorLayer');
 
 	map.addLayer({
 		id: 'omVectorLayerLabels',
@@ -395,6 +421,19 @@ export const addOmFileLayers = (map: maplibregl.Map) => {
 			'text-color': 'rgba(0,0,0,0.7)'
 		}
 	});
+	omVectorLayerLabels = map.getLayer('omVectorLayerLabels');
+};
+
+export const removeVectorLayer = (map: maplibregl.Map) => {
+	if (omVectorLayerLabels) {
+		map.removeLayer('omVectorLayerLabels');
+	}
+	if (omVectorLayer) {
+		map.removeLayer('omVectorLayer');
+	}
+	if (omVectorSource) {
+		map.removeSource('omVectorSource');
+	}
 };
 
 export const terrainHandler = (map: maplibregl.Map, url: URL) => {
@@ -437,6 +476,15 @@ export const changeOMfileURL = (
 			pB.set(map.getBounds());
 		}
 		getPaddedBounds(map);
+
+		// if (!preferences.contours && get(variables)[0].value === 'pressure_msl') {
+		// 	preferences.contours = true;
+		// 	if (!omVectorSource) {
+		// 		addVectorLayer(map);
+		// 	}
+		// 	p.set(preferences);
+		// 	toast.info('Contours turned on for Pressure map');
+		// }
 
 		checkClosestModelRun(map, url, latest);
 
@@ -688,6 +736,6 @@ export const getOMUrl = () => {
 	if (paddedBounds) {
 		return `https://map-tiles.open-meteo.com/data_spatial/${domain.value}/${modelRun.getUTCFullYear()}/${pad(modelRun.getUTCMonth() + 1)}/${pad(modelRun.getUTCDate())}/${pad(modelRun.getUTCHours())}00Z/${get(time).getUTCFullYear()}-${pad(get(time).getUTCMonth() + 1)}-${pad(get(time).getUTCDate())}T${pad(get(time).getUTCHours())}00.om?dark=${mode.current === 'dark'}&variable=${get(variables)[0].value}&bounds=${paddedBounds.getSouth()},${paddedBounds.getWest()},${paddedBounds.getNorth()},${paddedBounds.getEast()}&partial=${preferences.partial}&interval=${get(contourInterval)}`;
 	} else {
-		return `https://map-tiles.open-meteo.com/data_spatial/${domain.value}/${modelRun.getUTCFullYear()}/${pad(modelRun.getUTCMonth() + 1)}/${pad(modelRun.getUTCDate())}/${pad(modelRun.getUTCHours())}00Z/${get(time).getUTCFullYear()}-${pad(get(time).getUTCMonth() + 1)}-${pad(get(time).getUTCDate())}T${pad(get(time).getUTCHours())}00.om?dark=${mode.current === 'dark'}&variable=${get(variables)[0].value}&partial=${preferences.partial}`;
+		return `https://map-tiles.open-meteo.com/data_spatial/${domain.value}/${modelRun.getUTCFullYear()}/${pad(modelRun.getUTCMonth() + 1)}/${pad(modelRun.getUTCDate())}/${pad(modelRun.getUTCHours())}00Z/${get(time).getUTCFullYear()}-${pad(get(time).getUTCMonth() + 1)}-${pad(get(time).getUTCDate())}T${pad(get(time).getUTCHours())}00.om?dark=${mode.current === 'dark'}&variable=${get(variables)[0].value}&partial=${preferences.partial}&interval=${get(contourInterval)}`;
 	}
 };
