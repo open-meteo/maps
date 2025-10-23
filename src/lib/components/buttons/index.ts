@@ -16,7 +16,7 @@ import {
 import {
 	getStyle,
 	terrainHandler,
-	addOmFileLayer,
+	addOmFileLayers,
 	changeOMfileURL,
 	getPaddedBounds,
 	addHillshadeLayer,
@@ -124,7 +124,7 @@ export class DarkModeButton {
 				this.map.setStyle(style);
 				this.map.once('styledata', () => {
 					setTimeout(() => {
-						addOmFileLayer(this.map);
+						addOmFileLayers(this.map);
 						addHillshadeSources(this.map);
 						if (preferences.hillshade) {
 							addHillshadeLayer(this.map);
@@ -309,7 +309,7 @@ export class ClipWaterButton {
 				this.map.setStyle(style);
 				this.map.once('styledata', () => {
 					setTimeout(() => {
-						addOmFileLayer(this.map);
+						addOmFileLayers(this.map);
 						addHillshadeSources(this.map);
 						if (preferences.hillshade) {
 							addHillshadeLayer(this.map);

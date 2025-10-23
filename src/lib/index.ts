@@ -22,7 +22,8 @@ import {
 	paddedBoundsLayer,
 	paddedBoundsSource as pBS,
 	paddedBoundsGeoJSON,
-	variableSelectionExtended
+	variableSelectionExtended,
+	contourInterval
 } from '$lib/stores/preferences';
 
 import {
@@ -36,8 +37,6 @@ import {
 } from '@openmeteo/mapbox-layer';
 
 import type { DomainMetaData } from '@openmeteo/mapbox-layer';
-
-const TILE_SIZE = Number(import.meta.env.VITE_TILE_SIZE);
 
 const preferences = get(p);
 
@@ -301,20 +300,21 @@ export const addHillshadeLayer = (map: maplibregl.Map) => {
 	);
 };
 
-let omFileSource: maplibregl.RasterTileSource | undefined;
-
-export const addOmFileLayer = (map: maplibregl.Map) => {
+let omGridSource: maplibregl.VectorTileSource | undefined;
+let omVectorSource: maplibregl.VectorTileSource | undefined;
+let omRasterSource: maplibregl.RasterTileSource | undefined;
+export const addOmFileLayers = (map: maplibregl.Map) => {
 	omUrl = getOMUrl();
-	map.addSource('omFileRasterSource', {
+	map.addSource('omRasterSource', {
 		url: 'om://' + omUrl,
 		type: 'raster',
 		tileSize: 256,
 		maxzoom: 12
 	});
 
-	omFileSource = map.getSource('omFileRasterSource');
-	if (omFileSource) {
-		omFileSource.on('error', (e) => {
+	omRasterSource = map.getSource('omRasterSource');
+	if (omRasterSource) {
+		omRasterSource.on('error', (e) => {
 			checked = 0;
 			loading.set(false);
 			clearInterval(checkSourceLoadedInterval);
@@ -324,12 +324,77 @@ export const addOmFileLayer = (map: maplibregl.Map) => {
 
 	map.addLayer(
 		{
-			id: 'omFileRasterLayer',
+			id: 'omRasterLayer',
 			type: 'raster',
-			source: 'omFileRasterSource'
+			source: 'omRasterSource'
 		},
 		beforeLayer
 	);
+
+	// grid points
+	// map.addSource('omGridSource', {
+	// 	url: 'om://' + omUrl + '&grid=true',
+	// 	type: 'vector'
+	// });
+	// omGridSource = map.getSource('omGridSource');
+
+	// contouring lines
+	map.addSource('omVectorSource', {
+		url: 'om://' + omUrl,
+		type: 'vector'
+	});
+	omVectorSource = map.getSource('omVectorSource');
+	if (omVectorSource) {
+		omVectorSource.on('error', (e) => {
+			toast.error(e.error.message);
+		});
+	}
+
+	map.addLayer({
+		id: 'omVectorLayer',
+		type: 'line',
+		source: 'omVectorSource',
+		'source-layer': 'contours',
+		paint: {
+			'line-color': 'rgba(0,0,0,0.5)',
+			'line-width': [
+				'case',
+				['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
+				3,
+				[
+					'case',
+					['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
+					2,
+					[
+						'case',
+						['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
+						1.5,
+						1
+					]
+				]
+			]
+		}
+	});
+
+	map.addLayer({
+		id: 'omVectorLayerLabels',
+		type: 'symbol',
+		source: 'omVectorSource',
+		'source-layer': 'contours',
+		layout: {
+			'symbol-placement': 'line-center',
+			'symbol-spacing': 1,
+			'text-font': ['Noto Sans Regular'],
+			'text-field': ['to-string', ['get', 'value']],
+			'text-padding': 1,
+			'text-offset': [0, -0.6]
+			//'text-allow-overlap': true,
+			//'text-ignore-placement': true
+		},
+		paint: {
+			'text-color': 'rgba(0,0,0,0.7)'
+		}
+	});
 };
 
 export const terrainHandler = (map: maplibregl.Map, url: URL) => {
@@ -362,7 +427,7 @@ export const changeOMfileURL = (
 	latest?: DomainMetaData | undefined,
 	resetBounds = true
 ) => {
-	if (map && omFileSource) {
+	if (map && omRasterSource) {
 		loading.set(true);
 		if (popup) {
 			popup.remove();
@@ -376,11 +441,17 @@ export const changeOMfileURL = (
 		checkClosestModelRun(map, url, latest);
 
 		omUrl = getOMUrl();
-		omFileSource.setUrl('om://' + omUrl);
+		omRasterSource.setUrl('om://' + omUrl);
+		if (omVectorSource) {
+			omVectorSource.setUrl('om://' + omUrl);
+		}
+		if (omGridSource) {
+			omGridSource.setUrl('om://' + omUrl + '&grid=true');
+		}
 
 		checkSourceLoadedInterval = setInterval(() => {
 			checked++;
-			if ((omFileSource && omFileSource.loaded()) || checked >= 200) {
+			if ((omRasterSource && omRasterSource.loaded()) || checked >= 200) {
 				if (checked >= 200) {
 					// Timeout after 10s
 					toast.error('Request timed out');
@@ -615,7 +686,7 @@ export const getOMUrl = () => {
 	const modelRun = get(mR);
 	const paddedBounds = get(pB);
 	if (paddedBounds) {
-		return `https://map-tiles.open-meteo.com/data_spatial/${domain.value}/${modelRun.getUTCFullYear()}/${pad(modelRun.getUTCMonth() + 1)}/${pad(modelRun.getUTCDate())}/${pad(modelRun.getUTCHours())}00Z/${get(time).getUTCFullYear()}-${pad(get(time).getUTCMonth() + 1)}-${pad(get(time).getUTCDate())}T${pad(get(time).getUTCHours())}00.om?dark=${mode.current === 'dark'}&variable=${get(variables)[0].value}&bounds=${paddedBounds.getSouth()},${paddedBounds.getWest()},${paddedBounds.getNorth()},${paddedBounds.getEast()}&partial=${preferences.partial}`;
+		return `https://map-tiles.open-meteo.com/data_spatial/${domain.value}/${modelRun.getUTCFullYear()}/${pad(modelRun.getUTCMonth() + 1)}/${pad(modelRun.getUTCDate())}/${pad(modelRun.getUTCHours())}00Z/${get(time).getUTCFullYear()}-${pad(get(time).getUTCMonth() + 1)}-${pad(get(time).getUTCDate())}T${pad(get(time).getUTCHours())}00.om?dark=${mode.current === 'dark'}&variable=${get(variables)[0].value}&bounds=${paddedBounds.getSouth()},${paddedBounds.getWest()},${paddedBounds.getNorth()},${paddedBounds.getEast()}&partial=${preferences.partial}&interval=${get(contourInterval)}`;
 	} else {
 		return `https://map-tiles.open-meteo.com/data_spatial/${domain.value}/${modelRun.getUTCFullYear()}/${pad(modelRun.getUTCMonth() + 1)}/${pad(modelRun.getUTCDate())}/${pad(modelRun.getUTCHours())}00Z/${get(time).getUTCFullYear()}-${pad(get(time).getUTCMonth() + 1)}-${pad(get(time).getUTCDate())}T${pad(get(time).getUTCHours())}00.om?dark=${mode.current === 'dark'}&variable=${get(variables)[0].value}&partial=${preferences.partial}`;
 	}

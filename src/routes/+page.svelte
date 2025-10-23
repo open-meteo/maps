@@ -56,7 +56,7 @@
 		getStyle,
 		addPopup,
 		checkBounds,
-		addOmFileLayer,
+		addOmFileLayers,
 		changeOMfileURL,
 		getPaddedBounds,
 		addHillshadeSources,
@@ -66,6 +66,7 @@
 	} from '$lib';
 
 	import '../styles.css';
+	import ContourSettings from '$lib/components/settings/contour-settings.svelte';
 
 	let url: URL = $state();
 	let map: maplibregl.Map = $state();
@@ -128,7 +129,7 @@
 			map.addControl(new TimeButton(map, url));
 			latest = await getDomainData();
 
-			addOmFileLayer(map);
+			addOmFileLayers(map);
 			addHillshadeSources(map);
 			map.addControl(new HillshadeButton(map, url));
 
@@ -251,6 +252,11 @@
 />
 <div class="absolute">
 	<Sheet.Root bind:open={$sheet}>
-		<Sheet.Content><div class="px-6 pt-12">Units</div></Sheet.Content>
+		<Sheet.Content
+			><div class="px-6 pt-12">
+				<div>Units</div>
+				<ContourSettings {map} {url} />
+			</div></Sheet.Content
+		>
 	</Sheet.Root>
 </div>
