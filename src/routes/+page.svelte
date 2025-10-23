@@ -19,7 +19,9 @@
 		variableOptions,
 		domainOptions,
 		type DomainMetaData,
-		defaultOmProtocolSettings
+		defaultOmProtocolSettings,
+		OMapsFileReader,
+		type Data
 	} from '@openmeteo/mapbox-layer';
 
 	import * as Sheet from '$lib/components/ui/sheet';
@@ -85,7 +87,16 @@
 		});
 
 		maplibregl.addProtocol('om', (params) =>
-			omProtocol(params, undefined, { ...defaultOmProtocolSettings, useSAB: true, prefetch: true })
+			omProtocol(params, undefined, {
+				...defaultOmProtocolSettings,
+				tileSize: 256,
+				useSAB: true,
+				enhancedResolution: true,
+				postReadCallback: (omFileReader: OMapsFileReader, omUrl: string) => {
+					// prefetch first bytes of the previous and next timesteps to trigger CF caching
+					omFileReader.prefetch(omUrl);
+				}
+			})
 		);
 
 		const style = await getStyle();

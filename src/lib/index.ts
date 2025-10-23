@@ -308,7 +308,8 @@ export const addOmFileLayer = (map: maplibregl.Map) => {
 	map.addSource('omFileRasterSource', {
 		url: 'om://' + omUrl,
 		type: 'raster',
-		tileSize: TILE_SIZE
+		tileSize: 128,
+		maxzoom: 14
 	});
 
 	omFileSource = map.getSource('omFileRasterSource');
