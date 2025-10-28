@@ -399,6 +399,14 @@ export const changeOMfileURL = (
 	resetBounds = true
 ) => {
 	if (map && omFileSource) {
+		// needs more testing
+		// if (map.style.sourceCaches['omFileRasterSource']) {
+		// 	console.log(map.style.sourceCaches['omFileRasterSource']);
+		// 	map.style.sourceCaches['omFileRasterSource'].clearTiles();
+		// 	map.style.sourceCaches['omFileRasterSource'].update(map.transform);
+		// 	map.triggerRepaint();
+		// }
+
 		loading.set(true);
 		if (popup) {
 			popup.remove();
