@@ -6,7 +6,7 @@
 	import { SvelteDate } from 'svelte/reactivity';
 
 	import { toast } from 'svelte-sonner';
-	import { type RequestParameters } from 'maplibregl';
+	import { type RequestParameters } from 'maplibre-gl';
 
 	import * as maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
