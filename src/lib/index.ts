@@ -377,104 +377,159 @@ export const addOmFileLayers = (map: maplibregl.Map) => {
 		beforeLayer
 	);
 
-	if (preferences.contours) {
+	if (preferences.contours || preferences.arrows) {
 		addVectorLayer(map);
 	}
 };
 
 let omGridLayer: maplibregl.StyleLayer | undefined;
 let omGridSource: maplibregl.VectorTileSource | undefined;
-let omVectorLayer: maplibregl.StyleLayer | undefined;
 let omVectorSource: maplibregl.VectorTileSource | undefined;
-let omVectorLayerLabels: maplibregl.StyleLayer | undefined;
+let omVectorArrowLayer: maplibregl.StyleLayer | undefined;
+let omVectorContourLayer: maplibregl.StyleLayer | undefined;
+let omVectorContourLayerLabels: maplibregl.StyleLayer | undefined;
 export const addVectorLayer = (map: maplibregl.Map) => {
-	// grid points
-	// map.addSource('omGridSource', {
-	// 	url: 'om://' + omUrl + '&grid=true',
-	// 	type: 'vector'
-	// });
-	// omGridSource = map.getSource('omGridSource');
-
-	// contouring lines
-	map.addSource('omVectorSource', {
-		url: 'om://' + omUrl,
-		type: 'vector'
-	});
-	omVectorSource = map.getSource('omVectorSource');
-	if (omVectorSource) {
-		omVectorSource.on('error', (e) => {
-			toast.error(e.error.message);
+	if (!map.getSource('omVectorSource')) {
+		map.addSource('omVectorSource', {
+			url:
+				'om://' +
+				omUrl +
+				(preferences.contours ? 'contours=true' : '') +
+				(preferences.arrows ? 'arrows=true' : ''),
+			type: 'vector'
 		});
+		omVectorSource = map.getSource('omVectorSource');
+		if (omVectorSource) {
+			omVectorSource.on('error', (e) => {
+				toast.error(e.error.message);
+			});
+		}
 	}
 
-	map.addLayer({
-		id: 'omVectorLayer',
-		type: 'line',
-		source: 'omVectorSource',
-		'source-layer': 'contours',
-		paint: {
-			'line-color': [
-				'case',
-				['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
-				'rgba(0,0,0,0.5)',
-				[
+	if (!map.getLayer('omVectorContourLayer')) {
+		map.addLayer({
+			id: 'omVectorContourLayer',
+			type: 'line',
+			source: 'omVectorSource',
+			'source-layer': 'contours',
+			paint: {
+				'line-color': [
 					'case',
-					['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
-					'rgba(0,0,0,0.4)',
+					['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
+					'rgba(0,0,0,0.5)',
 					[
 						'case',
-						['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
-						'rgba(0,0,0,0.35)',
-						'rgba(0,0,0,0.3)'
+						['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
+						'rgba(0,0,0,0.4)',
+						[
+							'case',
+							['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
+							'rgba(0,0,0,0.35)',
+							'rgba(0,0,0,0.3)'
+						]
+					]
+				],
+				'line-width': [
+					'case',
+					['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
+					3,
+					[
+						'case',
+						['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
+						2.5,
+						[
+							'case',
+							['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
+							2,
+							1
+						]
 					]
 				]
-			],
-			'line-width': [
-				'case',
-				['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
-				3,
-				[
-					'case',
-					['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
-					2.5,
-					['case', ['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false], 2, 1]
-				]
-			]
-		}
-	});
-	omVectorLayer = map.getLayer('omVectorLayer');
+			}
+		});
+		omVectorContourLayer = map.getLayer('omVectorContourLayer');
+	}
 
-	map.addLayer({
-		id: 'omVectorLayerLabels',
-		type: 'symbol',
-		source: 'omVectorSource',
-		'source-layer': 'contours',
-		layout: {
-			'symbol-placement': 'line-center',
-			'symbol-spacing': 1,
-			'text-font': ['Noto Sans Regular'],
-			'text-field': ['to-string', ['get', 'value']],
-			'text-padding': 1,
-			'text-offset': [0, -0.6]
-			//'text-allow-overlap': true,
-			//'text-ignore-placement': true
-		},
-		paint: {
-			'text-color': 'rgba(0,0,0,0.7)'
-		}
-	});
-	omVectorLayerLabels = map.getLayer('omVectorLayerLabels');
+	if (!map.getLayer('omVectorArrowLayer')) {
+		map.addLayer({
+			id: 'omVectorArrowLayer',
+			type: 'line',
+			source: 'omVectorSource',
+			'source-layer': 'wind-arrows',
+			paint: {
+				'line-color': [
+					'case',
+					['boolean', ['>', ['to-number', ['get', 'value']], 5], false],
+					'rgba(0,0,0, 0.6)',
+					[
+						'case',
+						['boolean', ['>', ['to-number', ['get', 'value']], 4], false],
+						'rgba(0,0,0, 0.5)',
+						[
+							'case',
+							['boolean', ['>', ['to-number', ['get', 'value']], 3], false],
+							'rgba(0,0,0, 0.4)',
+							[
+								'case',
+								['boolean', ['>', ['to-number', ['get', 'value']], 2], false],
+								'rgba(0,0,0, 0.3)',
+								'rgba(0,0,0, 0.2)'
+							]
+						]
+					]
+				],
+				'line-width': 2
+			},
+			layout: {
+				'line-cap': 'round'
+			}
+		});
+		omVectorArrowLayer = map.getLayer('omVectorArrowLayer');
+	}
+
+	if (!map.getLayer('omVectorContourLayerLabels')) {
+		map.addLayer({
+			id: 'omVectorContourLayerLabels',
+			type: 'symbol',
+			source: 'omVectorSource',
+			'source-layer': 'contours',
+			layout: {
+				'symbol-placement': 'line-center',
+				'symbol-spacing': 1,
+				'text-font': ['Noto Sans Regular'],
+				'text-field': ['to-string', ['get', 'value']],
+				'text-padding': 1,
+				'text-offset': [0, -0.6]
+				//'text-allow-overlap': true,
+				//'text-ignore-placement': true
+			},
+			paint: {
+				'text-color': 'rgba(0,0,0,0.7)'
+			}
+		});
+		omVectorContourLayerLabels = map.getLayer('omVectorContourLayerLabels');
+	}
 };
 
 export const removeVectorLayer = (map: maplibregl.Map) => {
-	if (omVectorLayerLabels) {
-		map.removeLayer('omVectorLayerLabels');
+	if (!preferences.contours) {
+		if (omVectorContourLayerLabels) {
+			map.removeLayer('omVectorContourLayerLabels');
+		}
+		if (omVectorContourLayer) {
+			map.removeLayer('omVectorContourLayer');
+		}
 	}
-	if (omVectorLayer) {
-		map.removeLayer('omVectorLayer');
+	if (!preferences.arrows) {
+		if (omVectorArrowLayer) {
+			map.removeLayer('omVectorArrowLayer');
+		}
 	}
-	if (omVectorSource) {
-		map.removeSource('omVectorSource');
+
+	if (!preferences.contours && !preferences.arrows) {
+		if (omVectorSource) {
+			map.removeSource('omVectorSource');
+		}
 	}
 };
 
@@ -541,7 +596,12 @@ export const changeOMfileURL = (
 		omUrl = getOMUrl();
 		omRasterSource.setUrl('om://' + omUrl);
 		if (omVectorSource) {
-			omVectorSource.setUrl('om://' + omUrl);
+			omVectorSource.setUrl(
+				'om://' +
+					omUrl +
+					(preferences.contours ? 'contours=true' : '') +
+					(preferences.arrows ? 'arrows=true' : '')
+			);
 		}
 		if (omGridSource) {
 			omGridSource.setUrl('om://' + omUrl + '&grid=true');

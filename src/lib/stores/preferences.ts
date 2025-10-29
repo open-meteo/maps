@@ -8,6 +8,7 @@ export const preferences = persisted('preferences', {
 	globe: false,
 	partial: false,
 	terrain: false,
+	arrows: true,
 	contours: false,
 	hillshade: false,
 	clipWater: false,

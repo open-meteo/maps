@@ -42,6 +42,7 @@
 	import HelpDialog from '$lib/components/help/help-dialog.svelte';
 	import Scale from '$lib/components/scale/scale.svelte';
 	import VariableSelection from '$lib/components/selection/variable-selection.svelte';
+	import ArrowsSetting from '$lib/components/settings/arrows-setting.svelte';
 	import ContourSettings from '$lib/components/settings/contour-settings.svelte';
 	import TimeSelector from '$lib/components/time/time-selector.svelte';
 	import * as Sheet from '$lib/components/ui/sheet';
@@ -249,6 +250,7 @@
 		<Sheet.Content
 			><div class="px-6 pt-12">
 				<div><h2 class="text-lg font-bold">Units</h2></div>
+				<ArrowsSetting {map} {url} />
 				<ContourSettings {map} {url} />
 			</div></Sheet.Content
 		>
