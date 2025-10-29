@@ -1,9 +1,7 @@
 <script lang="ts">
-	import { mode } from 'mode-watcher';
-
-	import { getColor, getColorScale, getOpacity, type Variables } from '@openmeteo/mapbox-layer';
-
 	import { textWhite } from '$lib';
+	import { type Variables, getColor, getColorScale, getOpacity } from '@openmeteo/mapbox-layer';
+	import { mode } from 'mode-watcher';
 
 	interface Props {
 		showScale: boolean;
