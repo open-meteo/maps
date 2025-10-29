@@ -1,16 +1,19 @@
 <script lang="ts">
 	import { get } from 'svelte/store';
 
-	import { Label } from '$lib/components/ui/label';
+	import { toast } from 'svelte-sonner';
+
+	import { pushState } from '$app/navigation';
+
+	import { contourInterval as cI, preferences as p } from '$lib/stores/preferences';
+
 	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
 	import { Switch } from '$lib/components/ui/switch';
 
-	import { preferences as p, contourInterval as cI } from '$lib/stores/preferences';
 	import { addVectorLayer, changeOMfileURL, removeVectorLayer } from '$lib';
 
 	import type { Map } from 'maplibre-gl';
-	import { toast } from 'svelte-sonner';
-	import { pushState } from '$app/navigation';
 
 	interface Props {
 		map: Map;

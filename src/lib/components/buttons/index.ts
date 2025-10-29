@@ -13,9 +13,9 @@ import {
 } from '$lib/stores/preferences';
 
 import {
-	addOmFileLayers,
 	addHillshadeLayer,
 	addHillshadeSources,
+	addOmFileLayers,
 	changeOMfileURL,
 	getPaddedBounds,
 	getStyle,

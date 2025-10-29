@@ -14,9 +14,11 @@ import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
 import { toast } from 'svelte-sonner';
 
+import { browser } from '$app/environment';
 import { pushState } from '$app/navigation';
 
 import {
+	contourInterval,
 	domain as d,
 	loading,
 	mapBounds as mB,
@@ -25,15 +27,13 @@ import {
 	paddedBounds as pB,
 	paddedBoundsSource as pBS,
 	paddedBoundsGeoJSON,
-	variableSelectionExtended,
-	contourInterval,
 	paddedBoundsLayer,
 	time,
+	variableSelectionExtended,
 	variables
 } from '$lib/stores/preferences';
 
 import type { DomainMetaData } from '@openmeteo/mapbox-layer';
-import { browser } from '$app/environment';
 
 const preferences = get(p);
 

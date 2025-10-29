@@ -3,9 +3,6 @@
 	import { SvelteDate } from 'svelte/reactivity';
 	import { fade } from 'svelte/transition';
 
-	import { toast } from 'svelte-sonner';
-	import { type RequestParameters } from 'maplibre-gl';
-
 	import {
 		type DomainMetaData,
 		OMapsFileReader,
@@ -14,9 +11,11 @@
 		omProtocol,
 		variableOptions
 	} from '@openmeteo/mapbox-layer';
+	import { type RequestParameters } from 'maplibre-gl';
 	import * as maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
 	import { Protocol } from 'pmtiles';
+	import { toast } from 'svelte-sonner';
 
 	import { pushState } from '$app/navigation';
 
@@ -43,6 +42,7 @@
 	import HelpDialog from '$lib/components/help/help-dialog.svelte';
 	import Scale from '$lib/components/scale/scale.svelte';
 	import VariableSelection from '$lib/components/selection/variable-selection.svelte';
+	import ContourSettings from '$lib/components/settings/contour-settings.svelte';
 	import TimeSelector from '$lib/components/time/time-selector.svelte';
 	import * as Sheet from '$lib/components/ui/sheet';
 
@@ -61,7 +61,6 @@
 	} from '$lib';
 
 	import '../styles.css';
-	import ContourSettings from '$lib/components/settings/contour-settings.svelte';
 
 	let url: URL = $state();
 	let map: maplibregl.Map = $state();
