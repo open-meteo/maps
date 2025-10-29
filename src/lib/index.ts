@@ -1,43 +1,39 @@
+import { SvelteDate } from 'svelte/reactivity';
 import { get } from 'svelte/store';
 
-import { SvelteDate } from 'svelte/reactivity';
-
+import {
+	GridFactory,
+	domainOptions,
+	getColor,
+	getColorScale,
+	getOpacity,
+	getValueFromLatLong,
+	hideZero,
+	variableOptions
+} from '@openmeteo/mapbox-layer';
+import * as maplibregl from 'maplibre-gl';
+import { mode } from 'mode-watcher';
 import { toast } from 'svelte-sonner';
 
-import { mode } from 'mode-watcher';
-
-import * as maplibregl from 'maplibre-gl';
-
+import { browser } from '$app/environment';
 import { pushState } from '$app/navigation';
 
 import {
-	time,
-	loading,
 	domain as d,
-	variables,
-	modelRun as mR,
+	loading,
 	mapBounds as mB,
+	modelRun as mR,
 	preferences as p,
 	paddedBounds as pB,
-	paddedBoundsLayer,
 	paddedBoundsSource as pBS,
 	paddedBoundsGeoJSON,
-	variableSelectionExtended
+	paddedBoundsLayer,
+	time,
+	variableSelectionExtended,
+	variables
 } from '$lib/stores/preferences';
 
-import {
-	hideZero,
-	getColorScale,
-	domainOptions,
-	variableOptions,
-	getValueFromLatLong,
-	getColor,
-	getOpacity,
-	GridFactory
-} from '@openmeteo/mapbox-layer';
-
 import type { DomainMetaData } from '@openmeteo/mapbox-layer';
-import { browser } from '$app/environment';
 
 const preferences = get(p);
 
@@ -135,7 +131,7 @@ export const urlParamsToPreferences = (url: URL) => {
 	if (params.get('clip-water')) {
 		preferences.clipWater = params.get('clip-water') === 'true';
 	} else {
-		if (!preferences.clipWater) {
+		if (preferences.clipWater) {
 			url.searchParams.set('clip-water', String(preferences.clipWater));
 		}
 	}

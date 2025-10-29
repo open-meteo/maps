@@ -1,15 +1,11 @@
-import { defineConfig, loadEnv } from 'vite';
-
 import { sveltekit } from '@sveltejs/kit/vite';
-
 import tailwindcss from '@tailwindcss/vite';
-
+import { defineConfig, loadEnv } from 'vite';
 import devtoolsJson from 'vite-plugin-devtools-json';
-
 import dts from 'vite-plugin-dts';
 
-import type { Plugin, ViteDevServer } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'http';
+import type { Plugin, ViteDevServer } from 'vite';
 
 const viteServerConfig = (): Plugin => ({
 	name: 'add-headers',
