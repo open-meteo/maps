@@ -142,7 +142,7 @@ export const urlParamsToPreferences = (map: maplibregl.Map, url: URL) => {
 	}
 
 	p.set(preferences);
-	pushState(url + map._hash.getHashString(), {});
+	pushState(url + (map ? map._hash.getHashString() : ''), {});
 };
 
 export const checkClosestDomainInterval = (url: URL) => {
