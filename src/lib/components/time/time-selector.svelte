@@ -3,7 +3,6 @@
 	import { SvelteDate } from 'svelte/reactivity';
 	import { get } from 'svelte/store';
 
-	import { pad } from '$lib';
 	import { toast } from 'svelte-sonner';
 
 	import { browser } from '$app/environment';
@@ -12,6 +11,8 @@
 		domainSelectionOpen as dSO,
 		variableSelectionOpen as vSO
 	} from '$lib/stores/preferences';
+
+	import { pad } from '$lib';
 
 	import type { Domain } from '@openmeteo/mapbox-layer';
 

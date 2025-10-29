@@ -4,19 +4,6 @@
 	import { fade } from 'svelte/transition';
 
 	import {
-		addHillshadeSources,
-		addOmFileLayer,
-		addPopup,
-		changeOMfileURL,
-		checkBounds,
-		checkClosestDomainInterval,
-		checkHighDefinition,
-		getPaddedBounds,
-		getStyle,
-		setMapControlSettings,
-		urlParamsToPreferences
-	} from '$lib';
-	import {
 		type DomainMetaData,
 		OMapsFileReader,
 		defaultOmProtocolSettings,
@@ -44,8 +31,6 @@
 		variables
 	} from '$lib/stores/preferences';
 
-	import * as Sheet from '$lib/components/ui/sheet';
-
 	import {
 		ClipWaterButton,
 		DarkModeButton,
@@ -58,6 +43,21 @@
 	import Scale from '$lib/components/scale/scale.svelte';
 	import VariableSelection from '$lib/components/selection/variable-selection.svelte';
 	import TimeSelector from '$lib/components/time/time-selector.svelte';
+	import * as Sheet from '$lib/components/ui/sheet';
+
+	import {
+		addHillshadeSources,
+		addOmFileLayer,
+		addPopup,
+		changeOMfileURL,
+		checkBounds,
+		checkClosestDomainInterval,
+		checkHighDefinition,
+		getPaddedBounds,
+		getStyle,
+		setMapControlSettings,
+		urlParamsToPreferences
+	} from '$lib';
 
 	import '../styles.css';
 

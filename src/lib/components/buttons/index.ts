@@ -1,14 +1,5 @@
 import { get } from 'svelte/store';
 
-import {
-	addHillshadeLayer,
-	addHillshadeSources,
-	addOmFileLayer,
-	changeOMfileURL,
-	getPaddedBounds,
-	getStyle,
-	terrainHandler
-} from '$lib';
 import * as maplibregl from 'maplibre-gl';
 import { mode, setMode } from 'mode-watcher';
 
@@ -20,6 +11,16 @@ import {
 	paddedBoundsSource,
 	sheet
 } from '$lib/stores/preferences';
+
+import {
+	addHillshadeLayer,
+	addHillshadeSources,
+	addOmFileLayer,
+	changeOMfileURL,
+	getPaddedBounds,
+	getStyle,
+	terrainHandler
+} from '$lib';
 
 import type { DomainMetaData } from '@openmeteo/mapbox-layer';
 
