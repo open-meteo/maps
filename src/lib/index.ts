@@ -32,13 +32,12 @@ import {
 	variableOptions,
 	getValueFromLatLong,
 	getColor,
-	getOpacity
+	getOpacity,
+	GridFactory
 } from '@openmeteo/mapbox-layer';
 
 import type { DomainMetaData } from '@openmeteo/mapbox-layer';
 import { browser } from '$app/environment';
-
-const TILE_SIZE = Number(import.meta.env.VITE_TILE_SIZE);
 
 const preferences = get(p);
 
@@ -577,6 +576,8 @@ export const getPaddedBounds = (map: maplibregl.Map) => {
 	const paddedBounds = get(pB);
 	const paddedBoundsSource = get(pBS);
 
+	const gridBounds = GridFactory.create(domain.grid).getBounds();
+
 	if (mapBounds && preferences.partial) {
 		if (!paddedBoundsSource) {
 			paddedBoundsGeoJSON.set({
@@ -589,14 +590,11 @@ export const getPaddedBounds = (map: maplibregl.Map) => {
 							// @ts-expect-error stupid conflicting types from geojson
 							properties: {},
 							coordinates: [
-								[domain.grid.lonMin, domain.grid.latMin],
-								[domain.grid.lonMin, domain.grid.latMin + domain.grid.ny * domain.grid.dy],
-								[
-									domain.grid.lonMin + domain.grid.nx * domain.grid.dx,
-									domain.grid.latMin + domain.grid.ny * domain.grid.dy
-								],
-								[domain.grid.lonMin + domain.grid.nx * domain.grid.dx, domain.grid.latMin],
-								[domain.grid.lonMin, domain.grid.latMin]
+								[gridBounds[0], gridBounds[1]],
+								[gridBounds[0], gridBounds[3]],
+								[gridBounds[2], gridBounds[3]],
+								[gridBounds[2], gridBounds[1]],
+								[gridBounds[0], gridBounds[1]]
 							]
 						}
 					}
@@ -631,24 +629,12 @@ export const getPaddedBounds = (map: maplibregl.Map) => {
 		const dLon = mapBoundsNE['lng'] - mapBoundsSW['lng'];
 
 		paddedBounds?.setSouthWest([
-			Math.max(Math.max(mapBoundsSW['lng'] - (dLon * padding) / 100, domain.grid.lonMin), -180),
-			Math.max(Math.max(mapBoundsSW['lat'] - (dLat * padding) / 100, domain.grid.latMin), -90)
+			Math.max(Math.max(mapBoundsSW['lng'] - (dLon * padding) / 100, gridBounds[0]), -180),
+			Math.max(Math.max(mapBoundsSW['lat'] - (dLat * padding) / 100, gridBounds[1]), -90)
 		]);
 		paddedBounds?.setNorthEast([
-			Math.min(
-				Math.min(
-					mapBoundsNE['lng'] + (dLon * padding) / 100,
-					domain.grid.lonMin + domain.grid.nx * domain.grid.dx
-				),
-				180
-			),
-			Math.min(
-				Math.min(
-					mapBoundsNE['lat'] + (dLat * padding) / 100,
-					domain.grid.latMin + domain.grid.ny * domain.grid.dy
-				),
-				90
-			)
+			Math.min(Math.min(mapBoundsNE['lng'] + (dLon * padding) / 100, gridBounds[2]), 180),
+			Math.min(Math.min(mapBoundsNE['lat'] + (dLat * padding) / 100, gridBounds[3]), 90)
 		]);
 		pB.set(paddedBounds);
 	}

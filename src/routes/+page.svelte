@@ -21,7 +21,8 @@
 		domainOptions,
 		type DomainMetaData,
 		defaultOmProtocolSettings,
-		OMapsFileReader
+		OMapsFileReader,
+		GridFactory
 	} from '@openmeteo/mapbox-layer';
 
 	import * as Sheet from '$lib/components/ui/sheet';
@@ -105,10 +106,12 @@
 
 		const style = await getStyle();
 
+		const grid = GridFactory.create($domain.grid);
+
 		map = new maplibregl.Map({
 			container: mapContainer as HTMLElement,
 			style: style,
-			center: typeof $domain.grid.center == 'object' ? $domain.grid.center : [0, 0],
+			center: grid.getCenter(),
 			zoom: $domain?.grid.zoom,
 			keyboard: false,
 			hash: true,
