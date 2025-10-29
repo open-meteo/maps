@@ -1,42 +1,39 @@
+import { SvelteDate } from 'svelte/reactivity';
 import { get } from 'svelte/store';
 
-import { SvelteDate } from 'svelte/reactivity';
-
-import { toast } from 'svelte-sonner';
-
-import { mode } from 'mode-watcher';
-
+import {
+	domainOptions,
+	getColor,
+	getColorScale,
+	getOpacity,
+	getValueFromLatLong,
+	hideZero,
+	variableOptions
+} from '@openmeteo/mapbox-layer';
 import * as maplibregl from 'maplibre-gl';
+import { mode } from 'mode-watcher';
+import { toast } from 'svelte-sonner';
 
 import { pushState } from '$app/navigation';
 
 import {
-	time,
-	loading,
 	domain as d,
-	variables,
-	modelRun as mR,
+	loading,
 	mapBounds as mB,
+	modelRun as mR,
 	preferences as p,
 	paddedBounds as pB,
-	paddedBoundsLayer,
 	paddedBoundsSource as pBS,
 	paddedBoundsGeoJSON,
 	variableSelectionExtended,
-	contourInterval
+	contourInterval,
+	paddedBoundsLayer,
+	time,
+	variables
 } from '$lib/stores/preferences';
 
-import {
-	hideZero,
-	getColorScale,
-	domainOptions,
-	variableOptions,
-	getValueFromLatLong,
-	getColor,
-	getOpacity
-} from '@openmeteo/mapbox-layer';
-
 import type { DomainMetaData } from '@openmeteo/mapbox-layer';
+import { browser } from '$app/environment';
 
 const preferences = get(p);
 
@@ -316,6 +313,41 @@ export const addHillshadeLayer = (map: maplibregl.Map) => {
 	);
 };
 
+function isHighDensity() {
+	return (
+		(window.matchMedia &&
+			(window.matchMedia(
+				'only screen and (min-resolution: 124dpi), only screen and (min-resolution: 1.3dppx), only screen and (min-resolution: 48.8dpcm)'
+			).matches ||
+				window.matchMedia(
+					'only screen and (-webkit-min-device-pixel-ratio: 1.3), only screen and (-o-min-device-pixel-ratio: 2.6/2), only screen and (min--moz-device-pixel-ratio: 1.3), only screen and (min-device-pixel-ratio: 1.3)'
+				).matches)) ||
+		(window.devicePixelRatio && window.devicePixelRatio > 1.3)
+	);
+}
+
+function isRetina() {
+	return (
+		((window.matchMedia &&
+			(window.matchMedia(
+				'only screen and (min-resolution: 192dpi), only screen and (min-resolution: 2dppx), only screen and (min-resolution: 75.6dpcm)'
+			).matches ||
+				window.matchMedia(
+					'only screen and (-webkit-min-device-pixel-ratio: 2), only screen and (-o-min-device-pixel-ratio: 2/1), only screen and (min--moz-device-pixel-ratio: 2), only screen and (min-device-pixel-ratio: 2)'
+				).matches)) ||
+			(window.devicePixelRatio && window.devicePixelRatio >= 2)) &&
+		/(iPad|iPhone|iPod)/g.test(navigator.userAgent)
+	);
+}
+
+export const checkHighDefinition = () => {
+	if (browser) {
+		return isRetina() || isHighDensity();
+	} else {
+		return false;
+	}
+};
+
 let omRasterSource: maplibregl.RasterTileSource | undefined;
 export const addOmFileLayers = (map: maplibregl.Map) => {
 	omUrl = getOMUrl();
@@ -477,6 +509,14 @@ export const changeOMfileURL = (
 	resetBounds = true
 ) => {
 	if (map && omRasterSource) {
+		// needs more testing
+		// if (map.style.sourceCaches['omFileRasterSource']) {
+		// 	console.log(map.style.sourceCaches['omFileRasterSource']);
+		// 	map.style.sourceCaches['omFileRasterSource'].clearTiles();
+		// 	map.style.sourceCaches['omFileRasterSource'].update(map.transform);
+		// 	map.triggerRepaint();
+		// }
+
 		loading.set(true);
 		if (popup) {
 			popup.remove();

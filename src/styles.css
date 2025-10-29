@@ -254,7 +254,7 @@ body {
 
 @media (orientation: landscape) {
 	.time-selector {
-		bottom: 4px;
+		bottom: calc(var(--spacing) * 2.5);
 	}
 }
 

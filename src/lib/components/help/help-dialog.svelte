@@ -1,10 +1,11 @@
 <script lang="ts">
+	import { onDestroy, onMount } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
 
-	import * as Kbd from '$lib/components/ui/kbd';
-	import * as Dialog from '$lib/components/ui/dialog';
 	import { browser } from '$app/environment';
-	import { onDestroy, onMount } from 'svelte';
+
+	import * as Dialog from '$lib/components/ui/dialog';
+	import * as Kbd from '$lib/components/ui/kbd';
 
 	const keydownEvent = (event: KeyboardEvent) => {
 		switch (event.key) {

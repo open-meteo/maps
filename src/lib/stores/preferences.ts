@@ -1,8 +1,7 @@
-import { writable, type Writable } from 'svelte/store';
+import { type Writable, writable } from 'svelte/store';
 
-import { persisted, type Persisted } from 'svelte-persisted-store';
-
-import { variableOptions, domainOptions } from '@openmeteo/mapbox-layer';
+import { domainOptions, variableOptions } from '@openmeteo/mapbox-layer';
+import { type Persisted, persisted } from 'svelte-persisted-store';
 
 export const preferences = persisted('preferences', {
 	// buttons

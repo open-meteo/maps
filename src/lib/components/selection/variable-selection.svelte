@@ -1,31 +1,27 @@
 <script lang="ts">
+	import { onDestroy, onMount } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
-
 	import { get } from 'svelte/store';
-
-	import { Button } from '$lib/components/ui/button';
 
 	import CheckIcon from '@lucide/svelte/icons/check';
 	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down';
+	import { domainGroups, domainOptions, variableOptions } from '@openmeteo/mapbox-layer';
 
-	import * as Popover from '$lib/components/ui/popover';
-	import * as Command from '$lib/components/ui/command';
-
-	import { domainGroups, variableOptions, domainOptions } from '@openmeteo/mapbox-layer';
-
-	import { onDestroy, onMount } from 'svelte';
 	import { browser } from '$app/environment';
+	import { pushState } from '$app/navigation';
 
 	import {
 		domainSelectionOpen as dSO,
-		variableSelectionOpen as vSO,
-		variableSelectionExtended as vSE
+		variableSelectionExtended as vSE,
+		variableSelectionOpen as vSO
 	} from '$lib/stores/preferences';
 
-	import type { Map } from 'maplibre-gl';
+	import { Button } from '$lib/components/ui/button';
+	import * as Command from '$lib/components/ui/command';
+	import * as Popover from '$lib/components/ui/popover';
 
 	import type { Domain, DomainMetaData, Variables } from '@openmeteo/mapbox-layer';
-	import { pushState } from '$app/navigation';
+	import type { Map } from 'maplibre-gl';
 
 	interface Props {
 		url: URL;
