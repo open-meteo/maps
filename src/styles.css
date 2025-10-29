@@ -252,12 +252,6 @@ body {
 	scale: 0.7;
 }
 
-@media (orientation: landscape) {
-	.time-selector {
-		bottom: 4px;
-	}
-}
-
 [data-sonner-toast][data-styled='true'] [data-close-button] {
 	left: unset !important;
 	right: -6px !important;

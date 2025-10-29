@@ -49,7 +49,7 @@ export const pad = (n: string | number) => {
 	return ('0' + n).slice(-2);
 };
 
-export const urlParamsToPreferences = (url: URL) => {
+export const urlParamsToPreferences = (map: maplibregl.Map, url: URL) => {
 	const params = new URLSearchParams(url.search);
 
 	const urlModelTime = params.get('model-run');
@@ -142,6 +142,7 @@ export const urlParamsToPreferences = (url: URL) => {
 	}
 
 	p.set(preferences);
+	pushState(url + map._hash.getHashString(), {});
 };
 
 export const checkClosestDomainInterval = (url: URL) => {

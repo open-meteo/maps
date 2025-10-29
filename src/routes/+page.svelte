@@ -68,7 +68,7 @@
 
 	onMount(() => {
 		url = new URL(document.location.href);
-		urlParamsToPreferences(url);
+		urlParamsToPreferences(map, url);
 	});
 
 	onMount(async () => {
