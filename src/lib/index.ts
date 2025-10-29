@@ -476,7 +476,7 @@ export const addPopup = (map: maplibregl.Map) => {
 			} else {
 				popup.addTo(map);
 			}
-			const { value } = getValueFromLatLong(coordinates.lat, coordinates.lng, variable, colorScale);
+			const { value } = getValueFromLatLong(coordinates.lat, coordinates.lng, variable);
 
 			if (value) {
 				if ((hideZero.includes(variable.value) && value <= 0.25) || !value) {
@@ -540,28 +540,18 @@ export const checkBounds = (map: maplibregl.Map, url: URL, latest: DomainMetaDat
 			paddedBoundsSource?.setData(geojson);
 		}
 
-		if (
-			mapBounds.getSouth() < paddedBounds.getSouth() &&
-			paddedBounds.getSouth() > domain.grid.latMin
-		) {
+		const gridBounds = GridFactory.create(domain.grid).getBounds();
+
+		if (mapBounds.getSouth() < paddedBounds.getSouth() && paddedBounds.getSouth() > gridBounds[1]) {
 			exceededPadding = true;
 		}
-		if (
-			mapBounds.getWest() < paddedBounds.getWest() &&
-			paddedBounds.getWest() > domain.grid.lonMin
-		) {
+		if (mapBounds.getWest() < paddedBounds.getWest() && paddedBounds.getWest() > gridBounds[0]) {
 			exceededPadding = true;
 		}
-		if (
-			mapBounds.getNorth() > paddedBounds.getNorth() &&
-			paddedBounds.getNorth() < domain.grid.latMin + domain.grid.ny * domain.grid.dy
-		) {
+		if (mapBounds.getNorth() > paddedBounds.getNorth() && paddedBounds.getNorth() < gridBounds[3]) {
 			exceededPadding = true;
 		}
-		if (
-			mapBounds.getEast() > paddedBounds.getEast() &&
-			paddedBounds.getEast() < domain.grid.lonMin + domain.grid.nx * domain.grid.dx
-		) {
+		if (mapBounds.getEast() > paddedBounds.getEast() && paddedBounds.getEast() < gridBounds[2]) {
 			exceededPadding = true;
 		}
 		if (exceededPadding) {
