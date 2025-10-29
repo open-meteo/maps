@@ -1,69 +1,62 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
-
+	import { onDestroy, onMount } from 'svelte';
+	import { SvelteDate } from 'svelte/reactivity';
 	import { fade } from 'svelte/transition';
 
-	import { SvelteDate } from 'svelte/reactivity';
-
-	import { toast } from 'svelte-sonner';
+	import {
+		type DomainMetaData,
+		OMapsFileReader,
+		defaultOmProtocolSettings,
+		domainOptions,
+		omProtocol,
+		variableOptions
+	} from '@openmeteo/mapbox-layer';
 	import { type RequestParameters } from 'maplibre-gl';
-
 	import * as maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
-
 	import { Protocol } from 'pmtiles';
+	import { toast } from 'svelte-sonner';
 
 	import { pushState } from '$app/navigation';
 
 	import {
-		omProtocol,
-		variableOptions,
-		domainOptions,
-		type DomainMetaData,
-		defaultOmProtocolSettings,
-		OMapsFileReader
-	} from '@openmeteo/mapbox-layer';
-
-	import * as Sheet from '$lib/components/ui/sheet';
-
-	import Scale from '$lib/components/scale/scale.svelte';
-	import HelpDialog from '$lib/components/help/help-dialog.svelte';
-	import TimeSelector from '$lib/components/time/time-selector.svelte';
-	import VariableSelection from '$lib/components/selection/variable-selection.svelte';
-
-	import {
-		TimeButton,
-		PartialButton,
-		SettingsButton,
-		HillshadeButton,
-		DarkModeButton,
-		ClipWaterButton
-	} from '$lib/components/buttons';
-
-	import {
-		time,
-		sheet,
-		loading,
 		domain,
-		variables,
-		modelRun,
-		preferences,
+		loading,
 		mapBounds,
-		paddedBounds
+		modelRun,
+		paddedBounds,
+		preferences,
+		sheet,
+		time,
+		variables
 	} from '$lib/stores/preferences';
 
 	import {
-		getStyle,
-		addPopup,
-		checkBounds,
-		addOmFileLayer,
-		changeOMfileURL,
-		getPaddedBounds,
+		ClipWaterButton,
+		DarkModeButton,
+		HillshadeButton,
+		PartialButton,
+		SettingsButton,
+		TimeButton
+	} from '$lib/components/buttons';
+	import HelpDialog from '$lib/components/help/help-dialog.svelte';
+	import Scale from '$lib/components/scale/scale.svelte';
+	import VariableSelection from '$lib/components/selection/variable-selection.svelte';
+	import TimeSelector from '$lib/components/time/time-selector.svelte';
+	import * as Sheet from '$lib/components/ui/sheet';
+
+	import {
 		addHillshadeSources,
-		setMapControlSettings,
-		urlParamsToPreferences,
+		addOmFileLayer,
+		addPopup,
+		changeOMfileURL,
+		checkBounds,
 		checkClosestDomainInterval,
-		checkHighDefinition
+		checkHighDefinition,
+		getPaddedBounds,
+		getStyle,
+		setMapControlSettings,
+		urlParamsToPreferences
 	} from '$lib';
 
 	import '../styles.css';

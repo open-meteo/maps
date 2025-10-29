@@ -1,20 +1,18 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
-
-	import { get } from 'svelte/store';
-
 	import { SvelteDate } from 'svelte/reactivity';
+	import { get } from 'svelte/store';
 
 	import { toast } from 'svelte-sonner';
 
 	import { browser } from '$app/environment';
 
-	import { pad } from '$lib';
-
 	import {
 		domainSelectionOpen as dSO,
 		variableSelectionOpen as vSO
 	} from '$lib/stores/preferences';
+
+	import { pad } from '$lib';
 
 	import type { Domain } from '@openmeteo/mapbox-layer';
 
