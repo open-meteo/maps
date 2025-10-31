@@ -43,12 +43,14 @@
 	import HelpDialog from '$lib/components/help/help-dialog.svelte';
 	import Scale from '$lib/components/scale/scale.svelte';
 	import VariableSelection from '$lib/components/selection/variable-selection.svelte';
+	import ArrowsSetting from '$lib/components/settings/arrows-setting.svelte';
+	import ContourSettings from '$lib/components/settings/contour-settings.svelte';
 	import TimeSelector from '$lib/components/time/time-selector.svelte';
 	import * as Sheet from '$lib/components/ui/sheet';
 
 	import {
 		addHillshadeSources,
-		addOmFileLayer,
+		addOmFileLayers,
 		addPopup,
 		changeOMfileURL,
 		checkBounds,
@@ -125,7 +127,7 @@
 			map.addControl(new TimeButton(map, url));
 			latest = await getDomainData();
 
-			addOmFileLayer(map);
+			addOmFileLayers(map);
 			addHillshadeSources(map);
 			map.addControl(new HillshadeButton(map, url));
 
@@ -248,6 +250,12 @@
 />
 <div class="absolute">
 	<Sheet.Root bind:open={$sheet}>
-		<Sheet.Content><div class="px-6 pt-12">Units</div></Sheet.Content>
+		<Sheet.Content
+			><div class="px-6 pt-12">
+				<div><h2 class="text-lg font-bold">Units</h2></div>
+				<ArrowsSetting {map} {url} />
+				<ContourSettings {map} {url} />
+			</div></Sheet.Content
+		>
 	</Sheet.Root>
 </div>
