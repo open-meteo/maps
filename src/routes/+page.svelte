@@ -5,6 +5,7 @@
 
 	import {
 		type DomainMetaData,
+		GridFactory,
 		OMapsFileReader,
 		defaultOmProtocolSettings,
 		domainOptions,
@@ -98,10 +99,12 @@
 
 		const style = await getStyle();
 
+		const grid = GridFactory.create($domain.grid);
+
 		map = new maplibregl.Map({
 			container: mapContainer as HTMLElement,
 			style: style,
-			center: typeof $domain.grid.center == 'object' ? $domain.grid.center : [0, 0],
+			center: grid.getCenter(),
 			zoom: $domain?.grid.zoom,
 			keyboard: false,
 			hash: true,
