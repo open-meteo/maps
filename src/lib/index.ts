@@ -2,6 +2,7 @@ import { SvelteDate } from 'svelte/reactivity';
 import { get } from 'svelte/store';
 
 import {
+	GridFactory,
 	domainOptions,
 	getColor,
 	getColorScale,
@@ -662,7 +663,7 @@ export const addPopup = (map: maplibregl.Map) => {
 			} else {
 				popup.addTo(map);
 			}
-			const { value } = getValueFromLatLong(coordinates.lat, coordinates.lng, variable, colorScale);
+			const { value } = getValueFromLatLong(coordinates.lat, coordinates.lng, variable);
 
 			if (value) {
 				if ((hideZero.includes(variable.value) && value <= 0.25) || !value) {
@@ -726,28 +727,18 @@ export const checkBounds = (map: maplibregl.Map, url: URL, latest: DomainMetaDat
 			paddedBoundsSource?.setData(geojson);
 		}
 
-		if (
-			mapBounds.getSouth() < paddedBounds.getSouth() &&
-			paddedBounds.getSouth() > domain.grid.latMin
-		) {
+		const gridBounds = GridFactory.create(domain.grid).getBounds();
+
+		if (mapBounds.getSouth() < paddedBounds.getSouth() && paddedBounds.getSouth() > gridBounds[1]) {
 			exceededPadding = true;
 		}
-		if (
-			mapBounds.getWest() < paddedBounds.getWest() &&
-			paddedBounds.getWest() > domain.grid.lonMin
-		) {
+		if (mapBounds.getWest() < paddedBounds.getWest() && paddedBounds.getWest() > gridBounds[0]) {
 			exceededPadding = true;
 		}
-		if (
-			mapBounds.getNorth() > paddedBounds.getNorth() &&
-			paddedBounds.getNorth() < domain.grid.latMin + domain.grid.ny * domain.grid.dy
-		) {
+		if (mapBounds.getNorth() > paddedBounds.getNorth() && paddedBounds.getNorth() < gridBounds[3]) {
 			exceededPadding = true;
 		}
-		if (
-			mapBounds.getEast() > paddedBounds.getEast() &&
-			paddedBounds.getEast() < domain.grid.lonMin + domain.grid.nx * domain.grid.dx
-		) {
+		if (mapBounds.getEast() > paddedBounds.getEast() && paddedBounds.getEast() < gridBounds[2]) {
 			exceededPadding = true;
 		}
 		if (exceededPadding) {
@@ -762,6 +753,8 @@ export const getPaddedBounds = (map: maplibregl.Map) => {
 	const paddedBounds = get(pB);
 	const paddedBoundsSource = get(pBS);
 
+	const gridBounds = GridFactory.create(domain.grid).getBounds();
+
 	if (mapBounds && preferences.partial) {
 		if (!paddedBoundsSource) {
 			paddedBoundsGeoJSON.set({
@@ -774,14 +767,11 @@ export const getPaddedBounds = (map: maplibregl.Map) => {
 							// @ts-expect-error stupid conflicting types from geojson
 							properties: {},
 							coordinates: [
-								[domain.grid.lonMin, domain.grid.latMin],
-								[domain.grid.lonMin, domain.grid.latMin + domain.grid.ny * domain.grid.dy],
-								[
-									domain.grid.lonMin + domain.grid.nx * domain.grid.dx,
-									domain.grid.latMin + domain.grid.ny * domain.grid.dy
-								],
-								[domain.grid.lonMin + domain.grid.nx * domain.grid.dx, domain.grid.latMin],
-								[domain.grid.lonMin, domain.grid.latMin]
+								[gridBounds[0], gridBounds[1]],
+								[gridBounds[0], gridBounds[3]],
+								[gridBounds[2], gridBounds[3]],
+								[gridBounds[2], gridBounds[1]],
+								[gridBounds[0], gridBounds[1]]
 							]
 						}
 					}
@@ -816,24 +806,12 @@ export const getPaddedBounds = (map: maplibregl.Map) => {
 		const dLon = mapBoundsNE['lng'] - mapBoundsSW['lng'];
 
 		paddedBounds?.setSouthWest([
-			Math.max(Math.max(mapBoundsSW['lng'] - (dLon * padding) / 100, domain.grid.lonMin), -180),
-			Math.max(Math.max(mapBoundsSW['lat'] - (dLat * padding) / 100, domain.grid.latMin), -90)
+			Math.max(Math.max(mapBoundsSW['lng'] - (dLon * padding) / 100, gridBounds[0]), -180),
+			Math.max(Math.max(mapBoundsSW['lat'] - (dLat * padding) / 100, gridBounds[1]), -90)
 		]);
 		paddedBounds?.setNorthEast([
-			Math.min(
-				Math.min(
-					mapBoundsNE['lng'] + (dLon * padding) / 100,
-					domain.grid.lonMin + domain.grid.nx * domain.grid.dx
-				),
-				180
-			),
-			Math.min(
-				Math.min(
-					mapBoundsNE['lat'] + (dLat * padding) / 100,
-					domain.grid.latMin + domain.grid.ny * domain.grid.dy
-				),
-				90
-			)
+			Math.min(Math.min(mapBoundsNE['lng'] + (dLon * padding) / 100, gridBounds[2]), 180),
+			Math.min(Math.min(mapBoundsNE['lat'] + (dLat * padding) / 100, gridBounds[3]), 90)
 		]);
 		pB.set(paddedBounds);
 	}
