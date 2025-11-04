@@ -8,6 +8,8 @@ export const preferences = persisted('preferences', {
 	globe: false,
 	partial: false,
 	terrain: false,
+	arrows: true,
+	contours: false,
 	hillshade: false,
 	clipWater: false,
 	showScale: true,
@@ -38,6 +40,8 @@ export const variableSelectionExtended: Persisted<boolean | undefined> = persist
 	'variables-open',
 	undefined
 );
+
+export const contourInterval = persisted('contourInterval', 2);
 
 export const mapBounds: Writable<maplibregl.LngLatBounds | null> = writable(null);
 
