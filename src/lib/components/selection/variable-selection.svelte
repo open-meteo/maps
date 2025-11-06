@@ -12,6 +12,8 @@
 
 	import {
 		domainSelectionOpen as dSO,
+		pressureLevelsSelectionOpen as pLSO,
+		pressureLevels,
 		variableSelectionExtended as vSE,
 		variableSelectionOpen as vSO
 	} from '$lib/stores/preferences';
@@ -38,6 +40,7 @@
 
 	let selectedDomain = $derived(domain);
 	let selectedVariable = $derived(variables[0]);
+	let selectedPressureLevel = $derived(pressureLevels[0]);
 
 	let domainSelectionOpen = $state(get(dSO));
 	dSO.subscribe((dO) => {
@@ -47,6 +50,11 @@
 	let variableSelectionOpen = $state(get(vSO));
 	vSO.subscribe((vO) => {
 		variableSelectionOpen = vO;
+	});
+
+	let pressureLevelSelectionOpen = $state(get(pLSO));
+	pLSO.subscribe((plO) => {
+		pressureLevelSelectionOpen = plO;
 	});
 
 	let variableSelectionExtended = $state(get(vSE));
@@ -91,6 +99,13 @@
 			window.removeEventListener('keydown', keydownEvent);
 		}
 	});
+
+	let heightOptions = [2, 10];
+	let pressureLevelOptions = [950, 850, 750];
+
+	let levelOptions = $derived([...heightOptions, ...pressureLevelOptions]);
+
+	let variableContainsLevel = $derived(selectedVariable.value.includes('wind'));
 </script>
 
 <div
@@ -322,6 +337,85 @@
 					</Command.Root>
 				</Popover.Content>
 			</Popover.Root>
+			{#if variableContainsLevel}
+				<Popover.Root
+					bind:open={pressureLevelSelectionOpen}
+					onOpenChange={(e) => {
+						pLSO.set(e);
+					}}
+				>
+					<Popover.Trigger class={domainSelectionOpen || variableSelectionOpen ? 'hidden' : ''}>
+						<Button
+							variant="outline"
+							style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
+							class="bg-background/90 dark:bg-background/70 hover:!bg-background h-7.25 w-[180px] cursor-pointer justify-between rounded-[4px] border-none !p-1.5"
+							role="combobox"
+							aria-expanded={pressureLevelSelectionOpen}
+						>
+							<div class="truncate">
+								{selectedPressureLevel || 'Select a level...'}
+							</div>
+							<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
+						</Button>
+					</Popover.Trigger>
+					<Popover.Content
+						tabindex={0}
+						class="ml-2.5 w-[250px] rounded-[4px] border-none bg-transparent p-0"
+					>
+						<Popover.Close
+							class="absolute right-0.5 top-0.5 flex h-5 w-5 cursor-pointer items-center justify-center"
+							><button aria-label="Close popover"
+								><svg
+									xmlns="http://www.w3.org/2000/svg"
+									width="12"
+									height="12"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="1.5"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									class="cursor-pointer"
+									><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"
+									></line></svg
+								></button
+							></Popover.Close
+						>
+						<Command.Root
+							style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
+							class="rounded-[3px]"
+						>
+							<Command.Input placeholder="Search levels..." />
+							<Command.List>
+								<Command.Empty>No levels found.</Command.Empty>
+								<Command.Group>
+									{#each levelOptions as l, i (i)}
+										{@const level = String(l)}
+										<Command.Item
+											value={String(level)}
+											class="hover:!bg-primary/25 cursor-pointer {selectedVariable.value.includes(
+												level
+											)
+												? '!bg-primary/15'
+												: ''}"
+											onSelect={() => {}}
+										>
+											<div class="flex w-full items-center justify-between">
+												{level}
+												<CheckIcon
+													class="size-4 {!selectedVariable.value.includes(level)
+														? 'text-transparent'
+														: ''}"
+												/>
+											</div>
+										</Command.Item>
+									{/each}
+								</Command.Group>
+							</Command.List>
+						</Command.Root>
+					</Popover.Content>
+				</Popover.Root>
+			{/if}
 		</div>
 	{/await}
 

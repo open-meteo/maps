@@ -25,6 +25,8 @@ export const variables = persisted('variables', [
 	variableOptions.find((v) => v.value === import.meta.env.VITE_VARIABLE) ?? variableOptions[0]
 ]);
 
+export const pressureLevels = persisted('pressure-levels', [2]);
+
 const now = new Date();
 now.setHours(now.getHours() + 1, 0, 0, 0);
 
@@ -36,6 +38,8 @@ export const loading = writable(false);
 
 export const domainSelectionOpen = writable(false);
 export const variableSelectionOpen = writable(false);
+export const pressureLevelsSelectionOpen = writable(false);
+
 export const variableSelectionExtended: Persisted<boolean | undefined> = persisted(
 	'variables-open',
 	undefined
