@@ -40,7 +40,7 @@
 
 	let selectedDomain = $derived(domain);
 	let selectedVariable = $derived(variables[0]);
-	let selectedPressureLevel = $derived(pressureLevels[0]);
+	let selectedPressureLevel = $derived(get(pressureLevels)[0]);
 
 	let domainSelectionOpen = $state(get(dSO));
 	dSO.subscribe((dO) => {
@@ -104,7 +104,6 @@
 	let pressureLevelOptions = [950, 850, 750];
 
 	let levelOptions = $derived([...heightOptions, ...pressureLevelOptions]);
-
 	let variableContainsLevel = $derived(selectedVariable.value.includes('wind'));
 </script>
 

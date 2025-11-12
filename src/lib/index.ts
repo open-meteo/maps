@@ -356,7 +356,7 @@ export const addOmFileLayers = (map: maplibregl.Map) => {
 		url: 'om://' + omUrl,
 		type: 'raster',
 		tileSize: 256,
-		maxzoom: 12
+		maxzoom: 14
 	});
 
 	omRasterSource = map.getSource('omRasterSource');
@@ -397,7 +397,8 @@ export const addVectorLayer = (map: maplibregl.Map) => {
 				omUrl +
 				(preferences.contours ? 'contours=true' : '') +
 				(preferences.arrows ? 'arrows=true' : ''),
-			type: 'vector'
+			type: 'vector',
+			maxzoom: 14
 		});
 		omVectorSource = map.getSource('omVectorSource');
 		if (omVectorSource) {
