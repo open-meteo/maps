@@ -94,7 +94,9 @@
 				resolutionFactor: checkHighDefinition() ? 2 : 1,
 				postReadCallback: (omFileReader: OMapsFileReader, omUrl: string) => {
 					// prefetch first bytes of the previous and next timesteps to trigger CF caching
-					omFileReader._prefetch(omUrl);
+					if (!omUrl.includes('dwd_icon')) {
+						omFileReader._prefetch(omUrl);
+					}
 				}
 			})
 		);
