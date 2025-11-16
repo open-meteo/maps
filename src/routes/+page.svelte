@@ -151,8 +151,13 @@
 
 	const getDomainData = async (inProgress = false): Promise<DomainMetaData> => {
 		return new Promise((resolve) => {
+			const uri =
+				$domain.value && $domain.value.startsWith('dwd_')
+					? `https://s3.servert.ch`
+					: `https://map-tiles.open-meteo.com`;
+
 			fetch(
-				`https://map-tiles.open-meteo.com/data_spatial/${$domain.value}/${inProgress ? 'in-progress' : 'latest'}.json`
+				`${uri}/data_spatial/${$domain.value}/${inProgress ? 'in-progress' : 'latest'}.json`
 			).then(async (result) => {
 				const json = await result.json();
 				if (!inProgress) {
