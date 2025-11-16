@@ -821,7 +821,7 @@ export const getOMUrl = () => {
 	const domain = get(d);
 
 	const uri =
-		domain.value && domain.value.startsWith('dwd_')
+		domain.value && domain.value.startsWith('dwd_icon')
 			? `https://s3.servert.ch`
 			: `https://map-tiles.open-meteo.com`;
 

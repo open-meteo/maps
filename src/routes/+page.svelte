@@ -152,7 +152,7 @@
 	const getDomainData = async (inProgress = false): Promise<DomainMetaData> => {
 		return new Promise((resolve) => {
 			const uri =
-				$domain.value && $domain.value.startsWith('dwd_')
+				$domain.value && $domain.value.startsWith('dwd_icon')
 					? `https://s3.servert.ch`
 					: `https://map-tiles.open-meteo.com`;
 
