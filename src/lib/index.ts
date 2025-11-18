@@ -656,7 +656,7 @@ export const addPopup = (map: maplibregl.Map) => {
 		if (showPopup) {
 			const coordinates = e.lngLat;
 			if (!popup) {
-				popup = new maplibregl.Popup()
+				popup = new maplibregl.Popup({closeButton: false})
 					.setLngLat(coordinates)
 					.setHTML(`<span class="value-popup">Outside domain</span>`)
 					.addTo(map);
