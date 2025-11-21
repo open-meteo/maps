@@ -75,6 +75,27 @@
 		urlParamsToPreferences(url);
 	});
 
+	const vectorOptions = $derived.by(() => {
+		return {
+			grid: false,
+			arrows: true,
+			contours: false
+		};
+	});
+
+	const omProtocolSettings: OmProtocolSettings = $state({
+		...defaultOmProtocolSettings,
+		tileSize: 256,
+		useSAB: true,
+		resolutionFactor: checkHighDefinition() ? 2 : 1,
+		postReadCallback: (omFileReader: OMapsFileReader, omUrl: string) => {
+			if (!omUrl.includes('dwd_icon')) {
+				omFileReader._prefetch(omUrl);
+			}
+		},
+		vectorOptions: vectorOptions
+	});
+
 	onMount(async () => {
 		const protocol = new Protocol({ metadata: true });
 		maplibregl.addProtocol(
@@ -87,20 +108,8 @@
 			}
 		);
 
-		const omSettings: OmProtocolSettings = {
-			...defaultOmProtocolSettings,
-			tileSize: 256,
-			useSAB: true,
-			resolutionFactor: checkHighDefinition() ? 2 : 1,
-			postReadCallback: (omFileReader: OMapsFileReader, omUrl: string) => {
-				if (!omUrl.includes('dwd_icon')) {
-					omFileReader._prefetch(omUrl);
-				}
-			}
-		};
-
 		maplibregl.addProtocol('om', (params: RequestParameters) =>
-			omProtocol(params, undefined, omSettings)
+			omProtocol(params, undefined, omProtocolSettings)
 		);
 
 		const style = await getStyle();
