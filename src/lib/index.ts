@@ -3,6 +3,7 @@ import { get } from 'svelte/store';
 
 import {
 	GridFactory,
+	clearOmUrlData,
 	domainOptions,
 	getColor,
 	getColorScale,
@@ -595,6 +596,7 @@ export const changeOMfileURL = (
 		checkClosestModelRun(map, url, latest);
 
 		omUrl = getOMUrl();
+		clearOmUrlData(omRasterSource.url);
 		omRasterSource.setUrl('om://' + omUrl);
 		if (omVectorSource) {
 			omVectorSource.setUrl(
@@ -656,14 +658,19 @@ export const addPopup = (map: maplibregl.Map) => {
 		if (showPopup) {
 			const coordinates = e.lngLat;
 			if (!popup) {
-				popup = new maplibregl.Popup({closeButton: false})
+				popup = new maplibregl.Popup({ closeButton: false })
 					.setLngLat(coordinates)
 					.setHTML(`<span class="value-popup">Outside domain</span>`)
 					.addTo(map);
 			} else {
 				popup.addTo(map);
 			}
-			const { value } = getValueFromLatLong(coordinates.lat, coordinates.lng, variable);
+			const { value } = getValueFromLatLong(
+				coordinates.lat,
+				coordinates.lng,
+				variable,
+				omRasterSource?.url || ''
+			);
 
 			if (value) {
 				if ((hideZero.includes(variable.value) && value <= 0.25) || !value) {

@@ -7,6 +7,7 @@
 		type DomainMetaData,
 		GridFactory,
 		OMapsFileReader,
+		type OmProtocolSettings,
 		defaultOmProtocolSettings,
 		domainOptions,
 		omProtocol,
@@ -86,19 +87,20 @@
 			}
 		);
 
-		maplibregl.addProtocol('om', (params: RequestParameters) =>
-			omProtocol(params, undefined, {
-				...defaultOmProtocolSettings,
-				tileSize: 256,
-				useSAB: true,
-				resolutionFactor: checkHighDefinition() ? 2 : 1,
-				postReadCallback: (omFileReader: OMapsFileReader, omUrl: string) => {
-					// prefetch first bytes of the previous and next timesteps to trigger CF caching
-					if (!omUrl.includes('dwd_icon')) {
-						omFileReader._prefetch(omUrl);
-					}
+		const omSettings: OmProtocolSettings = {
+			...defaultOmProtocolSettings,
+			tileSize: 256,
+			useSAB: true,
+			resolutionFactor: checkHighDefinition() ? 2 : 1,
+			postReadCallback: (omFileReader: OMapsFileReader, omUrl: string) => {
+				if (!omUrl.includes('dwd_icon')) {
+					omFileReader._prefetch(omUrl);
 				}
-			})
+			}
+		};
+
+		maplibregl.addProtocol('om', (params: RequestParameters) =>
+			omProtocol(params, undefined, omSettings)
 		);
 
 		const style = await getStyle();
