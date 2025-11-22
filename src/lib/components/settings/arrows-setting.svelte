@@ -5,7 +5,7 @@
 
 	import { pushState } from '$app/navigation';
 
-	import { preferences as p } from '$lib/stores/preferences';
+	import { vectorOptions as vO } from '$lib/stores/preferences';
 
 	import { Label } from '$lib/components/ui/label';
 	import { Switch } from '$lib/components/ui/switch';
@@ -21,8 +21,8 @@
 
 	let { map = $bindable(), url }: Props = $props();
 
-	let preferences = $state(get(p));
-	let arrows = $derived(preferences.arrows);
+	let vectorOptions = $state(get(vO));
+	let arrows = $derived(vectorOptions.arrows);
 </script>
 
 <div class="mt-6">
@@ -32,12 +32,12 @@
 			id="arrows"
 			checked={arrows}
 			onCheckedChange={() => {
-				preferences.arrows = !preferences.arrows;
-				p.set(preferences);
+				vectorOptions.arrows = !vectorOptions.arrows;
+				vO.set(vectorOptions);
 
-				preferences = get(p);
-				arrows = preferences.arrows;
-				if (!preferences.arrows) {
+				vectorOptions = get(vO);
+				arrows = vectorOptions.arrows;
+				if (!vectorOptions.arrows) {
 					url.searchParams.set('arrows', String(false));
 					removeVectorLayer(map);
 				} else {
@@ -45,10 +45,10 @@
 					addVectorLayer(map);
 				}
 				pushState(url + map._hash.getHashString(), {});
-				toast.info(preferences.arrows ? 'Arrows switched on' : 'Arrows switched off');
+				toast.info(vectorOptions.arrows ? 'Arrows switched on' : 'Arrows switched off');
 				changeOMfileURL(map, url);
 			}}
 		/>
-		<Label for="arrows">Arrows {preferences.arrows ? 'on' : 'off'}</Label>
+		<Label for="arrows">Arrows {vectorOptions.arrows ? 'on' : 'off'}</Label>
 	</div>
 </div>

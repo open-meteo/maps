@@ -3,6 +3,7 @@ import { get } from 'svelte/store';
 
 import {
 	GridFactory,
+	clearOmUrlData,
 	domainOptions,
 	getColor,
 	getColorScale,
@@ -19,7 +20,6 @@ import { browser } from '$app/environment';
 import { pushState } from '$app/navigation';
 
 import {
-	contourInterval,
 	domain as d,
 	loading,
 	mapBounds as mB,
@@ -30,6 +30,7 @@ import {
 	paddedBoundsGeoJSON,
 	paddedBoundsLayer,
 	time,
+	vectorOptions as vO,
 	variableSelectionExtended,
 	variables
 } from '$lib/stores/preferences';
@@ -37,6 +38,7 @@ import {
 import type { DomainMetaData } from '@openmeteo/mapbox-layer';
 
 const preferences = get(p);
+const vectorOptions = get(vO);
 
 const beforeLayer = 'waterway-tunnel';
 
@@ -138,20 +140,21 @@ export const urlParamsToPreferences = (url: URL) => {
 	}
 
 	if (params.get('contours')) {
-		preferences.contours = params.get('contours') === 'true';
+		vectorOptions.contours = params.get('contours') === 'true';
 	} else {
-		if (preferences.contours) {
-			url.searchParams.set('contours', String(preferences.contours));
+		if (vectorOptions.contours) {
+			url.searchParams.set('contours', String(vectorOptions.contours));
 		}
 	}
 
 	if (params.get('interval')) {
-		contourInterval.set(Number(params.get('contours')));
+		vectorOptions.contourInterval = Number(params.get('interval'));
 	} else {
-		if (get(contourInterval) !== 2) {
-			url.searchParams.set('interval', String(get(contourInterval)));
+		if (vectorOptions.contourInterval !== 2) {
+			url.searchParams.set('interval', String(vectorOptions.contourInterval));
 		}
 	}
+	vO.set(vectorOptions);
 
 	if (params.get('variables-open')) {
 		variableSelectionExtended.set(true);
@@ -378,13 +381,11 @@ export const addOmFileLayers = (map: maplibregl.Map) => {
 		beforeLayer
 	);
 
-	if (preferences.contours || preferences.arrows) {
+	if (vectorOptions.contours || vectorOptions.arrows) {
 		addVectorLayer(map);
 	}
 };
 
-let omGridLayer: maplibregl.StyleLayer | undefined;
-let omGridSource: maplibregl.VectorTileSource | undefined;
 let omVectorSource: maplibregl.VectorTileSource | undefined;
 let omVectorArrowLayer: maplibregl.StyleLayer | undefined;
 let omVectorContourLayer: maplibregl.StyleLayer | undefined;
@@ -392,11 +393,7 @@ let omVectorContourLayerLabels: maplibregl.StyleLayer | undefined;
 export const addVectorLayer = (map: maplibregl.Map) => {
 	if (!map.getSource('omVectorSource')) {
 		map.addSource('omVectorSource', {
-			url:
-				'om://' +
-				omUrl +
-				(preferences.contours ? 'contours=true' : '') +
-				(preferences.arrows ? 'arrows=true' : ''),
+			url: 'om://' + omUrl,
 			type: 'vector'
 		});
 		omVectorSource = map.getSource('omVectorSource');
@@ -513,23 +510,17 @@ export const addVectorLayer = (map: maplibregl.Map) => {
 };
 
 export const removeVectorLayer = (map: maplibregl.Map) => {
-	if (!preferences.contours) {
-		if (omVectorContourLayerLabels) {
+	if (!vectorOptions.contours) {
+		if (map.getLayer('omVectorContourLayerLabels')) {
 			map.removeLayer('omVectorContourLayerLabels');
 		}
-		if (omVectorContourLayer) {
+		if (map.getLayer('omVectorContourLayer')) {
 			map.removeLayer('omVectorContourLayer');
 		}
 	}
-	if (!preferences.arrows) {
-		if (omVectorArrowLayer) {
+	if (!vectorOptions.arrows) {
+		if (map.getLayer('omVectorArrowLayer')) {
 			map.removeLayer('omVectorArrowLayer');
-		}
-	}
-
-	if (!preferences.contours && !preferences.arrows) {
-		if (omVectorSource) {
-			map.removeSource('omVectorSource');
 		}
 	}
 };
@@ -562,7 +553,9 @@ export const changeOMfileURL = (
 	map: maplibregl.Map,
 	url: URL,
 	latest?: DomainMetaData | undefined,
-	resetBounds = true
+	resetBounds = true,
+	vectorOnly = false,
+	rasterOnly = false
 ) => {
 	if (map && omRasterSource) {
 		// needs more testing
@@ -583,29 +576,17 @@ export const changeOMfileURL = (
 		}
 		getPaddedBounds(map);
 
-		// if (!preferences.contours && get(variables)[0].value === 'pressure_msl') {
-		// 	preferences.contours = true;
-		// 	if (!omVectorSource) {
-		// 		addVectorLayer(map);
-		// 	}
-		// 	p.set(preferences);
-		// 	toast.info('Contours turned on for Pressure map');
-		// }
-
 		checkClosestModelRun(map, url, latest);
 
 		omUrl = getOMUrl();
-		omRasterSource.setUrl('om://' + omUrl);
-		if (omVectorSource) {
-			omVectorSource.setUrl(
-				'om://' +
-					omUrl +
-					(preferences.contours ? 'contours=true' : '') +
-					(preferences.arrows ? 'arrows=true' : '')
-			);
+		if (!vectorOnly) {
+			clearOmUrlData(omRasterSource.url);
+			omRasterSource.setUrl('om://' + omUrl);
 		}
-		if (omGridSource) {
-			omGridSource.setUrl('om://' + omUrl + '&grid=true');
+
+		if (!rasterOnly && omVectorSource) {
+			clearOmUrlData(omVectorSource.url);
+			omVectorSource.setUrl('om://' + omUrl);
 		}
 
 		checkSourceLoadedInterval = setInterval(() => {
@@ -656,14 +637,19 @@ export const addPopup = (map: maplibregl.Map) => {
 		if (showPopup) {
 			const coordinates = e.lngLat;
 			if (!popup) {
-				popup = new maplibregl.Popup({closeButton: false})
+				popup = new maplibregl.Popup({ closeButton: false })
 					.setLngLat(coordinates)
 					.setHTML(`<span class="value-popup">Outside domain</span>`)
 					.addTo(map);
 			} else {
 				popup.addTo(map);
 			}
-			const { value } = getValueFromLatLong(coordinates.lat, coordinates.lng, variable);
+			const { value } = getValueFromLatLong(
+				coordinates.lat,
+				coordinates.lng,
+				variable,
+				omRasterSource?.url || ''
+			);
 
 			if (value) {
 				if ((hideZero.includes(variable.value) && value <= 0.25) || !value) {
@@ -819,17 +805,11 @@ export const getPaddedBounds = (map: maplibregl.Map) => {
 
 export const getOMUrl = () => {
 	const domain = get(d);
-
+	const modelRun = get(mR);
 	const uri =
 		domain.value && domain.value.startsWith('dwd_icon')
 			? `https://s3.servert.ch`
 			: `https://map-tiles.open-meteo.com`;
 
-	const modelRun = get(mR);
-	const paddedBounds = get(pB);
-	if (paddedBounds) {
-		return `${uri}/data_spatial/${domain.value}/${modelRun.getUTCFullYear()}/${pad(modelRun.getUTCMonth() + 1)}/${pad(modelRun.getUTCDate())}/${pad(modelRun.getUTCHours())}00Z/${get(time).getUTCFullYear()}-${pad(get(time).getUTCMonth() + 1)}-${pad(get(time).getUTCDate())}T${pad(get(time).getUTCHours())}00.om?dark=${mode.current === 'dark'}&variable=${get(variables)[0].value}&bounds=${paddedBounds.getSouth()},${paddedBounds.getWest()},${paddedBounds.getNorth()},${paddedBounds.getEast()}&partial=${preferences.partial}&interval=${get(contourInterval)}`;
-	} else {
-		return `${uri}/data_spatial/${domain.value}/${modelRun.getUTCFullYear()}/${pad(modelRun.getUTCMonth() + 1)}/${pad(modelRun.getUTCDate())}/${pad(modelRun.getUTCHours())}00Z/${get(time).getUTCFullYear()}-${pad(get(time).getUTCMonth() + 1)}-${pad(get(time).getUTCDate())}T${pad(get(time).getUTCHours())}00.om?dark=${mode.current === 'dark'}&variable=${get(variables)[0].value}&partial=${preferences.partial}&interval=${get(contourInterval)}`;
-	}
+	return `${uri}/data_spatial/${domain.value}/${modelRun.getUTCFullYear()}/${pad(modelRun.getUTCMonth() + 1)}/${pad(modelRun.getUTCDate())}/${pad(modelRun.getUTCHours())}00Z/${get(time).getUTCFullYear()}-${pad(get(time).getUTCMonth() + 1)}-${pad(get(time).getUTCDate())}T${pad(get(time).getUTCHours())}00.om?&variable=${get(variables)[0].value}`;
 };

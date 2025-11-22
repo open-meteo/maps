@@ -4,16 +4,20 @@ import { domainOptions, variableOptions } from '@openmeteo/mapbox-layer';
 import { type Persisted, persisted } from 'svelte-persisted-store';
 
 export const preferences = persisted('preferences', {
-	// buttons
 	globe: false,
 	partial: false,
 	terrain: false,
-	arrows: true,
-	contours: false,
 	hillshade: false,
 	clipWater: false,
 	showScale: true,
 	timeSelector: true
+});
+
+export const vectorOptions = persisted('vector-options', {
+	grid: false,
+	arrows: true,
+	contours: false,
+	contourInterval: 2
 });
 
 export const domain = persisted(
@@ -40,8 +44,6 @@ export const variableSelectionExtended: Persisted<boolean | undefined> = persist
 	'variables-open',
 	undefined
 );
-
-export const contourInterval = persisted('contourInterval', 2);
 
 export const mapBounds: Writable<maplibregl.LngLatBounds | null> = writable(null);
 
