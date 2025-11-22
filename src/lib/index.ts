@@ -20,7 +20,6 @@ import { browser } from '$app/environment';
 import { pushState } from '$app/navigation';
 
 import {
-	contourInterval,
 	domain as d,
 	loading,
 	mapBounds as mB,
@@ -31,6 +30,7 @@ import {
 	paddedBoundsGeoJSON,
 	paddedBoundsLayer,
 	time,
+	vectorOptions as vO,
 	variableSelectionExtended,
 	variables
 } from '$lib/stores/preferences';
@@ -38,6 +38,7 @@ import {
 import type { DomainMetaData } from '@openmeteo/mapbox-layer';
 
 const preferences = get(p);
+const vectorOptions = get(vO);
 
 const beforeLayer = 'waterway-tunnel';
 
@@ -139,20 +140,21 @@ export const urlParamsToPreferences = (url: URL) => {
 	}
 
 	if (params.get('contours')) {
-		preferences.contours = params.get('contours') === 'true';
+		vectorOptions.contours = params.get('contours') === 'true';
 	} else {
-		if (preferences.contours) {
-			url.searchParams.set('contours', String(preferences.contours));
+		if (vectorOptions.contours) {
+			url.searchParams.set('contours', String(vectorOptions.contours));
 		}
 	}
 
 	if (params.get('interval')) {
-		contourInterval.set(Number(params.get('contours')));
+		vectorOptions.contourInterval = Number(params.get('interval'));
 	} else {
-		if (get(contourInterval) !== 2) {
-			url.searchParams.set('interval', String(get(contourInterval)));
+		if (vectorOptions.contourInterval !== 2) {
+			url.searchParams.set('interval', String(vectorOptions.contourInterval));
 		}
 	}
+	vO.set(vectorOptions);
 
 	if (params.get('variables-open')) {
 		variableSelectionExtended.set(true);
@@ -527,12 +529,6 @@ export const removeVectorLayer = (map: maplibregl.Map) => {
 			map.removeLayer('omVectorArrowLayer');
 		}
 	}
-
-	if (!preferences.contours && !preferences.arrows) {
-		if (omVectorSource) {
-			map.removeSource('omVectorSource');
-		}
-	}
 };
 
 export const terrainHandler = (map: maplibregl.Map, url: URL) => {
@@ -826,17 +822,11 @@ export const getPaddedBounds = (map: maplibregl.Map) => {
 
 export const getOMUrl = () => {
 	const domain = get(d);
-
+	const modelRun = get(mR);
 	const uri =
 		domain.value && domain.value.startsWith('dwd_icon')
 			? `https://s3.servert.ch`
 			: `https://map-tiles.open-meteo.com`;
 
-	const modelRun = get(mR);
-	const paddedBounds = get(pB);
-	if (paddedBounds) {
-		return `${uri}/data_spatial/${domain.value}/${modelRun.getUTCFullYear()}/${pad(modelRun.getUTCMonth() + 1)}/${pad(modelRun.getUTCDate())}/${pad(modelRun.getUTCHours())}00Z/${get(time).getUTCFullYear()}-${pad(get(time).getUTCMonth() + 1)}-${pad(get(time).getUTCDate())}T${pad(get(time).getUTCHours())}00.om?dark=${mode.current === 'dark'}&variable=${get(variables)[0].value}&bounds=${paddedBounds.getSouth()},${paddedBounds.getWest()},${paddedBounds.getNorth()},${paddedBounds.getEast()}&partial=${preferences.partial}&interval=${get(contourInterval)}`;
-	} else {
-		return `${uri}/data_spatial/${domain.value}/${modelRun.getUTCFullYear()}/${pad(modelRun.getUTCMonth() + 1)}/${pad(modelRun.getUTCDate())}/${pad(modelRun.getUTCHours())}00Z/${get(time).getUTCFullYear()}-${pad(get(time).getUTCMonth() + 1)}-${pad(get(time).getUTCDate())}T${pad(get(time).getUTCHours())}00.om?dark=${mode.current === 'dark'}&variable=${get(variables)[0].value}&partial=${preferences.partial}&interval=${get(contourInterval)}`;
-	}
+	return `${uri}/data_spatial/${domain.value}/${modelRun.getUTCFullYear()}/${pad(modelRun.getUTCMonth() + 1)}/${pad(modelRun.getUTCDate())}/${pad(modelRun.getUTCHours())}00Z/${get(time).getUTCFullYear()}-${pad(get(time).getUTCMonth() + 1)}-${pad(get(time).getUTCDate())}T${pad(get(time).getUTCHours())}00.om?&variable=${get(variables)[0].value}`;
 };

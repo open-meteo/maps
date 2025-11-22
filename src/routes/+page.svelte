@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 	import { SvelteDate } from 'svelte/reactivity';
+	import { get } from 'svelte/store';
 	import { fade } from 'svelte/transition';
 
 	import {
@@ -16,6 +17,7 @@
 	import { type RequestParameters } from 'maplibre-gl';
 	import * as maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
+	import { mode } from 'mode-watcher';
 	import { Protocol } from 'pmtiles';
 	import { toast } from 'svelte-sonner';
 
@@ -30,6 +32,7 @@
 		preferences,
 		sheet,
 		time,
+		vectorOptions as vO,
 		variables
 	} from '$lib/stores/preferences';
 
@@ -75,25 +78,43 @@
 		urlParamsToPreferences(url);
 	});
 
-	const vectorOptions = $derived.by(() => {
-		return {
-			grid: false,
-			arrows: true,
-			contours: false
-		};
+	const dark = $derived(mode.current === 'dark');
+	const partial = $derived(get(preferences).partial);
+	const paddedBoundsList = $derived.by(() => {
+		if ($paddedBounds) {
+			return [
+				$paddedBounds.getSouth(),
+				$paddedBounds.getWest(),
+				$paddedBounds.getNorth(),
+				$paddedBounds.getEast()
+			];
+		} else {
+			return undefined;
+		}
 	});
 
-	const omProtocolSettings: OmProtocolSettings = $state({
+	let vectorOptions = $state(get(vO));
+	vO.subscribe((newVectorOptions) => {
+		vectorOptions = newVectorOptions;
+	});
+
+	const omProtocolSettings: OmProtocolSettings = $derived({
 		...defaultOmProtocolSettings,
+		// static
 		tileSize: 256,
 		useSAB: true,
+
+		// dynamic
 		resolutionFactor: checkHighDefinition() ? 2 : 1,
 		postReadCallback: (omFileReader: OMapsFileReader, omUrl: string) => {
 			if (!omUrl.includes('dwd_icon')) {
 				omFileReader._prefetch(omUrl);
 			}
 		},
-		vectorOptions: vectorOptions
+		dark: $state.snapshot(dark),
+		partial: $state.snapshot(partial),
+		mapBounds: $state.snapshot(paddedBoundsList),
+		vectorOptions: $state.snapshot(vectorOptions)
 	});
 
 	onMount(async () => {

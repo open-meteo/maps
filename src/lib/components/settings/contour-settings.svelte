@@ -5,7 +5,7 @@
 
 	import { pushState } from '$app/navigation';
 
-	import { contourInterval as cI, preferences as p } from '$lib/stores/preferences';
+	import { vectorOptions as vO } from '$lib/stores/preferences';
 
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -22,9 +22,9 @@
 
 	let { map = $bindable(), url }: Props = $props();
 
-	let preferences = $state(get(p));
-	let contours = $derived(preferences.contours);
-	let contourInterval = $derived(get(cI));
+	let vectorOptions = $state(get(vO));
+	let contours = $derived(vectorOptions.contours);
+	let contourInterval = $derived(vectorOptions.contourInterval);
 </script>
 
 <div class="mt-6">
@@ -34,12 +34,12 @@
 			id="contouring"
 			checked={contours}
 			onCheckedChange={() => {
-				preferences.contours = !preferences.contours;
-				p.set(preferences);
+				vectorOptions.contours = !vectorOptions.contours;
+				vO.set(vectorOptions);
 
-				preferences = get(p);
-				contours = preferences.contours;
-				if (preferences.contours) {
+				vectorOptions = get(vO);
+				contours = vectorOptions.contours;
+				if (vectorOptions.contours) {
 					url.searchParams.set('contours', String(true));
 					addVectorLayer(map);
 				} else {
@@ -47,11 +47,11 @@
 					removeVectorLayer(map);
 				}
 				pushState(url + map._hash.getHashString(), {});
-				toast.info(preferences.contours ? 'Contours switched on' : 'Contours switched off');
+				toast.info(vectorOptions.contours ? 'Contours switched on' : 'Contours switched off');
 				changeOMfileURL(map, url);
 			}}
 		/>
-		<Label for="contouring">Contouring {preferences.contours ? 'on' : 'off'}</Label>
+		<Label for="contouring">Contouring {vectorOptions.contours ? 'on' : 'off'}</Label>
 	</div>
 	<div class="mt-3 flex gap-3">
 		<input
@@ -66,13 +66,13 @@
 				const value = target?.value;
 				cI.set(Number(value));
 				changeOMfileURL(map, url);
-				if (get(cI) !== 2 && preferences.contours) {
+				if (get(cI) !== 2 && vectorOptions.contours) {
 					url.searchParams.set('interval', String(get(cI)));
 				} else {
 					url.searchParams.delete('interval');
 				}
 				pushState(url + map._hash.getHashString(), {});
-				if (preferences.contours) {
+				if (vectorOptions.contours) {
 					changeOMfileURL(map, url);
 				}
 			}}
@@ -84,15 +84,16 @@
 			oninput={(e) => {
 				const target = e.target as HTMLInputElement;
 				const value = target?.value;
-				cI.set(Number(value));
+				vectorOptions.contourInterval = Number(value);
+				vO.set(vectorOptions);
 				changeOMfileURL(map, url);
-				if (get(cI) !== 2 && preferences.contours) {
+				if (vectorOptions.contourInterval !== 2 && vectorOptions.contours) {
 					url.searchParams.set('interval', String(get(cI)));
 				} else {
 					url.searchParams.delete('interval');
 				}
 				pushState(url + map._hash.getHashString(), {});
-				if (preferences.contours) {
+				if (vectorOptions.contours) {
 					changeOMfileURL(map, url);
 				}
 			}}
