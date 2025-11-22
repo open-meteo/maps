@@ -381,13 +381,11 @@ export const addOmFileLayers = (map: maplibregl.Map) => {
 		beforeLayer
 	);
 
-	if (preferences.contours || preferences.arrows) {
+	if (vectorOptions.contours || vectorOptions.arrows) {
 		addVectorLayer(map);
 	}
 };
 
-let omGridLayer: maplibregl.StyleLayer | undefined;
-let omGridSource: maplibregl.VectorTileSource | undefined;
 let omVectorSource: maplibregl.VectorTileSource | undefined;
 let omVectorArrowLayer: maplibregl.StyleLayer | undefined;
 let omVectorContourLayer: maplibregl.StyleLayer | undefined;
@@ -395,11 +393,7 @@ let omVectorContourLayerLabels: maplibregl.StyleLayer | undefined;
 export const addVectorLayer = (map: maplibregl.Map) => {
 	if (!map.getSource('omVectorSource')) {
 		map.addSource('omVectorSource', {
-			url:
-				'om://' +
-				omUrl +
-				(preferences.contours ? 'contours=true' : '') +
-				(preferences.arrows ? 'arrows=true' : ''),
+			url: 'om://' + omUrl,
 			type: 'vector'
 		});
 		omVectorSource = map.getSource('omVectorSource');
@@ -516,16 +510,16 @@ export const addVectorLayer = (map: maplibregl.Map) => {
 };
 
 export const removeVectorLayer = (map: maplibregl.Map) => {
-	if (!preferences.contours) {
-		if (omVectorContourLayerLabels) {
+	if (!vectorOptions.contours) {
+		if (map.getLayer('omVectorContourLayerLabels')) {
 			map.removeLayer('omVectorContourLayerLabels');
 		}
-		if (omVectorContourLayer) {
+		if (map.getLayer('omVectorContourLayer')) {
 			map.removeLayer('omVectorContourLayer');
 		}
 	}
-	if (!preferences.arrows) {
-		if (omVectorArrowLayer) {
+	if (!vectorOptions.arrows) {
+		if (map.getLayer('omVectorArrowLayer')) {
 			map.removeLayer('omVectorArrowLayer');
 		}
 	}
@@ -559,7 +553,9 @@ export const changeOMfileURL = (
 	map: maplibregl.Map,
 	url: URL,
 	latest?: DomainMetaData | undefined,
-	resetBounds = true
+	resetBounds = true,
+	vectorOnly = false,
+	rasterOnly = false
 ) => {
 	if (map && omRasterSource) {
 		// needs more testing
@@ -580,30 +576,17 @@ export const changeOMfileURL = (
 		}
 		getPaddedBounds(map);
 
-		// if (!preferences.contours && get(variables)[0].value === 'pressure_msl') {
-		// 	preferences.contours = true;
-		// 	if (!omVectorSource) {
-		// 		addVectorLayer(map);
-		// 	}
-		// 	p.set(preferences);
-		// 	toast.info('Contours turned on for Pressure map');
-		// }
-
 		checkClosestModelRun(map, url, latest);
 
 		omUrl = getOMUrl();
-		clearOmUrlData(omRasterSource.url);
-		omRasterSource.setUrl('om://' + omUrl);
-		if (omVectorSource) {
-			omVectorSource.setUrl(
-				'om://' +
-					omUrl +
-					(preferences.contours ? 'contours=true' : '') +
-					(preferences.arrows ? 'arrows=true' : '')
-			);
+		if (!vectorOnly) {
+			clearOmUrlData(omRasterSource.url);
+			omRasterSource.setUrl('om://' + omUrl);
 		}
-		if (omGridSource) {
-			omGridSource.setUrl('om://' + omUrl + '&grid=true');
+
+		if (!rasterOnly && omVectorSource) {
+			clearOmUrlData(omVectorSource.url);
+			omVectorSource.setUrl('om://' + omUrl);
 		}
 
 		checkSourceLoadedInterval = setInterval(() => {

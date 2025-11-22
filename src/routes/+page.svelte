@@ -95,6 +95,7 @@
 
 	let vectorOptions = $state(get(vO));
 	vO.subscribe((newVectorOptions) => {
+		console.log(newVectorOptions);
 		vectorOptions = newVectorOptions;
 	});
 
@@ -116,6 +117,7 @@
 		mapBounds: $state.snapshot(paddedBoundsList),
 		vectorOptions: $state.snapshot(vectorOptions)
 	});
+	// $inspect(omProtocolSettings).with(console.log);
 
 	onMount(async () => {
 		const protocol = new Protocol({ metadata: true });

@@ -64,16 +64,17 @@
 			oninput={(e) => {
 				const target = e.target as HTMLInputElement;
 				const value = target?.value;
-				cI.set(Number(value));
+				vectorOptions.contourInterval = Number(value);
+				vO.set(vectorOptions);
 				changeOMfileURL(map, url);
-				if (get(cI) !== 2 && vectorOptions.contours) {
-					url.searchParams.set('interval', String(get(cI)));
+				if (vectorOptions.contourInterval !== 2 && vectorOptions.contours) {
+					url.searchParams.set('interval', String(vectorOptions.contourInterval));
 				} else {
 					url.searchParams.delete('interval');
 				}
 				pushState(url + map._hash.getHashString(), {});
 				if (vectorOptions.contours) {
-					changeOMfileURL(map, url);
+					changeOMfileURL(map, url, undefined, false, true);
 				}
 			}}
 		/>
@@ -88,13 +89,13 @@
 				vO.set(vectorOptions);
 				changeOMfileURL(map, url);
 				if (vectorOptions.contourInterval !== 2 && vectorOptions.contours) {
-					url.searchParams.set('interval', String(get(cI)));
+					url.searchParams.set('interval', String(vectorOptions.contourInterval));
 				} else {
 					url.searchParams.delete('interval');
 				}
 				pushState(url + map._hash.getHashString(), {});
 				if (vectorOptions.contours) {
-					changeOMfileURL(map, url);
+					changeOMfileURL(map, url, undefined, false, true);
 				}
 			}}
 			bind:value={contourInterval}
