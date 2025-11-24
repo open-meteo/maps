@@ -95,7 +95,6 @@
 
 	let vectorOptions = $state(get(vO));
 	vO.subscribe((newVectorOptions) => {
-		console.log(newVectorOptions);
 		vectorOptions = newVectorOptions;
 	});
 
