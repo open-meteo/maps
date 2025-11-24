@@ -142,6 +142,14 @@ export const urlParamsToPreferences = (url: URL) => {
 		}
 	}
 
+	if (params.get('arrows')) {
+		vectorOptions.arrows = params.get('arrows') === 'true';
+	} else {
+		if (!vectorOptions.arrows) {
+			url.searchParams.set('arrows', String(vectorOptions.arrows));
+		}
+	}
+
 	if (params.get('contours')) {
 		vectorOptions.contours = params.get('contours') === 'true';
 	} else {
@@ -157,6 +165,7 @@ export const urlParamsToPreferences = (url: URL) => {
 			url.searchParams.set('interval', String(vectorOptions.contourInterval));
 		}
 	}
+
 	vO.set(vectorOptions);
 
 	if (params.get('variables-open')) {

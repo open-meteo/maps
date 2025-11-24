@@ -33,14 +33,11 @@
 		const target = event.target as HTMLInputElement;
 		const value = target?.value;
 		vectorOptions.contourInterval = Number(value);
-		console.log(vectorOptions);
-		vO.set($state.snapshot(vectorOptions));
 		if (vectorOptions.contourInterval !== 2 && contours) {
 			url.searchParams.set('interval', String(vectorOptions.contourInterval));
 		} else {
 			url.searchParams.delete('interval');
 		}
-		console.log(get(vO));
 		pushState(url + map._hash.getHashString(), {});
 		if (vectorOptions.contours) {
 			changeOMfileURL(map, url, undefined, false, true);
@@ -57,11 +54,8 @@
 			onCheckedChange={() => {
 				vectorOptions.contours = !vectorOptions.contours;
 				vO.set(vectorOptions);
-
-				vectorOptions = get(vO);
-				contours = vectorOptions.contours;
 				if (vectorOptions.contours) {
-					url.searchParams.set('contours', String(true));
+					url.searchParams.set('contours', 'true');
 					addVectorLayer(map);
 				} else {
 					url.searchParams.delete('contours');
