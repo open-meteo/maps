@@ -38,7 +38,10 @@ import {
 import type { DomainMetaData } from '@openmeteo/mapbox-layer';
 
 const preferences = get(p);
-const vectorOptions = get(vO);
+let vectorOptions = get(vO);
+vO.subscribe((newVectorOptions) => {
+	vectorOptions = newVectorOptions;
+});
 
 const beforeLayer = 'waterway-tunnel';
 
@@ -387,9 +390,6 @@ export const addOmFileLayers = (map: maplibregl.Map) => {
 };
 
 let omVectorSource: maplibregl.VectorTileSource | undefined;
-let omVectorArrowLayer: maplibregl.StyleLayer | undefined;
-let omVectorContourLayer: maplibregl.StyleLayer | undefined;
-let omVectorContourLayerLabels: maplibregl.StyleLayer | undefined;
 export const addVectorLayer = (map: maplibregl.Map) => {
 	if (!map.getSource('omVectorSource')) {
 		map.addSource('omVectorSource', {
@@ -445,7 +445,6 @@ export const addVectorLayer = (map: maplibregl.Map) => {
 				]
 			}
 		});
-		omVectorContourLayer = map.getLayer('omVectorContourLayer');
 	}
 
 	if (!map.getLayer('omVectorArrowLayer')) {
@@ -482,7 +481,6 @@ export const addVectorLayer = (map: maplibregl.Map) => {
 				'line-cap': 'round'
 			}
 		});
-		omVectorArrowLayer = map.getLayer('omVectorArrowLayer');
 	}
 
 	if (!map.getLayer('omVectorContourLayerLabels')) {
@@ -498,18 +496,16 @@ export const addVectorLayer = (map: maplibregl.Map) => {
 				'text-field': ['to-string', ['get', 'value']],
 				'text-padding': 1,
 				'text-offset': [0, -0.6]
-				//'text-allow-overlap': true,
-				//'text-ignore-placement': true
 			},
 			paint: {
 				'text-color': 'rgba(0,0,0,0.7)'
 			}
 		});
-		omVectorContourLayerLabels = map.getLayer('omVectorContourLayerLabels');
 	}
 };
 
 export const removeVectorLayer = (map: maplibregl.Map) => {
+	console.log(vectorOptions);
 	if (!vectorOptions.contours) {
 		if (map.getLayer('omVectorContourLayerLabels')) {
 			map.removeLayer('omVectorContourLayerLabels');
@@ -584,6 +580,7 @@ export const changeOMfileURL = (
 			omRasterSource.setUrl('om://' + omUrl);
 		}
 
+		omVectorSource = map.getSource('omVectorSource');
 		if (!rasterOnly && omVectorSource) {
 			clearOmUrlData(omVectorSource.url);
 			omVectorSource.setUrl('om://' + omUrl);

@@ -22,6 +22,9 @@
 	let { map = $bindable(), url }: Props = $props();
 
 	let vectorOptions = $state(get(vO));
+	vO.subscribe((newVectorOptions) => {
+		vectorOptions = newVectorOptions;
+	});
 	let arrows = $derived(vectorOptions.arrows);
 </script>
 
@@ -38,7 +41,7 @@
 				vectorOptions = get(vO);
 				arrows = vectorOptions.arrows;
 				if (!vectorOptions.arrows) {
-					url.searchParams.set('arrows', String(false));
+					url.searchParams.set('arrows', 'false');
 					removeVectorLayer(map);
 				} else {
 					url.searchParams.delete('arrows');

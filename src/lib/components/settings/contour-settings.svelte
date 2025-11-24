@@ -23,8 +23,29 @@
 	let { map = $bindable(), url }: Props = $props();
 
 	let vectorOptions = $state(get(vO));
+	vO.subscribe((newVectorOptions) => {
+		vectorOptions = newVectorOptions;
+	});
 	let contours = $derived(vectorOptions.contours);
 	let contourInterval = $derived(vectorOptions.contourInterval);
+
+	const handleContourIntervalChange = (event: Event) => {
+		const target = event.target as HTMLInputElement;
+		const value = target?.value;
+		vectorOptions.contourInterval = Number(value);
+		console.log(vectorOptions);
+		vO.set($state.snapshot(vectorOptions));
+		if (vectorOptions.contourInterval !== 2 && contours) {
+			url.searchParams.set('interval', String(vectorOptions.contourInterval));
+		} else {
+			url.searchParams.delete('interval');
+		}
+		console.log(get(vO));
+		pushState(url + map._hash.getHashString(), {});
+		if (vectorOptions.contours) {
+			changeOMfileURL(map, url, undefined, false, true);
+		}
+	};
 </script>
 
 <div class="mt-6">
@@ -61,44 +82,14 @@
 			min="0"
 			max="20"
 			bind:value={contourInterval}
-			oninput={(e) => {
-				const target = e.target as HTMLInputElement;
-				const value = target?.value;
-				vectorOptions.contourInterval = Number(value);
-				vO.set(vectorOptions);
-				changeOMfileURL(map, url);
-				if (vectorOptions.contourInterval !== 2 && vectorOptions.contours) {
-					url.searchParams.set('interval', String(vectorOptions.contourInterval));
-				} else {
-					url.searchParams.delete('interval');
-				}
-				pushState(url + map._hash.getHashString(), {});
-				if (vectorOptions.contours) {
-					changeOMfileURL(map, url, undefined, false, true);
-				}
-			}}
+			oninput={handleContourIntervalChange}
 		/>
 		<Label for="interval">Contouring interval:</Label><Input
 			id="interval"
 			class="w-20"
 			step="0.5"
-			oninput={(e) => {
-				const target = e.target as HTMLInputElement;
-				const value = target?.value;
-				vectorOptions.contourInterval = Number(value);
-				vO.set(vectorOptions);
-				changeOMfileURL(map, url);
-				if (vectorOptions.contourInterval !== 2 && vectorOptions.contours) {
-					url.searchParams.set('interval', String(vectorOptions.contourInterval));
-				} else {
-					url.searchParams.delete('interval');
-				}
-				pushState(url + map._hash.getHashString(), {});
-				if (vectorOptions.contours) {
-					changeOMfileURL(map, url, undefined, false, true);
-				}
-			}}
 			bind:value={contourInterval}
+			oninput={handleContourIntervalChange}
 		/>
 	</div>
 </div>
