@@ -3,6 +3,8 @@ import { type Writable, writable } from 'svelte/store';
 import { domainOptions, variableOptions } from '@openmeteo/mapbox-layer';
 import { type Persisted, persisted } from 'svelte-persisted-store';
 
+// import { checkHighDefinition } from '$lib';
+
 export const preferences = persisted('preferences', {
 	globe: false,
 	partial: false,
@@ -52,3 +54,5 @@ export const paddedBoundsLayer: Writable<maplibregl.StyleLayer | undefined> = wr
 export const paddedBoundsSource: Writable<maplibregl.GeoJSONSource | undefined> =
 	writable(undefined);
 export const paddedBoundsGeoJSON: Writable<GeoJSON.GeoJSON | null> = writable(null);
+
+export const resolution: Persisted<2 | 1 | 0.5> = persisted('resolution', 1);

@@ -30,6 +30,7 @@
 		modelRun,
 		paddedBounds,
 		preferences,
+		resolution as r,
 		sheet,
 		time,
 		vectorOptions as vO,
@@ -47,8 +48,7 @@
 	import HelpDialog from '$lib/components/help/help-dialog.svelte';
 	import Scale from '$lib/components/scale/scale.svelte';
 	import VariableSelection from '$lib/components/selection/variable-selection.svelte';
-	import ArrowsSetting from '$lib/components/settings/arrows-setting.svelte';
-	import ContourSettings from '$lib/components/settings/contour-settings.svelte';
+	import Settings from '$lib/components/settings/settings.svelte';
 	import TimeSelector from '$lib/components/time/time-selector.svelte';
 	import * as Sheet from '$lib/components/ui/sheet';
 
@@ -80,6 +80,7 @@
 
 	const dark = $derived(mode.current === 'dark');
 	const partial = $derived(get(preferences).partial);
+	const resolution = $derived(get(r));
 	const paddedBoundsList = $derived.by(() => {
 		if ($paddedBounds) {
 			return [
@@ -105,7 +106,7 @@
 		useSAB: true,
 
 		// dynamic
-		resolutionFactor: checkHighDefinition() ? 2 : 1,
+		resolutionFactor: $state.snapshot(resolution),
 		postReadCallback: (omFileReader: OMapsFileReader, omUrl: string) => {
 			if (!omUrl.includes('dwd_icon')) {
 				omFileReader._prefetch(omUrl);
@@ -293,8 +294,7 @@
 		<Sheet.Content
 			><div class="px-6 pt-12">
 				<div><h2 class="text-lg font-bold">Units</h2></div>
-				<ArrowsSetting {map} {url} />
-				<ContourSettings {map} {url} />
+				<Settings {map} {url} />
 			</div></Sheet.Content
 		>
 	</Sheet.Root>
