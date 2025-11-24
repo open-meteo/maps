@@ -563,12 +563,19 @@ export const changeOMfileURL = (
 ) => {
 	if (map && omRasterSource) {
 		// needs more testing
-		// if (map.style.sourceCaches['omFileRasterSource']) {
-		// 	console.log(map.style.sourceCaches['omFileRasterSource']);
-		// 	map.style.sourceCaches['omFileRasterSource'].clearTiles();
-		// 	map.style.sourceCaches['omFileRasterSource'].update(map.transform);
-		// 	map.triggerRepaint();
-		// }
+		if (map.style.tileManagers.omRasterSource) {
+			const tileManager = map.style.tileManagers.omRasterSource;
+			if (tileManager._tiles) {
+				for (const tileId in tileManager._tiles) {
+					const tile = tileManager._tiles[tileId];
+					tile.unloadVectorData();
+				}
+				tileManager._tiles = {};
+			}
+			tileManager._cache.reset();
+			// tileManager.update(map.transform);
+			// map.triggerRepaint();
+		}
 
 		loading.set(true);
 		if (popup) {

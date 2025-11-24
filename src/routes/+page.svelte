@@ -48,6 +48,7 @@
 	import HelpDialog from '$lib/components/help/help-dialog.svelte';
 	import Scale from '$lib/components/scale/scale.svelte';
 	import VariableSelection from '$lib/components/selection/variable-selection.svelte';
+	import ResolutionSettings from '$lib/components/settings/resolution-settings.svelte';
 	import Settings from '$lib/components/settings/settings.svelte';
 	import TimeSelector from '$lib/components/time/time-selector.svelte';
 	import * as Sheet from '$lib/components/ui/sheet';
@@ -59,7 +60,6 @@
 		changeOMfileURL,
 		checkBounds,
 		checkClosestDomainInterval,
-		checkHighDefinition,
 		getPaddedBounds,
 		getStyle,
 		setMapControlSettings,
@@ -80,7 +80,6 @@
 
 	const dark = $derived(mode.current === 'dark');
 	const partial = $derived(get(preferences).partial);
-	const resolution = $derived(get(r));
 	const paddedBoundsList = $derived.by(() => {
 		if ($paddedBounds) {
 			return [
@@ -94,6 +93,10 @@
 		}
 	});
 
+	let resolution = $state(get(r));
+	r.subscribe((newResolution) => {
+		resolution = newResolution;
+	});
 	let vectorOptions = $state(get(vO));
 	vO.subscribe((newVectorOptions) => {
 		vectorOptions = newVectorOptions;
@@ -106,7 +109,6 @@
 		useSAB: true,
 
 		// dynamic
-		resolutionFactor: $state.snapshot(resolution),
 		postReadCallback: (omFileReader: OMapsFileReader, omUrl: string) => {
 			if (!omUrl.includes('dwd_icon')) {
 				omFileReader._prefetch(omUrl);
@@ -115,7 +117,8 @@
 		dark: $state.snapshot(dark),
 		partial: $state.snapshot(partial),
 		mapBounds: $state.snapshot(paddedBoundsList),
-		vectorOptions: $state.snapshot(vectorOptions)
+		vectorOptions: $state.snapshot(vectorOptions),
+		resolutionFactor: $state.snapshot(resolution)
 	});
 	// $inspect(omProtocolSettings).with(console.log);
 
@@ -249,6 +252,7 @@
 
 <div class="map" id="#map_container" bind:this={mapContainer}></div>
 <Scale showScale={$preferences.showScale} variables={$variables} />
+
 <HelpDialog />
 <VariableSelection
 	{url}
@@ -290,6 +294,8 @@
 	}}
 />
 <div class="absolute">
+	<ResolutionSettings {map} {url} />
+
 	<Sheet.Root bind:open={$sheet}>
 		<Sheet.Content
 			><div class="px-6 pt-12">

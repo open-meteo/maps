@@ -55,4 +55,5 @@ export const paddedBoundsSource: Writable<maplibregl.GeoJSONSource | undefined> 
 	writable(undefined);
 export const paddedBoundsGeoJSON: Writable<GeoJSON.GeoJSON | null> = writable(null);
 
-export const resolution: Persisted<2 | 1 | 0.5> = persisted('resolution', 1);
+export const tileSize: Persisted<128 | 256 | 512> = persisted('tile-size', 256);
+export const resolution: Persisted<0.5 | 1 | 2> = persisted('resolution', 1);
