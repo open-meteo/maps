@@ -514,7 +514,6 @@ export const addVectorLayer = (map: maplibregl.Map) => {
 };
 
 export const removeVectorLayer = (map: maplibregl.Map) => {
-	console.log(vectorOptions);
 	if (!vectorOptions.contours) {
 		if (map.getLayer('omVectorContourLayerLabels')) {
 			map.removeLayer('omVectorContourLayerLabels');
