@@ -48,7 +48,7 @@
 					addVectorLayer(map);
 				}
 				pushState(url + map._hash.getHashString(), {});
-				toast.info(vectorOptions.arrows ? 'Arrows switched on' : 'Arrows switched off');
+				toast.info(vectorOptions.arrows ? 'Arrows turned on' : 'Arrows turned off');
 				changeOMfileURL(map, url);
 			}}
 		/>

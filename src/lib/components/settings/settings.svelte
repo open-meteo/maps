@@ -1,6 +1,7 @@
 <script lang="ts">
-	import ArrowsSetting from './arrows-setting.svelte';
+	import ArrowsSettings from './arrows-settings.svelte';
 	import ContourSettings from './contour-settings.svelte';
+	import GridSettings from './grid-settings.svelte';
 	import ResolutionSettings from './resolution-settings.svelte';
 
 	import type { Map } from 'maplibre-gl';
@@ -13,6 +14,7 @@
 	let { map = $bindable(), url }: Props = $props();
 </script>
 
-<ArrowsSetting {map} {url} />
+<GridSettings {map} {url} />
+<ArrowsSettings {map} {url} />
 <ContourSettings {map} {url} />
 <ResolutionSettings {map} {url} />

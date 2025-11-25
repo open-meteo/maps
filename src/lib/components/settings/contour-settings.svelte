@@ -62,7 +62,7 @@
 					removeVectorLayer(map);
 				}
 				pushState(url + map._hash.getHashString(), {});
-				toast.info(vectorOptions.contours ? 'Contours switched on' : 'Contours switched off');
+				toast.info(vectorOptions.contours ? 'Contours turned on' : 'Contours turned off');
 				changeOMfileURL(map, url);
 			}}
 		/>

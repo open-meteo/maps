@@ -37,7 +37,10 @@ import {
 
 import type { DomainMetaData } from '@openmeteo/mapbox-layer';
 
-const preferences = get(p);
+let preferences = get(p);
+p.subscribe((newPreferences) => {
+	preferences = newPreferences;
+});
 let vectorOptions = get(vO);
 vO.subscribe((newVectorOptions) => {
 	vectorOptions = newVectorOptions;
@@ -492,6 +495,29 @@ export const addVectorLayer = (map: maplibregl.Map) => {
 		});
 	}
 
+	if (!map.getLayer('omVectorGridLayer')) {
+		map.addLayer({
+			id: 'omVectorGridLayer',
+			type: 'circle',
+			source: 'omVectorSource',
+			'source-layer': 'grid',
+			paint: {
+				'circle-radius': [
+					'interpolate',
+					['exponential', 1.5],
+					['zoom'],
+					// zoom is 0 -> circle radius will be 1px
+					0,
+					0.1,
+					// zoom is 12 (or greater) -> circle radius will be 20px
+					12,
+					10
+				],
+				'circle-color': 'orange'
+			}
+		});
+	}
+
 	if (!map.getLayer('omVectorContourLayerLabels')) {
 		map.addLayer({
 			id: 'omVectorContourLayerLabels',
@@ -817,11 +843,31 @@ export const getPaddedBounds = (map: maplibregl.Map) => {
 
 export const getOMUrl = () => {
 	const domain = get(d);
-	const modelRun = get(mR);
 	const uri =
 		domain.value && domain.value.startsWith('dwd_icon')
 			? `https://s3.servert.ch`
 			: `https://map-tiles.open-meteo.com`;
 
-	return `${uri}/data_spatial/${domain.value}/${modelRun.getUTCFullYear()}/${pad(modelRun.getUTCMonth() + 1)}/${pad(modelRun.getUTCDate())}/${pad(modelRun.getUTCHours())}00Z/${get(time).getUTCFullYear()}-${pad(get(time).getUTCMonth() + 1)}-${pad(get(time).getUTCDate())}T${pad(get(time).getUTCHours())}00.om?&variable=${get(variables)[0].value}`;
+	let url = `${uri}/data_spatial/${domain.value}`;
+
+	const modelRun = get(mR);
+	// E.G. /2025/06/06/1200Z/
+	url += `/${modelRun.getUTCFullYear()}/${pad(modelRun.getUTCMonth() + 1)}/${pad(modelRun.getUTCDate())}/${pad(modelRun.getUTCHours())}00Z/`;
+
+	const selectedTime = get(time);
+	// E.G. 2025-06-06-1200.om
+	url += `${selectedTime.getUTCFullYear()}-${pad(selectedTime.getUTCMonth() + 1)}-${pad(selectedTime.getUTCDate())}T${pad(selectedTime.getUTCHours())}00.om`;
+
+	const variable = get(variables)[0].value;
+	url += `?variable=${variable}`;
+
+	if (mode.current === 'dark') url += `&dark=true`;
+	if (preferences.partial) url += `&partial=true`;
+	if (vectorOptions.grid) url += `&grid=true`;
+	if (vectorOptions.arrows) url += `&arrows=true`;
+	if (vectorOptions.contours) url += `&contours=true`;
+	if (vectorOptions.contours && vectorOptions.contourInterval !== 2)
+		url += `&interval=${vectorOptions.contourInterval}`;
+
+	return url;
 };
