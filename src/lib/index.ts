@@ -4,6 +4,7 @@ import { get } from 'svelte/store';
 import {
 	GridFactory,
 	clearOmUrlData,
+	defaultOmProtocolSettings,
 	domainOptions,
 	getColor,
 	getColorScale,
@@ -29,6 +30,8 @@ import {
 	paddedBoundsSource as pBS,
 	paddedBoundsGeoJSON,
 	paddedBoundsLayer,
+	resolution as r,
+	tileSize as tS,
 	time,
 	vectorOptions as vO,
 	variableSelectionExtended,
@@ -540,17 +543,22 @@ export const addVectorLayer = (map: maplibregl.Map) => {
 };
 
 export const removeVectorLayer = (map: maplibregl.Map) => {
+	if (!vectorOptions.grid) {
+		if (map.getLayer('omVectorGridLayer')) {
+			map.removeLayer('omVectorGridLayer');
+		}
+	}
+	if (!vectorOptions.arrows) {
+		if (map.getLayer('omVectorArrowLayer')) {
+			map.removeLayer('omVectorArrowLayer');
+		}
+	}
 	if (!vectorOptions.contours) {
 		if (map.getLayer('omVectorContourLayerLabels')) {
 			map.removeLayer('omVectorContourLayerLabels');
 		}
 		if (map.getLayer('omVectorContourLayer')) {
 			map.removeLayer('omVectorContourLayer');
-		}
-	}
-	if (!vectorOptions.arrows) {
-		if (map.getLayer('omVectorArrowLayer')) {
-			map.removeLayer('omVectorArrowLayer');
 		}
 	}
 };
@@ -685,8 +693,8 @@ export const addPopup = (map: maplibregl.Map) => {
 			const { value } = getValueFromLatLong(
 				coordinates.lat,
 				coordinates.lng,
-				variable,
-				omRasterSource?.url || ''
+				omRasterSource?.url || '',
+				variable
 			);
 
 			if (value) {
@@ -866,8 +874,22 @@ export const getOMUrl = () => {
 	if (vectorOptions.grid) url += `&grid=true`;
 	if (vectorOptions.arrows) url += `&arrows=true`;
 	if (vectorOptions.contours) url += `&contours=true`;
-	if (vectorOptions.contours && vectorOptions.contourInterval !== 2)
-		url += `&interval=${vectorOptions.contourInterval}`;
+	// if (
+	// 	vectorOptions.contours &&
+	// 	vectorOptions.contourInterval !== defaultOmProtocolSettings.vectorOptions.contourInterval
+	// )
+	// 	url += `&interval=${vectorOptions.contourInterval}`;
+
+	// values may not be parsed by url, but the url has to change for tile reload
+	const tileSize = get(tS);
+	if (tileSize !== defaultOmProtocolSettings.tileSize) {
+		url += `&tile-size=${tileSize}`;
+	}
+
+	const resolution = get(r);
+	if (resolution !== defaultOmProtocolSettings.resolutionFactor) {
+		url += `&resolution-factor=${resolution}`;
+	}
 
 	return url;
 };

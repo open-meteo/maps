@@ -52,6 +52,6 @@
 				changeOMfileURL(map, url);
 			}}
 		/>
-		<Label for="grid">Grid {vectorOptions.grid ? 'on' : 'off'}</Label>
+		<Label for="grid">Gridpoints {vectorOptions.grid ? 'on' : 'off'}</Label>
 	</div>
 </div>

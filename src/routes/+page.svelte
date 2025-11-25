@@ -17,7 +17,6 @@
 	import { type RequestParameters } from 'maplibre-gl';
 	import * as maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
-	import { mode } from 'mode-watcher';
 	import { Protocol } from 'pmtiles';
 	import { toast } from 'svelte-sonner';
 
@@ -32,8 +31,8 @@
 		preferences,
 		resolution as r,
 		sheet,
+		tileSize as tS,
 		time,
-		vectorOptions as vO,
 		variables
 	} from '$lib/stores/preferences';
 
@@ -48,7 +47,6 @@
 	import HelpDialog from '$lib/components/help/help-dialog.svelte';
 	import Scale from '$lib/components/scale/scale.svelte';
 	import VariableSelection from '$lib/components/selection/variable-selection.svelte';
-	import ResolutionSettings from '$lib/components/settings/resolution-settings.svelte';
 	import Settings from '$lib/components/settings/settings.svelte';
 	import TimeSelector from '$lib/components/time/time-selector.svelte';
 	import * as Sheet from '$lib/components/ui/sheet';
@@ -78,46 +76,30 @@
 		urlParamsToPreferences(url);
 	});
 
-	const dark = $derived(mode.current === 'dark');
-	const partial = $derived(get(preferences).partial);
-	const paddedBoundsList = $derived.by(() => {
-		if ($paddedBounds) {
-			return [
-				$paddedBounds.getSouth(),
-				$paddedBounds.getWest(),
-				$paddedBounds.getNorth(),
-				$paddedBounds.getEast()
-			];
-		} else {
-			return undefined;
-		}
-	});
-
 	let resolution = $state(get(r));
 	r.subscribe((newResolution) => {
 		resolution = newResolution;
 	});
-	let vectorOptions = $state(get(vO));
-	vO.subscribe((newVectorOptions) => {
-		vectorOptions = newVectorOptions;
+
+	let tileSize = $state(get(tS));
+	tS.subscribe((newTileSize) => {
+		tileSize = newTileSize;
 	});
 
 	const omProtocolSettings: OmProtocolSettings = $derived({
 		...defaultOmProtocolSettings,
 		// static
-		tileSize: 256,
 		useSAB: true,
 
-		// dynamic
+		// could be dynamic
 		postReadCallback: (omFileReader: OMapsFileReader, omUrl: string) => {
 			if (!omUrl.includes('dwd_icon')) {
 				omFileReader._prefetch(omUrl);
 			}
 		},
-		dark: $state.snapshot(dark),
-		partial: $state.snapshot(partial),
-		mapBounds: $state.snapshot(paddedBoundsList),
-		vectorOptions: $state.snapshot(vectorOptions),
+
+		// dynamic
+		tileSize: $state.snapshot(tileSize),
 		resolutionFactor: $state.snapshot(resolution)
 	});
 	// $inspect(omProtocolSettings).with(console.log);
