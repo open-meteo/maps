@@ -47,7 +47,7 @@
 
 <div class="mt-6">
 	<h2 class="text-lg font-bold">Contour settings</h2>
-	<div class="mt-3 flex gap-3">
+	<div class="mt-3 flex gap-3 cursor-pointer">
 		<Switch
 			id="contouring"
 			checked={contours}
