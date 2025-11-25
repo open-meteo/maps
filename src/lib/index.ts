@@ -874,11 +874,12 @@ export const getOMUrl = () => {
 	if (vectorOptions.grid) url += `&grid=true`;
 	if (vectorOptions.arrows) url += `&arrows=true`;
 	if (vectorOptions.contours) url += `&contours=true`;
-	// if (
-	// 	vectorOptions.contours &&
-	// 	vectorOptions.contourInterval !== defaultOmProtocolSettings.vectorOptions.contourInterval
-	// )
-	// 	url += `&interval=${vectorOptions.contourInterval}`;
+	if (
+		vectorOptions.contours &&
+		vectorOptions.contourInterval !== 2 //&&
+		// vectorOptions.contourInterval !== defaultOmProtocolSettings.vectorOptions.contourInterval
+	)
+		url += `&interval=${vectorOptions.contourInterval}`;
 
 	// values may not be parsed by url, but the url has to change for tile reload
 	const tileSize = get(tS);
@@ -889,6 +890,11 @@ export const getOMUrl = () => {
 	const resolution = get(r);
 	if (resolution !== defaultOmProtocolSettings.resolutionFactor) {
 		url += `&resolution-factor=${resolution}`;
+	}
+
+	const paddedBounds = get(pB);
+	if (paddedBounds && preferences.partial) {
+		url += `&bounds=${paddedBounds.getSouth()},${paddedBounds.getWest()},${paddedBounds.getNorth()},${paddedBounds.getEast()}`;
 	}
 
 	return url;
