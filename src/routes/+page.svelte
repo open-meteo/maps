@@ -254,7 +254,7 @@
 	}}
 	variablesChange={(value: string | undefined) => {
 		$variables = [variableOptions.find((v) => v.value === value) ?? variableOptions[0]];
-		url.searchParams.set('variables', $variables[0].value);
+		url.searchParams.set('variable', $variables[0].value);
 		pushState(url + map._hash.getHashString(), {});
 		toast('Variable set to: ' + $variables[0].label);
 		changeOMfileURL(map, url, latest);
