@@ -294,8 +294,6 @@
 	}}
 />
 <div class="absolute">
-	<ResolutionSettings {map} {url} />
-
 	<Sheet.Root bind:open={$sheet}>
 		<Sheet.Content
 			><div class="px-6 pt-12">
