@@ -3,8 +3,6 @@ import { get } from 'svelte/store';
 
 import {
 	GridFactory,
-	clearOmUrlData,
-	defaultOmProtocolSettings,
 	domainOptions,
 	getColor,
 	getColorScale,
@@ -625,13 +623,11 @@ export const changeOMfileURL = (
 
 		omUrl = getOMUrl();
 		if (!vectorOnly) {
-			clearOmUrlData(omRasterSource.url);
 			omRasterSource.setUrl('om://' + omUrl);
 		}
 
 		omVectorSource = map.getSource('omVectorSource');
 		if (!rasterOnly && omVectorSource) {
-			clearOmUrlData(omVectorSource.url);
 			omVectorSource.setUrl('om://' + omUrl);
 		}
 
@@ -883,12 +879,12 @@ export const getOMUrl = () => {
 
 	// values may not be parsed by url, but the url has to change for tile reload
 	const tileSize = get(tS);
-	if (tileSize !== defaultOmProtocolSettings.tileSize) {
+	if (tileSize !== 256) {
 		url += `&tile-size=${tileSize}`;
 	}
 
 	const resolution = get(r);
-	if (resolution !== defaultOmProtocolSettings.resolutionFactor) {
+	if (resolution !== 1) {
 		url += `&resolution-factor=${resolution}`;
 	}
 

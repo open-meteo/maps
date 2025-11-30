@@ -5,16 +5,26 @@ import devtoolsJson from 'vite-plugin-devtools-json';
 import dts from 'vite-plugin-dts';
 
 import type { IncomingMessage, ServerResponse } from 'http';
-import type { Plugin, ViteDevServer } from 'vite';
+import type { Plugin, PreviewServer, ViteDevServer } from 'vite';
+
+const addHeaders = (res: ServerResponse) => {
+	res.setHeader('Access-Control-Allow-Origin', '*');
+	res.setHeader('Access-Control-Allow-Methods', 'GET');
+	res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+	res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+};
 
 const viteServerConfig = (): Plugin => ({
 	name: 'add-headers',
 	configureServer: (server: ViteDevServer) => {
 		server.middlewares.use((req: IncomingMessage, res: ServerResponse, next: () => void) => {
-			res.setHeader('Access-Control-Allow-Origin', '*');
-			res.setHeader('Access-Control-Allow-Methods', 'GET');
-			res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
-			res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+			addHeaders(res);
+			next();
+		});
+	},
+	configurePreviewServer: (server: PreviewServer) => {
+		server.middlewares.use((req: IncomingMessage, res: ServerResponse, next: () => void) => {
+			addHeaders(res);
 			next();
 		});
 	}
