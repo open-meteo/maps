@@ -190,7 +190,10 @@
 					}
 					if (!json.variables.includes($variables[0].value)) {
 						$variables = [
-							variableOptions.find((v) => v.value === json.variables[0]) ?? variableOptions[0]
+							variableOptions.find((v) => v.value === json.variables[0]) ?? {
+								value: json.variables[0],
+								label: json.variables[0]
+							}
 						];
 						url.searchParams.set('variable', $variables[0].value);
 						pushState(url + map._hash.getHashString(), {});
@@ -253,7 +256,12 @@
 		changeOMfileURL(map, url, latest);
 	}}
 	variablesChange={(value: string | undefined) => {
-		$variables = [variableOptions.find((v) => v.value === value) ?? variableOptions[0]];
+		$variables = [
+			variableOptions.find((v) => v.value === value) ?? {
+				value: value ?? '',
+				label: value ?? ''
+			}
+		];
 		url.searchParams.set('variable', $variables[0].value);
 		pushState(url + map._hash.getHashString(), {});
 		toast('Variable set to: ' + $variables[0].label);
