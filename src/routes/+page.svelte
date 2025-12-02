@@ -7,6 +7,7 @@
 		type DomainMetaData,
 		GridFactory,
 		OMapsFileReader,
+		type OmProtocolSettings,
 		defaultOmProtocolSettings,
 		domainOptions,
 		omProtocol,
@@ -43,8 +44,7 @@
 	import HelpDialog from '$lib/components/help/help-dialog.svelte';
 	import Scale from '$lib/components/scale/scale.svelte';
 	import VariableSelection from '$lib/components/selection/variable-selection.svelte';
-	import ArrowsSetting from '$lib/components/settings/arrows-setting.svelte';
-	import ContourSettings from '$lib/components/settings/contour-settings.svelte';
+	import Settings from '$lib/components/settings/settings.svelte';
 	import TimeSelector from '$lib/components/time/time-selector.svelte';
 	import * as Sheet from '$lib/components/ui/sheet';
 
@@ -55,7 +55,6 @@
 		changeOMfileURL,
 		checkBounds,
 		checkClosestDomainInterval,
-		checkHighDefinition,
 		getPaddedBounds,
 		getStyle,
 		setMapControlSettings,
@@ -74,6 +73,19 @@
 		urlParamsToPreferences(url);
 	});
 
+	const omProtocolSettings: OmProtocolSettings = $derived({
+		...defaultOmProtocolSettings,
+		// static
+		useSAB: true,
+
+		// could be dynamic
+		postReadCallback: (omFileReader: OMapsFileReader, omUrl: string) => {
+			if (!omUrl.includes('dwd_icon')) {
+				omFileReader._prefetch(omUrl);
+			}
+		}
+	});
+
 	onMount(async () => {
 		const protocol = new Protocol({ metadata: true });
 		maplibregl.addProtocol(
@@ -87,18 +99,7 @@
 		);
 
 		maplibregl.addProtocol('om', (params: RequestParameters) =>
-			omProtocol(params, undefined, {
-				...defaultOmProtocolSettings,
-				tileSize: 256,
-				useSAB: true,
-				resolutionFactor: checkHighDefinition() ? 2 : 1,
-				postReadCallback: (omFileReader: OMapsFileReader, omUrl: string) => {
-					// prefetch first bytes of the previous and next timesteps to trigger CF caching
-					if (!omUrl.includes('dwd_icon')) {
-						omFileReader._prefetch(omUrl);
-					}
-				}
-			})
+			omProtocol(params, undefined, omProtocolSettings)
 		);
 
 		const style = await getStyle();
@@ -171,7 +172,10 @@
 					}
 					if (!json.variables.includes($variables[0].value)) {
 						$variables = [
-							variableOptions.find((v) => v.value === json.variables[0]) ?? variableOptions[0]
+							variableOptions.find((v) => v.value === json.variables[0]) ?? {
+								value: json.variables[0],
+								label: json.variables[0]
+							}
 						];
 						url.searchParams.set('variable', $variables[0].value);
 						pushState(url + map._hash.getHashString(), {});
@@ -215,6 +219,7 @@
 
 <div class="map" id="#map_container" bind:this={mapContainer}></div>
 <Scale showScale={$preferences.showScale} variables={$variables} />
+
 <HelpDialog />
 <VariableSelection
 	{url}
@@ -233,8 +238,13 @@
 		changeOMfileURL(map, url, latest);
 	}}
 	variablesChange={(value: string | undefined) => {
-		$variables = [variableOptions.find((v) => v.value === value) ?? variableOptions[0]];
-		url.searchParams.set('variables', $variables[0].value);
+		$variables = [
+			variableOptions.find((v) => v.value === value) ?? {
+				value: value ?? '',
+				label: value ?? ''
+			}
+		];
+		url.searchParams.set('variable', $variables[0].value);
 		pushState(url + map._hash.getHashString(), {});
 		toast('Variable set to: ' + $variables[0].label);
 		changeOMfileURL(map, url, latest);
@@ -260,8 +270,7 @@
 		<Sheet.Content
 			><div class="px-6 pt-12">
 				<div><h2 class="text-lg font-bold">Units</h2></div>
-				<ArrowsSetting {map} {url} />
-				<ContourSettings {map} {url} />
+				<Settings {map} {url} />
 			</div></Sheet.Content
 		>
 	</Sheet.Root>

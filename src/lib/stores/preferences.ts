@@ -4,16 +4,20 @@ import { domainOptions, variableOptions } from '@openmeteo/mapbox-layer';
 import { type Persisted, persisted } from 'svelte-persisted-store';
 
 export const preferences = persisted('preferences', {
-	// buttons
 	globe: false,
 	partial: false,
 	terrain: false,
-	arrows: true,
-	contours: false,
 	hillshade: false,
 	clipWater: false,
 	showScale: true,
 	timeSelector: true
+});
+
+export const vectorOptions = persisted('vector-options', {
+	grid: false,
+	arrows: true,
+	contours: false,
+	contourInterval: 2
 });
 
 export const domain = persisted(
@@ -41,8 +45,6 @@ export const variableSelectionExtended: Persisted<boolean | undefined> = persist
 	undefined
 );
 
-export const contourInterval = persisted('contourInterval', 2);
-
 export const mapBounds: Writable<maplibregl.LngLatBounds | null> = writable(null);
 
 export const paddedBounds: Writable<maplibregl.LngLatBounds | null> = writable(null);
@@ -50,3 +52,6 @@ export const paddedBoundsLayer: Writable<maplibregl.StyleLayer | undefined> = wr
 export const paddedBoundsSource: Writable<maplibregl.GeoJSONSource | undefined> =
 	writable(undefined);
 export const paddedBoundsGeoJSON: Writable<GeoJSON.GeoJSON | null> = writable(null);
+
+export const tileSize: Persisted<128 | 256 | 512> = persisted('tile-size', 256);
+export const resolution: Persisted<0.5 | 1 | 2> = persisted('resolution', 1);
