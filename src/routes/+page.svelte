@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 	import { SvelteDate } from 'svelte/reactivity';
-	import { get } from 'svelte/store';
 	import { fade } from 'svelte/transition';
 
 	import {
@@ -29,9 +28,7 @@
 		modelRun,
 		paddedBounds,
 		preferences,
-		resolution as r,
 		sheet,
-		tileSize as tS,
 		time,
 		variables
 	} from '$lib/stores/preferences';
@@ -76,16 +73,6 @@
 		urlParamsToPreferences(url);
 	});
 
-	let resolution = $state(get(r));
-	r.subscribe((newResolution) => {
-		resolution = newResolution;
-	});
-
-	let tileSize = $state(get(tS));
-	tS.subscribe((newTileSize) => {
-		tileSize = newTileSize;
-	});
-
 	const omProtocolSettings: OmProtocolSettings = $derived({
 		...defaultOmProtocolSettings,
 		// static
@@ -96,13 +83,8 @@
 			if (!omUrl.includes('dwd_icon')) {
 				omFileReader._prefetch(omUrl);
 			}
-		},
-
-		// dynamic
-		tileSize: $state.snapshot(tileSize),
-		resolutionFactor: $state.snapshot(resolution)
+		}
 	});
-	// $inspect(omProtocolSettings).with(console.log);
 
 	onMount(async () => {
 		const protocol = new Protocol({ metadata: true });
