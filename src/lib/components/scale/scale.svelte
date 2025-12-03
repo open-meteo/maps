@@ -32,6 +32,7 @@
 				style={mode.current === 'dark' ? 'background:black;' : 'background:white;'}
 			>
 				{#each colorScale.colors as cs, i (i)}
+					{@const digits = Math.floor(1 / (colorScale.max - colorScale.min))}
 					{@const value =
 						colorScale.min +
 						(i / (colorScale.colors.length - 1)) * (colorScale.max - colorScale.min)}
@@ -44,11 +45,12 @@
 					{@const opacity = Math.max(0, Math.min(1, rawOpacity))}
 					<!-- ensure 0..1 -->
 					<div
-						style={`background: rgba(${cs[0]}, ${cs[1]}, ${cs[2]}, ${opacity}); min-width: 28px; width: ${17 + String(Math.round(colorScale.max)).length * 4}px; height: ${270 / colorScale.colors.length}px;`}
+						style={`background: rgba(${cs[0]}, ${cs[1]}, ${cs[2]}, ${opacity}); min-width: 28px; width: ${17 + Math.max(String(Math.round(colorScale.max)).length, digits + 2) * 4}px; height: ${270 / colorScale.colors.length}px;`}
 					></div>
 				{/each}
 
 				{#each [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100] as step, i (i)}
+					{@const digits = Math.floor(1 / (colorScale.max - colorScale.min))}
 					{@const color = getColor(
 						colorScale,
 						Math.floor(
@@ -61,11 +63,12 @@
 						mode.current === 'dark',
 						colorScale
 					)}
+
 					<div
 						class="absolute w-full text-center text-xs"
 						style={`bottom:  ${2 + 270 * step * 0.0093}px; color: ${textWhite([...color, opacity]) ? 'white;' : 'black'}`}
 					>
-						{(colorScale.min + step * 0.01 * (colorScale.max - colorScale.min)).toFixed(0)}
+						{(colorScale.min + step * 0.01 * (colorScale.max - colorScale.min)).toFixed(digits)}
 					</div>
 				{/each}
 			</div>
