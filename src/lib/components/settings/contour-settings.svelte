@@ -5,7 +5,7 @@
 
 	import { pushState } from '$app/navigation';
 
-	import { contourInterval as cI, preferences as p } from '$lib/stores/preferences';
+	import { vectorOptions as vO } from '$lib/stores/preferences';
 
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -22,36 +22,51 @@
 
 	let { map = $bindable(), url }: Props = $props();
 
-	let preferences = $state(get(p));
-	let contours = $derived(preferences.contours);
-	let contourInterval = $derived(get(cI));
+	let vectorOptions = $state(get(vO));
+	vO.subscribe((newVectorOptions) => {
+		vectorOptions = newVectorOptions;
+	});
+	let contours = $derived(vectorOptions.contours);
+	let contourInterval = $derived(vectorOptions.contourInterval);
+
+	const handleContourIntervalChange = (event: Event) => {
+		const target = event.target as HTMLInputElement;
+		const value = target?.value;
+		vectorOptions.contourInterval = Number(value);
+		if (vectorOptions.contourInterval !== 2 && contours) {
+			url.searchParams.set('interval', String(vectorOptions.contourInterval));
+		} else {
+			url.searchParams.delete('interval');
+		}
+		pushState(url + map._hash.getHashString(), {});
+		if (vectorOptions.contours) {
+			changeOMfileURL(map, url, undefined, false, true);
+		}
+	};
 </script>
 
 <div class="mt-6">
 	<h2 class="text-lg font-bold">Contour settings</h2>
-	<div class="mt-3 flex gap-3">
+	<div class="mt-3 flex gap-3 cursor-pointer">
 		<Switch
 			id="contouring"
 			checked={contours}
 			onCheckedChange={() => {
-				preferences.contours = !preferences.contours;
-				p.set(preferences);
-
-				preferences = get(p);
-				contours = preferences.contours;
-				if (preferences.contours) {
-					url.searchParams.set('contours', String(true));
+				vectorOptions.contours = !vectorOptions.contours;
+				vO.set(vectorOptions);
+				if (vectorOptions.contours) {
+					url.searchParams.set('contours', 'true');
 					addVectorLayer(map);
 				} else {
 					url.searchParams.delete('contours');
 					removeVectorLayer(map);
 				}
 				pushState(url + map._hash.getHashString(), {});
-				toast.info(preferences.contours ? 'Contours switched on' : 'Contours switched off');
+				toast.info(vectorOptions.contours ? 'Contours turned on' : 'Contours turned off');
 				changeOMfileURL(map, url);
 			}}
 		/>
-		<Label for="contouring">Contouring {preferences.contours ? 'on' : 'off'}</Label>
+		<Label for="contouring">Contouring {vectorOptions.contours ? 'on' : 'off'}</Label>
 	</div>
 	<div class="mt-3 flex gap-3">
 		<input
@@ -61,42 +76,14 @@
 			min="0"
 			max="20"
 			bind:value={contourInterval}
-			oninput={(e) => {
-				const target = e.target as HTMLInputElement;
-				const value = target?.value;
-				cI.set(Number(value));
-				changeOMfileURL(map, url);
-				if (get(cI) !== 2 && preferences.contours) {
-					url.searchParams.set('interval', String(get(cI)));
-				} else {
-					url.searchParams.delete('interval');
-				}
-				pushState(url + map._hash.getHashString(), {});
-				if (preferences.contours) {
-					changeOMfileURL(map, url);
-				}
-			}}
+			oninput={handleContourIntervalChange}
 		/>
 		<Label for="interval">Contouring interval:</Label><Input
 			id="interval"
 			class="w-20"
 			step="0.5"
-			oninput={(e) => {
-				const target = e.target as HTMLInputElement;
-				const value = target?.value;
-				cI.set(Number(value));
-				changeOMfileURL(map, url);
-				if (get(cI) !== 2 && preferences.contours) {
-					url.searchParams.set('interval', String(get(cI)));
-				} else {
-					url.searchParams.delete('interval');
-				}
-				pushState(url + map._hash.getHashString(), {});
-				if (preferences.contours) {
-					changeOMfileURL(map, url);
-				}
-			}}
 			bind:value={contourInterval}
+			oninput={handleContourIntervalChange}
 		/>
 	</div>
 </div>
