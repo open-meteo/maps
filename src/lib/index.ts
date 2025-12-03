@@ -664,8 +664,8 @@ export const getStyle = async () => {
 		});
 };
 
-export const textWhite = ([r, g, b]: [number, number, number]): boolean => {
-	return r * 0.299 + g * 0.587 + b * 0.114 <= 186;
+export const textWhite = ([r, g, b, a]: [number, number, number, number]): boolean => {
+	return r * 0.299 + g * 0.587 + b * 0.114 <= 186 && a >= 50;
 };
 
 let popup: maplibregl.Popup | undefined;
@@ -691,7 +691,7 @@ export const addPopup = (map: maplibregl.Map) => {
 				omRasterSource?.url || ''
 			);
 
-			if (!isNaN(value)) {
+			if (isFinite(value)) {
 				const color = getColor(colorScale, value);
 				const opacity = getOpacity(variable.value, value, mode.current === 'dark', colorScale);
 				const content =
@@ -699,7 +699,7 @@ export const addPopup = (map: maplibregl.Map) => {
 				popup
 					.setLngLat(coordinates)
 					.setHTML(
-						`<div style="font-weight: bold; background-color: rgba(${color[0]}, ${color[1]}, ${color[2]}, ${opacity / 255}); color: ${textWhite(color) ? 'white' : 'black'};" class="popup-div">${content}</div>`
+						`<div style="font-weight: bold; background-color: rgba(${color[0]}, ${color[1]}, ${color[2]}, ${opacity / 255}); color: ${textWhite([...color, opacity]) ? 'white' : 'black'};" class="popup-div">${content}</div>`
 					);
 			} else {
 				popup

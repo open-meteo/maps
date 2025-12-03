@@ -55,9 +55,15 @@
 							colorScale.min + (step * (colorScale.max - colorScale.min)) / colorScale.colors.length
 						)
 					) as [number, number, number]}
+					{@const opacity = getOpacity(
+						variables[0].value,
+						colorScale.min + step * 0.01 * (colorScale.max - colorScale.min),
+						mode.current === 'dark',
+						colorScale
+					)}
 					<div
 						class="absolute w-full text-center text-xs"
-						style={`bottom:  ${2 + 270 * step * 0.0093}px; color: ${textWhite(color) ? 'white;' : 'black'}`}
+						style={`bottom:  ${2 + 270 * step * 0.0093}px; color: ${textWhite([...color, opacity]) ? 'white;' : 'black'}`}
 					>
 						{(colorScale.min + step * 0.01 * (colorScale.max - colorScale.min)).toFixed(0)}
 					</div>
