@@ -5,7 +5,7 @@ import {
 	GridFactory,
 	domainOptions,
 	getColor,
-	getColorScale,
+	getColorScaleMinMaxScaled,
 	getOpacity,
 	getValueFromLatLong,
 	variableOptions
@@ -672,7 +672,7 @@ let popup: maplibregl.Popup | undefined;
 let showPopup = false;
 export const addPopup = (map: maplibregl.Map) => {
 	let variable = get(variables)[0];
-	let colorScale = getColorScale(variable.value);
+	let colorScale = getColorScaleMinMaxScaled(variable.value);
 
 	map.on('mousemove', function (e) {
 		if (showPopup) {
@@ -711,7 +711,7 @@ export const addPopup = (map: maplibregl.Map) => {
 
 	map.on('click', (e: maplibregl.MapMouseEvent) => {
 		variable = get(variables)[0];
-		colorScale = getColorScale(get(variables)[0].value);
+		colorScale = getColorScaleMinMaxScaled(get(variables)[0].value);
 
 		showPopup = !showPopup;
 		if (!showPopup && popup) {
