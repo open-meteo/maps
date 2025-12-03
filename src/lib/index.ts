@@ -8,7 +8,6 @@ import {
 	getColorScale,
 	getOpacity,
 	getValueFromLatLong,
-	hideZero,
 	variableOptions
 } from '@openmeteo/mapbox-layer';
 import * as maplibregl from 'maplibre-gl';
@@ -689,24 +688,19 @@ export const addPopup = (map: maplibregl.Map) => {
 			const { value } = getValueFromLatLong(
 				coordinates.lat,
 				coordinates.lng,
-				omRasterSource?.url || '',
-				variable
+				omRasterSource?.url || ''
 			);
 
-			if (value) {
-				if ((hideZero.includes(variable.value) && value <= 0.25) || !value) {
-					popup.remove();
-				} else {
-					const color = getColor(colorScale, value);
-					const opacity = getOpacity(variable.value, value, mode.current === 'dark', colorScale);
-					const content =
-						'<span class="popup-value">' + value.toFixed(1) + '</span>' + colorScale.unit;
-					popup
-						.setLngLat(coordinates)
-						.setHTML(
-							`<div style="font-weight: bold; background-color: rgba(${color[0]}, ${color[1]}, ${color[2]}, ${opacity / 255}); color: ${textWhite(color) ? 'white' : 'black'};" class="popup-div">${content}</div>`
-						);
-				}
+			if (!isNaN(value)) {
+				const color = getColor(colorScale, value);
+				const opacity = getOpacity(variable.value, value, mode.current === 'dark', colorScale);
+				const content =
+					'<span class="popup-value">' + value.toFixed(1) + '</span>' + colorScale.unit;
+				popup
+					.setLngLat(coordinates)
+					.setHTML(
+						`<div style="font-weight: bold; background-color: rgba(${color[0]}, ${color[1]}, ${color[2]}, ${opacity / 255}); color: ${textWhite(color) ? 'white' : 'black'};" class="popup-div">${content}</div>`
+					);
 			} else {
 				popup
 					.setLngLat(coordinates)

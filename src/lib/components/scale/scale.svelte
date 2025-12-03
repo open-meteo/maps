@@ -22,10 +22,24 @@
 			style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
 			class="flex flex-col-reverse overflow-hidden rounded-[4px]"
 		>
-			<div class="flex max-h-[270px] flex-col-reverse" style="background:white;">
+			<div
+				class="flex max-h-[270px] flex-col-reverse"
+				style={mode.current === 'dark' ? 'background:black;' : 'background:white;'}
+			>
 				{#each colorScale.colors as cs, i (i)}
+					{@const value =
+						colorScale.min +
+						(i / (colorScale.colors.length - 1)) * (colorScale.max - colorScale.min)}
+					{@const rawOpacity = getOpacity(
+						variables[0].value,
+						value,
+						mode.current === 'dark',
+						colorScale
+					)}
+					{@const opacity = Math.max(0, Math.min(1, rawOpacity))}
+					<!-- ensure 0..1 -->
 					<div
-						style={`background: rgba(${cs.join(',')}); filter: opacity(${getOpacity(variables[0].value, Math.floor(colorScale.min + i * 0.01 * (colorScale.max - colorScale.min)), mode.current === 'dark', colorScale)});min-width: 28px; width: ${17 + String(colorScale.max).length * 4}px; height:${270 / ((colorScale.max - colorScale.min) * colorScale.scalefactor)}px;`}
+						style={`background: rgba(${cs[0]}, ${cs[1]}, ${cs[2]}, ${opacity}); min-width: 28px; width: ${17 + String(Math.round(colorScale.max)).length * 4}px; height: ${270 / ((colorScale.max - colorScale.min) * colorScale.scalefactor)}px;`}
 					></div>
 				{/each}
 
