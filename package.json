@@ -31,7 +31,7 @@
 		"@eslint/js": "^9.39.0",
 		"@internationalized/date": "^3.10.0",
 		"@lucide/svelte": "^0.554.0",
-		"@openmeteo/mapbox-layer": "github:open-meteo/mapbox-layer#53d41a31427a278c24e51e2ccbdbaf199eb2f6ea",
+		"@openmeteo/mapbox-layer": "github:open-meteo/mapbox-layer#d67c03275288b192f36a16c37d6eda0e1a5a9cd8",
 		"@sveltejs/adapter-static": "^3.0.8",
 		"@sveltejs/kit": "^2.48.0",
 		"@sveltejs/vite-plugin-svelte": "^6.2.0",
