@@ -180,39 +180,40 @@ export const urlParamsToPreferences = (url: URL) => {
 };
 
 export const checkClosestDomainInterval = (url: URL) => {
-	const t = get(time);
-	const domain = get(d);
-	console.log(domain);
+	const original = get(time);
+	const t = new Date(original.getTime());
+	const domain: Domain = get(d);
+
+	const fmt = (d: Date) => d.toISOString().replace(/[:Z]/g, '').slice(0, 15); // "YYYY-MM-DDTHHMM"
+	const commit = (d: Date) => {
+		url.searchParams.set('time', fmt(d));
+		time.set(d);
+	};
+
 	if (typeof domain.time_interval === 'number') {
 		if (domain.time_interval > 1) {
 			if (t.getUTCHours() % domain.time_interval > 0) {
 				const closestUTCHour = t.getUTCHours() - (t.getUTCHours() % domain.time_interval);
 				t.setUTCHours(closestUTCHour + domain.time_interval);
-				url.searchParams.set('time', t.toISOString().replace(/[:Z]/g, '').slice(0, 15));
-				time.set(t);
+				commit(t);
 			}
 		}
 	} else {
 		switch (domain.time_interval) {
 			case 'weekly': {
 				const dayOfWeek = t.getUTCDay();
-				const daysUntilMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-				const closestMonday = t.getTime() - daysUntilMonday * 24 * 60 * 60 * 1000;
-				t.setUTCHours(0, 0, 0, 0);
-				t.setTime(closestMonday);
-				console.log('closestMonday', closestMonday);
-				url.searchParams.set('time', t.toISOString().replace(/[:Z]/g, '').slice(0, 15));
-				time.set(t);
+				const daysUntilNextMonday = (7 - (dayOfWeek - 1)) % 7;
+				const monday = new Date(t);
+				monday.setUTCDate(t.getUTCDate() + daysUntilNextMonday);
+				monday.setUTCHours(0, 0, 0, 0);
+				commit(monday);
 				break;
 			}
 			case 'monthly': {
-				const dayOfMonth = t.getUTCDate();
-				const daysUntilFirst = dayOfMonth === 1 ? 0 : dayOfMonth - 1;
-				const closestFirst = t.getTime() - daysUntilFirst * 24 * 60 * 60 * 1000;
-				t.setUTCHours(0, 0, 0, 0);
-				t.setTime(closestFirst);
-				url.searchParams.set('time', t.toISOString().replace(/[:Z]/g, '').slice(0, 15));
-				time.set(t);
+				const first = new Date(t);
+				first.setUTCDate(1);
+				first.setUTCHours(0, 0, 0, 0);
+				commit(first);
 				break;
 			}
 		}
