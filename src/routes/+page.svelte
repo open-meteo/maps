@@ -10,6 +10,7 @@
 		type OmProtocolSettings,
 		defaultOmProtocolSettings,
 		domainOptions,
+		domainStep,
 		omProtocol,
 		variableOptions
 	} from '@openmeteo/mapbox-layer';
@@ -60,13 +61,61 @@
 		setMapControlSettings,
 		urlParamsToPreferences
 	} from '$lib';
+	import { fmtISOWithoutTimezone } from '$lib/index';
 
 	import '../styles.css';
 
 	let url: URL = $state();
 	let map: maplibregl.Map = $state();
-	let latest: DomainMetaData | undefined = $state();
+	let latestJson: DomainMetaData | undefined = $state();
 	let mapContainer: HTMLElement | null;
+	let fetchingVariables = $state(false);
+
+	const changeOmDomain = async (value: string): Promise<void> => {
+		$domain = domainOptions.find((dm) => dm.value === value) ?? $domain;
+		checkClosestDomainInterval(url);
+		url.searchParams.set('domain', $domain.value);
+		url.searchParams.set('time', fmtISOWithoutTimezone($time));
+		pushState(url + map._hash.getHashString(), {});
+		toast('Domain set to: ' + $domain.label);
+		fetchingVariables = true;
+		latestJson = await getDomainData();
+		fetchingVariables = false;
+		const referenceTime = latestJson.reference_time;
+		$modelRun = new SvelteDate(referenceTime);
+
+		if ($modelRun.getTime() - $time.getTime() > 0) {
+			$time = domainStep($modelRun, $domain.time_interval, 'forward');
+		}
+		if (!latestJson.variables.includes($variables[0].value)) {
+			$variables = [
+				variableOptions.find((v) => v.value === latestJson!.variables[0]) ?? {
+					value: latestJson.variables[0],
+					label: latestJson.variables[0]
+				}
+			];
+			url.searchParams.set('variable', $variables[0].value);
+			pushState(url + map._hash.getHashString(), {});
+			toast('Variable set to: ' + $variables[0].label);
+		}
+
+		changeOMfileURL(map, url, latestJson);
+	};
+
+	const getDomainData = async (inProgress = false): Promise<DomainMetaData> => {
+		console.log('getDomainData called');
+		const uri =
+			$domain.value && $domain.value.startsWith('dwd_icon')
+				? `https://s3.servert.ch`
+				: `https://map-tiles.open-meteo.com`;
+
+		const metaJsonUrl = `${uri}/data_spatial/${$domain.value}/${inProgress ? 'in-progress' : 'latest'}.json`;
+		console.log('fetching ', metaJsonUrl);
+		const res = await fetch(metaJsonUrl);
+		if (!res.ok) throw new Error(`HTTP ${res.status}`);
+		const json = await res.json();
+		return json;
+	};
 
 	onMount(() => {
 		url = new URL(document.location.href);
@@ -125,10 +174,10 @@
 
 			map.addControl(new DarkModeButton(map, url));
 			map.addControl(new SettingsButton());
-			map.addControl(new PartialButton(map, url, latest));
-			map.addControl(new ClipWaterButton(map, url, latest));
+			map.addControl(new PartialButton(map, url, latestJson));
+			map.addControl(new ClipWaterButton(map, url, latestJson));
 			map.addControl(new TimeButton(map, url));
-			latest = await getDomainData();
+			changeOmDomain('');
 
 			addOmFileLayers(map);
 			addHillshadeSources(map);
@@ -138,11 +187,11 @@
 		});
 
 		map.on('zoomend', () => {
-			checkBounds(map, url, latest);
+			checkBounds(map, url, latestJson);
 		});
 
 		map.on('dragend', () => {
-			checkBounds(map, url, latest);
+			checkBounds(map, url, latestJson);
 		});
 	});
 
@@ -151,44 +200,6 @@
 			map.remove();
 		}
 	});
-
-	const getDomainData = async (inProgress = false): Promise<DomainMetaData> => {
-		return new Promise((resolve) => {
-			const uri =
-				$domain.value && $domain.value.startsWith('dwd_icon')
-					? `https://s3.servert.ch`
-					: `https://map-tiles.open-meteo.com`;
-
-			fetch(
-				`${uri}/data_spatial/${$domain.value}/${inProgress ? 'in-progress' : 'latest'}.json`
-			).then(async (result) => {
-				const json = await result.json();
-				if (!inProgress) {
-					const referenceTime = json.reference_time;
-					$modelRun = new SvelteDate(referenceTime);
-
-					if ($modelRun.getTime() - $time.getTime() > 0) {
-						$time = new SvelteDate(referenceTime);
-					}
-					if (!json.variables.includes($variables[0].value)) {
-						$variables = [
-							variableOptions.find((v) => v.value === json.variables[0]) ?? {
-								value: json.variables[0],
-								label: json.variables[0]
-							}
-						];
-						url.searchParams.set('variable', $variables[0].value);
-						pushState(url + map._hash.getHashString(), {});
-						toast('Variable set to: ' + $variables[0].label);
-						changeOMfileURL(map, url, latest);
-					}
-				}
-				resolve(json);
-			});
-		});
-	};
-
-	let latestRequest = $derived(getDomainData());
 </script>
 
 <svelte:head>
@@ -226,17 +237,9 @@
 	{map}
 	domain={$domain}
 	variables={$variables}
-	{latestRequest}
-	domainChange={async (value: string): Promise<void> => {
-		$domain = domainOptions.find((dm) => dm.value === value) ?? domainOptions[0];
-		checkClosestDomainInterval(url);
-		url.searchParams.set('domain', $domain.value);
-		url.searchParams.set('time', $time.toISOString().replace(/[:Z]/g, '').slice(0, 15));
-		pushState(url + map._hash.getHashString(), {});
-		toast('Domain set to: ' + $domain.label);
-		latest = await getDomainData();
-		changeOMfileURL(map, url, latest);
-	}}
+	metaJson={latestJson}
+	{fetchingVariables}
+	domainChange={changeOmDomain}
 	variablesChange={(value: string | undefined) => {
 		$variables = [
 			variableOptions.find((v) => v.value === value) ?? {
@@ -247,7 +250,7 @@
 		url.searchParams.set('variable', $variables[0].value);
 		pushState(url + map._hash.getHashString(), {});
 		toast('Variable set to: ' + $variables[0].label);
-		changeOMfileURL(map, url, latest);
+		changeOMfileURL(map, url, latestJson);
 	}}
 />
 <TimeSelector
@@ -257,12 +260,9 @@
 	timeSelector={$preferences.timeSelector}
 	onDateChange={(date: Date) => {
 		$time = new SvelteDate(date);
-		url.searchParams.set('time', $time.toISOString().replace(/[:Z]/g, '').slice(0, 15));
+		url.searchParams.set('time', fmtISOWithoutTimezone($time));
 		pushState(url + map._hash.getHashString(), {});
-		if ($time.getUTCHours() % $domain.time_interval > 0) {
-			toast('Timestep not in interval, maybe force reload page');
-		}
-		changeOMfileURL(map, url, latest);
+		changeOMfileURL(map, url, latestJson);
 	}}
 />
 <div class="absolute">
