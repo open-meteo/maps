@@ -182,12 +182,14 @@ export const urlParamsToPreferences = (url: URL) => {
 export const checkClosestDomainInterval = (url: URL) => {
 	const t = get(time);
 	const domain = get(d);
+	console.log(domain);
 	if (typeof domain.time_interval === 'number') {
 		if (domain.time_interval > 1) {
 			if (t.getUTCHours() % domain.time_interval > 0) {
 				const closestUTCHour = t.getUTCHours() - (t.getUTCHours() % domain.time_interval);
 				t.setUTCHours(closestUTCHour + domain.time_interval);
 				url.searchParams.set('time', t.toISOString().replace(/[:Z]/g, '').slice(0, 15));
+				time.set(t);
 			}
 		}
 	} else {
@@ -198,7 +200,9 @@ export const checkClosestDomainInterval = (url: URL) => {
 				const closestMonday = t.getTime() - daysUntilMonday * 24 * 60 * 60 * 1000;
 				t.setUTCHours(0, 0, 0, 0);
 				t.setTime(closestMonday);
+				console.log('closestMonday', closestMonday);
 				url.searchParams.set('time', t.toISOString().replace(/[:Z]/g, '').slice(0, 15));
+				time.set(t);
 				break;
 			}
 			case 'monthly': {
@@ -208,11 +212,11 @@ export const checkClosestDomainInterval = (url: URL) => {
 				t.setUTCHours(0, 0, 0, 0);
 				t.setTime(closestFirst);
 				url.searchParams.set('time', t.toISOString().replace(/[:Z]/g, '').slice(0, 15));
+				time.set(t);
 				break;
 			}
 		}
 	}
-	time.set(t);
 };
 
 export const checkClosestModelRun = (
