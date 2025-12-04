@@ -36,7 +36,7 @@ import {
 	variables
 } from '$lib/stores/preferences';
 
-import type { DomainMetaData } from '@openmeteo/mapbox-layer';
+import type { Domain, DomainMetaData } from '@openmeteo/mapbox-layer';
 
 let preferences = get(p);
 p.subscribe((newPreferences) => {
@@ -182,11 +182,34 @@ export const urlParamsToPreferences = (url: URL) => {
 export const checkClosestDomainInterval = (url: URL) => {
 	const t = get(time);
 	const domain = get(d);
-	if (domain.time_interval > 1) {
-		if (t.getUTCHours() % domain.time_interval > 0) {
-			const closestUTCHour = t.getUTCHours() - (t.getUTCHours() % domain.time_interval);
-			t.setUTCHours(closestUTCHour + domain.time_interval);
-			url.searchParams.set('time', t.toISOString().replace(/[:Z]/g, '').slice(0, 15));
+	if (typeof domain.time_interval === 'number') {
+		if (domain.time_interval > 1) {
+			if (t.getUTCHours() % domain.time_interval > 0) {
+				const closestUTCHour = t.getUTCHours() - (t.getUTCHours() % domain.time_interval);
+				t.setUTCHours(closestUTCHour + domain.time_interval);
+				url.searchParams.set('time', t.toISOString().replace(/[:Z]/g, '').slice(0, 15));
+			}
+		}
+	} else {
+		switch (domain.time_interval) {
+			case 'weekly': {
+				const dayOfWeek = t.getUTCDay();
+				const daysUntilMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+				const closestMonday = t.getTime() - daysUntilMonday * 24 * 60 * 60 * 1000;
+				t.setUTCHours(0, 0, 0, 0);
+				t.setTime(closestMonday);
+				url.searchParams.set('time', t.toISOString().replace(/[:Z]/g, '').slice(0, 15));
+				break;
+			}
+			case 'monthly': {
+				const dayOfMonth = t.getUTCDate();
+				const daysUntilFirst = dayOfMonth === 1 ? 0 : dayOfMonth - 1;
+				const closestFirst = t.getTime() - daysUntilFirst * 24 * 60 * 60 * 1000;
+				t.setUTCHours(0, 0, 0, 0);
+				t.setTime(closestFirst);
+				url.searchParams.set('time', t.toISOString().replace(/[:Z]/g, '').slice(0, 15));
+				break;
+			}
 		}
 	}
 	time.set(t);
@@ -198,7 +221,7 @@ export const checkClosestModelRun = (
 	latest: DomainMetaData | undefined
 ) => {
 	const t = get(time);
-	const domain = get(d);
+	const domain: Domain = get(d);
 	const modelRun = get(mR);
 
 	let modelRunChanged = false;
@@ -211,16 +234,34 @@ export const checkClosestModelRun = (
 	const month = t.getUTCMonth();
 	const date = t.getUTCDate();
 
-	const closestModelRunUTCHour = t.getUTCHours() - (t.getUTCHours() % domain.model_interval);
+	const modelInterval = domain.model_interval;
 
 	const closestModelRun = new SvelteDate();
-	closestModelRun.setUTCFullYear(year);
-	closestModelRun.setUTCMonth(month);
-	closestModelRun.setUTCDate(date);
-	closestModelRun.setUTCHours(closestModelRunUTCHour);
-	closestModelRun.setUTCMinutes(0);
-	closestModelRun.setUTCSeconds(0);
-	closestModelRun.setUTCMilliseconds(0);
+	if (typeof modelInterval === 'number') {
+		const closestModelRunUTCHour = t.getUTCHours() - (t.getUTCHours() % modelInterval);
+
+		closestModelRun.setUTCFullYear(year);
+		closestModelRun.setUTCMonth(month);
+		closestModelRun.setUTCDate(date);
+		closestModelRun.setUTCHours(closestModelRunUTCHour);
+		closestModelRun.setUTCMinutes(0);
+		closestModelRun.setUTCSeconds(0);
+		closestModelRun.setUTCMilliseconds(0);
+	} else {
+		switch (modelInterval) {
+			case 'monthly':
+				closestModelRun.setUTCFullYear(year);
+				closestModelRun.setUTCMonth(month);
+				closestModelRun.setUTCDate(1);
+				closestModelRun.setUTCHours(0);
+				closestModelRun.setUTCMinutes(0);
+				closestModelRun.setUTCSeconds(0);
+				closestModelRun.setUTCMilliseconds(0);
+				break;
+			default:
+				throw new Error(`Unknown model interval: ${modelInterval}`);
+		}
+	}
 
 	if (t.getTime() < modelRun.getTime()) {
 		mR.set(new SvelteDate(closestModelRun));

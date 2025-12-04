@@ -35,31 +35,73 @@
 	let currentDate = $derived(time);
 	let currentHour = $derived(currentDate.getHours());
 
-	const resolution = $derived(domain.time_interval);
+	const resolution: number | 'weekly' | 'monthly' = $derived(domain.time_interval);
 
 	const previousHour = () => {
 		const date = new SvelteDate(time);
-		date.setHours(currentHour - resolution);
+		if (typeof resolution === 'number') {
+			date.setHours(currentHour - resolution);
+		} else {
+			switch (resolution) {
+				case 'weekly':
+					date.setDate(date.getDate() - 7);
+					break;
+				case 'monthly':
+					date.setMonth(date.getMonth() - 1);
+					break;
+			}
+		}
 		onDateChange(date);
 	};
 
 	const nextHour = () => {
 		const date = new SvelteDate(time);
-		date.setHours(currentHour + resolution);
+		if (typeof resolution === 'number') {
+			date.setHours(currentHour + resolution);
+		} else {
+			switch (resolution) {
+				case 'weekly':
+					date.setDate(date.getDate() + 7);
+					break;
+				case 'monthly':
+					date.setMonth(date.getMonth() + 1);
+					break;
+			}
+		}
 		onDateChange(date);
 	};
 
 	const previousDay = () => {
 		const date = new SvelteDate(time);
-		date.setDate(date.getDate() - 1);
-		date.setHours(currentHour);
+		if (typeof resolution === 'number') {
+			date.setDate(date.getDate() - 1);
+		} else {
+			switch (resolution) {
+				case 'weekly':
+					date.setDate(date.getDate() - 7);
+					break;
+				case 'monthly':
+					date.setMonth(date.getMonth() - 1);
+					break;
+			}
+		}
 		onDateChange(date);
 	};
 
 	const nextDay = () => {
 		const date = new SvelteDate(time);
-		date.setDate(date.getDate() + 1);
-		date.setHours(currentHour);
+		if (typeof resolution === 'number') {
+			date.setDate(date.getDate() + 1);
+		} else {
+			switch (resolution) {
+				case 'weekly':
+					date.setDate(date.getDate() + 7);
+					break;
+				case 'monthly':
+					date.setMonth(date.getMonth() + 1);
+					break;
+			}
+		}
 		onDateChange(date);
 	};
 
