@@ -45,7 +45,7 @@
 					{@const opacity = Math.max(0, Math.min(1, rawOpacity))}
 					<!-- ensure 0..1 -->
 					<div
-						style={`background: rgba(${cs[0]}, ${cs[1]}, ${cs[2]}, ${opacity}); min-width: 28px; width: ${17 + Math.max(String(Math.round(colorScale.max)).length, digits + 2) * 4}px; height: ${270 / colorScale.colors.length}px;`}
+						style={`background: rgba(${cs[0]}, ${cs[1]}, ${cs[2]}, ${opacity}); min-width: 28px; width: ${17 + Math.max(String(Math.round(colorScale.max)).length, colorScale.unit.length + 1, digits + 2) * 4}px; height: ${270 / colorScale.colors.length}px;`}
 					></div>
 				{/each}
 
