@@ -32,7 +32,7 @@
 				style={mode.current === 'dark' ? 'background:black;' : 'background:white;'}
 			>
 				{#each colorScale.colors as cs, i (i)}
-					{@const digits = Math.floor(1 / (colorScale.max - colorScale.min))}
+					{@const digits = Math.floor(1 / Math.log(colorScale.max - colorScale.min))}
 					{@const value =
 						colorScale.min +
 						(i / (colorScale.colors.length - 1)) * (colorScale.max - colorScale.min)}
@@ -50,7 +50,7 @@
 				{/each}
 
 				{#each [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100] as step, i (i)}
-					{@const digits = Math.floor(1 / (colorScale.max - colorScale.min))}
+					{@const digits = Math.floor(1 / Math.log(colorScale.max - colorScale.min))}
 					{@const color = getColor(
 						colorScale,
 						Math.floor(
