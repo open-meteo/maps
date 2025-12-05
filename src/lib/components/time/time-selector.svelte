@@ -140,7 +140,7 @@
 						? ' text-black/50 dark:text-white/50 '
 						: ' text-black  dark:text-white'}"
 					id="slider_time_label"
-					>{`${currentDate.getFullYear()}-${pad(currentDate.getMonth() + 1)}-${pad(currentDate.getDate())}T${pad(currentDate.getHours())}:00`}</span
+					>{`${currentDate.getFullYear()}-${pad(currentDate.getMonth() + 1)}-${pad(currentDate.getDate())}T${pad(currentDate.getHours())}:${pad(currentDate.getMinutes())}`}</span
 				>
 				<span
 					class="text-xs delay-75 duration-200 {disabled

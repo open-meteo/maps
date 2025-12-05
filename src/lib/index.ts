@@ -838,6 +838,16 @@ export const getPaddedBounds = (map: maplibregl.Map) => {
 	}
 };
 
+/** e.g. /2025/06/06/1200Z/ */
+const fmtModelRun = (modelRun: Date) => {
+	return `${modelRun.getUTCFullYear()}/${pad(modelRun.getUTCMonth() + 1)}/${pad(modelRun.getUTCDate())}/${pad(modelRun.getUTCHours())}${pad(modelRun.getUTCMinutes())}Z`;
+};
+
+/** e.g. 2025-06-06-1200 */
+const fmtSelectedTime = (time: Date) => {
+	return `${time.getUTCFullYear()}-${pad(time.getUTCMonth() + 1)}-${pad(time.getUTCDate())}T${pad(time.getUTCHours())}${pad(time.getUTCMinutes())}`;
+};
+
 export const getOMUrl = () => {
 	const domain = get(d);
 	const uri =
@@ -848,12 +858,8 @@ export const getOMUrl = () => {
 	let url = `${uri}/data_spatial/${domain.value}`;
 
 	const modelRun = get(mR);
-	// E.G. /2025/06/06/1200Z/
-	url += `/${modelRun.getUTCFullYear()}/${pad(modelRun.getUTCMonth() + 1)}/${pad(modelRun.getUTCDate())}/${pad(modelRun.getUTCHours())}00Z/`;
-
 	const selectedTime = get(time);
-	// E.G. 2025-06-06-1200.om
-	url += `${selectedTime.getUTCFullYear()}-${pad(selectedTime.getUTCMonth() + 1)}-${pad(selectedTime.getUTCDate())}T${pad(selectedTime.getUTCHours())}00.om`;
+	url += `/${fmtModelRun(modelRun)}/${fmtSelectedTime(selectedTime)}.om`;
 
 	const variable = get(variables)[0].value;
 	url += `?variable=${variable}`;
