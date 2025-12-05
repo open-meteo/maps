@@ -22,6 +22,8 @@
 	import * as Command from '$lib/components/ui/command';
 	import * as Popover from '$lib/components/ui/popover';
 
+	import VariableSelectionEmpty from './variable-selection-empty.svelte';
+
 	import type { Domain, DomainMetaData, Variables } from '@openmeteo/mapbox-layer';
 	import type { Map } from 'maplibre-gl';
 
@@ -113,31 +115,7 @@
 		: '-left-[182px]'} "
 >
 	{#await latestRequest}
-		<div class="flex flex-col gap-2.5">
-			<Button
-				variant="outline"
-				style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
-				class="bg-background/90 dark:bg-background/70 hover:!bg-background h-7.25 w-[180px] cursor-pointer justify-between rounded-[4px] border-none !p-1.5"
-				role="combobox"
-				aria-expanded={domainSelectionOpen}
-			>
-				<div class="truncate">
-					{selectedDomain?.label || 'Select a domain...'}
-				</div>
-				<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
-			</Button>
-
-			<Button
-				variant="outline"
-				style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
-				class="bg-background/90 dark:bg-background/70 hover:!bg-background h-7.25 w-[180px] cursor-pointer justify-between rounded-[4px] border-none !p-1.5"
-				role="combobox"
-				aria-expanded={domainSelectionOpen}
-			>
-				<div class="truncate">Loading variables...</div>
-				<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
-			</Button>
-		</div>
+		<VariableSelectionEmpty {domain} />
 	{:then latest}
 		<div class="flex flex-col gap-2.5">
 			<Popover.Root
