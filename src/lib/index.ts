@@ -189,7 +189,7 @@ export const checkClosestDomainInterval = (url: URL) => {
 	const t = new Date(original.getTime());
 	const domain: Domain = get(d);
 
-	const closestTime = domainStep(t, domain.time_interval, 'nearest');
+	const closestTime = domainStep(t, domain.time_interval, 'floor');
 	url.searchParams.set('time', fmtISOWithoutTimezone(closestTime));
 	time.set(closestTime);
 };
@@ -208,7 +208,7 @@ export const checkClosestModelRun = (
 		const _7daysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
 		if (timeStep.getTime() < _7daysAgo) {
 			toast.warning('Date selected too old, using 7 days ago time');
-			const nowTimeStep = domainStep(new Date(_7daysAgo), domain.time_interval, 'nearest');
+			const nowTimeStep = domainStep(new Date(_7daysAgo), domain.time_interval, 'floor');
 			time.set(nowTimeStep);
 			timeStep = nowTimeStep;
 		}
