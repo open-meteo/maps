@@ -8,6 +8,7 @@
 		GridFactory,
 		OMapsFileReader,
 		type OmProtocolSettings,
+		closestModelRun,
 		defaultOmProtocolSettings,
 		domainOptions,
 		domainStep,
@@ -56,6 +57,7 @@
 		changeOMfileURL,
 		checkBounds,
 		checkClosestDomainInterval,
+		checkClosestModelRun,
 		getPaddedBounds,
 		getStyle,
 		setMapControlSettings,
@@ -81,8 +83,10 @@
 		fetchingVariables = true;
 		latestJson = await getDomainData();
 		fetchingVariables = false;
-		const referenceTime = latestJson.reference_time;
-		$modelRun = new SvelteDate(referenceTime);
+
+		// align model run with new model_interval on domain change
+		$modelRun = closestModelRun($modelRun, $domain.model_interval);
+		checkClosestModelRun(map, url, latestJson); // checks and updates time and model run to fit the current domain selection
 
 		if ($modelRun.getTime() - $time.getTime() > 0) {
 			$time = domainStep($modelRun, $domain.time_interval, 'forward');
@@ -103,14 +107,12 @@
 	};
 
 	const getDomainData = async (inProgress = false): Promise<DomainMetaData> => {
-		console.log('getDomainData called');
 		const uri =
 			$domain.value && $domain.value.startsWith('dwd_icon')
 				? `https://s3.servert.ch`
 				: `https://map-tiles.open-meteo.com`;
 
 		const metaJsonUrl = `${uri}/data_spatial/${$domain.value}/${inProgress ? 'in-progress' : 'latest'}.json`;
-		console.log('fetching ', metaJsonUrl);
 		const res = await fetch(metaJsonUrl);
 		if (!res.ok) throw new Error(`HTTP ${res.status}`);
 		const json = await res.json();

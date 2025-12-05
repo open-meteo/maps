@@ -199,7 +199,29 @@ export const checkClosestModelRun = (
 	url: URL,
 	latest: DomainMetaData | undefined
 ) => {
-	const timeStep = get(time);
+	const domain = get(d);
+	let timeStep = get(time);
+
+	// other than seasonal models, data is not available longer than 7 days
+	if (domain.model_interval !== 'monthly') {
+		// check that requested timeStep is not older than 7 days
+		const _7daysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+		if (timeStep.getTime() < _7daysAgo) {
+			toast.warning('Date selected too old, using 7 days ago time');
+			const nowTimeStep = domainStep(new Date(_7daysAgo), domain.time_interval, 'nearest');
+			time.set(nowTimeStep);
+			timeStep = nowTimeStep;
+		}
+	}
+	// check that requested time is not newer than the latest valid_times in the DomainMetaData
+	if (latest) {
+		const latestTimeStep = new Date(latest.valid_times[latest.valid_times.length - 1]);
+		if (timeStep.getTime() > latestTimeStep.getTime()) {
+			toast.warning('Date selected too new, using latest available time');
+			time.set(latestTimeStep);
+			timeStep = latestTimeStep;
+		}
+	}
 
 	const nearestModelRun = closestModelRun(timeStep, get(d).model_interval);
 	const modelRun = get(mR);
@@ -236,10 +258,6 @@ export const checkClosestModelRun = (
 		url.searchParams.set('model-run', fmtISOWithoutTimezone(setToModelRun));
 		pushState(url + map._hash.getHashString(), {});
 		toast.info('Model run set to: ' + fmtISOWithoutTimezone(setToModelRun));
-	}
-	// day the data structure was altered
-	if (setToModelRun.getTime() < 1752624000000) {
-		toast.warning('Date selected probably too old, since data structure altered on 16th July 2025');
 	}
 };
 
