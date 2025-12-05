@@ -28,13 +28,22 @@
 		map: Map;
 		domain: Domain;
 		variables: Variables;
-		latestRequest: Promise<DomainMetaData>;
+		metaJson: DomainMetaData | undefined;
+		fetchingVariables: boolean;
 		domainChange: (value: string) => Promise<void>;
 		variablesChange: (value: string | undefined) => void;
 	}
 
-	let { url, map, domain, variables, latestRequest, domainChange, variablesChange }: Props =
-		$props();
+	let {
+		url,
+		map,
+		domain,
+		variables,
+		metaJson,
+		fetchingVariables,
+		domainChange,
+		variablesChange
+	}: Props = $props();
 
 	let selectedDomain = $derived(domain);
 	let selectedVariable = $derived(variables[0]);
@@ -98,7 +107,7 @@
 		? 'left-2.5'
 		: '-left-[182px]'} "
 >
-	{#await latestRequest}
+	{#if fetchingVariables && metaJson}
 		<div class="flex flex-col gap-2.5">
 			<Button
 				variant="outline"
@@ -124,7 +133,7 @@
 				<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
 			</Button>
 		</div>
-	{:then latest}
+	{:else}
 		<div class="flex flex-col gap-2.5">
 			<Popover.Root
 				bind:open={domainSelectionOpen}
@@ -289,7 +298,7 @@
 						<Command.List>
 							<Command.Empty>No variables found.</Command.Empty>
 							<Command.Group>
-								{#each latest.variables as vr, i (i)}
+								{#each metaJson!.variables as vr, i (i)}
 									{#if !vr.includes('v_component') && !vr.includes('_direction')}
 										{@const v = variableOptions.find((vo) => vo.value === vr)
 											? variableOptions.find((vo) => vo.value === vr)
@@ -323,7 +332,7 @@
 				</Popover.Content>
 			</Popover.Root>
 		</div>
-	{/await}
+	{/if}
 
 	<button
 		style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
