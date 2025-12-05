@@ -36,14 +36,8 @@
 					{@const value =
 						colorScale.min +
 						(i / (colorScale.colors.length - 1)) * (colorScale.max - colorScale.min)}
-					{@const rawOpacity = getOpacity(
-						variables[0].value,
-						value,
-						mode.current === 'dark',
-						colorScale
-					)}
-					{@const opacity = Math.max(0, Math.min(1, rawOpacity))}
-					<!-- ensure 0..1 -->
+					{@const opacity =
+						getOpacity(variables[0].value, value, mode.current === 'dark', colorScale) / 255}
 					<div
 						style={`background: rgba(${cs[0]}, ${cs[1]}, ${cs[2]}, ${opacity}); min-width: 28px; width: ${17 + Math.max(String(Math.round(colorScale.max)).length, colorScale.unit.length + 1, digits + 2) * 4}px; height: ${270 / colorScale.colors.length}px;`}
 					></div>
@@ -57,12 +51,13 @@
 							colorScale.min + (step * (colorScale.max - colorScale.min)) / colorScale.colors.length
 						)
 					) as [number, number, number]}
-					{@const opacity = getOpacity(
-						variables[0].value,
-						colorScale.min + step * 0.01 * (colorScale.max - colorScale.min),
-						mode.current === 'dark',
-						colorScale
-					)}
+					{@const opacity =
+						getOpacity(
+							variables[0].value,
+							colorScale.min + step * 0.01 * (colorScale.max - colorScale.min),
+							mode.current === 'dark',
+							colorScale
+						) / 255}
 
 					<div
 						class="absolute w-full text-center text-xs"

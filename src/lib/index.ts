@@ -658,7 +658,7 @@ export const getStyle = async () => {
 };
 
 export const textWhite = ([r, g, b, a]: [number, number, number, number]): boolean => {
-	return r * 0.299 + g * 0.587 + b * 0.114 <= 186 && a >= 50;
+	return r * 0.299 + g * 0.587 + b * 0.114 <= 186 && a >= 0.5;
 };
 
 let popup: maplibregl.Popup | undefined;
