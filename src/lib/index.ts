@@ -3,7 +3,9 @@ import { get } from 'svelte/store';
 
 import {
 	GridFactory,
+	closestModelRun,
 	domainOptions,
+	domainStep,
 	getColor,
 	getColorScale,
 	getOpacity,
@@ -36,7 +38,7 @@ import {
 	variables
 } from '$lib/stores/preferences';
 
-import type { DomainMetaData } from '@openmeteo/mapbox-layer';
+import type { Domain, DomainMetaData } from '@openmeteo/mapbox-layer';
 
 let preferences = get(p);
 p.subscribe((newPreferences) => {
@@ -179,17 +181,17 @@ export const urlParamsToPreferences = (url: URL) => {
 	p.set(preferences);
 };
 
+/** "YYYY-MM-DDTHHMM" */
+export const fmtISOWithoutTimezone = (d: Date) => d.toISOString().replace(/[:Z]/g, '').slice(0, 15);
+
 export const checkClosestDomainInterval = (url: URL) => {
-	const t = get(time);
-	const domain = get(d);
-	if (domain.time_interval > 1) {
-		if (t.getUTCHours() % domain.time_interval > 0) {
-			const closestUTCHour = t.getUTCHours() - (t.getUTCHours() % domain.time_interval);
-			t.setUTCHours(closestUTCHour + domain.time_interval);
-			url.searchParams.set('time', t.toISOString().replace(/[:Z]/g, '').slice(0, 15));
-		}
-	}
-	time.set(t);
+	const original = get(time);
+	const t = new Date(original.getTime());
+	const domain: Domain = get(d);
+
+	const closestTime = domainStep(t, domain.time_interval, 'floor');
+	url.searchParams.set('time', fmtISOWithoutTimezone(closestTime));
+	time.set(closestTime);
 };
 
 export const checkClosestModelRun = (
@@ -197,74 +199,65 @@ export const checkClosestModelRun = (
 	url: URL,
 	latest: DomainMetaData | undefined
 ) => {
-	const t = get(time);
 	const domain = get(d);
-	const modelRun = get(mR);
+	let timeStep = get(time);
 
-	let modelRunChanged = false;
-	let referenceTime: Date | undefined;
+	// other than seasonal models, data is not available longer than 7 days
+	if (domain.model_interval !== 'monthly') {
+		// check that requested timeStep is not older than 7 days
+		const _7daysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+		if (timeStep.getTime() < _7daysAgo) {
+			toast.warning('Date selected too old, using 7 days ago time');
+			const nowTimeStep = domainStep(new Date(_7daysAgo), domain.time_interval, 'floor');
+			time.set(nowTimeStep);
+			timeStep = nowTimeStep;
+		}
+	}
+	// check that requested time is not newer than the latest valid_times in the DomainMetaData
 	if (latest) {
-		referenceTime = new Date(latest.reference_time);
+		const latestTimeStep = new Date(latest.valid_times[latest.valid_times.length - 1]);
+		if (timeStep.getTime() > latestTimeStep.getTime()) {
+			toast.warning('Date selected too new, using latest available time');
+			time.set(latestTimeStep);
+			timeStep = latestTimeStep;
+		}
 	}
 
-	const year = t.getUTCFullYear();
-	const month = t.getUTCMonth();
-	const date = t.getUTCDate();
+	const nearestModelRun = closestModelRun(timeStep, get(d).model_interval);
+	const modelRun = get(mR);
 
-	const closestModelRunUTCHour = t.getUTCHours() - (t.getUTCHours() % domain.model_interval);
+	let setToModelRun = new SvelteDate(modelRun);
 
-	const closestModelRun = new SvelteDate();
-	closestModelRun.setUTCFullYear(year);
-	closestModelRun.setUTCMonth(month);
-	closestModelRun.setUTCDate(date);
-	closestModelRun.setUTCHours(closestModelRunUTCHour);
-	closestModelRun.setUTCMinutes(0);
-	closestModelRun.setUTCSeconds(0);
-	closestModelRun.setUTCMilliseconds(0);
+	const latestReferenceTime = latest?.reference_time ? new Date(latest.reference_time) : undefined;
 
-	if (t.getTime() < modelRun.getTime()) {
-		mR.set(new SvelteDate(closestModelRun));
-		modelRunChanged = true;
+	if (latestReferenceTime && nearestModelRun.getTime() > latestReferenceTime.getTime()) {
+		setToModelRun = new SvelteDate(latestReferenceTime);
+	} else if (timeStep.getTime() < modelRun.getTime()) {
+		setToModelRun = new SvelteDate(nearestModelRun);
 	} else {
-		if (referenceTime) {
-			if (referenceTime.getTime() === modelRun.getTime()) {
+		if (latestReferenceTime) {
+			if (latestReferenceTime.getTime() === modelRun.getTime()) {
 				url.searchParams.delete('model-run');
 				pushState(url + map._hash.getHashString(), {});
 			} else if (
-				t.getTime() > referenceTime.getTime() &&
-				referenceTime.getTime() > modelRun.getTime()
+				timeStep.getTime() > latestReferenceTime.getTime() &&
+				latestReferenceTime.getTime() > modelRun.getTime()
 			) {
-				mR.set(new SvelteDate(referenceTime));
-				modelRunChanged = true;
-			} else if (t.getTime() < referenceTime.getTime() - 24 * 60 * 60 * 1000) {
+				setToModelRun = new SvelteDate(latestReferenceTime);
+			} else if (timeStep.getTime() < latestReferenceTime.getTime() - 24 * 60 * 60 * 1000) {
 				// Atleast yesterday, always update to nearest modelRun
-				if (modelRun.getTime() < closestModelRun.getTime()) {
-					mR.set(new SvelteDate(closestModelRun));
-					modelRunChanged = true;
+				if (modelRun.getTime() < nearestModelRun.getTime()) {
+					setToModelRun = new SvelteDate(nearestModelRun);
 				}
 			}
 		}
 	}
 
-	if (modelRunChanged) {
-		url.searchParams.set('model-run', modelRun.toISOString().replace(/[:Z]/g, '').slice(0, 15));
+	if (setToModelRun.getTime() !== modelRun.getTime()) {
+		mR.set(setToModelRun);
+		url.searchParams.set('model-run', fmtISOWithoutTimezone(setToModelRun));
 		pushState(url + map._hash.getHashString(), {});
-		toast.info(
-			'Model run set to: ' +
-				modelRun.getUTCFullYear() +
-				'-' +
-				pad(modelRun.getUTCMonth() + 1) +
-				'-' +
-				pad(modelRun.getUTCDate()) +
-				' ' +
-				pad(modelRun.getUTCHours()) +
-				':' +
-				pad(modelRun.getUTCMinutes())
-		);
-	}
-	// day the data structure was altered
-	if (modelRun.getTime() < 1752624000000) {
-		toast.warning('Date selected probably too old, since data structure altered on 16th July 2025');
+		toast.info('Model run set to: ' + fmtISOWithoutTimezone(setToModelRun));
 	}
 };
 
@@ -845,6 +838,16 @@ export const getPaddedBounds = (map: maplibregl.Map) => {
 	}
 };
 
+/** e.g. /2025/06/06/1200Z/ */
+const fmtModelRun = (modelRun: Date) => {
+	return `${modelRun.getUTCFullYear()}/${pad(modelRun.getUTCMonth() + 1)}/${pad(modelRun.getUTCDate())}/${pad(modelRun.getUTCHours())}${pad(modelRun.getUTCMinutes())}Z`;
+};
+
+/** e.g. 2025-06-06-1200 */
+const fmtSelectedTime = (time: Date) => {
+	return `${time.getUTCFullYear()}-${pad(time.getUTCMonth() + 1)}-${pad(time.getUTCDate())}T${pad(time.getUTCHours())}${pad(time.getUTCMinutes())}`;
+};
+
 export const getOMUrl = () => {
 	const domain = get(d);
 	const uri =
@@ -855,12 +858,8 @@ export const getOMUrl = () => {
 	let url = `${uri}/data_spatial/${domain.value}`;
 
 	const modelRun = get(mR);
-	// E.G. /2025/06/06/1200Z/
-	url += `/${modelRun.getUTCFullYear()}/${pad(modelRun.getUTCMonth() + 1)}/${pad(modelRun.getUTCDate())}/${pad(modelRun.getUTCHours())}00Z/`;
-
 	const selectedTime = get(time);
-	// E.G. 2025-06-06-1200.om
-	url += `${selectedTime.getUTCFullYear()}-${pad(selectedTime.getUTCMonth() + 1)}-${pad(selectedTime.getUTCDate())}T${pad(selectedTime.getUTCHours())}00.om`;
+	url += `/${fmtModelRun(modelRun)}/${fmtSelectedTime(selectedTime)}.om`;
 
 	const variable = get(variables)[0].value;
 	url += `?variable=${variable}`;
