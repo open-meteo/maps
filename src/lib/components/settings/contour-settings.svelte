@@ -74,7 +74,7 @@
 			class="w-[100px] delay-75 duration-200"
 			type="range"
 			min="0"
-			max="20"
+			max="200"
 			bind:value={contourInterval}
 			oninput={handleContourIntervalChange}
 		/>

@@ -1,5 +1,10 @@
 <script lang="ts">
-	import { type Variables, getColor, getColorScale, getOpacity } from '@openmeteo/mapbox-layer';
+	import {
+		type Variables,
+		getColor,
+		getColorScaleMinMaxScaled,
+		getOpacity
+	} from '@openmeteo/mapbox-layer';
 	import { mode } from 'mode-watcher';
 
 	import { textWhite } from '$lib';
@@ -12,7 +17,7 @@
 	let { showScale, variables }: Props = $props();
 
 	let colorScale = $derived.by(() => {
-		return getColorScale(variables[0].value);
+		return getColorScaleMinMaxScaled(variables[0].value);
 	});
 </script>
 
@@ -22,28 +27,43 @@
 			style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
 			class="flex flex-col-reverse overflow-hidden rounded-[4px]"
 		>
-			<div class="flex max-h-[270px] flex-col-reverse" style="background:white;">
+			<div
+				class="flex max-h-[270px] flex-col-reverse"
+				style={mode.current === 'dark' ? 'background:black;' : 'background:white;'}
+			>
 				{#each colorScale.colors as cs, i (i)}
+					{@const digits = Math.floor(1 / Math.log(colorScale.max - colorScale.min))}
+					{@const value =
+						colorScale.min +
+						(i / (colorScale.colors.length - 1)) * (colorScale.max - colorScale.min)}
+					{@const opacity =
+						getOpacity(variables[0].value, value, mode.current === 'dark', colorScale) / 255}
 					<div
-						style={`background: rgba(${cs.join(',')}); filter: opacity(${getOpacity(variables[0].value, Math.floor(colorScale.min + i * 0.01 * (colorScale.max - colorScale.min)), mode.current === 'dark', colorScale)});min-width: 28px; width: ${17 + String(colorScale.max).length * 4}px; height:${270 / ((colorScale.max - colorScale.min) * colorScale.scalefactor)}px;`}
+						style={`background: rgba(${cs[0]}, ${cs[1]}, ${cs[2]}, ${opacity}); min-width: 28px; width: ${17 + Math.max(String(Math.round(colorScale.max)).length, colorScale.unit.length + 1, digits + 2) * 4}px; height: ${270 / colorScale.colors.length}px;`}
 					></div>
 				{/each}
 
 				{#each [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100] as step, i (i)}
+					{@const digits = Math.floor(1 / Math.log(colorScale.max - colorScale.min))}
 					{@const color = getColor(
 						colorScale,
 						Math.floor(
-							colorScale.min +
-								step *
-									(colorScale.scalefactor / colorScale.steps) *
-									(colorScale.max - colorScale.min)
+							colorScale.min + (step * (colorScale.max - colorScale.min)) / colorScale.colors.length
 						)
 					) as [number, number, number]}
+					{@const opacity =
+						getOpacity(
+							variables[0].value,
+							colorScale.min + step * 0.01 * (colorScale.max - colorScale.min),
+							mode.current === 'dark',
+							colorScale
+						) / 255}
+
 					<div
 						class="absolute w-full text-center text-xs"
-						style={`bottom:  ${2 + 270 * step * 0.0093}px; color: ${textWhite(color) ? 'white;' : 'black'}`}
+						style={`bottom:  ${2 + 270 * step * 0.0093}px; color: ${textWhite(color, opacity, mode.current === 'dark') ? 'white;' : 'black'}`}
 					>
-						{(colorScale.min + step * 0.01 * (colorScale.max - colorScale.min)).toFixed(0)}
+						{(colorScale.min + step * 0.01 * (colorScale.max - colorScale.min)).toFixed(digits)}
 					</div>
 				{/each}
 			</div>

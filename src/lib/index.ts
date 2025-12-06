@@ -7,10 +7,9 @@ import {
 	domainOptions,
 	domainStep,
 	getColor,
-	getColorScale,
+	getColorScaleMinMaxScaled,
 	getOpacity,
 	getValueFromLatLong,
-	hideZero,
 	variableOptions
 } from '@openmeteo/mapbox-layer';
 import * as maplibregl from 'maplibre-gl';
@@ -673,7 +672,7 @@ let popup: maplibregl.Popup | undefined;
 let showPopup = false;
 export const addPopup = (map: maplibregl.Map) => {
 	let variable = get(variables)[0];
-	let colorScale = getColorScale(variable.value);
+	let colorScale = getColorScaleMinMaxScaled(variable.value);
 
 	map.on('mousemove', function (e) {
 		if (showPopup) {
@@ -689,26 +688,20 @@ export const addPopup = (map: maplibregl.Map) => {
 			const { value } = getValueFromLatLong(
 				coordinates.lat,
 				coordinates.lng,
-				omRasterSource?.url || '',
-				variable
+				omRasterSource?.url || ''
 			);
 
-			if (value) {
-				if ((hideZero.includes(variable.value) && value <= 0.25) || !value) {
-					popup.remove();
-				} else {
-					const dark = mode.current === 'dark';
-					const color = getColor(colorScale, value);
-					const opacity = getOpacity(variable.value, value, dark, colorScale);
-
-					const content =
-						'<span class="popup-value">' + value.toFixed(1) + '</span>' + colorScale.unit;
-					popup
-						.setLngLat(coordinates)
-						.setHTML(
-							`<div style="font-weight: bold; background-color: rgba(${color[0]}, ${color[1]}, ${color[2]}, ${opacity / 100}); color: ${textWhite(color, opacity, dark) ? 'white' : 'black'};" class="popup-div">${content}</div>`
-						);
-				}
+			if (isFinite(value)) {
+				const color = getColor(colorScale, value);
+				const dark = mode.current === 'dark';
+				const opacity = getOpacity(variable.value, value, dark, colorScale);
+				const content =
+					'<span class="popup-value">' + value.toFixed(1) + '</span>' + colorScale.unit;
+				popup
+					.setLngLat(coordinates)
+					.setHTML(
+						`<div style="font-weight: bold; background-color: rgba(${color[0]}, ${color[1]}, ${color[2]}, ${opacity / 100}); color: ${textWhite(color, opacity, dark) ? 'white' : 'black'};" class="popup-div">${content}</div>`
+					);
 			} else {
 				popup
 					.setLngLat(coordinates)
@@ -719,7 +712,7 @@ export const addPopup = (map: maplibregl.Map) => {
 
 	map.on('click', (e: maplibregl.MapMouseEvent) => {
 		variable = get(variables)[0];
-		colorScale = getColorScale(get(variables)[0].value);
+		colorScale = getColorScaleMinMaxScaled(get(variables)[0].value);
 
 		showPopup = !showPopup;
 		if (!showPopup && popup) {

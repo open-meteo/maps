@@ -71,7 +71,6 @@
 	let map: maplibregl.Map = $state();
 	let latestJson: DomainMetaData | undefined = $state();
 	let mapContainer: HTMLElement | null;
-	let fetchingVariables = $state(false);
 
 	const changeOmDomain = async (value: string): Promise<void> => {
 		loading.set(true);
@@ -243,7 +242,6 @@
 	domain={$domain}
 	variables={$variables}
 	metaJson={latestJson}
-	{fetchingVariables}
 	domainChange={changeOmDomain}
 	variablesChange={(value: string | undefined) => {
 		$variables = [
