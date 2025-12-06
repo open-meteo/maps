@@ -658,7 +658,14 @@ export const getStyle = async () => {
 		});
 };
 
-export const textWhite = ([r, g, b]: [number, number, number]): boolean => {
+export const textWhite = (
+	[r, g, b]: [number, number, number],
+	opacity: number,
+	dark: boolean
+): boolean => {
+	if (opacity < 65 && !dark) {
+		return false;
+	}
 	return r * 0.299 + g * 0.587 + b * 0.114 <= 186;
 };
 
@@ -690,14 +697,16 @@ export const addPopup = (map: maplibregl.Map) => {
 				if ((hideZero.includes(variable.value) && value <= 0.25) || !value) {
 					popup.remove();
 				} else {
+					const dark = mode.current === 'dark';
 					const color = getColor(colorScale, value);
-					const opacity = getOpacity(variable.value, value, mode.current === 'dark', colorScale);
+					const opacity = getOpacity(variable.value, value, dark, colorScale);
+
 					const content =
 						'<span class="popup-value">' + value.toFixed(1) + '</span>' + colorScale.unit;
 					popup
 						.setLngLat(coordinates)
 						.setHTML(
-							`<div style="font-weight: bold; background-color: rgba(${color[0]}, ${color[1]}, ${color[2]}, ${opacity / 255}); color: ${textWhite(color) ? 'white' : 'black'};" class="popup-div">${content}</div>`
+							`<div style="font-weight: bold; background-color: rgba(${color[0]}, ${color[1]}, ${color[2]}, ${opacity / 100}); color: ${textWhite(color, opacity, dark) ? 'white' : 'black'};" class="popup-div">${content}</div>`
 						);
 				}
 			} else {
