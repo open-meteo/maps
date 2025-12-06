@@ -12,6 +12,7 @@
 
 	import {
 		domainSelectionOpen as dSO,
+		loading,
 		variableSelectionExtended as vSE,
 		variableSelectionOpen as vSO
 	} from '$lib/stores/preferences';
@@ -29,21 +30,11 @@
 		domain: Domain;
 		variables: Variables;
 		metaJson: DomainMetaData | undefined;
-		fetchingVariables: boolean;
 		domainChange: (value: string) => Promise<void>;
 		variablesChange: (value: string | undefined) => void;
 	}
 
-	let {
-		url,
-		map,
-		domain,
-		variables,
-		metaJson,
-		fetchingVariables,
-		domainChange,
-		variablesChange
-	}: Props = $props();
+	let { url, map, domain, variables, metaJson, domainChange, variablesChange }: Props = $props();
 
 	let selectedDomain = $derived(domain);
 	let selectedVariable = $derived(variables[0]);
@@ -107,7 +98,7 @@
 		? 'left-2.5'
 		: '-left-[182px]'} "
 >
-	{#if fetchingVariables && metaJson}
+	{#if $loading && metaJson}
 		<div class="flex flex-col gap-2.5">
 			<Button
 				variant="outline"
