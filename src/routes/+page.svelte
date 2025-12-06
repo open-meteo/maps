@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 	import { SvelteDate } from 'svelte/reactivity';
+	import { get } from 'svelte/store';
 	import { fade } from 'svelte/transition';
 
 	import {
@@ -21,15 +22,18 @@
 	import { Protocol } from 'pmtiles';
 	import { toast } from 'svelte-sonner';
 
+	import { version } from '$app/environment';
 	import { pushState } from '$app/navigation';
 
 	import {
 		domain,
+		localStorageVersion as lSV,
 		loading,
 		mapBounds,
 		modelRun,
 		paddedBounds,
 		preferences,
+		resetStates,
 		sheet,
 		time,
 		variables
@@ -72,6 +76,8 @@
 	let latestJson: DomainMetaData | undefined = $state();
 	let mapContainer: HTMLElement | null;
 	let fetchingVariables = $state(false);
+
+	let localStorageVersion = $derived(get(lSV));
 
 	const changeOmDomain = async (value: string): Promise<void> => {
 		loading.set(true);
@@ -123,6 +129,11 @@
 	};
 
 	onMount(() => {
+		if (!localStorageVersion || version !== localStorageVersion) {
+			resetStates();
+			lSV.set(version);
+		}
+
 		url = new URL(document.location.href);
 		urlParamsToPreferences(url);
 	});

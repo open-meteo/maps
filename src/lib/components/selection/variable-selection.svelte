@@ -58,7 +58,7 @@
 			} else if (url.searchParams.get('variables-open')) {
 				url.searchParams.delete('variables-open');
 			}
-			pushState(url + map._hash.getHashString(), {});
+			if (map) pushState(url + map._hash.getHashString(), {});
 		}
 	});
 
