@@ -1,9 +1,9 @@
-import { type Writable, writable } from 'svelte/store';
+import { type Writable, get, writable } from 'svelte/store';
 
 import { domainOptions, variableOptions } from '@openmeteo/mapbox-layer';
 import { type Persisted, persisted } from 'svelte-persisted-store';
 
-export const preferences = persisted('preferences', {
+const defaultPreferences = {
 	globe: false,
 	partial: false,
 	terrain: false,
@@ -11,23 +11,28 @@ export const preferences = persisted('preferences', {
 	clipWater: false,
 	showScale: true,
 	timeSelector: true
-});
+};
 
-export const vectorOptions = persisted('vector-options', {
+export const preferences = persisted('preferences', defaultPreferences);
+
+const defaultVectorOptions = {
 	grid: false,
 	arrows: true,
 	contours: false,
 	contourInterval: 2
-});
+};
 
-export const domain = persisted(
-	'domain',
-	domainOptions.find((dm) => dm.value === import.meta.env.VITE_DOMAIN) ?? domainOptions[0]
-);
+export const vectorOptions = persisted('vector-options', defaultVectorOptions);
 
-export const variables = persisted('variables', [
-	variableOptions.find((v) => v.value === import.meta.env.VITE_VARIABLE) ?? variableOptions[0]
-]);
+const defaultDomain =
+	domainOptions.find((dm) => dm.value === import.meta.env.VITE_DOMAIN) ?? domainOptions[0];
+
+export const domain = persisted('domain', defaultDomain);
+
+const defaultVariable =
+	variableOptions.find((v) => v.value === import.meta.env.VITE_VARIABLE) ?? variableOptions[0];
+
+export const variables = persisted('variables', [defaultVariable]);
 
 const now = new Date();
 now.setHours(now.getHours() + 1, 0, 0, 0);
@@ -42,7 +47,7 @@ export const domainSelectionOpen = writable(false);
 export const variableSelectionOpen = writable(false);
 export const variableSelectionExtended: Persisted<boolean | undefined> = persisted(
 	'variables-open',
-	undefined
+	false
 );
 
 export const mapBounds: Writable<maplibregl.LngLatBounds | null> = writable(null);
@@ -55,3 +60,32 @@ export const paddedBoundsGeoJSON: Writable<GeoJSON.GeoJSON | null> = writable(nu
 
 export const tileSize: Persisted<128 | 256 | 512> = persisted('tile-size', 256);
 export const resolution: Persisted<0.5 | 1 | 2> = persisted('resolution', 1);
+
+export const localStorageVersion = persisted('local-storage-version', '');
+
+export const resetStates = () => {
+	console.log(get(vectorOptions));
+	preferences.set(defaultPreferences);
+	vectorOptions.set(defaultVectorOptions);
+
+	domain.set(defaultDomain);
+	variables.set([defaultVariable]);
+
+	time.set(new Date(now));
+	modelRun.set(new Date()); // Does this work?
+	sheet.set(false);
+	loading.set(false); // Does this work?
+
+	domainSelectionOpen.set(false);
+	variableSelectionOpen.set(false);
+	variableSelectionExtended.set(false);
+
+	mapBounds.set(null);
+	paddedBounds.set(null);
+	paddedBoundsLayer.set(undefined);
+	paddedBoundsSource.set(undefined);
+	paddedBoundsGeoJSON.set(null);
+
+	tileSize.set(256);
+	resolution.set(1);
+};

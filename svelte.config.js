@@ -1,5 +1,6 @@
 import adapter from '@sveltejs/adapter-static';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
+import * as child from 'child_process';
 import { mdsvex } from 'mdsvex';
 
 /** @type {import('@sveltejs/kit').Config} */
@@ -15,7 +16,10 @@ const config = {
 			fallback: null,
 			precompress: false,
 			strict: true
-		})
+		}),
+		version: {
+			name: child.execSync('git rev-parse HEAD').toString().trim()
+		}
 	},
 	extensions: ['.svelte', '.svx']
 };
