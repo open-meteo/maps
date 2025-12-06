@@ -61,7 +61,7 @@
 
 					<div
 						class="absolute w-full text-center text-xs"
-						style={`bottom:  ${2 + 270 * step * 0.0093}px; color: ${textWhite([...color, opacity]) ? 'white;' : 'black'}`}
+						style={`bottom:  ${2 + 270 * step * 0.0093}px; color: ${textWhite(color, opacity, mode.current === 'dark') ? 'white;' : 'black'}`}
 					>
 						{(colorScale.min + step * 0.01 * (colorScale.max - colorScale.min)).toFixed(digits)}
 					</div>

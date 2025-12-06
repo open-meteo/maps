@@ -71,18 +71,17 @@
 	let map: maplibregl.Map = $state();
 	let latestJson: DomainMetaData | undefined = $state();
 	let mapContainer: HTMLElement | null;
-	let fetchingVariables = $state(false);
 
 	const changeOmDomain = async (value: string): Promise<void> => {
+		loading.set(true);
+
 		$domain = domainOptions.find((dm) => dm.value === value) ?? $domain;
 		checkClosestDomainInterval(url);
 		url.searchParams.set('domain', $domain.value);
 		url.searchParams.set('time', fmtISOWithoutTimezone($time));
 		pushState(url + map._hash.getHashString(), {});
 		toast('Domain set to: ' + $domain.label);
-		fetchingVariables = true;
 		latestJson = await getDomainData();
-		fetchingVariables = false;
 
 		// align model run with new model_interval on domain change
 		$modelRun = closestModelRun($modelRun, $domain.model_interval);
@@ -114,7 +113,10 @@
 
 		const metaJsonUrl = `${uri}/data_spatial/${$domain.value}/${inProgress ? 'in-progress' : 'latest'}.json`;
 		const res = await fetch(metaJsonUrl);
-		if (!res.ok) throw new Error(`HTTP ${res.status}`);
+		if (!res.ok) {
+			loading.set(false);
+			throw new Error(`HTTP ${res.status}`);
+		}
 		const json = await res.json();
 		return json;
 	};
@@ -240,7 +242,6 @@
 	domain={$domain}
 	variables={$variables}
 	metaJson={latestJson}
-	{fetchingVariables}
 	domainChange={changeOmDomain}
 	variablesChange={(value: string | undefined) => {
 		$variables = [

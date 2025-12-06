@@ -214,14 +214,18 @@ body {
 	margin: 0.6em 0;
 }
 
+.maplibregl-popup {
+	background: transparent;
+}
+
 .maplibregl-popup .maplibregl-popup-content {
 	border: 3px solid rgba(100, 100, 100, 1);
 	padding: 0;
-	background-color: white;
+	background-color: rgba(255, 255, 255, 0.65);
 }
 
 .dark .maplibregl-popup .maplibregl-popup-content {
-	background-color: rgba(230, 230, 230, 1);
+	background-color: rgba(0, 0, 0, 0.65);
 }
 
 .popup-div {
