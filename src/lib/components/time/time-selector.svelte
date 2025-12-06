@@ -3,6 +3,7 @@
 	import { SvelteDate } from 'svelte/reactivity';
 	import { get } from 'svelte/store';
 
+	import { domainStep } from '@openmeteo/mapbox-layer';
 	import { toast } from 'svelte-sonner';
 
 	import { browser } from '$app/environment';
@@ -14,7 +15,7 @@
 
 	import { pad } from '$lib';
 
-	import type { Domain } from '@openmeteo/mapbox-layer';
+	import type { Domain, ModelDt } from '@openmeteo/mapbox-layer';
 
 	interface Props {
 		time: Date;
@@ -35,31 +36,27 @@
 	let currentDate = $derived(time);
 	let currentHour = $derived(currentDate.getHours());
 
-	const resolution = $derived(domain.time_interval);
+	const resolution: ModelDt = $derived(domain.time_interval);
 
 	const previousHour = () => {
-		const date = new SvelteDate(time);
-		date.setHours(currentHour - resolution);
+		const date = domainStep(time, resolution, 'backward');
 		onDateChange(date);
 	};
 
 	const nextHour = () => {
-		const date = new SvelteDate(time);
-		date.setHours(currentHour + resolution);
+		const date = domainStep(time, resolution, 'forward');
 		onDateChange(date);
 	};
 
 	const previousDay = () => {
-		const date = new SvelteDate(time);
-		date.setDate(date.getDate() - 1);
-		date.setHours(currentHour);
+		time.setHours(time.getHours() - 23);
+		const date = domainStep(time, resolution, 'backward');
 		onDateChange(date);
 	};
 
 	const nextDay = () => {
-		const date = new SvelteDate(time);
-		date.setDate(date.getDate() + 1);
-		date.setHours(currentHour);
+		time.setHours(time.getHours() + 23);
+		const date = domainStep(time, resolution, 'forward');
 		onDateChange(date);
 	};
 
@@ -143,7 +140,7 @@
 						? ' text-black/50 dark:text-white/50 '
 						: ' text-black  dark:text-white'}"
 					id="slider_time_label"
-					>{`${currentDate.getFullYear()}-${pad(currentDate.getMonth() + 1)}-${pad(currentDate.getDate())}T${pad(currentDate.getHours())}:00`}</span
+					>{`${currentDate.getFullYear()}-${pad(currentDate.getMonth() + 1)}-${pad(currentDate.getDate())}T${pad(currentDate.getHours())}:${pad(currentDate.getMinutes())}`}</span
 				>
 				<span
 					class="text-xs delay-75 duration-200 {disabled
