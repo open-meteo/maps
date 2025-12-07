@@ -43,7 +43,8 @@
 		HillshadeButton,
 		PartialButton,
 		SettingsButton,
-		TimeButton
+		TimeButton,
+		reloadStyles
 	} from '$lib/components/buttons';
 	import HelpDialog from '$lib/components/help/help-dialog.svelte';
 	import Scale from '$lib/components/scale/scale.svelte';
@@ -74,7 +75,7 @@
 	let latestJson: DomainMetaData | undefined = $state();
 	let mapContainer: HTMLElement | null;
 
-	const changeOmDomain = async (newValue: string): Promise<void> => {
+	const changeOmDomain = async (newValue: string, updateState = true): Promise<void> => {
 		loading.set(true);
 
 		const object = domainOptions.find(({ value }) => value === newValue);
@@ -85,10 +86,12 @@
 		}
 
 		checkClosestDomainInterval(url);
-		url.searchParams.set('domain', $domain);
-		url.searchParams.set('time', fmtISOWithoutTimezone($time));
-		pushState(url + map._hash.getHashString(), {});
-		toast('Domain set to: ' + object.label);
+		if (updateState) {
+			url.searchParams.set('domain', $domain);
+			url.searchParams.set('time', fmtISOWithoutTimezone($time));
+			pushState(url + map._hash.getHashString(), {});
+			toast('Domain set to: ' + object.label);
+		}
 		latestJson = await getDomainData();
 
 		// align model run with new model_interval on domain change
@@ -188,7 +191,7 @@
 			map.addControl(new PartialButton(map, url, latestJson));
 			map.addControl(new ClipWaterButton(map, url, latestJson));
 			map.addControl(new TimeButton(map, url));
-			// changeOmDomain();
+			latestJson = await getDomainData();
 
 			addOmFileLayers(map);
 			addHillshadeSources(map);
@@ -244,11 +247,9 @@
 
 <HelpDialog />
 <VariableSelection
-	{url}
-	{map}
 	domain={$domain}
 	variable={$variable}
-	metaJson={latestJson}
+	{latestJson}
 	domainChange={changeOmDomain}
 	variableChange={(newValue: string | undefined) => {
 		const object = variableOptions.find(({ value }) => value === newValue);
@@ -285,11 +286,12 @@
 					{url}
 					onReset={async () => {
 						resetStates();
-						await changeOmDomain($domain);
-						changeOMfileURL(map, url);
 						for (let [key] of url.searchParams) {
 							url.searchParams.delete(key);
 						}
+						reloadStyles(map);
+						await changeOmDomain($domain, false);
+						changeOMfileURL(map, url);
 						pushState(url + map._hash.getHashString(), {});
 						toast('Reset all states to default');
 					}}

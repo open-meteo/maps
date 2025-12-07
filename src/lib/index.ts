@@ -117,11 +117,19 @@ export const urlParamsToPreferences = (url: URL) => {
 	const domain = params.get('domain');
 	if (domain) {
 		d.set(domain);
+	} else {
+		if (get(d) !== 'dwd_icon') {
+			url.searchParams.set('domain', get(d));
+		}
 	}
 
 	const variable = params.get('variable');
 	if (variable) {
 		v.set(variable);
+	} else {
+		if (get(v) !== 'temperature_2m') {
+			url.searchParams.set('variable', get(v));
+		}
 	}
 
 	if (params.get('hillshade')) {

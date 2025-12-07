@@ -90,6 +90,21 @@ export class SettingsButton {
 	onRemove() {}
 }
 
+export const reloadStyles = (map) => {
+	getStyle().then((style) => {
+		map.setStyle(style);
+		map.once('styledata', () => {
+			setTimeout(() => {
+				addOmFileLayers(map);
+				addHillshadeSources(map);
+				if (preferences.hillshade) {
+					addHillshadeLayer(map);
+				}
+			}, 50);
+		});
+	});
+};
+
 export class DarkModeButton {
 	map;
 	url;
@@ -119,18 +134,7 @@ export class DarkModeButton {
 				setMode('light');
 			}
 			div.innerHTML = mode.current !== 'dark' ? lightSVG : darkSVG;
-			getStyle().then((style) => {
-				this.map.setStyle(style);
-				this.map.once('styledata', () => {
-					setTimeout(() => {
-						addOmFileLayers(this.map);
-						addHillshadeSources(this.map);
-						if (preferences.hillshade) {
-							addHillshadeLayer(this.map);
-						}
-					}, 50);
-				});
-			});
+			reloadStyles(this.map);
 		});
 		return div;
 	}

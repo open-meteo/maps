@@ -8,7 +8,6 @@
 	import { domainGroups, domainOptions, variableOptions } from '@openmeteo/mapbox-layer';
 
 	import { browser } from '$app/environment';
-	import { pushState } from '$app/navigation';
 
 	import {
 		domainSelectionOpen as dSO,
@@ -22,19 +21,16 @@
 	import * as Popover from '$lib/components/ui/popover';
 
 	import type { DomainMetaData } from '@openmeteo/mapbox-layer';
-	import type { Map } from 'maplibre-gl';
 
 	interface Props {
-		url: URL;
-		map: Map;
 		domain: string;
 		variable: string;
-		metaJson: DomainMetaData | undefined;
+		latestJson: DomainMetaData | undefined;
 		domainChange: (value: string) => Promise<void>;
 		variableChange: (value: string | undefined) => void;
 	}
 
-	let { url, map, domain, variable, metaJson, domainChange, variableChange }: Props = $props();
+	let { domain, variable, latestJson, domainChange, variableChange }: Props = $props();
 
 	let selectedDomain = $derived.by(() => {
 		const object = domainOptions.find(({ value }) => value === domain);
@@ -105,7 +101,7 @@
 		? 'left-2.5'
 		: '-left-[182px]'} "
 >
-	{#if $loading && metaJson}
+	{#if $loading && latestJson}
 		<div class="flex flex-col gap-2.5">
 			<Button
 				variant="outline"
@@ -296,7 +292,7 @@
 						<Command.List>
 							<Command.Empty>No variables found.</Command.Empty>
 							<Command.Group>
-								{#each metaJson!.variables as vr, i (i)}
+								{#each latestJson!.variables as vr, i (i)}
 									{#if !vr.includes('v_component') && !vr.includes('_direction')}
 										{@const v = variableOptions.find(({ value }) => value === vr)
 											? variableOptions.find(({ value }) => value === vr)

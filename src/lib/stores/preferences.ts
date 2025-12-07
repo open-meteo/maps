@@ -1,6 +1,7 @@
 import { type Writable, get, writable } from 'svelte/store';
 
 import { domainOptions, variableOptions } from '@openmeteo/mapbox-layer';
+import { setMode } from 'mode-watcher';
 import { type Persisted, persisted } from 'svelte-persisted-store';
 
 const defaultPreferences = {
@@ -53,6 +54,8 @@ export const paddedBoundsGeoJSON: Writable<GeoJSON.GeoJSON | null> = writable(nu
 
 export const tileSize: Persisted<128 | 256 | 512> = persisted('tile-size', 256);
 export const resolution: Persisted<0.5 | 1 | 2> = persisted('resolution', 1);
+// check for retina on first load, and set the resolution to 2
+export const resolutionSet: Persisted<boolean> = persisted('resolution-set', false);
 
 export const localStorageVersion = persisted('local-storage-version', '');
 
@@ -80,4 +83,7 @@ export const resetStates = () => {
 
 	tileSize.set(256);
 	resolution.set(1);
+	resolutionSet.set(false);
+
+	setMode('system');
 };
