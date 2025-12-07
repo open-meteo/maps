@@ -5,7 +5,12 @@
 
 	import CheckIcon from '@lucide/svelte/icons/check';
 	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down';
-	import { domainGroups, domainOptions, variableOptions } from '@openmeteo/mapbox-layer';
+	import {
+		domainGroups,
+		domainOptions,
+		// levelGroupVariables,
+		variableOptions
+	} from '@openmeteo/mapbox-layer';
 
 	import { browser } from '$app/environment';
 
@@ -24,8 +29,7 @@
 
 	import VariableSelectionEmpty from './variable-selection-empty.svelte';
 
-	import type { Domain, DomainMetaData, Variables } from '@openmeteo/mapbox-layer';
-	import type { Map } from 'maplibre-gl';
+	import type { DomainMetaData } from '@openmeteo/mapbox-layer';
 
 	interface Props {
 		domain: string;
@@ -36,6 +40,16 @@
 	}
 
 	let { domain, variable, metaJson, domainChange, variableChange }: Props = $props();
+
+	// import from mpabox-layer later
+	const levelGroupVariables = [
+		'geopotential_height',
+		'relative_humidity',
+		'soil_moisture',
+		'soil_temperature',
+		'temperature',
+		'wind'
+	];
 
 	let selectedDomain = $derived.by(() => {
 		const object = domainOptions.find(({ value }) => value === domain);
@@ -56,6 +70,78 @@
 	});
 
 	let selectedPressureLevel = $derived(get(pressureLevels)[0]);
+
+	const LEVEL_REGEX =
+		/(?<height_level_to>\d+_to_.*)|(?<pressure_level>\d+hPa)|(?<height_level>\d+m|cm)/;
+	const LEVEL_PREFIX =
+		/(?<prefix>(geopotential_height|relative_humidity|temperature|soil_moisture|soil_temperature|temperature|wind(?!_gusts)))_/;
+
+	const LEVEL_UNIT_REGEX = /_(?<level>\d+)(?<unit>(m|cm|hPa))/;
+
+	let variableList = $derived.by(() => {
+		if (metaJson) {
+			const variables: string[] = [];
+			for (let mjVariable of metaJson.variables) {
+				let match = mjVariable.match(LEVEL_REGEX);
+				if (match) {
+					const prefixMatch = mjVariable.match(LEVEL_PREFIX);
+					if (prefixMatch) {
+						const prefix = prefixMatch.groups?.prefix;
+						if (!variables.includes(prefix)) variables.push(prefix);
+						continue;
+					}
+				}
+
+				variables.push(mjVariable);
+			}
+			return variables;
+		}
+	});
+
+	const levelGroupsList = $derived.by(() => {
+		console.log(metaJson);
+		if (metaJson) {
+			const groups = {};
+			for (let mjVariable of metaJson.variables) {
+				let match = mjVariable.match(LEVEL_REGEX);
+				if (match && match.groups) {
+					const prefixMatch = mjVariable.match(LEVEL_PREFIX);
+					if (prefixMatch) {
+						const { prefix } = prefixMatch.groups;
+						let variableObject = variableOptions.find(({ value }) => value === mjVariable) ?? {
+							value: mjVariable
+						};
+						if (!Object.keys(groups).includes(prefix)) {
+							groups[prefix] = [variableObject];
+						} else {
+							groups[prefix].push(variableObject);
+						}
+					}
+				}
+			}
+			return groups;
+		}
+	});
+
+	let level = $derived.by(() => {
+		const match = selectedVariable.value.match(LEVEL_UNIT_REGEX);
+		if (match && match.groups) {
+			return match.groups.level;
+		} else {
+			return undefined;
+		}
+	});
+
+	let unit = $derived.by(() => {
+		const match = selectedVariable.value.match(LEVEL_UNIT_REGEX);
+		if (match && match.groups) {
+			return match.groups.unit;
+		} else {
+			return undefined;
+		}
+	});
+	$inspect(level).with(console.log);
+	$inspect(unit).with(console.log);
 
 	let domainSelectionOpen = $state(get(dSO));
 	dSO.subscribe((dO) => {
@@ -107,11 +193,21 @@
 		}
 	});
 
-	let heightOptions = [2, 10];
-	let pressureLevelOptions = [950, 850, 750];
+	let levelGroupSelected = $state(
+		variable.match(LEVEL_REGEX) ? { value: 'temperature', label: 'Temperature' } : ''
+	);
 
-	let levelOptions = $derived([...heightOptions, ...pressureLevelOptions]);
-	let variableContainsLevel = $derived(selectedVariable.value.includes('wind'));
+	const checkDefaultLevel = (value: string) => {
+		const levelGroup = levelGroupsList[levelGroupSelected.value];
+		for (let level of levelGroup) {
+			if (level.value.includes('2m')) {
+				return level.value;
+			} else if (level.value.includes('10m')) {
+				return level.value;
+			}
+		}
+		return levelGroup[0].value;
+	};
 </script>
 
 <div
@@ -235,7 +331,9 @@
 						aria-expanded={variableSelectionOpen}
 					>
 						<div class="truncate">
-							{selectedVariable?.label || 'Select a variable...'}
+							{levelGroupSelected
+								? levelGroupSelected.label
+								: selectedVariable?.label || 'Select a variable...'}
 						</div>
 						<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
 					</Button>
@@ -286,8 +384,34 @@
 						<Command.List>
 							<Command.Empty>No variables found.</Command.Empty>
 							<Command.Group>
-								{#each metaJson!.variables as vr, i (i)}
-									{#if !vr.includes('v_component') && !vr.includes('_direction')}
+								{#each variableList as vr, i (i)}
+									{@const v = variableOptions.find(({ value }) => value === vr)
+										? variableOptions.find(({ value }) => value === vr)
+										: { value: vr, label: vr }}
+									{#if levelGroupVariables.includes(vr)}
+										<Command.Item
+											value={v?.value}
+											class="hover:!bg-primary/25 cursor-pointer {levelGroupSelected &&
+											levelGroupSelected.value === v?.value
+												? '!bg-primary/15'
+												: ''}"
+											onSelect={() => {
+												levelGroupSelected = v;
+												variableChange(checkDefaultLevel(v?.value));
+												vSO.set(false);
+											}}
+										>
+											<div class="flex w-full items-center justify-between">
+												{v?.label}
+												<CheckIcon
+													class="size-4 {!levelGroupSelected ||
+													levelGroupSelected.value !== v?.value
+														? 'text-transparent'
+														: ''}"
+												/>
+											</div>
+										</Command.Item>
+									{:else if !vr.includes('v_component') && !vr.includes('_direction')}
 										{@const v = variableOptions.find(({ value }) => value === vr)
 											? variableOptions.find(({ value }) => value === vr)
 											: { value: vr, label: vr }}
@@ -299,6 +423,7 @@
 												? '!bg-primary/15'
 												: ''}"
 											onSelect={() => {
+												levelGroupSelected = undefined;
 												variableChange(v?.value);
 												vSO.set(false);
 											}}
@@ -319,7 +444,7 @@
 					</Command.Root>
 				</Popover.Content>
 			</Popover.Root>
-			{#if variableContainsLevel}
+			{#if levelGroupSelected}
 				<Popover.Root
 					bind:open={pressureLevelSelectionOpen}
 					onOpenChange={(e) => {
@@ -335,7 +460,7 @@
 							aria-expanded={pressureLevelSelectionOpen}
 						>
 							<div class="truncate">
-								{selectedPressureLevel || 'Select a level...'}
+								{level + ' ' + unit || 'Select a level...'}
 							</div>
 							<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
 						</Button>
@@ -371,26 +496,27 @@
 							<Command.List>
 								<Command.Empty>No levels found.</Command.Empty>
 								<Command.Group>
-									{#each levelOptions as l, i (i)}
-										{@const level = String(l)}
-										<Command.Item
-											value={String(level)}
-											class="hover:!bg-primary/25 cursor-pointer {selectedVariable.value.includes(
-												level
-											)
-												? '!bg-primary/15'
-												: ''}"
-											onSelect={() => {}}
-										>
-											<div class="flex w-full items-center justify-between">
-												{level}
-												<CheckIcon
-													class="size-4 {!selectedVariable.value.includes(level)
-														? 'text-transparent'
-														: ''}"
-												/>
-											</div>
-										</Command.Item>
+									{#each levelGroupsList[levelGroupSelected.value] as { value, label } (value)}
+										{@const lvl = value.match(LEVEL_UNIT_REGEX).groups.level}
+										{@const unit = value.match(LEVEL_UNIT_REGEX).groups.unit}
+
+										{#if !value.includes('v_component') && !value.includes('_direction')}
+											<Command.Item
+												{value}
+												class="hover:!bg-primary/25 cursor-pointer {lvl === level
+													? '!bg-primary/15'
+													: ''}"
+												onSelect={() => {
+													variableChange(value);
+													pLSO.set(false);
+												}}
+											>
+												<div class="flex w-full items-center justify-between">
+													{label}
+													<CheckIcon class="size-4 {lvl !== level ? 'text-transparent' : ''}" />
+												</div>
+											</Command.Item>
+										{/if}
 									{/each}
 								</Command.Group>
 							</Command.List>
