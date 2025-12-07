@@ -74,7 +74,7 @@
 
 	let url: URL = $state();
 	let map: maplibregl.Map = $state();
-	let latestJson: DomainMetaData | undefined = $state();
+	let metaJson: DomainMetaData | undefined = $state();
 	let mapContainer: HTMLElement | null;
 
 	const changeOmDomain = async (newValue: string, updateUrlState = true): Promise<void> => {
@@ -94,23 +94,23 @@
 			pushState(url + map._hash.getHashString(), {});
 			toast('Domain set to: ' + object.label);
 		}
-		latestJson = await getDomainData();
+		metaJson = await getDomainData();
 
 		// align model run with new model_interval on domain change
 		$modelRun = closestModelRun($modelRun, object.model_interval);
-		checkClosestModelRun(map, url, latestJson); // checks and updates time and model run to fit the current domain selection
+		checkClosestModelRun(map, url, metaJson); // checks and updates time and model run to fit the current domain selection
 
 		if ($modelRun.getTime() - $time.getTime() > 0) {
 			$time = domainStep($modelRun, object.time_interval, 'forward');
 		}
-		if (!latestJson.variables.includes($variable)) {
-			$variable = latestJson.variables[0];
+		if (!metaJson.variables.includes($variable)) {
+			$variable = metaJson.variables[0];
 			url.searchParams.set('variable', $variable);
 			pushState(url + map._hash.getHashString(), {});
 			toast('Variable set to: ' + $variable);
 		}
 
-		changeOMfileURL(map, url, latestJson);
+		changeOMfileURL(map, url, metaJson);
 	};
 
 	const getDomainData = async (inProgress = false): Promise<DomainMetaData> => {
@@ -197,10 +197,10 @@
 
 			map.addControl(new DarkModeButton(map, url));
 			map.addControl(new SettingsButton());
-			map.addControl(new PartialButton(map, url, latestJson));
-			map.addControl(new ClipWaterButton(map, url, latestJson));
+			map.addControl(new PartialButton(map, url, metaJson));
+			map.addControl(new ClipWaterButton(map, url, metaJson));
 			map.addControl(new TimeButton(map, url));
-			latestJson = await getDomainData();
+			metaJson = await getDomainData();
 
 			addOmFileLayers(map);
 			addHillshadeSources(map);
@@ -210,11 +210,11 @@
 		});
 
 		map.on('zoomend', () => {
-			checkBounds(map, url, latestJson);
+			checkBounds(map, url, metaJson);
 		});
 
 		map.on('dragend', () => {
-			checkBounds(map, url, latestJson);
+			checkBounds(map, url, metaJson);
 		});
 	});
 
@@ -258,7 +258,7 @@
 <VariableSelection
 	domain={$domain}
 	variable={$variable}
-	{latestJson}
+	{metaJson}
 	domainChange={changeOmDomain}
 	variableChange={(newValue: string | undefined) => {
 		const object = variableOptions.find(({ value }) => value === newValue);
@@ -270,7 +270,7 @@
 		url.searchParams.set('variable', $variable);
 		pushState(url + map._hash.getHashString(), {});
 		toast('Variable set to: ' + object.label);
-		changeOMfileURL(map, url, latestJson);
+		changeOMfileURL(map, url, metaJson);
 	}}
 />
 <TimeSelector
@@ -282,7 +282,7 @@
 		$time = new SvelteDate(date);
 		url.searchParams.set('time', fmtISOWithoutTimezone($time));
 		pushState(url + map._hash.getHashString(), {});
-		changeOMfileURL(map, url, latestJson);
+		changeOMfileURL(map, url, metaJson);
 	}}
 />
 <div class="absolute">
@@ -300,7 +300,7 @@
 						}
 						reloadStyles(map);
 						await changeOmDomain($domain, false);
-						changeOMfileURL(map, url, latestJson);
+						changeOMfileURL(map, url, metaJson);
 						pushState(url + map._hash.getHashString(), {});
 						toast('Reset all states to default');
 					}}

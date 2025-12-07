@@ -25,12 +25,12 @@
 	interface Props {
 		domain: string;
 		variable: string;
-		latestJson: DomainMetaData | undefined;
+		metaJson: DomainMetaData | undefined;
 		domainChange: (value: string) => Promise<void>;
 		variableChange: (value: string | undefined) => void;
 	}
 
-	let { domain, variable, latestJson, domainChange, variableChange }: Props = $props();
+	let { domain, variable, metaJson, domainChange, variableChange }: Props = $props();
 
 	let selectedDomain = $derived.by(() => {
 		const object = domainOptions.find(({ value }) => value === domain);
@@ -101,7 +101,7 @@
 		? 'left-2.5'
 		: '-left-[182px]'} "
 >
-	{#if $loading && latestJson}
+	{#if $loading && metaJson}
 		<div class="flex flex-col gap-2.5">
 			<Button
 				variant="outline"
@@ -292,7 +292,7 @@
 						<Command.List>
 							<Command.Empty>No variables found.</Command.Empty>
 							<Command.Group>
-								{#each latestJson!.variables as vr, i (i)}
+								{#each metaJson!.variables as vr, i (i)}
 									{#if !vr.includes('v_component') && !vr.includes('_direction')}
 										{@const v = variableOptions.find(({ value }) => value === vr)
 											? variableOptions.find(({ value }) => value === vr)
