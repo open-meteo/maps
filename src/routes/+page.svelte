@@ -134,6 +134,7 @@
 		url = new URL(document.location.href);
 		urlParamsToPreferences(url);
 
+		// resets all the states when a new version is set in 'package.json'
 		if (!localStorageVersion || version !== localStorageVersion) {
 			resetStates();
 			lSV.set(version);
