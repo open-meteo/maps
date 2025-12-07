@@ -18,7 +18,6 @@
 		domainSelectionOpen as dSO,
 		loading,
 		pressureLevelsSelectionOpen as pLSO,
-		pressureLevels,
 		variableSelectionExtended as vSE,
 		variableSelectionOpen as vSO
 	} from '$lib/stores/preferences';
@@ -48,7 +47,9 @@
 		'soil_moisture',
 		'soil_temperature',
 		'temperature',
-		'wind'
+		'vertical_velocity',
+		'wind',
+		'cloud_cover'
 	];
 
 	let selectedDomain = $derived.by(() => {
@@ -65,19 +66,20 @@
 		if (object) {
 			return object;
 		} else {
-			throw new Error('Variable not found');
+			throw new Error(`Variable: ${variable} not found`);
 		}
 	});
 
-	let selectedPressureLevel = $derived(get(pressureLevels)[0]);
-
 	const LEVEL_REGEX =
 		/(?<height_level_to>\d+_to_.*)|(?<pressure_level>\d+hPa)|(?<height_level>\d+m|cm)/;
-	const LEVEL_PREFIX =
-		/(?<prefix>(geopotential_height|relative_humidity|temperature|soil_moisture|soil_temperature|temperature|wind(?!_gusts)))_/;
 
+	// todo add 'cloud_cover|' without breaking everything
+
+	const LEVEL_PREFIX =
+		/(?<prefix>(cloud_cover|geopotential_height|relative_humidity|temperature|soil_moisture|soil_temperature|temperature|vertical_velocity|wind(?!_gusts|_direction)))_/;
 	const LEVEL_UNIT_REGEX = /_(?<level>\d+)(?<unit>(m|cm|hPa))/;
 
+	// list of variables, with the level groups filtered out, and adding a prefix for the group
 	let variableList = $derived.by(() => {
 		if (metaJson) {
 			const variables: string[] = [];
@@ -99,7 +101,6 @@
 	});
 
 	const levelGroupsList = $derived.by(() => {
-		console.log(metaJson);
 		if (metaJson) {
 			const groups = {};
 			for (let mjVariable of metaJson.variables) {
@@ -140,8 +141,6 @@
 			return undefined;
 		}
 	});
-	$inspect(level).with(console.log);
-	$inspect(unit).with(console.log);
 
 	let domainSelectionOpen = $state(get(dSO));
 	dSO.subscribe((dO) => {
@@ -164,13 +163,21 @@
 	});
 
 	const keydownEvent = (event: KeyboardEvent) => {
-		if (variableSelectionExtended && !variableSelectionOpen && !domainSelectionOpen) {
+		if (
+			variableSelectionExtended &&
+			!variableSelectionOpen &&
+			!domainSelectionOpen &&
+			!pressureLevelSelectionOpen
+		) {
 			switch (event.key) {
 				case 'v':
 					vSO.set(true);
 					break;
 				case 'd':
 					dSO.set(true);
+					break;
+				case 'l':
+					pLSO.set(true);
 					break;
 			}
 		}
@@ -194,19 +201,29 @@
 	});
 
 	let levelGroupSelected = $state(
-		variable.match(LEVEL_REGEX) ? { value: 'temperature', label: 'Temperature' } : ''
+		variable.match(LEVEL_REGEX)
+			? (variableOptions.find(
+					({ value }) => value === variable.match(LEVEL_PREFIX)?.groups?.prefix
+				) ?? undefined)
+			: undefined
 	);
 
 	const checkDefaultLevel = (value: string) => {
 		const levelGroup = levelGroupsList[levelGroupSelected.value];
-		for (let level of levelGroup) {
-			if (level.value.includes('2m')) {
-				return level.value;
-			} else if (level.value.includes('10m')) {
-				return level.value;
+		if (levelGroup) {
+			// define some default levels
+			for (let level of levelGroup) {
+				if (level.value.includes('2m')) {
+					return level.value;
+				} else if (level.value.includes('10m')) {
+					return level.value;
+				} else if (level.value.includes('100m')) {
+					return level.value;
+				}
 			}
+			return levelGroup[0].value;
 		}
-		return levelGroup[0].value;
+		return value;
 	};
 </script>
 
@@ -444,7 +461,7 @@
 					</Command.Root>
 				</Popover.Content>
 			</Popover.Root>
-			{#if levelGroupSelected}
+			{#if levelGroupsList && levelGroupSelected && levelGroupSelected.value && levelGroupsList[levelGroupSelected.value]}
 				<Popover.Root
 					bind:open={pressureLevelSelectionOpen}
 					onOpenChange={(e) => {
@@ -498,12 +515,12 @@
 								<Command.Group>
 									{#each levelGroupsList[levelGroupSelected.value] as { value, label } (value)}
 										{@const lvl = value.match(LEVEL_UNIT_REGEX).groups.level}
-										{@const unit = value.match(LEVEL_UNIT_REGEX).groups.unit}
+										{@const u = value.match(LEVEL_UNIT_REGEX).groups.unit}
 
 										{#if !value.includes('v_component') && !value.includes('_direction')}
 											<Command.Item
 												{value}
-												class="hover:!bg-primary/25 cursor-pointer {lvl === level
+												class="hover:!bg-primary/25 cursor-pointer {lvl === level && u === unit
 													? '!bg-primary/15'
 													: ''}"
 												onSelect={() => {
@@ -513,7 +530,9 @@
 											>
 												<div class="flex w-full items-center justify-between">
 													{label}
-													<CheckIcon class="size-4 {lvl !== level ? 'text-transparent' : ''}" />
+													<CheckIcon
+														class="size-4 {lvl !== level || u !== unit ? 'text-transparent' : ''}"
+													/>
 												</div>
 											</Command.Item>
 										{/if}
