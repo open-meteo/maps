@@ -64,9 +64,9 @@ export const resetStates = () => {
 	variable.set('temperature_2m');
 
 	time.set(new Date(now));
-	modelRun.set(new Date()); // Does this work?
+	modelRun.set(new Date());
 	sheet.set(false);
-	loading.set(false); // Does this work?
+	loading.set(false);
 
 	domainSelectionOpen.set(false);
 	variableSelectionOpen.set(false);
