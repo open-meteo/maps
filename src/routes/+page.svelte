@@ -31,6 +31,7 @@
 		modelRun,
 		paddedBounds,
 		preferences,
+		resetStates,
 		sheet,
 		time,
 		variable
@@ -82,7 +83,6 @@
 		} else {
 			if (newValue) $domain = newValue;
 		}
-		console.log(object);
 
 		checkClosestDomainInterval(url);
 		url.searchParams.set('domain', $domain);
@@ -125,8 +125,6 @@
 	};
 
 	onMount(() => {
-		console.log(version);
-
 		url = new URL(document.location.href);
 		urlParamsToPreferences(url);
 	});
@@ -163,6 +161,9 @@
 		const style = await getStyle();
 
 		const domainObject = domainOptions.find(({ value }) => value === $domain);
+		if (!domainObject) {
+			throw new Error('Domain not found');
+		}
 		const grid = GridFactory.create(domainObject.grid);
 
 		map = new maplibregl.Map({
@@ -279,7 +280,16 @@
 		<Sheet.Content
 			><div class="px-6 pt-12">
 				<div><h2 class="text-lg font-bold">Units</h2></div>
-				<Settings {map} {url} />
+				<Settings
+					{map}
+					{url}
+					onReset={async () => {
+						resetStates();
+						await changeOmDomain($domain);
+						changeOMfileURL(map, url);
+						toast('Reset all states to default');
+					}}
+				/>
 			</div></Sheet.Content
 		>
 	</Sheet.Root>

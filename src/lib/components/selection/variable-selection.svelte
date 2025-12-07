@@ -67,14 +67,6 @@
 	let variableSelectionExtended = $state(get(vSE));
 	vSE.subscribe((vE) => {
 		variableSelectionExtended = vE;
-		if (url) {
-			if (vE) {
-				url.searchParams.set('variables-open', 'true');
-			} else if (url.searchParams.get('variables-open')) {
-				url.searchParams.delete('variables-open');
-			}
-			if (map) pushState(url + map._hash.getHashString(), {});
-		}
 	});
 
 	const keydownEvent = (event: KeyboardEvent) => {

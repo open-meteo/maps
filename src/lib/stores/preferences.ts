@@ -57,12 +57,11 @@ export const resolution: Persisted<0.5 | 1 | 2> = persisted('resolution', 1);
 export const localStorageVersion = persisted('local-storage-version', '');
 
 export const resetStates = () => {
-	console.log(get(vectorOptions));
 	preferences.set(defaultPreferences);
 	vectorOptions.set(defaultVectorOptions);
 
-	domain.set(defaultDomain);
-	variables.set([defaultVariable]);
+	domain.set('dwd_icon');
+	variable.set('temperature_2m');
 
 	time.set(new Date(now));
 	modelRun.set(new Date()); // Does this work?

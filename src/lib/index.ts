@@ -211,7 +211,6 @@ export const checkClosestModelRun = (
 		// check that requested timeStep is not older than 7 days
 		const _7daysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
 		if (timeStep.getTime() < _7daysAgo) {
-			console.log('herher');
 			toast.warning('Date selected too old, using 7 days ago time');
 			const nowTimeStep = domainStep(new Date(_7daysAgo), domain.time_interval, 'floor');
 			time.set(nowTimeStep);
