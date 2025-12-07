@@ -8,10 +8,10 @@
 	import { domainGroups, domainOptions, variableOptions } from '@openmeteo/mapbox-layer';
 
 	import { browser } from '$app/environment';
-	import { pushState } from '$app/navigation';
 
 	import {
 		domainSelectionOpen as dSO,
+		loading,
 		pressureLevelsSelectionOpen as pLSO,
 		pressureLevels,
 		variableSelectionExtended as vSE,
@@ -28,29 +28,33 @@
 	import type { Map } from 'maplibre-gl';
 
 	interface Props {
-		url: URL;
-		map: Map;
-		domain: Domain;
-		variables: Variables;
+		domain: string;
+		variable: string;
 		metaJson: DomainMetaData | undefined;
-		fetchingVariables: boolean;
 		domainChange: (value: string) => Promise<void>;
-		variablesChange: (value: string | undefined) => void;
+		variableChange: (value: string | undefined) => void;
 	}
 
-	let {
-		url,
-		map,
-		domain,
-		variables,
-		metaJson,
-		fetchingVariables,
-		domainChange,
-		variablesChange
-	}: Props = $props();
+	let { domain, variable, metaJson, domainChange, variableChange }: Props = $props();
 
-	let selectedDomain = $derived(domain);
-	let selectedVariable = $derived(variables[0]);
+	let selectedDomain = $derived.by(() => {
+		const object = domainOptions.find(({ value }) => value === domain);
+		if (object) {
+			return object;
+		} else {
+			throw new Error('Domain not found');
+		}
+	});
+
+	let selectedVariable = $derived.by(() => {
+		const object = variableOptions.find(({ value }) => value === variable);
+		if (object) {
+			return object;
+		} else {
+			throw new Error('Variable not found');
+		}
+	});
+
 	let selectedPressureLevel = $derived(get(pressureLevels)[0]);
 
 	let domainSelectionOpen = $state(get(dSO));
@@ -71,14 +75,6 @@
 	let variableSelectionExtended = $state(get(vSE));
 	vSE.subscribe((vE) => {
 		variableSelectionExtended = vE;
-		if (url) {
-			if (vE) {
-				url.searchParams.set('variables-open', 'true');
-			} else if (url.searchParams.get('variables-open')) {
-				url.searchParams.delete('variables-open');
-			}
-			pushState(url + map._hash.getHashString(), {});
-		}
 	});
 
 	const keydownEvent = (event: KeyboardEvent) => {
@@ -123,8 +119,8 @@
 		? 'left-2.5'
 		: '-left-[182px]'} "
 >
-	{#if fetchingVariables && metaJson}
-		<VariableSelectionEmpty {domain} />
+	{#if $loading && metaJson}
+		<VariableSelectionEmpty {selectedDomain} />
 	{:else}
 		<div class="flex flex-col gap-2.5">
 			<Popover.Root
@@ -292,8 +288,8 @@
 							<Command.Group>
 								{#each metaJson!.variables as vr, i (i)}
 									{#if !vr.includes('v_component') && !vr.includes('_direction')}
-										{@const v = variableOptions.find((vo) => vo.value === vr)
-											? variableOptions.find((vo) => vo.value === vr)
+										{@const v = variableOptions.find(({ value }) => value === vr)
+											? variableOptions.find(({ value }) => value === vr)
 											: { value: vr, label: vr }}
 
 										<Command.Item
@@ -303,7 +299,7 @@
 												? '!bg-primary/15'
 												: ''}"
 											onSelect={() => {
-												variablesChange(v?.value);
+												variableChange(v?.value);
 												vSO.set(false);
 											}}
 										>

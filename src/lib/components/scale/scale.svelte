@@ -1,18 +1,18 @@
 <script lang="ts">
-	import { type Variables, getColor, getColorScale, getOpacity } from '@openmeteo/mapbox-layer';
+	import { getColor, getColorScale, getOpacity } from '@openmeteo/mapbox-layer';
 	import { mode } from 'mode-watcher';
 
 	import { textWhite } from '$lib';
 
 	interface Props {
 		showScale: boolean;
-		variables: Variables;
+		variable: string;
 	}
 
-	let { showScale, variables }: Props = $props();
+	let { showScale, variable }: Props = $props();
 
 	let colorScale = $derived.by(() => {
-		return getColorScale(variables[0].value);
+		return getColorScale(variable);
 	});
 </script>
 
@@ -25,7 +25,7 @@
 			<div class="flex max-h-[270px] flex-col-reverse" style="background:white;">
 				{#each colorScale.colors as cs, i (i)}
 					<div
-						style={`background: rgba(${cs.join(',')}); filter: opacity(${getOpacity(variables[0].value, Math.floor(colorScale.min + i * 0.01 * (colorScale.max - colorScale.min)), mode.current === 'dark', colorScale)});min-width: 28px; width: ${17 + String(colorScale.max).length * 4}px; height:${270 / ((colorScale.max - colorScale.min) * colorScale.scalefactor)}px;`}
+						style={`background: rgba(${cs.join(',')}); filter: opacity(${getOpacity(variable, Math.floor(colorScale.min + i * 0.01 * (colorScale.max - colorScale.min)), mode.current === 'dark', colorScale)});min-width: 28px; width: ${17 + String(colorScale.max).length * 4}px; height:${270 / ((colorScale.max - colorScale.min) * colorScale.scalefactor)}px;`}
 					></div>
 				{/each}
 

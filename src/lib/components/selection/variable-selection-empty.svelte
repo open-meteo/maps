@@ -6,12 +6,10 @@
 	import type { Domain } from '@openmeteo/mapbox-layer';
 
 	interface Props {
-		domain: Domain;
+		selectedDomain: Domain;
 	}
 
-	let { domain }: Props = $props();
-
-	let selectedDomain = $derived(domain);
+	let { selectedDomain }: Props = $props();
 </script>
 
 <div class="flex flex-col gap-2.5">
