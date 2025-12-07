@@ -8,7 +8,7 @@
 	import {
 		domainGroups,
 		domainOptions,
-		// levelGroupVariables,
+		levelGroupVariables,
 		variableOptions
 	} from '@openmeteo/mapbox-layer';
 
@@ -40,18 +40,6 @@
 
 	let { domain, variable, metaJson, domainChange, variableChange }: Props = $props();
 
-	// import from mpabox-layer later
-	const levelGroupVariables = [
-		'geopotential_height',
-		'relative_humidity',
-		'soil_moisture',
-		'soil_temperature',
-		'temperature',
-		'vertical_velocity',
-		'wind',
-		'cloud_cover'
-	];
-
 	let selectedDomain = $derived.by(() => {
 		const object = domainOptions.find(({ value }) => value === domain);
 		if (object) {
@@ -72,8 +60,6 @@
 
 	const LEVEL_REGEX =
 		/(?<height_level_to>\d+_to_.*)|(?<pressure_level>\d+hPa)|(?<height_level>\d+m|cm)/;
-
-	// todo add 'cloud_cover|' without breaking everything
 
 	const LEVEL_PREFIX =
 		/(?<prefix>(cloud_cover|geopotential_height|relative_humidity|temperature|soil_moisture|soil_temperature|temperature|vertical_velocity|wind(?!_gusts|_direction)))_/;
