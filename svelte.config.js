@@ -15,7 +15,10 @@ const config = {
 			fallback: null,
 			precompress: false,
 			strict: true
-		})
+		}),
+		version: {
+			name: process.env.npm_package_version
+		}
 	},
 	extensions: ['.svelte', '.svx']
 };

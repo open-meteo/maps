@@ -3,7 +3,7 @@
 	import { SvelteDate } from 'svelte/reactivity';
 	import { get } from 'svelte/store';
 
-	import { domainStep } from '@openmeteo/mapbox-layer';
+	import { domainOptions, domainStep } from '@openmeteo/mapbox-layer';
 	import { toast } from 'svelte-sonner';
 
 	import { browser } from '$app/environment';
@@ -15,11 +15,11 @@
 
 	import { pad } from '$lib';
 
-	import type { Domain, ModelDt } from '@openmeteo/mapbox-layer';
+	import type { ModelDt } from '@openmeteo/mapbox-layer';
 
 	interface Props {
 		time: Date;
-		domain: Domain;
+		domain: string;
 		disabled: boolean;
 		timeSelector: boolean;
 		onDateChange: (date: Date) => void;
@@ -33,10 +33,19 @@
 		onDateChange
 	}: Props = $props();
 
+	let selectedDomain = $derived.by(() => {
+		const object = domainOptions.find(({ value }) => value === domain);
+		if (object) {
+			return object;
+		} else {
+			throw new Error('Domain not found');
+		}
+	});
+
 	let currentDate = $derived(time);
 	let currentHour = $derived(currentDate.getHours());
 
-	const resolution: ModelDt = $derived(domain.time_interval);
+	const resolution: ModelDt = $derived(selectedDomain.time_interval);
 
 	const previousHour = () => {
 		const date = domainStep(time, resolution, 'backward');
