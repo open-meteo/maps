@@ -33,12 +33,12 @@ import {
 	resolution as r,
 	tileSize as tS,
 	time,
+	variable as v,
 	vectorOptions as vO,
-	variableSelectionExtended,
-	variables
+	variableSelectionExtended
 } from '$lib/stores/preferences';
 
-import type { Domain, DomainMetaData } from '@openmeteo/mapbox-layer';
+import type { DomainMetaData } from '@openmeteo/mapbox-layer';
 
 let preferences = get(p);
 p.subscribe((newPreferences) => {
@@ -114,14 +114,14 @@ export const urlParamsToPreferences = (url: URL) => {
 		}
 	}
 
-	if (params.get('domain')) {
-		d.set(domainOptions.find((dm) => dm.value === params.get('domain')) ?? domainOptions[0]);
+	const domain = params.get('domain');
+	if (domain) {
+		d.set(domain);
 	}
 
-	if (params.get('variables')) {
-		variables.set([
-			variableOptions.find((v) => v.value === params.get('variables')) ?? variableOptions[0]
-		]);
+	const variable = params.get('variable');
+	if (variable) {
+		v.set(variable);
 	}
 
 	if (params.get('hillshade')) {
@@ -187,11 +187,12 @@ export const fmtISOWithoutTimezone = (d: Date) => d.toISOString().replace(/[:Z]/
 export const checkClosestDomainInterval = (url: URL) => {
 	const original = get(time);
 	const t = new Date(original.getTime());
-	const domain: Domain = get(d);
-
-	const closestTime = domainStep(t, domain.time_interval, 'floor');
-	url.searchParams.set('time', fmtISOWithoutTimezone(closestTime));
-	time.set(closestTime);
+	const domain = domainOptions.find(({ value }) => value === get(d));
+	if (domain) {
+		const closestTime = domainStep(t, domain.time_interval, 'floor');
+		url.searchParams.set('time', fmtISOWithoutTimezone(closestTime));
+		time.set(closestTime);
+	}
 };
 
 export const checkClosestModelRun = (
@@ -199,7 +200,10 @@ export const checkClosestModelRun = (
 	url: URL,
 	latest: DomainMetaData | undefined
 ) => {
-	const domain = get(d);
+	const domain = domainOptions.find(({ value }) => value === get(d));
+	if (!domain) {
+		throw new Error('Domain not found');
+	}
 	let timeStep = get(time);
 
 	// other than seasonal models, data is not available longer than 7 days
@@ -207,6 +211,7 @@ export const checkClosestModelRun = (
 		// check that requested timeStep is not older than 7 days
 		const _7daysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
 		if (timeStep.getTime() < _7daysAgo) {
+			console.log('herher');
 			toast.warning('Date selected too old, using 7 days ago time');
 			const nowTimeStep = domainStep(new Date(_7daysAgo), domain.time_interval, 'floor');
 			time.set(nowTimeStep);
@@ -223,7 +228,7 @@ export const checkClosestModelRun = (
 		}
 	}
 
-	const nearestModelRun = closestModelRun(timeStep, get(d).model_interval);
+	const nearestModelRun = closestModelRun(timeStep, domain.model_interval);
 	const modelRun = get(mR);
 
 	let setToModelRun = new SvelteDate(modelRun);
@@ -660,10 +665,10 @@ export const getStyle = async () => {
 
 export const textWhite = (
 	[r, g, b]: [number, number, number],
-	opacity: number,
-	dark: boolean
+	opacity?: number,
+	dark?: boolean
 ): boolean => {
-	if (opacity < 65 && !dark) {
+	if (opacity && opacity < 65 && !dark) {
 		return false;
 	}
 	return r * 0.299 + g * 0.587 + b * 0.114 <= 186;
@@ -672,8 +677,13 @@ export const textWhite = (
 let popup: maplibregl.Popup | undefined;
 let showPopup = false;
 export const addPopup = (map: maplibregl.Map) => {
-	let variable = get(variables)[0];
-	let colorScale = getColorScale(variable.value);
+	const variable = get(v);
+	const variableSelected = variableOptions.find(({ value }) => value === variable);
+	if (!variableSelected) {
+		throw new Error('Variable not found');
+	}
+
+	let colorScale = getColorScale(variable);
 
 	map.on('mousemove', function (e) {
 		if (showPopup) {
@@ -690,16 +700,16 @@ export const addPopup = (map: maplibregl.Map) => {
 				coordinates.lat,
 				coordinates.lng,
 				omRasterSource?.url || '',
-				variable
+				variableSelected
 			);
 
 			if (value) {
-				if ((hideZero.includes(variable.value) && value <= 0.25) || !value) {
+				if ((hideZero.includes(variable) && value <= 0.25) || !value) {
 					popup.remove();
 				} else {
 					const dark = mode.current === 'dark';
 					const color = getColor(colorScale, value);
-					const opacity = getOpacity(variable.value, value, dark, colorScale);
+					const opacity = getOpacity(variable, value, dark, colorScale);
 
 					const content =
 						'<span class="popup-value">' + value.toFixed(1) + '</span>' + colorScale.unit;
@@ -718,8 +728,7 @@ export const addPopup = (map: maplibregl.Map) => {
 	});
 
 	map.on('click', (e: maplibregl.MapMouseEvent) => {
-		variable = get(variables)[0];
-		colorScale = getColorScale(get(variables)[0].value);
+		colorScale = getColorScale(variable);
 
 		showPopup = !showPopup;
 		if (!showPopup && popup) {
@@ -735,6 +744,8 @@ export const addPopup = (map: maplibregl.Map) => {
 const padding = 25; //%
 export const checkBounds = (map: maplibregl.Map, url: URL, latest: DomainMetaData | undefined) => {
 	const domain = get(d);
+	const domainObject = domainOptions.find(({ value }) => value === domain);
+
 	const geojson = get(paddedBoundsGeoJSON);
 	const paddedBounds = get(pB);
 	const mapBounds = map.getBounds();
@@ -742,7 +753,7 @@ export const checkBounds = (map: maplibregl.Map, url: URL, latest: DomainMetaDat
 
 	mB.set(mapBounds);
 
-	if (paddedBounds && preferences.partial) {
+	if (domainObject && paddedBounds && preferences.partial) {
 		let exceededPadding = false;
 
 		if (geojson) {
@@ -757,7 +768,7 @@ export const checkBounds = (map: maplibregl.Map, url: URL, latest: DomainMetaDat
 			paddedBoundsSource?.setData(geojson);
 		}
 
-		const gridBounds = GridFactory.create(domain.grid).getBounds();
+		const gridBounds = GridFactory.create(domainObject.grid).getBounds();
 
 		if (mapBounds.getSouth() < paddedBounds.getSouth() && paddedBounds.getSouth() > gridBounds[1]) {
 			exceededPadding = true;
@@ -779,13 +790,15 @@ export const checkBounds = (map: maplibregl.Map, url: URL, latest: DomainMetaDat
 
 export const getPaddedBounds = (map: maplibregl.Map) => {
 	const domain = get(d);
+	const domainObject = domainOptions.find(({ value }) => value === domain);
+
 	const mapBounds = get(mB);
 	const paddedBounds = get(pB);
 	const paddedBoundsSource = get(pBS);
 
-	const gridBounds = GridFactory.create(domain.grid).getBounds();
+	if (domainObject && mapBounds && preferences.partial) {
+		const gridBounds = GridFactory.create(domainObject.grid).getBounds();
 
-	if (mapBounds && preferences.partial) {
 		if (!paddedBoundsSource) {
 			paddedBoundsGeoJSON.set({
 				type: 'FeatureCollection',
@@ -860,17 +873,17 @@ const fmtSelectedTime = (time: Date) => {
 export const getOMUrl = () => {
 	const domain = get(d);
 	const uri =
-		domain.value && domain.value.startsWith('dwd_icon')
+		domain && domain.startsWith('dwd_icon')
 			? `https://s3.servert.ch`
 			: `https://map-tiles.open-meteo.com`;
 
-	let url = `${uri}/data_spatial/${domain.value}`;
+	let url = `${uri}/data_spatial/${domain}`;
 
 	const modelRun = get(mR);
 	const selectedTime = get(time);
 	url += `/${fmtModelRun(modelRun)}/${fmtSelectedTime(selectedTime)}.om`;
 
-	const variable = get(variables)[0].value;
+	const variable = get(v);
 	url += `?variable=${variable}`;
 
 	if (mode.current === 'dark') url += `&dark=true`;

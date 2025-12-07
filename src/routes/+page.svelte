@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 	import { SvelteDate } from 'svelte/reactivity';
-	import { get } from 'svelte/store';
 	import { fade } from 'svelte/transition';
 
 	import {
@@ -27,16 +26,14 @@
 
 	import {
 		domain,
-		localStorageVersion as lSV,
 		loading,
 		mapBounds,
 		modelRun,
 		paddedBounds,
 		preferences,
-		resetStates,
 		sheet,
 		time,
-		variables
+		variable
 	} from '$lib/stores/preferences';
 
 	import {
@@ -75,38 +72,37 @@
 	let map: maplibregl.Map = $state();
 	let latestJson: DomainMetaData | undefined = $state();
 	let mapContainer: HTMLElement | null;
-	let fetchingVariables = $state(false);
 
-	let localStorageVersion = $derived(get(lSV));
-
-	const changeOmDomain = async (value: string): Promise<void> => {
+	const changeOmDomain = async (newValue: string): Promise<void> => {
 		loading.set(true);
 
-		$domain = domainOptions.find((dm) => dm.value === value) ?? $domain;
+		const object = domainOptions.find(({ value }) => value === newValue);
+		if (!object) {
+			throw new Error('Domain not found');
+		} else {
+			if (newValue) $domain = newValue;
+		}
+		console.log(object);
+
 		checkClosestDomainInterval(url);
-		url.searchParams.set('domain', $domain.value);
+		url.searchParams.set('domain', $domain);
 		url.searchParams.set('time', fmtISOWithoutTimezone($time));
 		pushState(url + map._hash.getHashString(), {});
-		toast('Domain set to: ' + $domain.label);
+		toast('Domain set to: ' + object.label);
 		latestJson = await getDomainData();
 
 		// align model run with new model_interval on domain change
-		$modelRun = closestModelRun($modelRun, $domain.model_interval);
+		$modelRun = closestModelRun($modelRun, object.model_interval);
 		checkClosestModelRun(map, url, latestJson); // checks and updates time and model run to fit the current domain selection
 
 		if ($modelRun.getTime() - $time.getTime() > 0) {
-			$time = domainStep($modelRun, $domain.time_interval, 'forward');
+			$time = domainStep($modelRun, object.time_interval, 'forward');
 		}
-		if (!latestJson.variables.includes($variables[0].value)) {
-			$variables = [
-				variableOptions.find((v) => v.value === latestJson!.variables[0]) ?? {
-					value: latestJson.variables[0],
-					label: latestJson.variables[0]
-				}
-			];
-			url.searchParams.set('variable', $variables[0].value);
+		if (!latestJson.variables.includes($variable)) {
+			$variable = latestJson.variables[0];
+			url.searchParams.set('variable', $variable);
 			pushState(url + map._hash.getHashString(), {});
-			toast('Variable set to: ' + $variables[0].label);
+			toast('Variable set to: ' + $variable);
 		}
 
 		changeOMfileURL(map, url, latestJson);
@@ -114,11 +110,11 @@
 
 	const getDomainData = async (inProgress = false): Promise<DomainMetaData> => {
 		const uri =
-			$domain.value && $domain.value.startsWith('dwd_icon')
+			$domain && $domain.startsWith('dwd_icon')
 				? `https://s3.servert.ch`
 				: `https://map-tiles.open-meteo.com`;
 
-		const metaJsonUrl = `${uri}/data_spatial/${$domain.value}/${inProgress ? 'in-progress' : 'latest'}.json`;
+		const metaJsonUrl = `${uri}/data_spatial/${$domain}/${inProgress ? 'in-progress' : 'latest'}.json`;
 		const res = await fetch(metaJsonUrl);
 		if (!res.ok) {
 			loading.set(false);
@@ -129,10 +125,7 @@
 	};
 
 	onMount(() => {
-		if (!localStorageVersion || version !== localStorageVersion) {
-			resetStates();
-			lSV.set(version);
-		}
+		console.log(version);
 
 		url = new URL(document.location.href);
 		urlParamsToPreferences(url);
@@ -169,13 +162,14 @@
 
 		const style = await getStyle();
 
-		const grid = GridFactory.create($domain.grid);
+		const domainObject = domainOptions.find(({ value }) => value === $domain);
+		const grid = GridFactory.create(domainObject.grid);
 
 		map = new maplibregl.Map({
 			container: mapContainer as HTMLElement,
 			style: style,
 			center: grid.getCenter(),
-			zoom: $domain?.grid.zoom,
+			zoom: domainObject.grid.zoom,
 			keyboard: false,
 			hash: true,
 			maxPitch: 85
@@ -193,7 +187,7 @@
 			map.addControl(new PartialButton(map, url, latestJson));
 			map.addControl(new ClipWaterButton(map, url, latestJson));
 			map.addControl(new TimeButton(map, url));
-			changeOmDomain('');
+			// changeOmDomain();
 
 			addOmFileLayers(map);
 			addHillshadeSources(map);
@@ -245,27 +239,26 @@
 {/if}
 
 <div class="map" id="#map_container" bind:this={mapContainer}></div>
-<Scale showScale={$preferences.showScale} variables={$variables} />
+<Scale showScale={$preferences.showScale} variable={$variable} />
 
 <HelpDialog />
 <VariableSelection
 	{url}
 	{map}
 	domain={$domain}
-	variables={$variables}
+	variable={$variable}
 	metaJson={latestJson}
-	{fetchingVariables}
 	domainChange={changeOmDomain}
-	variablesChange={(value: string | undefined) => {
-		$variables = [
-			variableOptions.find((v) => v.value === value) ?? {
-				value: value ?? '',
-				label: value ?? ''
-			}
-		];
-		url.searchParams.set('variable', $variables[0].value);
+	variableChange={(newValue: string | undefined) => {
+		const object = variableOptions.find(({ value }) => value === newValue);
+		if (!object) {
+			throw new Error('Variable not found');
+		} else {
+			if (newValue) $variable = newValue;
+		}
+		url.searchParams.set('variable', $variable);
 		pushState(url + map._hash.getHashString(), {});
-		toast('Variable set to: ' + $variables[0].label);
+		toast('Variable set to: ' + object.label);
 		changeOMfileURL(map, url, latestJson);
 	}}
 />

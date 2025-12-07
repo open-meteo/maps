@@ -24,15 +24,8 @@ const defaultVectorOptions = {
 
 export const vectorOptions = persisted('vector-options', defaultVectorOptions);
 
-const defaultDomain =
-	domainOptions.find((dm) => dm.value === import.meta.env.VITE_DOMAIN) ?? domainOptions[0];
-
-export const domain = persisted('domain', defaultDomain);
-
-const defaultVariable =
-	variableOptions.find((v) => v.value === import.meta.env.VITE_VARIABLE) ?? variableOptions[0];
-
-export const variables = persisted('variables', [defaultVariable]);
+export const domain = persisted('domain', 'dwd_icon');
+export const variable = persisted('variable', 'temperature_2m');
 
 const now = new Date();
 now.setHours(now.getHours() + 1, 0, 0, 0);

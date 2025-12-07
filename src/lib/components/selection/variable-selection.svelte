@@ -21,23 +21,38 @@
 	import * as Command from '$lib/components/ui/command';
 	import * as Popover from '$lib/components/ui/popover';
 
-	import type { Domain, DomainMetaData, Variables } from '@openmeteo/mapbox-layer';
+	import type { DomainMetaData } from '@openmeteo/mapbox-layer';
 	import type { Map } from 'maplibre-gl';
 
 	interface Props {
 		url: URL;
 		map: Map;
-		domain: Domain;
-		variables: Variables;
+		domain: string;
+		variable: string;
 		metaJson: DomainMetaData | undefined;
 		domainChange: (value: string) => Promise<void>;
-		variablesChange: (value: string | undefined) => void;
+		variableChange: (value: string | undefined) => void;
 	}
 
-	let { url, map, domain, variables, metaJson, domainChange, variablesChange }: Props = $props();
+	let { url, map, domain, variable, metaJson, domainChange, variableChange }: Props = $props();
 
-	let selectedDomain = $derived(domain);
-	let selectedVariable = $derived(variables[0]);
+	let selectedDomain = $derived.by(() => {
+		const object = domainOptions.find(({ value }) => value === domain);
+		if (object) {
+			return object;
+		} else {
+			throw new Error('Domain not found');
+		}
+	});
+
+	let selectedVariable = $derived.by(() => {
+		const object = variableOptions.find(({ value }) => value === variable);
+		if (object) {
+			return object;
+		} else {
+			throw new Error('Variable not found');
+		}
+	});
 
 	let domainSelectionOpen = $state(get(dSO));
 	dSO.subscribe((dO) => {
@@ -291,8 +306,8 @@
 							<Command.Group>
 								{#each metaJson!.variables as vr, i (i)}
 									{#if !vr.includes('v_component') && !vr.includes('_direction')}
-										{@const v = variableOptions.find((vo) => vo.value === vr)
-											? variableOptions.find((vo) => vo.value === vr)
+										{@const v = variableOptions.find(({ value }) => value === vr)
+											? variableOptions.find(({ value }) => value === vr)
 											: { value: vr, label: vr }}
 
 										<Command.Item
@@ -302,7 +317,7 @@
 												? '!bg-primary/15'
 												: ''}"
 											onSelect={() => {
-												variablesChange(v?.value);
+												variableChange(v?.value);
 												vSO.set(false);
 											}}
 										>
