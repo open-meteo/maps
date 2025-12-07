@@ -34,6 +34,8 @@
 		paddedBounds,
 		preferences,
 		resetStates,
+		resolution,
+		resolutionSet,
 		sheet,
 		time,
 		variable
@@ -53,6 +55,7 @@
 	import VariableSelection from '$lib/components/selection/variable-selection.svelte';
 	import Settings from '$lib/components/settings/settings.svelte';
 	import TimeSelector from '$lib/components/time/time-selector.svelte';
+	import PopoverContent from '$lib/components/ui/popover/popover-content.svelte';
 	import * as Sheet from '$lib/components/ui/sheet';
 
 	import {
@@ -63,6 +66,7 @@
 		checkBounds,
 		checkClosestDomainInterval,
 		checkClosestModelRun,
+		checkHighDefinition,
 		getPaddedBounds,
 		getStyle,
 		setMapControlSettings,
@@ -134,9 +138,20 @@
 		url = new URL(document.location.href);
 		urlParamsToPreferences(url);
 
+		// first time check if monitor supports high definition, for increased tileResolution
+		if (!get(resolutionSet)) {
+			if (checkHighDefinition()) {
+				resolution.set(2);
+			}
+			resolutionSet.set(true);
+		}
+
 		// resets all the states when a new version is set in 'package.json'
-		if (!localStorageVersion || version !== localStorageVersion) {
-			resetStates();
+		// and version already set before
+		if (version !== localStorageVersion) {
+			if (localStorageVersion) {
+				resetStates();
+			}
 			lSV.set(version);
 		}
 	});

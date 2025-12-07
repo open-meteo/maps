@@ -39,10 +39,7 @@ export const loading = writable(false);
 
 export const domainSelectionOpen = writable(false);
 export const variableSelectionOpen = writable(false);
-export const variableSelectionExtended: Persisted<boolean | undefined> = persisted(
-	'variables-open',
-	false
-);
+export const variableSelectionExtended = persisted('variables-open', false);
 
 export const mapBounds: Writable<maplibregl.LngLatBounds | null> = writable(null);
 
@@ -55,9 +52,12 @@ export const paddedBoundsGeoJSON: Writable<GeoJSON.GeoJSON | null> = writable(nu
 export const tileSize: Persisted<128 | 256 | 512> = persisted('tile-size', 256);
 export const resolution: Persisted<0.5 | 1 | 2> = persisted('resolution', 1);
 // check for retina on first load, and set the resolution to 2
-export const resolutionSet: Persisted<boolean> = persisted('resolution-set', false);
+export const resolutionSet = persisted('resolution-set', false);
 
-export const localStorageVersion = persisted('local-storage-version', '');
+export const localStorageVersion: Persisted<string | undefined> = persisted(
+	'local-storage-version',
+	undefined
+);
 
 export const resetStates = () => {
 	preferences.set(defaultPreferences);
