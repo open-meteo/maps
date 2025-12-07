@@ -1,23 +1,18 @@
 <script lang="ts">
-	import {
-		type Variables,
-		getColor,
-		getColorScaleMinMaxScaled,
-		getOpacity
-	} from '@openmeteo/mapbox-layer';
+	import { getColor, getColorScaleMinMaxScaled, getOpacity } from '@openmeteo/mapbox-layer';
 	import { mode } from 'mode-watcher';
 
 	import { textWhite } from '$lib';
 
 	interface Props {
 		showScale: boolean;
-		variables: Variables;
+		variable: string;
 	}
 
-	let { showScale, variables }: Props = $props();
+	let { showScale, variable }: Props = $props();
 
 	let colorScale = $derived.by(() => {
-		return getColorScaleMinMaxScaled(variables[0].value);
+		return getColorScaleMinMaxScaled(variable);
 	});
 </script>
 
@@ -36,10 +31,9 @@
 					{@const value =
 						colorScale.min +
 						(i / (colorScale.colors.length - 1)) * (colorScale.max - colorScale.min)}
-					{@const opacity =
-						getOpacity(variables[0].value, value, mode.current === 'dark', colorScale) / 255}
+					{@const opacity = getOpacity(variable, value, mode.current === 'dark', colorScale) / 255}
 					<div
-						style={`background: rgba(${cs[0]}, ${cs[1]}, ${cs[2]}, ${opacity}); min-width: 28px; width: ${17 + Math.max(String(Math.round(colorScale.max)).length, colorScale.unit.length + 1, digits + 2) * 4}px; height: ${270 / colorScale.colors.length}px;`}
+						style={`background: rgba(${cs.join(',')}); filter: opacity(${opacity});min-width: 28px; width: ${17 + Math.max(String(Math.round(colorScale.max)).length, colorScale.unit.length + 1, digits + 2) * 4}px; height: ${270 / colorScale.colors.length}px;`}
 					></div>
 				{/each}
 
@@ -53,7 +47,7 @@
 					) as [number, number, number]}
 					{@const opacity =
 						getOpacity(
-							variables[0].value,
+							variable,
 							colorScale.min + step * 0.01 * (colorScale.max - colorScale.min),
 							mode.current === 'dark',
 							colorScale

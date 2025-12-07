@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Button from '../ui/button/button.svelte';
 	import ArrowsSettings from './arrows-settings.svelte';
 	import ContourSettings from './contour-settings.svelte';
 	import GridSettings from './grid-settings.svelte';
@@ -9,12 +10,17 @@
 	interface Props {
 		map: Map;
 		url: URL;
+		onReset: () => Promise<void>;
 	}
 
-	let { map = $bindable(), url }: Props = $props();
+	let { map = $bindable(), url, onReset }: Props = $props();
 </script>
 
 <GridSettings {map} {url} />
 <ArrowsSettings {map} {url} />
 <ContourSettings {map} {url} />
 <ResolutionSettings {map} {url} />
+<div class="mt-6">
+	<h2 class="text-lg font-bold">States</h2>
+	<Button class="cursor-pointer" onclick={onReset}>Reset all states</Button>
+</div>
