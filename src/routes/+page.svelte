@@ -287,6 +287,10 @@
 						resetStates();
 						await changeOmDomain($domain);
 						changeOMfileURL(map, url);
+						for (let [key] of url.searchParams) {
+							url.searchParams.delete(key);
+						}
+						pushState(url + map._hash.getHashString(), {});
 						toast('Reset all states to default');
 					}}
 				/>
