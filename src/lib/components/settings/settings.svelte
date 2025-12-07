@@ -22,5 +22,5 @@
 <ResolutionSettings {map} {url} />
 <div class="mt-6">
 	<h2 class="text-lg font-bold">States</h2>
-	<Button onclick={onReset}>Reset all states</Button>
+	<Button class="cursor-pointer" onclick={onReset}>Reset all states</Button>
 </div>

@@ -77,7 +77,7 @@
 	let latestJson: DomainMetaData | undefined = $state();
 	let mapContainer: HTMLElement | null;
 
-	const changeOmDomain = async (newValue: string, updateState = true): Promise<void> => {
+	const changeOmDomain = async (newValue: string, updateUrlState = true): Promise<void> => {
 		loading.set(true);
 
 		const object = domainOptions.find(({ value }) => value === newValue);
@@ -88,7 +88,7 @@
 		}
 
 		checkClosestDomainInterval(url);
-		if (updateState) {
+		if (updateUrlState) {
 			url.searchParams.set('domain', $domain);
 			url.searchParams.set('time', fmtISOWithoutTimezone($time));
 			pushState(url + map._hash.getHashString(), {});
@@ -300,7 +300,7 @@
 						}
 						reloadStyles(map);
 						await changeOmDomain($domain, false);
-						changeOMfileURL(map, url);
+						changeOMfileURL(map, url, latestJson);
 						pushState(url + map._hash.getHashString(), {});
 						toast('Reset all states to default');
 					}}
