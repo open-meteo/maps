@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 	import { SvelteDate } from 'svelte/reactivity';
+	import { get } from 'svelte/store';
 	import { fade } from 'svelte/transition';
 
 	import {
@@ -26,6 +27,7 @@
 
 	import {
 		domain,
+		localStorageVersion as lSV,
 		loading,
 		mapBounds,
 		modelRun,
@@ -127,9 +129,15 @@
 		return json;
 	};
 
+	let localStorageVersion = $derived(get(lSV));
 	onMount(() => {
 		url = new URL(document.location.href);
 		urlParamsToPreferences(url);
+
+		if (!localStorageVersion || version !== localStorageVersion) {
+			resetStates();
+			lSV.set(version);
+		}
 	});
 
 	const omProtocolSettings: OmProtocolSettings = $derived({
