@@ -7,11 +7,9 @@ import {
 	domainOptions,
 	domainStep,
 	getColor,
-	getColorScale,
 	getOpacity,
 	getValueFromLatLong,
-	hideZero,
-	variableOptions
+	hideZero
 } from '@openmeteo/mapbox-layer';
 import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
@@ -21,6 +19,7 @@ import { browser } from '$app/environment';
 import { pushState } from '$app/navigation';
 
 import {
+	colorScale as cS,
 	domain as d,
 	loading,
 	mapBounds as mB,
@@ -684,14 +683,6 @@ export const textWhite = (
 let popup: maplibregl.Popup | undefined;
 let showPopup = false;
 export const addPopup = (map: maplibregl.Map) => {
-	const variable = get(v);
-	const variableSelected = variableOptions.find(({ value }) => value === variable);
-	if (!variableSelected) {
-		throw new Error('Variable not found');
-	}
-
-	let colorScale = getColorScale(variable);
-
 	map.on('mousemove', function (e) {
 		if (showPopup) {
 			const coordinates = e.lngLat;
@@ -706,20 +697,19 @@ export const addPopup = (map: maplibregl.Map) => {
 			const { value } = getValueFromLatLong(
 				coordinates.lat,
 				coordinates.lng,
-				omRasterSource?.url || '',
-				variableSelected
+				omRasterSource?.url || ''
 			);
 
 			if (value) {
-				if ((hideZero.includes(variable) && value <= 0.25) || !value) {
+				if ((hideZero.includes(get(v)) && value <= 0.25) || !value) {
 					popup.remove();
 				} else {
 					const dark = mode.current === 'dark';
-					const color = getColor(colorScale, value);
-					const opacity = getOpacity(variable, value, dark, colorScale);
+					const color = getColor(get(cS), value);
+					const opacity = getOpacity(get(v), value, dark, get(cS));
 
 					const content =
-						'<span class="popup-value">' + value.toFixed(1) + '</span>' + colorScale.unit;
+						'<span class="popup-value">' + value.toFixed(1) + '</span>' + get(cS).unit;
 					popup
 						.setLngLat(coordinates)
 						.setHTML(
@@ -735,8 +725,6 @@ export const addPopup = (map: maplibregl.Map) => {
 	});
 
 	map.on('click', (e: maplibregl.MapMouseEvent) => {
-		colorScale = getColorScale(variable);
-
 		showPopup = !showPopup;
 		if (!showPopup && popup) {
 			popup.remove();

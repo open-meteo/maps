@@ -1,6 +1,6 @@
-import { type Writable, get, writable } from 'svelte/store';
+import { type Writable, derived, writable } from 'svelte/store';
 
-import { domainOptions, variableOptions } from '@openmeteo/mapbox-layer';
+import { domainOptions, getColorScale } from '@openmeteo/mapbox-layer';
 import { setMode } from 'mode-watcher';
 import { type Persisted, persisted } from 'svelte-persisted-store';
 
@@ -27,6 +27,17 @@ export const vectorOptions = persisted('vector-options', defaultVectorOptions);
 
 export const domain = persisted('domain', 'dwd_icon');
 export const variable = persisted('variable', 'temperature_2m');
+
+export const colorScale = derived(variable, ($variable) => getColorScale($variable));
+export const selectedDomain = derived(domain, ($domain) => {
+	const object = domainOptions.find(({ value }) => value === $domain);
+
+	if (object) {
+		return object;
+	} else {
+		throw new Error('Domain not found');
+	}
+});
 
 const now = new Date();
 now.setHours(now.getHours() + 1, 0, 0, 0);
