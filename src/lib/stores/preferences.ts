@@ -1,6 +1,6 @@
 import { type Writable, derived, writable } from 'svelte/store';
 
-import { domainOptions, getColorScaleMinMaxScaled } from '@openmeteo/mapbox-layer';
+import { domainOptions, getColorScaleMinMaxScaled, variableOptions } from '@openmeteo/mapbox-layer';
 import { setMode } from 'mode-watcher';
 import { type Persisted, persisted } from 'svelte-persisted-store';
 
@@ -31,11 +31,22 @@ export const variable = persisted('variable', 'temperature_2m');
 export const colorScale = derived(variable, ($variable) => getColorScaleMinMaxScaled($variable));
 export const selectedDomain = derived(domain, ($domain) => {
 	const object = domainOptions.find(({ value }) => value === $domain);
-
 	if (object) {
 		return object;
 	} else {
 		throw new Error('Domain not found');
+	}
+});
+export const selectedVariable = derived(variable, ($variable) => {
+	const object = variableOptions.find(({ value }) => value === $variable);
+	if (object) {
+		return object;
+	} else {
+		console.warn('Variable not found in variableOptions:', $variable);
+		return {
+			value: $variable,
+			label: $variable
+		};
 	}
 });
 
