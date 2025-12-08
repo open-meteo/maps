@@ -14,16 +14,19 @@
 	let colorScale = $derived.by(() => {
 		return getColorScaleMinMaxScaled(variable);
 	});
+
+	const colorScaleHeight = 800;
+	const amountLabels = 45;
 </script>
 
 {#if showScale}
-	<div class="absolute bottom-2.5 left-2.5 z-10 max-h-[300px]">
+	<div class="absolute bottom-2.5 left-2.5 z-10 max-h-[{colorScaleHeight + 100}px]">
 		<div
 			style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
 			class="flex flex-col-reverse overflow-hidden rounded-[4px]"
 		>
 			<div
-				class="flex max-h-[270px] flex-col-reverse"
+				class="flex max-h-[{colorScaleHeight}px] flex-col-reverse"
 				style={mode.current === 'dark' ? 'background:black;' : 'background:white;'}
 			>
 				{#each colorScale.colors as cs, i (i)}
@@ -33,11 +36,11 @@
 						(i / (colorScale.colors.length - 1)) * (colorScale.max - colorScale.min)}
 					{@const opacity = getOpacity(variable, value, mode.current === 'dark', colorScale) / 255}
 					<div
-						style={`background: rgba(${cs.join(',')}); filter: opacity(${opacity});min-width: 28px; width: ${17 + Math.max(String(Math.round(colorScale.max)).length, colorScale.unit.length + 1, digits + 2) * 4}px; height: ${270 / colorScale.colors.length}px;`}
+						style={`background: rgba(${cs.join(',')}); filter: opacity(${opacity});min-width: 28px; width: ${17 + Math.max(String(Math.round(colorScale.max)).length, colorScale.unit.length + 1, digits + 2) * 4}px; height: ${colorScaleHeight / colorScale.colors.length}px;`}
 					></div>
 				{/each}
 
-				{#each [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100] as step, i (i)}
+				{#each Array.from({ length: amountLabels + 1 }, (_, i) => (i * 100) / amountLabels) as step, i (i)}
 					{@const digits = Math.floor(1 / Math.log(colorScale.max - colorScale.min))}
 					{@const color = getColor(
 						colorScale,
@@ -55,7 +58,7 @@
 
 					<div
 						class="absolute w-full text-center text-xs"
-						style={`bottom:  ${2 + 270 * step * 0.0093}px; color: ${textWhite(color, opacity, mode.current === 'dark') ? 'white;' : 'black'}`}
+						style={`bottom:  ${2 + (colorScaleHeight * step * 0.01 * amountLabels) / (amountLabels + 1)}px; color: ${textWhite(color, opacity, mode.current === 'dark') ? 'white;' : 'black'}`}
 					>
 						{(colorScale.min + step * 0.01 * (colorScale.max - colorScale.min)).toFixed(digits)}
 					</div>
