@@ -48,7 +48,9 @@ vO.subscribe((newVectorOptions) => {
 	vectorOptions = newVectorOptions;
 });
 
-const beforeLayer = 'waterway-tunnel';
+const beforeLayerRaster = 'waterway-tunnel';
+const beforeLayerVector = 'place_label_other';
+const beforeLayerVectorWaterClip = 'water-clip';
 
 const now = new SvelteDate();
 now.setHours(now.getHours() + 1, 0, 0, 0);
@@ -333,7 +335,7 @@ export const addHillshadeLayer = (map: maplibregl.Map) => {
 				'hillshade-highlight-color': 'rgba(255,255,255,0.35)'
 			}
 		},
-		beforeLayer
+		beforeLayerRaster
 	);
 };
 
@@ -398,7 +400,7 @@ export const addOmFileLayers = (map: maplibregl.Map) => {
 			type: 'raster',
 			source: 'omRasterSource'
 		},
-		beforeLayer
+		beforeLayerRaster
 	);
 
 	if (vectorOptions.contours || vectorOptions.arrows) {
@@ -422,125 +424,137 @@ export const addVectorLayer = (map: maplibregl.Map) => {
 	}
 
 	if (!map.getLayer('omVectorContourLayer')) {
-		map.addLayer({
-			id: 'omVectorContourLayer',
-			type: 'line',
-			source: 'omVectorSource',
-			'source-layer': 'contours',
-			paint: {
-				'line-color': [
-					'case',
-					['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
-					'rgba(0,0,0,0.5)',
-					[
+		map.addLayer(
+			{
+				id: 'omVectorContourLayer',
+				type: 'line',
+				source: 'omVectorSource',
+				'source-layer': 'contours',
+				paint: {
+					'line-color': [
 						'case',
-						['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
-						'rgba(0,0,0,0.4)',
+						['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
+						'rgba(0,0,0,0.5)',
 						[
 							'case',
-							['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
-							'rgba(0,0,0,0.35)',
-							'rgba(0,0,0,0.3)'
-						]
-					]
-				],
-				'line-width': [
-					'case',
-					['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
-					3,
-					[
-						'case',
-						['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
-						2.5,
-						[
-							'case',
-							['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
-							2,
-							1
-						]
-					]
-				]
-			}
-		});
-	}
-
-	if (!map.getLayer('omVectorArrowLayer')) {
-		map.addLayer({
-			id: 'omVectorArrowLayer',
-			type: 'line',
-			source: 'omVectorSource',
-			'source-layer': 'wind-arrows',
-			paint: {
-				'line-color': [
-					'case',
-					['boolean', ['>', ['to-number', ['get', 'value']], 5], false],
-					'rgba(0,0,0, 0.6)',
-					[
-						'case',
-						['boolean', ['>', ['to-number', ['get', 'value']], 4], false],
-						'rgba(0,0,0, 0.5)',
-						[
-							'case',
-							['boolean', ['>', ['to-number', ['get', 'value']], 3], false],
-							'rgba(0,0,0, 0.4)',
+							['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
+							'rgba(0,0,0,0.4)',
 							[
 								'case',
-								['boolean', ['>', ['to-number', ['get', 'value']], 2], false],
-								'rgba(0,0,0, 0.3)',
-								'rgba(0,0,0, 0.2)'
+								['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
+								'rgba(0,0,0,0.35)',
+								'rgba(0,0,0,0.3)'
+							]
+						]
+					],
+					'line-width': [
+						'case',
+						['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
+						3,
+						[
+							'case',
+							['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
+							2.5,
+							[
+								'case',
+								['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
+								2,
+								1
 							]
 						]
 					]
-				],
-				'line-width': 2
+				}
 			},
-			layout: {
-				'line-cap': 'round'
-			}
-		});
+			preferences.clipWater ? beforeLayerVectorWaterClip : beforeLayerVector
+		);
+	}
+
+	if (!map.getLayer('omVectorArrowLayer')) {
+		map.addLayer(
+			{
+				id: 'omVectorArrowLayer',
+				type: 'line',
+				source: 'omVectorSource',
+				'source-layer': 'wind-arrows',
+				paint: {
+					'line-color': [
+						'case',
+						['boolean', ['>', ['to-number', ['get', 'value']], 5], false],
+						'rgba(0,0,0, 0.6)',
+						[
+							'case',
+							['boolean', ['>', ['to-number', ['get', 'value']], 4], false],
+							'rgba(0,0,0, 0.5)',
+							[
+								'case',
+								['boolean', ['>', ['to-number', ['get', 'value']], 3], false],
+								'rgba(0,0,0, 0.4)',
+								[
+									'case',
+									['boolean', ['>', ['to-number', ['get', 'value']], 2], false],
+									'rgba(0,0,0, 0.3)',
+									'rgba(0,0,0, 0.2)'
+								]
+							]
+						]
+					],
+					'line-width': 2
+				},
+				layout: {
+					'line-cap': 'round'
+				}
+			},
+			preferences.clipWater ? beforeLayerVectorWaterClip : beforeLayerVector
+		);
 	}
 
 	if (!map.getLayer('omVectorGridLayer')) {
-		map.addLayer({
-			id: 'omVectorGridLayer',
-			type: 'circle',
-			source: 'omVectorSource',
-			'source-layer': 'grid',
-			paint: {
-				'circle-radius': [
-					'interpolate',
-					['exponential', 1.5],
-					['zoom'],
-					// zoom is 0 -> circle radius will be 1px
-					0,
-					0.1,
-					// zoom is 12 (or greater) -> circle radius will be 20px
-					12,
-					10
-				],
-				'circle-color': 'orange'
-			}
-		});
+		map.addLayer(
+			{
+				id: 'omVectorGridLayer',
+				type: 'circle',
+				source: 'omVectorSource',
+				'source-layer': 'grid',
+				paint: {
+					'circle-radius': [
+						'interpolate',
+						['exponential', 1.5],
+						['zoom'],
+						// zoom is 0 -> circle radius will be 1px
+						0,
+						0.1,
+						// zoom is 12 (or greater) -> circle radius will be 20px
+						12,
+						10
+					],
+					'circle-color': 'orange'
+				}
+			},
+			preferences.clipWater ? beforeLayerVectorWaterClip : beforeLayerVector
+		);
 	}
 
 	if (!map.getLayer('omVectorContourLayerLabels')) {
-		map.addLayer({
-			id: 'omVectorContourLayerLabels',
-			type: 'symbol',
-			source: 'omVectorSource',
-			'source-layer': 'contours',
-			layout: {
-				'symbol-placement': 'line-center',
-				'symbol-spacing': 1,
-				'text-font': ['Noto Sans Regular'],
-				'text-field': ['to-string', ['get', 'value']],
-				'text-padding': 1,
-				'text-offset': [0, -0.6]
+		map.addLayer(
+			{
+				id: 'omVectorContourLayerLabels',
+				type: 'symbol',
+				source: 'omVectorSource',
+				'source-layer': 'contours',
+				layout: {
+					'symbol-placement': 'line-center',
+					'symbol-spacing': 1,
+					'text-font': ['Noto Sans Regular'],
+					'text-field': ['to-string', ['get', 'value']],
+					'text-padding': 1,
+					'text-offset': [0, -0.6]
+				},
+				paint: {
+					'text-color': 'rgba(0,0,0,0.7)'
+				}
 			},
-			paint: {
-				'text-color': 'rgba(0,0,0,0.7)'
-			}
-		});
+			preferences.clipWater ? beforeLayerVectorWaterClip : beforeLayerVector
+		);
 	}
 };
 
