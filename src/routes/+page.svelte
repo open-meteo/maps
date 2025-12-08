@@ -133,10 +133,15 @@
 		return json;
 	};
 
+	let timeSelectorOpen = $state(false);
 	let localStorageVersion = $derived(get(lSV));
 	onMount(() => {
 		url = new URL(document.location.href);
 		urlParamsToPreferences(url);
+
+		preferences.subscribe((newPref) => {
+			timeSelectorOpen = newPref.timeSelector;
+		});
 
 		// first time check if monitor supports high definition, for increased tileResolution
 		if (!get(resolutionSet)) {
@@ -267,15 +272,11 @@
 {/if}
 
 <div
-	class="map {$preferences.timeSelector ? 'time-selector-open' : ''}"
+	class="map maplibregl-map {timeSelectorOpen ? 'time-selector-open' : ''}"
 	id="#map_container"
 	bind:this={mapContainer}
 ></div>
-<Scale
-	variable={$variable}
-	showScale={$preferences.showScale}
-	timeSelector={$preferences.timeSelector}
-/>
+<Scale variable={$variable} showScale={$preferences.showScale} timeSelector={timeSelectorOpen} />
 
 <HelpDialog />
 <VariableSelection
@@ -300,7 +301,7 @@
 	bind:time={$time}
 	bind:domain={$domain}
 	disabled={$loading}
-	timeSelector={$preferences.timeSelector}
+	timeSelector={timeSelectorOpen}
 	onDateChange={(date: Date) => {
 		$time = new SvelteDate(date);
 		url.searchParams.set('time', fmtISOWithoutTimezone($time));

@@ -117,12 +117,12 @@
 </script>
 
 <div
-	style="background: {dark
-		? 'rgba(50,50,50,0.8)'
-		: 'rgba(200,200,200,0.6)'}; backdrop-filter: blur(4px);"
-	class="time-selector absolute h-[200px] w-full duration-500 py-4 {!timeSelector
-		? 'pointer-events-none opacity-0 bottom-[-200px]'
-		: 'opacity-100 bottom-0'}"
+	style="background-color: {dark
+		? 'rgba(50, 50, 50, 0.8)'
+		: 'rgba(230, 230, 230, 0.8)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
+	class="time-selector absolute h-[200px] w-full py-4 px-16 {timeSelector
+		? 'opacity-100 bottom-0'
+		: 'pointer-events-none opacity-0 bottom-[-200px]'}"
 >
 	<div class="flex flex-col {disabled ? 'cursor-not-allowed' : ''}">
 		<div class="flex items-center justify-center gap-0.5">
