@@ -42,7 +42,8 @@ export const selectedVariable = derived(variable, ($variable) => {
 	if (object) {
 		return object;
 	} else {
-		console.warn('Variable not found in variableOptions:', $variable);
+		// Throwing an error here is not the preferred thing to do!
+		// Instead we use the selected variable as a label as well.
 		return {
 			value: $variable,
 			label: $variable
