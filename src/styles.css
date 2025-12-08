@@ -264,12 +264,6 @@ body {
 	scale: 0.7;
 }
 
-@media (orientation: landscape) {
-	.time-selector {
-		bottom: calc(var(--spacing) * 2.5);
-	}
-}
-
 [data-sonner-toast][data-styled='true'] [data-close-button] {
 	left: unset !important;
 	right: -6px !important;

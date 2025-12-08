@@ -118,8 +118,8 @@
 
 <div
 	style="background-color: {dark
-		? 'rgba(50, 50, 50, 0.8)'
-		: 'rgba(230, 230, 230, 0.8)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
+		? 'rgba(15, 15, 15, 0.8)'
+		: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
 	class="time-selector absolute h-[200px] w-full py-4 px-16 {timeSelector
 		? 'opacity-100 bottom-0'
 		: 'pointer-events-none opacity-0 bottom-[-200px]'}"
