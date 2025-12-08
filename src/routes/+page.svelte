@@ -266,8 +266,16 @@
 	</div>
 {/if}
 
-<div class="map" id="#map_container" bind:this={mapContainer}></div>
-<Scale showScale={$preferences.showScale} variable={$variable} />
+<div
+	class="map {$preferences.timeSelector ? 'time-selector-open' : ''}"
+	id="#map_container"
+	bind:this={mapContainer}
+></div>
+<Scale
+	variable={$variable}
+	showScale={$preferences.showScale}
+	timeSelector={$preferences.timeSelector}
+/>
 
 <HelpDialog />
 <VariableSelection

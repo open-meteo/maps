@@ -5,11 +5,12 @@
 	import { textWhite } from '$lib';
 
 	interface Props {
-		showScale: boolean;
 		variable: string;
+		showScale: boolean;
+		timeSelector: boolean;
 	}
 
-	let { showScale, variable }: Props = $props();
+	let { variable, showScale, timeSelector }: Props = $props();
 
 	let colorScale = $derived.by(() => {
 		return getColorScale(variable);
@@ -17,7 +18,11 @@
 </script>
 
 {#if showScale}
-	<div class="absolute bottom-2.5 left-2.5 z-10 max-h-[300px]">
+	<div
+		class="absolute {timeSelector
+			? 'bottom-52.5'
+			: 'bottom-2.5'} left-2.5 z-10 duration-500 max-h-[300px]"
+	>
 		<div
 			style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
 			class="flex flex-col-reverse overflow-hidden rounded-[4px]"

@@ -4,6 +4,7 @@
 	import { get } from 'svelte/store';
 
 	import { domainOptions, domainStep } from '@openmeteo/mapbox-layer';
+	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
 	import { browser } from '$app/environment';
@@ -111,13 +112,17 @@
 			window.removeEventListener('keydown', keydownEvent);
 		}
 	});
+
+	const dark = $derived(mode.current === 'dark');
 </script>
 
 <div
-	style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
-	class="time-selector bg-background/90 dark:bg-background/70 bottom-14.5 transform-[translate(-50%)] absolute left-[50%] mx-auto rounded-[4px] px-3 py-3 {!timeSelector
-		? 'pointer-events-none opacity-0'
-		: 'opacity-100'}"
+	style="background: {dark
+		? 'rgba(50,50,50,0.8)'
+		: 'rgba(200,200,200,0.6)'}; backdrop-filter: blur(4px);"
+	class="time-selector absolute h-[200px] w-full duration-500 py-4 {!timeSelector
+		? 'pointer-events-none opacity-0 bottom-[-200px]'
+		: 'opacity-100 bottom-0'}"
 >
 	<div class="flex flex-col {disabled ? 'cursor-not-allowed' : ''}">
 		<div class="flex items-center justify-center gap-0.5">

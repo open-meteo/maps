@@ -169,6 +169,14 @@ body {
 	min-height: 100%;
 }
 
+.maplibregl-ctrl-bottom-right {
+	transition-duration: 500ms;
+}
+
+.time-selector-open .maplibregl-ctrl-bottom-right {
+	bottom: 200px;
+}
+
 .dark .maplibregl-ctrl.maplibregl-ctrl-group {
 	background-color: rgba(40, 40, 40, 0.95);
 }
