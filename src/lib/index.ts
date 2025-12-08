@@ -7,10 +7,8 @@ import {
 	domainOptions,
 	domainStep,
 	getColor,
-	getColorScaleMinMaxScaled,
 	getOpacity,
-	getValueFromLatLong,
-	variableOptions
+	getValueFromLatLong
 } from '@openmeteo/mapbox-layer';
 import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
@@ -20,6 +18,7 @@ import { browser } from '$app/environment';
 import { pushState } from '$app/navigation';
 
 import {
+	colorScale as cS,
 	domain as d,
 	loading,
 	mapBounds as mB,
@@ -683,14 +682,6 @@ export const textWhite = (
 let popup: maplibregl.Popup | undefined;
 let showPopup = false;
 export const addPopup = (map: maplibregl.Map) => {
-	const variable = get(v);
-	const variableSelected = variableOptions.find(({ value }) => value === variable);
-	if (!variableSelected) {
-		throw new Error('Variable not found');
-	}
-
-	let colorScale = getColorScaleMinMaxScaled(variable);
-
 	map.on('mousemove', function (e) {
 		if (showPopup) {
 			const coordinates = e.lngLat;
@@ -709,9 +700,10 @@ export const addPopup = (map: maplibregl.Map) => {
 			);
 
 			if (isFinite(value)) {
+				const colorScale = get(cS);
 				const color = getColor(colorScale, value);
 				const dark = mode.current === 'dark';
-				const opacity = getOpacity(variable, value, dark, colorScale);
+				const opacity = getOpacity(get(v), value, dark, colorScale);
 				const content =
 					'<span class="popup-value">' + value.toFixed(1) + '</span>' + colorScale.unit;
 				popup
@@ -728,8 +720,6 @@ export const addPopup = (map: maplibregl.Map) => {
 	});
 
 	map.on('click', (e: maplibregl.MapMouseEvent) => {
-		colorScale = getColorScaleMinMaxScaled(variable);
-
 		showPopup = !showPopup;
 		if (!showPopup && popup) {
 			popup.remove();

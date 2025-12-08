@@ -1,6 +1,8 @@
 <script lang="ts">
-	import { getColor, getColorScaleMinMaxScaled, getOpacity } from '@openmeteo/mapbox-layer';
+	import { getColor, getOpacity } from '@openmeteo/mapbox-layer';
 	import { mode } from 'mode-watcher';
+
+	import { colorScale as cS } from '$lib/stores/preferences';
 
 	import { textWhite } from '$lib';
 
@@ -11,10 +13,7 @@
 
 	let { showScale, variable }: Props = $props();
 
-	let colorScale = $derived.by(() => {
-		return getColorScaleMinMaxScaled(variable);
-	});
-
+	const colorScale = $derived.by(() => $cS);
 	const colorScaleHeight = 800;
 	const amountLabels = 45;
 </script>

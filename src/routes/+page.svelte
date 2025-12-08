@@ -55,7 +55,6 @@
 	import VariableSelection from '$lib/components/selection/variable-selection.svelte';
 	import Settings from '$lib/components/settings/settings.svelte';
 	import TimeSelector from '$lib/components/time/time-selector.svelte';
-	import PopoverContent from '$lib/components/ui/popover/popover-content.svelte';
 	import * as Sheet from '$lib/components/ui/sheet';
 
 	import {
@@ -271,7 +270,6 @@
 
 <HelpDialog />
 <VariableSelection
-	domain={$domain}
 	variable={$variable}
 	{metaJson}
 	domainChange={changeOmDomain}
