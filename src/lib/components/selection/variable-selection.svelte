@@ -13,6 +13,7 @@
 		domainSelectionOpen as dSO,
 		loading,
 		selectedDomain,
+		selectedVariable,
 		variableSelectionExtended as vSE,
 		variableSelectionOpen as vSO
 	} from '$lib/stores/preferences';
@@ -24,22 +25,12 @@
 	import type { DomainMetaData } from '@openmeteo/mapbox-layer';
 
 	interface Props {
-		variable: string;
 		metaJson: DomainMetaData | undefined;
 		domainChange: (value: string) => Promise<void>;
 		variableChange: (value: string | undefined) => void;
 	}
 
-	let { variable, metaJson, domainChange, variableChange }: Props = $props();
-
-	let selectedVariable = $derived.by(() => {
-		const object = variableOptions.find(({ value }) => value === variable);
-		if (object) {
-			return object;
-		} else {
-			throw new Error('Variable not found');
-		}
-	});
+	let { metaJson, domainChange, variableChange }: Props = $props();
 
 	let domainSelectionOpen = $state(get(dSO));
 	dSO.subscribe((dO) => {
@@ -232,7 +223,7 @@
 						aria-expanded={variableSelectionOpen}
 					>
 						<div class="truncate">
-							{selectedVariable?.label || 'Select a variable...'}
+							{$selectedVariable?.label || 'Select a variable...'}
 						</div>
 						<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
 					</Button>
@@ -242,11 +233,11 @@
 					onOpenAutoFocus={(e) => {
 						e.preventDefault();
 						const query = document.querySelector(
-							'[data-value=' + selectedVariable.value + ']'
+							'[data-value=' + $selectedVariable.value + ']'
 						) as HTMLElement;
 						if (query) {
 							const firstChild = query.querySelector(
-								'[data-value=' + selectedVariable.value + ']'
+								'[data-value=' + $selectedVariable.value + ']'
 							) as HTMLElement;
 
 							firstChild.scrollIntoView({ block: 'center' });
@@ -291,7 +282,7 @@
 
 										<Command.Item
 											value={v?.value}
-											class="hover:!bg-primary/25 cursor-pointer {selectedVariable.value ===
+											class="hover:!bg-primary/25 cursor-pointer {$selectedVariable.value ===
 											v?.value
 												? '!bg-primary/15'
 												: ''}"
@@ -303,7 +294,7 @@
 											<div class="flex w-full items-center justify-between">
 												{v?.label}
 												<CheckIcon
-													class="size-4 {selectedVariable.value !== v?.value
+													class="size-4 {$selectedVariable.value !== v?.value
 														? 'text-transparent'
 														: ''}"
 												/>
