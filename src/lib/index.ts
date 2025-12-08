@@ -701,15 +701,17 @@ export const addPopup = (map: maplibregl.Map) => {
 			);
 
 			if (value) {
-				if ((hideZero.includes(get(v)) && value <= 0.25) || !value) {
+				const variable = get(v);
+				const colorScale = get(cS);
+				if ((hideZero.includes(variable) && value <= 0.25) || !value) {
 					popup.remove();
 				} else {
 					const dark = mode.current === 'dark';
-					const color = getColor(get(cS), value);
-					const opacity = getOpacity(get(v), value, dark, get(cS));
+					const color = getColor(colorScale, value);
+					const opacity = getOpacity(variable, value, dark, colorScale);
 
 					const content =
-						'<span class="popup-value">' + value.toFixed(1) + '</span>' + get(cS).unit;
+						'<span class="popup-value">' + value.toFixed(1) + '</span>' + colorScale.unit;
 					popup
 						.setLngLat(coordinates)
 						.setHTML(
