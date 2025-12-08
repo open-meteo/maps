@@ -673,16 +673,20 @@ export const textWhite = (
 	opacity?: number,
 	dark?: boolean
 ): boolean => {
-	if (opacity && opacity < 65 && !dark) {
-		return false;
-	}
+	if (opacity != undefined && opacity < 65)
+		if (dark) {
+			return true;
+		} else {
+			return false;
+		}
+	// check luminance
 	return r * 0.299 + g * 0.587 + b * 0.114 <= 186;
 };
 
 let popup: maplibregl.Popup | undefined;
 let showPopup = false;
 export const addPopup = (map: maplibregl.Map) => {
-	map.on('mousemove', function (e) {
+	const updatePopup = (e: maplibregl.MapMouseEvent) => {
 		if (showPopup) {
 			const coordinates = e.lngLat;
 			if (!popup) {
@@ -717,8 +721,9 @@ export const addPopup = (map: maplibregl.Map) => {
 					.setHTML(`<span style="padding: 3px 5px;" class="popup-string">Outside domain</span>`);
 			}
 		}
-	});
+	};
 
+	map.on('mousemove', updatePopup);
 	map.on('click', (e: maplibregl.MapMouseEvent) => {
 		showPopup = !showPopup;
 		if (!showPopup && popup) {
@@ -728,6 +733,7 @@ export const addPopup = (map: maplibregl.Map) => {
 			const coordinates = e.lngLat;
 			popup.setLngLat(coordinates).addTo(map);
 		}
+		updatePopup(e);
 	});
 };
 
