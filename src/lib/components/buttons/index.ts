@@ -90,7 +90,7 @@ export class SettingsButton {
 	onRemove() {}
 }
 
-export const reloadStyles = (map) => {
+export const reloadStyles = (map: maplibregl.Map) => {
 	getStyle().then((style) => {
 		map.setStyle(style);
 		map.once('styledata', () => {

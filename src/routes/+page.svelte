@@ -13,8 +13,7 @@
 		defaultOmProtocolSettings,
 		domainOptions,
 		domainStep,
-		omProtocol,
-		variableOptions
+		omProtocol
 	} from '@openmeteo/mapbox-layer';
 	import { type RequestParameters } from 'maplibre-gl';
 	import * as maplibregl from 'maplibre-gl';
@@ -36,6 +35,7 @@
 		resetStates,
 		resolution,
 		resolutionSet,
+		selectedVariable,
 		sheet,
 		time,
 		variable
@@ -270,21 +270,14 @@
 
 <HelpDialog />
 <VariableSelection
-	domain={$domain}
-	variable={$variable}
 	{metaJson}
 	domainChange={changeOmDomain}
 	variableChange={(newValue: string | undefined) => {
-		const object = variableOptions.find(({ value }) => value === newValue);
-		if (!object) {
-			throw new Error(`Variable: '${newValue}' not found`);
-		} else {
-			if (newValue) $variable = newValue;
-		}
+		if (newValue) $variable = newValue;
 		url.searchParams.set('variable', $variable);
 		pushState(url + map._hash.getHashString(), {});
-		toast('Variable set to: ' + object.label);
 		changeOMfileURL(map, url, metaJson);
+		toast('Variable set to: ' + $selectedVariable.label);
 	}}
 />
 <TimeSelector

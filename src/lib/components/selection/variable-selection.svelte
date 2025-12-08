@@ -18,6 +18,8 @@
 		domainSelectionOpen as dSO,
 		loading,
 		pressureLevelsSelectionOpen as pLSO,
+		selectedDomain,
+		selectedVariable,
 		variableSelectionExtended as vSE,
 		variableSelectionOpen as vSO
 	} from '$lib/stores/preferences';
@@ -31,32 +33,12 @@
 	import type { DomainMetaData } from '@openmeteo/mapbox-layer';
 
 	interface Props {
-		domain: string;
-		variable: string;
 		metaJson: DomainMetaData | undefined;
 		domainChange: (value: string) => Promise<void>;
 		variableChange: (value: string | undefined) => void;
 	}
 
-	let { domain, variable, metaJson, domainChange, variableChange }: Props = $props();
-
-	let selectedDomain = $derived.by(() => {
-		const object = domainOptions.find(({ value }) => value === domain);
-		if (object) {
-			return object;
-		} else {
-			throw new Error('Domain not found');
-		}
-	});
-
-	let selectedVariable = $derived.by(() => {
-		const object = variableOptions.find(({ value }) => value === variable);
-		if (object) {
-			return object;
-		} else {
-			throw new Error(`Variable: ${variable} not found`);
-		}
-	});
+	let { metaJson, domainChange, variableChange }: Props = $props();
 
 	const LEVEL_REGEX =
 		/(?<height_level_to>\d+_to_.*)|(?<pressure_level>\d+hPa)|(?<height_level>\d+m|cm)/;
@@ -111,7 +93,7 @@
 	});
 
 	let level = $derived.by(() => {
-		const match = selectedVariable.value.match(LEVEL_UNIT_REGEX);
+		const match = $selectedVariable.value.match(LEVEL_UNIT_REGEX);
 		if (match && match.groups) {
 			return match.groups.level;
 		} else {
@@ -120,7 +102,7 @@
 	});
 
 	let unit = $derived.by(() => {
-		const match = selectedVariable.value.match(LEVEL_UNIT_REGEX);
+		const match = $selectedVariable.value.match(LEVEL_UNIT_REGEX);
 		if (match && match.groups) {
 			return match.groups.unit;
 		} else {
@@ -187,9 +169,9 @@
 	});
 
 	let levelGroupSelected = $state(
-		variable.match(LEVEL_REGEX)
+		$selectedVariable.value.match(LEVEL_REGEX)
 			? (variableOptions.find(
-					({ value }) => value === variable.match(LEVEL_PREFIX)?.groups?.prefix
+					({ value }) => value === $selectedVariable.value.match(LEVEL_PREFIX)?.groups?.prefix
 				) ?? undefined)
 			: undefined
 	);
@@ -219,7 +201,7 @@
 		: '-left-[182px]'} "
 >
 	{#if $loading && metaJson}
-		<VariableSelectionEmpty {selectedDomain} />
+		<VariableSelectionEmpty {$selectedDomain} />
 	{:else}
 		<div class="flex flex-col gap-2.5">
 			<Popover.Root
@@ -237,7 +219,7 @@
 						aria-expanded={domainSelectionOpen}
 					>
 						<div class="truncate">
-							{selectedDomain?.label || 'Select a domain...'}
+							{$selectedDomain?.label || 'Select a domain...'}
 						</div>
 						<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
 					</Button>
@@ -246,12 +228,12 @@
 					onOpenAutoFocus={(e) => {
 						e.preventDefault();
 						const query = document.querySelector(
-							'[data-value=' + selectedDomain.value + ']'
+							'[data-value=' + $selectedDomain.value + ']'
 						) as HTMLElement;
 						if (query) {
 							setTimeout(() => {
 								const firstChild = query.querySelector(
-									'[data-value=' + selectedDomain.value + ']'
+									'[data-value=' + $selectedDomain.value + ']'
 								) as HTMLElement;
 								firstChild.scrollIntoView({ block: 'center' });
 								firstChild.setAttribute('tabindex', '0');
@@ -293,19 +275,19 @@
 										{#if value.startsWith(group)}
 											<Command.Item
 												{value}
-												class="hover:!bg-primary/25 cursor-pointer {selectedDomain.value === value
+												class="hover:!bg-primary/25 cursor-pointer {$selectedDomain.value === value
 													? '!bg-primary/15'
 													: ''}"
 												onSelect={async () => {
 													domainChange(value);
 													dSO.set(false);
 												}}
-												aria-selected={selectedDomain.value === value}
+												aria-selected={$selectedDomain.value === value}
 											>
 												<div class="flex w-full items-center justify-between">
 													{label}
 													<CheckIcon
-														class="size-4 {selectedDomain.value !== value
+														class="size-4 {$selectedDomain.value !== value
 															? 'text-transparent'
 															: ''}"
 													/>
@@ -336,7 +318,7 @@
 						<div class="truncate">
 							{levelGroupSelected
 								? levelGroupSelected.label
-								: selectedVariable?.label || 'Select a variable...'}
+								: $selectedVariable?.label || 'Select a variable...'}
 						</div>
 						<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
 					</Button>
@@ -346,11 +328,11 @@
 					onOpenAutoFocus={(e) => {
 						e.preventDefault();
 						const query = document.querySelector(
-							'[data-value=' + selectedVariable.value + ']'
+							'[data-value=' + $selectedVariable.value + ']'
 						) as HTMLElement;
 						if (query) {
 							const firstChild = query.querySelector(
-								'[data-value=' + selectedVariable.value + ']'
+								'[data-value=' + $selectedVariable.value + ']'
 							) as HTMLElement;
 
 							firstChild.scrollIntoView({ block: 'center' });
@@ -421,7 +403,7 @@
 
 										<Command.Item
 											value={v?.value}
-											class="hover:!bg-primary/25 cursor-pointer {selectedVariable.value ===
+											class="hover:!bg-primary/25 cursor-pointer {$selectedVariable.value ===
 											v?.value
 												? '!bg-primary/15'
 												: ''}"
@@ -434,7 +416,7 @@
 											<div class="flex w-full items-center justify-between">
 												{v?.label}
 												<CheckIcon
-													class="size-4 {selectedVariable.value !== v?.value
+													class="size-4 {$selectedVariable.value !== v?.value
 														? 'text-transparent'
 														: ''}"
 												/>
