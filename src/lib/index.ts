@@ -7,9 +7,8 @@ import {
 	domainOptions,
 	domainStep,
 	getColor,
-	getOpacity,
-	getValueFromLatLong,
-	hideZero
+	getColorScale,
+	getValueFromLatLong
 } from '@openmeteo/mapbox-layer';
 import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
@@ -19,7 +18,6 @@ import { browser } from '$app/environment';
 import { pushState } from '$app/navigation';
 
 import {
-	colorScale as cS,
 	domain as d,
 	loading,
 	mapBounds as mB,
@@ -48,7 +46,9 @@ vO.subscribe((newVectorOptions) => {
 	vectorOptions = newVectorOptions;
 });
 
-const beforeLayer = 'waterway-tunnel';
+const beforeLayerRaster = 'waterway-tunnel';
+const beforeLayerVector = 'place_label_other';
+const beforeLayerVectorWaterClip = 'water-clip';
 
 const now = new SvelteDate();
 now.setHours(now.getHours() + 1, 0, 0, 0);
@@ -333,7 +333,7 @@ export const addHillshadeLayer = (map: maplibregl.Map) => {
 				'hillshade-highlight-color': 'rgba(255,255,255,0.35)'
 			}
 		},
-		beforeLayer
+		beforeLayerRaster
 	);
 };
 
@@ -398,7 +398,7 @@ export const addOmFileLayers = (map: maplibregl.Map) => {
 			type: 'raster',
 			source: 'omRasterSource'
 		},
-		beforeLayer
+		beforeLayerRaster
 	);
 
 	if (vectorOptions.contours || vectorOptions.arrows) {
@@ -422,125 +422,137 @@ export const addVectorLayer = (map: maplibregl.Map) => {
 	}
 
 	if (!map.getLayer('omVectorContourLayer')) {
-		map.addLayer({
-			id: 'omVectorContourLayer',
-			type: 'line',
-			source: 'omVectorSource',
-			'source-layer': 'contours',
-			paint: {
-				'line-color': [
-					'case',
-					['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
-					'rgba(0,0,0,0.5)',
-					[
+		map.addLayer(
+			{
+				id: 'omVectorContourLayer',
+				type: 'line',
+				source: 'omVectorSource',
+				'source-layer': 'contours',
+				paint: {
+					'line-color': [
 						'case',
-						['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
-						'rgba(0,0,0,0.4)',
+						['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
+						'rgba(0,0,0,0.5)',
 						[
 							'case',
-							['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
-							'rgba(0,0,0,0.35)',
-							'rgba(0,0,0,0.3)'
-						]
-					]
-				],
-				'line-width': [
-					'case',
-					['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
-					3,
-					[
-						'case',
-						['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
-						2.5,
-						[
-							'case',
-							['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
-							2,
-							1
-						]
-					]
-				]
-			}
-		});
-	}
-
-	if (!map.getLayer('omVectorArrowLayer')) {
-		map.addLayer({
-			id: 'omVectorArrowLayer',
-			type: 'line',
-			source: 'omVectorSource',
-			'source-layer': 'wind-arrows',
-			paint: {
-				'line-color': [
-					'case',
-					['boolean', ['>', ['to-number', ['get', 'value']], 5], false],
-					'rgba(0,0,0, 0.6)',
-					[
-						'case',
-						['boolean', ['>', ['to-number', ['get', 'value']], 4], false],
-						'rgba(0,0,0, 0.5)',
-						[
-							'case',
-							['boolean', ['>', ['to-number', ['get', 'value']], 3], false],
-							'rgba(0,0,0, 0.4)',
+							['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
+							'rgba(0,0,0,0.4)',
 							[
 								'case',
-								['boolean', ['>', ['to-number', ['get', 'value']], 2], false],
-								'rgba(0,0,0, 0.3)',
-								'rgba(0,0,0, 0.2)'
+								['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
+								'rgba(0,0,0,0.35)',
+								'rgba(0,0,0,0.3)'
+							]
+						]
+					],
+					'line-width': [
+						'case',
+						['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
+						3,
+						[
+							'case',
+							['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
+							2.5,
+							[
+								'case',
+								['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
+								2,
+								1
 							]
 						]
 					]
-				],
-				'line-width': 2
+				}
 			},
-			layout: {
-				'line-cap': 'round'
-			}
-		});
+			preferences.clipWater ? beforeLayerVectorWaterClip : beforeLayerVector
+		);
+	}
+
+	if (!map.getLayer('omVectorArrowLayer')) {
+		map.addLayer(
+			{
+				id: 'omVectorArrowLayer',
+				type: 'line',
+				source: 'omVectorSource',
+				'source-layer': 'wind-arrows',
+				paint: {
+					'line-color': [
+						'case',
+						['boolean', ['>', ['to-number', ['get', 'value']], 5], false],
+						'rgba(0,0,0, 0.6)',
+						[
+							'case',
+							['boolean', ['>', ['to-number', ['get', 'value']], 4], false],
+							'rgba(0,0,0, 0.5)',
+							[
+								'case',
+								['boolean', ['>', ['to-number', ['get', 'value']], 3], false],
+								'rgba(0,0,0, 0.4)',
+								[
+									'case',
+									['boolean', ['>', ['to-number', ['get', 'value']], 2], false],
+									'rgba(0,0,0, 0.3)',
+									'rgba(0,0,0, 0.2)'
+								]
+							]
+						]
+					],
+					'line-width': 2
+				},
+				layout: {
+					'line-cap': 'round'
+				}
+			},
+			preferences.clipWater ? beforeLayerVectorWaterClip : beforeLayerVector
+		);
 	}
 
 	if (!map.getLayer('omVectorGridLayer')) {
-		map.addLayer({
-			id: 'omVectorGridLayer',
-			type: 'circle',
-			source: 'omVectorSource',
-			'source-layer': 'grid',
-			paint: {
-				'circle-radius': [
-					'interpolate',
-					['exponential', 1.5],
-					['zoom'],
-					// zoom is 0 -> circle radius will be 1px
-					0,
-					0.1,
-					// zoom is 12 (or greater) -> circle radius will be 20px
-					12,
-					10
-				],
-				'circle-color': 'orange'
-			}
-		});
+		map.addLayer(
+			{
+				id: 'omVectorGridLayer',
+				type: 'circle',
+				source: 'omVectorSource',
+				'source-layer': 'grid',
+				paint: {
+					'circle-radius': [
+						'interpolate',
+						['exponential', 1.5],
+						['zoom'],
+						// zoom is 0 -> circle radius will be 1px
+						0,
+						0.1,
+						// zoom is 12 (or greater) -> circle radius will be 20px
+						12,
+						10
+					],
+					'circle-color': 'orange'
+				}
+			},
+			preferences.clipWater ? beforeLayerVectorWaterClip : beforeLayerVector
+		);
 	}
 
 	if (!map.getLayer('omVectorContourLayerLabels')) {
-		map.addLayer({
-			id: 'omVectorContourLayerLabels',
-			type: 'symbol',
-			source: 'omVectorSource',
-			'source-layer': 'contours',
-			layout: {
-				'symbol-placement': 'line-center',
-				'symbol-spacing': 1,
-				'text-font': ['Noto Sans Regular'],
-				'text-field': ['to-string', ['get', 'value']],
-				'text-padding': 1,
-				'text-offset': [0, -0.6]
+		map.addLayer(
+			{
+				id: 'omVectorContourLayerLabels',
+				type: 'symbol',
+				source: 'omVectorSource',
+				'source-layer': 'contours',
+				layout: {
+					'symbol-placement': 'line-center',
+					'symbol-spacing': 1,
+					'text-font': ['Noto Sans Regular'],
+					'text-field': ['to-string', ['get', 'value']],
+					'text-padding': 1,
+					'text-offset': [0, -0.6]
+				},
+				paint: {
+					'text-color': 'rgba(0,0,0,0.7)'
+				}
 			},
-			paint: {
-				'text-color': 'rgba(0,0,0,0.7)'
-			}
-		});
+			preferences.clipWater ? beforeLayerVectorWaterClip : beforeLayerVector
+		);
 	}
 };
 
@@ -670,20 +682,20 @@ export const getStyle = async () => {
 };
 
 export const textWhite = (
-	[r, g, b]: [number, number, number],
-	opacity?: number,
+	[r, g, b, a]: [number, number, number, number],
 	dark?: boolean
 ): boolean => {
-	if (opacity && opacity < 65 && !dark) {
+	if (a != undefined && a < 0.65 && !dark) {
 		return false;
 	}
+	// check luminance
 	return r * 0.299 + g * 0.587 + b * 0.114 <= 186;
 };
 
 let popup: maplibregl.Popup | undefined;
 let showPopup = false;
 export const addPopup = (map: maplibregl.Map) => {
-	map.on('mousemove', function (e) {
+	const updatePopup = (e: maplibregl.MapMouseEvent) => {
 		if (showPopup) {
 			const coordinates = e.lngLat;
 			if (!popup) {
@@ -700,32 +712,26 @@ export const addPopup = (map: maplibregl.Map) => {
 				omRasterSource?.url || ''
 			);
 
-			if (value) {
-				const variable = get(v);
-				const colorScale = get(cS);
-				if ((hideZero.includes(variable) && value <= 0.25) || !value) {
-					popup.remove();
-				} else {
-					const dark = mode.current === 'dark';
-					const color = getColor(colorScale, value);
-					const opacity = getOpacity(variable, value, dark, colorScale);
-
-					const content =
-						'<span class="popup-value">' + value.toFixed(1) + '</span>' + colorScale.unit;
-					popup
-						.setLngLat(coordinates)
-						.setHTML(
-							`<div style="font-weight: bold; background-color: rgba(${color[0]}, ${color[1]}, ${color[2]}, ${opacity / 100}); color: ${textWhite(color, opacity, dark) ? 'white' : 'black'};" class="popup-div">${content}</div>`
-						);
-				}
+			if (isFinite(value)) {
+				const dark = mode.current === 'dark';
+				const colorScale = getColorScale(get(v), dark);
+				const color = getColor(colorScale, value);
+				const content =
+					'<span class="popup-value">' + value.toFixed(1) + '</span>' + colorScale.unit;
+				popup
+					.setLngLat(coordinates)
+					.setHTML(
+						`<div style="font-weight: bold; background-color: rgba(${color.join(',')}); color: ${textWhite(color, dark) ? 'white' : 'black'};" class="popup-div">${content}</div>`
+					);
 			} else {
 				popup
 					.setLngLat(coordinates)
 					.setHTML(`<span style="padding: 3px 5px;" class="popup-string">Outside domain</span>`);
 			}
 		}
-	});
+	};
 
+	map.on('mousemove', updatePopup);
 	map.on('click', (e: maplibregl.MapMouseEvent) => {
 		showPopup = !showPopup;
 		if (!showPopup && popup) {
@@ -735,6 +741,7 @@ export const addPopup = (map: maplibregl.Map) => {
 			const coordinates = e.lngLat;
 			popup.setLngLat(coordinates).addTo(map);
 		}
+		updatePopup(e);
 	});
 };
 
