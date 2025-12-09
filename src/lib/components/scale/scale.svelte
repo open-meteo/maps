@@ -20,7 +20,7 @@
 {#if showScale}
 	<div
 		class="absolute {timeSelector
-			? 'bottom-52.5'
+			? 'bottom-27.5'
 			: 'bottom-2.5'} left-2.5 z-10 duration-500 max-h-[300px]"
 	>
 		<div

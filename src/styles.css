@@ -174,7 +174,7 @@ body {
 }
 
 .time-selector-open .maplibregl-ctrl-bottom-right {
-	bottom: 200px;
+	bottom: 100px;
 }
 
 .dark .maplibregl-ctrl.maplibregl-ctrl-group {

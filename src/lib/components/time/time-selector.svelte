@@ -15,8 +15,6 @@
 		variableSelectionOpen as vSO
 	} from '$lib/stores/preferences';
 
-	import { pad } from '$lib';
-
 	import type { ModelDt } from '@openmeteo/mapbox-layer';
 
 	interface Props {
@@ -106,19 +104,60 @@
 	});
 
 	const dark = $derived(mode.current === 'dark');
+
+	const timeInterval = $derived.by(() => {
+		const timeIntervalString = $selectedDomain.time_interval as ModelDt;
+		if (timeIntervalString === '15_minute') {
+			return 0.25;
+		} else if (timeIntervalString === 'hourly') {
+			return 1;
+		} else if (timeIntervalString === '3_hourly') {
+			return 3;
+		} else if (timeIntervalString === '6_hourly') {
+			return 6;
+		} else if (timeIntervalString === '12_hourly') {
+			return 12;
+		} else if (timeIntervalString === 'daily') {
+			return 24;
+		} else {
+			return undefined;
+		}
+	});
+
+	const timeSteps = $derived.by(() => {
+		if (timeInterval) {
+			return [...Array(24 / timeInterval)].map((i, index) => {
+				const date = new SvelteDate(currentDate);
+				date.setHours(index * timeInterval);
+				return date;
+			});
+		} else {
+			return undefined;
+		}
+	});
+	$inspect(timeSteps).with(console.log);
+
+	let hoursContainer = $state();
+	onMount(() => {
+		hoursContainer.scrollIntoView({
+			behavior: 'auto',
+			block: 'center',
+			inline: 'center'
+		});
+	});
 </script>
 
 <div
 	style="background-color: {dark
 		? 'rgba(15, 15, 15, 0.8)'
 		: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
-	class="time-selector absolute h-[200px] w-full py-4 px-16 {timeSelector
+	class="time-selector absolute h-[100px] w-full py-4 px-16 {timeSelector
 		? 'opacity-100 bottom-0'
-		: 'pointer-events-none opacity-0 bottom-[-200px]'}"
+		: 'pointer-events-none opacity-0 bottom-[-100px]'}"
 >
 	<div class="flex flex-col {disabled ? 'cursor-not-allowed' : ''}">
 		<div class="flex items-center justify-center gap-0.5">
-			<button
+			<!-- <button
 				id="prev_hour"
 				class="cursor-pointer rounded border bg-white p-1.5 delay-75 duration-200 dark:bg-[#646464cc] {disabled
 					? 'border-foreground/50  text-black/50 dark:text-white/50 '
@@ -154,8 +193,8 @@
 						: ' text-black  dark:text-white'}"
 				>
 					{Intl.DateTimeFormat().resolvedOptions().timeZone} ({currentDate.getTimezoneOffset() < 0
-						? '+'
-						: '-'}{-currentDate.getTimezoneOffset() / 60}:00)
+						? 'UTC+'
+						: 'UTC-'}{-currentDate.getTimezoneOffset() / 60}:00)
 				</span>
 			</div>
 
@@ -180,9 +219,29 @@
 					class="lucide lucide-chevron-right-icon lucide-chevron-right"
 					><path d="m9 18 6-6-6-6" /></svg
 				></button
-			>
+			> -->
+			|
 		</div>
-		<input
+		<div class="flex flex-row justify-between relative overflow-x-scroll">
+			<div
+				style="background: linear-gradient(to right, rgba(240, 240, 240, 1), rgba(240, 240, 240, 1), transparent, rgba(240, 240, 240, 1), rgba(240, 240, 240, 1));"
+				class="h-8 fixed w-full left-0 pointer-events-none"
+			></div>
+			<div
+				bind:this={hoursContainer}
+				class="flex cursor-grab gap-[10px] flex-row justify-between min-w-[1450px]"
+			>
+				<div class="w-[200px]"></div>
+				<!-- 800px -->
+				{#each timeSteps as step (step)}
+					<div class="bg-blue-500 p-1 min-w-8 flex justify-center rounded">
+						{step.getHours()}
+					</div>
+				{/each}
+				<div class="w-[195px]"></div>
+			</div>
+		</div>
+		<!-- <input
 			id="time_slider"
 			class="w-full delay-75 duration-200"
 			type="range"
@@ -205,8 +264,8 @@
 				date.setHours(Number(value));
 				onDateChange(date);
 			}}
-		/>
-		<input
+		/> -->
+		<!-- <input
 			type="date"
 			id="date_picker"
 			class="date-time-selection rounded bg-white text-sm delay-75 duration-200 dark:bg-[#646464cc] {disabled
@@ -221,6 +280,6 @@
 				date.setHours(currentHour);
 				onDateChange(date);
 			}}
-		/>
+		/> -->
 	</div>
 </div>
