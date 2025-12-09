@@ -7,9 +7,8 @@ import {
 	domainOptions,
 	domainStep,
 	getColor,
-	getOpacity,
-	getValueFromLatLong,
-	hideZero
+	getColorScale,
+	getValueFromLatLong
 } from '@openmeteo/mapbox-layer';
 import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
@@ -19,7 +18,6 @@ import { browser } from '$app/environment';
 import { pushState } from '$app/navigation';
 
 import {
-	colorScale as cS,
 	domain as d,
 	loading,
 	mapBounds as mB,
@@ -684,20 +682,20 @@ export const getStyle = async () => {
 };
 
 export const textWhite = (
-	[r, g, b]: [number, number, number],
-	opacity?: number,
+	[r, g, b, a]: [number, number, number, number],
 	dark?: boolean
 ): boolean => {
-	if (opacity && opacity < 65 && !dark) {
+	if (a != undefined && a < 0.65 && !dark) {
 		return false;
 	}
+	// check luminance
 	return r * 0.299 + g * 0.587 + b * 0.114 <= 186;
 };
 
 let popup: maplibregl.Popup | undefined;
 let showPopup = false;
 export const addPopup = (map: maplibregl.Map) => {
-	map.on('mousemove', function (e) {
+	const updatePopup = (e: maplibregl.MapMouseEvent) => {
 		if (showPopup) {
 			const coordinates = e.lngLat;
 			if (!popup) {
@@ -714,32 +712,26 @@ export const addPopup = (map: maplibregl.Map) => {
 				omRasterSource?.url || ''
 			);
 
-			if (value) {
-				const variable = get(v);
-				const colorScale = get(cS);
-				if ((hideZero.includes(variable) && value <= 0.25) || !value) {
-					popup.remove();
-				} else {
-					const dark = mode.current === 'dark';
-					const color = getColor(colorScale, value);
-					const opacity = getOpacity(variable, value, dark, colorScale);
-
-					const content =
-						'<span class="popup-value">' + value.toFixed(1) + '</span>' + colorScale.unit;
-					popup
-						.setLngLat(coordinates)
-						.setHTML(
-							`<div style="font-weight: bold; background-color: rgba(${color[0]}, ${color[1]}, ${color[2]}, ${opacity / 100}); color: ${textWhite(color, opacity, dark) ? 'white' : 'black'};" class="popup-div">${content}</div>`
-						);
-				}
+			if (isFinite(value)) {
+				const dark = mode.current === 'dark';
+				const colorScale = getColorScale(get(v), dark);
+				const color = getColor(colorScale, value);
+				const content =
+					'<span class="popup-value">' + value.toFixed(1) + '</span>' + colorScale.unit;
+				popup
+					.setLngLat(coordinates)
+					.setHTML(
+						`<div style="font-weight: bold; background-color: rgba(${color.join(',')}); color: ${textWhite(color, dark) ? 'white' : 'black'};" class="popup-div">${content}</div>`
+					);
 			} else {
 				popup
 					.setLngLat(coordinates)
 					.setHTML(`<span style="padding: 3px 5px;" class="popup-string">Outside domain</span>`);
 			}
 		}
-	});
+	};
 
+	map.on('mousemove', updatePopup);
 	map.on('click', (e: maplibregl.MapMouseEvent) => {
 		showPopup = !showPopup;
 		if (!showPopup && popup) {
@@ -749,6 +741,7 @@ export const addPopup = (map: maplibregl.Map) => {
 			const coordinates = e.lngLat;
 			popup.setLngLat(coordinates).addTo(map);
 		}
+		updatePopup(e);
 	});
 };
 
