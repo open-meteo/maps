@@ -15,8 +15,8 @@
 	const isDark = $derived(mode.current === 'dark');
 	const colorScale: RGBAColorScale = $derived(getColorScale($variable, isDark));
 
-	const colorScaleHeight = 800;
-	const amountLabels = 45;
+	const colorScaleHeight = 500;
+	const amountLabels = 25;
 </script>
 
 {#if showScale}
