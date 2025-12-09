@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { type RGBAColorScale, getColor } from '@openmeteo/mapbox-layer';
+	import { type RGBAColorScale, getColor, getColorScale } from '@openmeteo/mapbox-layer';
 	import { mode } from 'mode-watcher';
 
-	import { colorScale as cS } from '$lib/stores/preferences';
+	import { variable } from '$lib/stores/preferences';
 
 	import { textWhite } from '$lib';
 
@@ -12,14 +12,15 @@
 
 	let { showScale }: Props = $props();
 
-	const colorScale: RGBAColorScale = $derived.by(() => $cS);
+	const isDark = $derived(mode.current === 'dark');
+	const colorScale: RGBAColorScale = $derived(getColorScale($variable, isDark));
+
 	const colorScaleHeight = 800;
 	const amountLabels = 45;
 </script>
 
 {#if showScale}
 	{@const digits = Math.abs(Math.floor(1 / Math.log(colorScale.max - colorScale.min)))}
-	{@const dark = mode.current === 'dark'}
 	<div class="absolute bottom-2.5 left-2.5 z-10 max-h-[{colorScaleHeight + 100}px]">
 		<div
 			style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
@@ -27,31 +28,25 @@
 		>
 			<div
 				class="flex max-h-[{colorScaleHeight}px] flex-col-reverse"
-				style={dark ? 'background:black;' : 'background:white;'}
+				style={isDark ? 'background:black;' : 'background:white;'}
 			>
 				{#each colorScale.colors as cs, i (i)}
-					{@const value =
-						colorScale.min +
-						(i / (colorScale.colors.length - 1)) * (colorScale.max - colorScale.min)}
-					{@const opacity = getColor(colorScale, value)[3] / 100}
+					{@const valueLength = String(Math.round(colorScale.max)).length}
+					{@const width = 17 + Math.max(valueLength, colorScale.unit.length + 1, digits + 2) * 4}
 					<div
-						style={`background: rgba(${cs.join(',')}); filter: opacity(${opacity});min-width: 28px; width: ${17 + Math.max(String(Math.round(colorScale.max)).length, colorScale.unit.length + 1, digits + 2) * 4}px; height: ${colorScaleHeight / colorScale.colors.length}px;`}
+						style={`background: rgba(${cs.join(',')});min-width: 28px; width: ${width}px; height: ${colorScaleHeight / colorScale.colors.length}px;`}
 					></div>
 				{/each}
 
-				{#each Array.from({ length: amountLabels + 1 }, (_, i) => (i * 100) / amountLabels) as step, i (i)}
-					{@const color = getColor(
-						colorScale,
-						Math.floor(
-							colorScale.min + (step * (colorScale.max - colorScale.min)) / colorScale.colors.length
-						)
-					) as [number, number, number, number]}
+				{#each Array.from({ length: amountLabels + 1 }, (_, i) => i / amountLabels) as step, i (i)}
+					{@const value = Math.floor(colorScale.min + step * (colorScale.max - colorScale.min))}
+					{@const color = getColor(colorScale, value)}
 
 					<div
 						class="absolute w-full text-center text-xs"
-						style={`bottom:  ${2 + (colorScaleHeight * step * 0.01 * amountLabels) / (amountLabels + 1)}px; color: ${textWhite(color, dark) ? 'white;' : 'black'}`}
+						style={`bottom:  ${2 + (colorScaleHeight * step * amountLabels) / (amountLabels + 1)}px; color: ${textWhite(color, isDark) ? 'white;' : 'black'}`}
 					>
-						{(colorScale.min + step * 0.01 * (colorScale.max - colorScale.min)).toFixed(digits)}
+						{value.toFixed(digits)}
 					</div>
 				{/each}
 			</div>

@@ -7,6 +7,7 @@ import {
 	domainOptions,
 	domainStep,
 	getColor,
+	getColorScale,
 	getValueFromLatLong
 } from '@openmeteo/mapbox-layer';
 import * as maplibregl from 'maplibre-gl';
@@ -17,7 +18,6 @@ import { browser } from '$app/environment';
 import { pushState } from '$app/navigation';
 
 import {
-	colorScale as cS,
 	domain as d,
 	loading,
 	mapBounds as mB,
@@ -671,7 +671,7 @@ export const textWhite = (
 	[r, g, b, a]: [number, number, number, number],
 	dark?: boolean
 ): boolean => {
-	if (a != undefined && a < 65)
+	if (a != undefined && a < 0.65)
 		if (dark) {
 			return true;
 		} else {
@@ -702,16 +702,15 @@ export const addPopup = (map: maplibregl.Map) => {
 			);
 
 			if (isFinite(value)) {
-				const colorScale = get(cS);
-				const color = getColor(colorScale, value);
 				const dark = mode.current === 'dark';
-				const opacity = color[3];
+				const colorScale = getColorScale(get(v), dark);
+				const color = getColor(colorScale, value);
 				const content =
 					'<span class="popup-value">' + value.toFixed(1) + '</span>' + colorScale.unit;
 				popup
 					.setLngLat(coordinates)
 					.setHTML(
-						`<div style="font-weight: bold; background-color: rgba(${color[0]}, ${color[1]}, ${color[2]}, ${opacity / 100}); color: ${textWhite(color, dark) ? 'white' : 'black'};" class="popup-div">${content}</div>`
+						`<div style="font-weight: bold; background-color: rgba(${color.join(',')}); color: ${textWhite(color, dark) ? 'white' : 'black'};" class="popup-div">${content}</div>`
 					);
 			} else {
 				popup
