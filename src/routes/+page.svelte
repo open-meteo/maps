@@ -266,7 +266,7 @@
 {/if}
 
 <div class="map" id="#map_container" bind:this={mapContainer}></div>
-<Scale showScale={$preferences.showScale} variable={$variable} />
+<Scale showScale={$preferences.showScale} />
 
 <HelpDialog />
 <VariableSelection
