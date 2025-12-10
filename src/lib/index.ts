@@ -685,8 +685,12 @@ export const textWhite = (
 	[r, g, b, a]: [number, number, number, number],
 	dark?: boolean
 ): boolean => {
-	if (a != undefined && a < 0.65 && !dark) {
-		return false;
+	if (a != undefined && a < 0.65) {
+		if (dark) {
+			return true;
+		} else {
+			return false;
+		}
 	}
 	// check luminance
 	return r * 0.299 + g * 0.587 + b * 0.114 <= 186;
