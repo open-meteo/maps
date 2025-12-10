@@ -75,8 +75,8 @@
 
 	import '../styles.css';
 
-	let url: URL = $state();
-	let map: maplibregl.Map = $state();
+	let url: URL = $state() as URL;
+	let map: maplibregl.Map = $state() as maplibregl.Map;
 	let metaJson: DomainMetaData | undefined = $state();
 	let mapContainer: HTMLElement | null;
 
@@ -266,7 +266,7 @@
 {/if}
 
 <div class="map" id="#map_container" bind:this={mapContainer}></div>
-<Scale showScale={$preferences.showScale} variable={$variable} />
+<Scale showScale={$preferences.showScale} />
 
 <HelpDialog />
 <VariableSelection
