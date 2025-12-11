@@ -137,21 +137,54 @@
 	});
 
 	let hoursContainer: HTMLElement | undefined = $state();
+	let hoursContainerParent: HTMLElement | undefined = $state();
+
 	onMount(() => {
-		if (hoursContainer)
+		if (hoursContainer && hoursContainerParent) {
 			hoursContainer.scrollIntoView({
-				behavior: 'auto',
+				behavior: 'instant',
 				block: 'center',
 				inline: 'center'
 			});
+
+			hoursContainerParent.addEventListener('scroll', (e) => {
+				const target = e.currentTarget as Element;
+				const width = target.getBoundingClientRect().width;
+				const left = target.scrollLeft;
+
+				const percentage = left / width;
+
+				if (left === 0) {
+					currentDate.setHours(0);
+				}
+				if (percentage) {
+					console.log(percentage);
+					currentDate.setHours(Math.floor(percentage * 25));
+				}
+			});
+
+			hoursContainerParent.addEventListener('scrollend', (e) => {
+				console.log('scrollend');
+				onDateChange(currentDate);
+			});
+		}
 	});
+	const centerDateButton = (hour: number) => {
+		if (hoursContainer) {
+			const target = hoursContainer;
+			const width = target.getBoundingClientRect().width;
+
+			const left = width * (hour / 24);
+			hoursContainer.scrollTo({ left: left });
+		}
+	};
 </script>
 
 <div
 	style="background-color: {dark
 		? 'rgba(15, 15, 15, 0.8)'
 		: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
-	class="time-selector absolute h-[120px] w-full py-4 px-16 {timeSelector
+	class="time-selector absolute h-[120px] w-full py-4 {timeSelector
 		? 'opacity-100 bottom-0'
 		: 'pointer-events-none opacity-0 bottom-[-120px]'}"
 >
@@ -162,7 +195,7 @@
 			style="background-color: {dark
 				? 'rgba(15, 15, 15, 0.8)'
 				: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
-			class="px-4 rounded-t-xl h-[40px] flex items-center justify-center min-w-[100px]"
+			class="px-4 rounded-t-xl h-[40.5px] flex items-center justify-center min-w-[100px]"
 		>
 			{pad(currentDate.getHours()) + ':' + pad(currentDate.getMinutes())}
 		</div>
@@ -234,32 +267,32 @@
 			> -->
 			|
 		</div>
-		<div class="flex flex-row justify-between relative overflow-x-scroll mt-2">
-			<div
+		<div bind:this={hoursContainerParent} class="relative overflow-x-scroll mt-2 w-[100vw]">
+			<!-- <div
 				style="background: {dark
 					? 'linear-gradient(to right, rgba(15, 15, 15, 0.8), rgba(15, 15, 15, 0.8), transparent, rgba(15, 15, 15, 0.8), rgba(15, 15, 15, 0.8));'
 					: 'linear-gradient(to right, rgba(240, 240, 240, 1), rgba(240, 240, 240, 1), transparent, rgba(240, 240, 240, 1), rgba(240, 240, 240, 1));'}"
 				class="h-8 fixed w-full left-0 pointer-events-none"
-			></div>
-			<div
-				bind:this={hoursContainer}
-				class="flex cursor-grab gap-[10px] flex-row justify-between w-[1895px]"
-			>
-				<div class="w-[500px]"></div>
-				<!-- ???px -->
-				{#each timeSteps as step (step)}
-					<button
-						class="bg-blue-500 p-1 min-w-8 flex justify-center rounded cursor-pointer"
-						onclick={() => {
-							let newDate = new SvelteDate(time);
-							newDate.setHours(step.getHours());
-							onDateChange(newDate);
-						}}
-					>
-						{step.getHours()}
-					</button>
-				{/each}
-				<div class="w-[500px]"></div>
+			></div> -->
+			<div bind:this={hoursContainer} class="flex cursor-grab flex-row w-[calc(200vw-64px)]">
+				<div class="w-[calc(50vw-16px)]"></div>
+				<div class="w-[calc(100vw-32px)] flex flex-row items-center justify-between">
+					{#each timeSteps as step (step)}
+						<button
+							class="bg-blue-500 p-1 text-white min-w-8 flex justify-center rounded cursor-pointer"
+							onclick={() => {
+								let newDate = new SvelteDate(time);
+								newDate.setHours(step.getHours());
+								onDateChange(newDate);
+								centerDateButton(step.getHours());
+							}}
+						>
+							{pad(step.getHours())}
+						</button>
+					{/each}
+				</div>
+
+				<div class="w-[50vw-16px]"></div>
 			</div>
 		</div>
 		<!-- <input
