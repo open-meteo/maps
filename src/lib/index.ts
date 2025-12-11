@@ -922,7 +922,11 @@ export const getOMUrl = () => {
 };
 
 const TIME_SELECTED_REGEX = new RegExp(/([0-9]{2}-[0-9]{2}-[0-9]{2}T[0-9]{2}00)/);
-export const getNextOmUrls = (omUrl: string, domain: Domain, metaJson: DomainMetaData) => {
+export const getNextOmUrls = (
+	omUrl: string,
+	domain: Domain,
+	metaJson: DomainMetaData | undefined
+) => {
 	let nextUrl, prevUrl;
 
 	const url = `https://map-tiles.open-meteo.com/data_spatial/${domain.value}`;
@@ -932,13 +936,16 @@ export const getNextOmUrls = (omUrl: string, domain: Domain, metaJson: DomainMet
 		const date = new Date('20' + matches[0].substring(0, matches[0].length - 2) + ':00Z');
 		const prevUrlDate = domainStep(date, domain.time_interval, 'backward');
 		const nextUrlDate = domainStep(date, domain.time_interval, 'forward');
-		const currentModelRun = new Date(metaJson.reference_time);
+		let currentModelRun;
+		if (metaJson) {
+			currentModelRun = new Date(metaJson.reference_time);
+		}
 		let prevUrlModelRun = closestModelRun(prevUrlDate, domain.model_interval);
-		if (prevUrlModelRun > currentModelRun) {
+		if (currentModelRun && prevUrlModelRun > currentModelRun) {
 			prevUrlModelRun = currentModelRun;
 		}
 		let nextUrlModelRun = closestModelRun(nextUrlDate, domain.model_interval);
-		if (nextUrlModelRun > currentModelRun) {
+		if (currentModelRun && nextUrlModelRun > currentModelRun) {
 			nextUrlModelRun = currentModelRun;
 		}
 		prevUrl = url + `/${fmtModelRun(prevUrlModelRun)}/${fmtSelectedTime(prevUrlDate)}.om`;

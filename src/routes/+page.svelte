@@ -6,7 +6,6 @@
 
 	import {
 		type Data,
-		type DataIdentityOptions,
 		type DomainMetaData,
 		GridFactory,
 		OMapsFileReader,
