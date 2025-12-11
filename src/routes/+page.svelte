@@ -7,10 +7,8 @@
 	import {
 		type DomainMetaData,
 		GridFactory,
-		OMapsFileReader,
-		type OmProtocolSettings,
+		type RenderableColorScale,
 		closestModelRun,
-		defaultOmProtocolSettings,
 		domainOptions,
 		domainStep,
 		omProtocol
@@ -71,6 +69,7 @@
 		setMapControlSettings,
 		urlParamsToPreferences
 	} from '$lib';
+	import { omProtocolSettings } from '$lib/constants';
 	import { fmtISOWithoutTimezone } from '$lib/index';
 
 	import '../styles.css';
@@ -79,6 +78,8 @@
 	let map: maplibregl.Map = $state() as maplibregl.Map;
 	let metaJson: DomainMetaData | undefined = $state();
 	let mapContainer: HTMLElement | null;
+
+	let color_toggle = false;
 
 	const changeOmDomain = async (newValue: string, updateUrlState = true): Promise<void> => {
 		loading.set(true);
@@ -152,19 +153,6 @@
 				resetStates();
 			}
 			lSV.set(version);
-		}
-	});
-
-	const omProtocolSettings: OmProtocolSettings = $derived({
-		...defaultOmProtocolSettings,
-		// static
-		useSAB: true,
-
-		// could be dynamic
-		postReadCallback: (omFileReader: OMapsFileReader, omUrl: string) => {
-			if (!omUrl.includes('dwd_icon')) {
-				omFileReader._prefetch(omUrl);
-			}
 		}
 	});
 
@@ -266,7 +254,16 @@
 {/if}
 
 <div class="map" id="#map_container" bind:this={mapContainer}></div>
-<Scale showScale={$preferences.showScale} />
+<Scale
+	showScale={$preferences.showScale}
+	afterColorScaleChange={(variable: string, colorScale: RenderableColorScale) => {
+		color_toggle = !color_toggle;
+		omProtocolSettings.colorScales[variable] = colorScale;
+		url.searchParams.set('color_toggle', color_toggle ? 'true' : 'false');
+		changeOMfileURL(map, url, metaJson);
+		toast('Changed color scale');
+	}}
+/>
 
 <HelpDialog />
 <VariableSelection
