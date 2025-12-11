@@ -943,23 +943,25 @@ export const getHourlyInterval = (domain: Domain) => {
 export const getNextOmUrls = (omUrl: string, domain: Domain) => {
 	const resolution = getHourlyInterval(domain);
 	let nextUrl, prevUrl;
+
+	const uri = domain.value.startsWith('dwd_icon')
+		? `https://s3.servert.ch`
+		: `https://map-tiles.open-meteo.com`;
+
+	let url = `${uri}/data_spatial/${domain}`;
+
 	if (resolution) {
 		const re = new RegExp(/([0-9]{2}-[0-9]{2}-[0-9]{2}T[0-9]{2}00)/);
 		const matches = omUrl.match(re);
 		if (matches) {
 			const date = new Date('20' + matches[0].substring(0, matches[0].length - 2) + ':00Z');
-
-			date.setUTCHours(date.getUTCHours() - resolution);
-			prevUrl = omUrl.replace(
-				re,
-				`${String(date.getUTCFullYear()).substring(2, 4)}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}00`
-			);
-
-			date.setUTCHours(date.getUTCHours() + 2 * resolution);
-			nextUrl = omUrl.replace(
-				re,
-				`${String(date.getUTCFullYear()).substring(2, 4)}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}00`
-			);
+			console.log(date);
+			const prevUrlDate = domainStep(date, domain.time_interval, 'backward');
+			const nextUrlDate = domainStep(date, domain.time_interval, 'forward');
+			const prevUrlModelRun = closestModelRun(prevUrlDate, domain.model_interval);
+			const nextUrlModelRun = closestModelRun(nextUrlDate, domain.model_interval);
+			prevUrl = url + `/${fmtModelRun(prevUrlModelRun)}/${fmtSelectedTime(prevUrlDate)}.om`;
+			nextUrl = url + `/${fmtModelRun(nextUrlModelRun)}/${fmtSelectedTime(nextUrlDate)}.om`;
 		}
 	}
 	if (prevUrl && nextUrl) {
