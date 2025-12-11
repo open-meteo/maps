@@ -928,7 +928,7 @@ export const getNextOmUrls = (omUrl: string, domain: Domain) => {
 		? `https://s3.servert.ch`
 		: `https://map-tiles.open-meteo.com`;
 
-	const url = `${uri}/data_spatial/${domain}`;
+	const url = `${uri}/data_spatial/${domain.value}`;
 
 	const re = new RegExp(/([0-9]{2}-[0-9]{2}-[0-9]{2}T[0-9]{2}00)/);
 	const matches = omUrl.match(re);
