@@ -132,15 +132,11 @@
 		return json;
 	};
 
-	let timeSelectorOpen = $state(false);
+	let timeSelectorOpen = $derived($preferences.timeSelector);
 	let localStorageVersion = $derived(get(lSV));
 	onMount(() => {
 		url = new URL(document.location.href);
 		urlParamsToPreferences(url);
-
-		preferences.subscribe((newPref) => {
-			timeSelectorOpen = newPref.timeSelector;
-		});
 
 		// first time check if monitor supports high definition, for increased tileResolution
 		if (!get(resolutionSet)) {

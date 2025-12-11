@@ -25,7 +25,7 @@
 
 	<div
 		class="absolute {timeSelector
-			? 'bottom-27.5'
+			? 'bottom-32.5'
 			: 'bottom-2.5'} left-2.5 z-10 duration-500 max-h-[{colorScaleHeight + 100}px]"
 	>
 		<div

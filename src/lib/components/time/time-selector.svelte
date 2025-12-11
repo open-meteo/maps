@@ -3,7 +3,7 @@
 	import { SvelteDate } from 'svelte/reactivity';
 	import { get } from 'svelte/store';
 
-	import { domainStep } from '@openmeteo/mapbox-layer';
+	import { domainStep, pad } from '@openmeteo/mapbox-layer';
 	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
@@ -135,15 +135,15 @@
 			return undefined;
 		}
 	});
-	$inspect(timeSteps).with(console.log);
 
-	let hoursContainer = $state();
+	let hoursContainer: HTMLElement | undefined = $state();
 	onMount(() => {
-		hoursContainer.scrollIntoView({
-			behavior: 'auto',
-			block: 'center',
-			inline: 'center'
-		});
+		if (hoursContainer)
+			hoursContainer.scrollIntoView({
+				behavior: 'auto',
+				block: 'center',
+				inline: 'center'
+			});
 	});
 </script>
 
@@ -151,10 +151,22 @@
 	style="background-color: {dark
 		? 'rgba(15, 15, 15, 0.8)'
 		: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
-	class="time-selector absolute h-[100px] w-full py-4 px-16 {timeSelector
+	class="time-selector absolute h-[120px] w-full py-4 px-16 {timeSelector
 		? 'opacity-100 bottom-0'
-		: 'pointer-events-none opacity-0 bottom-[-100px]'}"
+		: 'pointer-events-none opacity-0 bottom-[-120px]'}"
 >
+	<div
+		class="font-bold absolute -top-[40px] left-1/2 h-[40px] text-2xl pointer-events-none -translate-x-1/2"
+	>
+		<div
+			style="background-color: {dark
+				? 'rgba(15, 15, 15, 0.8)'
+				: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
+			class="px-4 rounded-t-xl h-[40px] flex items-center justify-center min-w-[100px]"
+		>
+			{pad(currentDate.getHours()) + ':' + pad(currentDate.getMinutes())}
+		</div>
+	</div>
 	<div class="flex flex-col {disabled ? 'cursor-not-allowed' : ''}">
 		<div class="flex items-center justify-center gap-0.5">
 			<!-- <button
@@ -222,23 +234,32 @@
 			> -->
 			|
 		</div>
-		<div class="flex flex-row justify-between relative overflow-x-scroll">
+		<div class="flex flex-row justify-between relative overflow-x-scroll mt-2">
 			<div
-				style="background: linear-gradient(to right, rgba(240, 240, 240, 1), rgba(240, 240, 240, 1), transparent, rgba(240, 240, 240, 1), rgba(240, 240, 240, 1));"
+				style="background: {dark
+					? 'linear-gradient(to right, rgba(15, 15, 15, 0.8), rgba(15, 15, 15, 0.8), transparent, rgba(15, 15, 15, 0.8), rgba(15, 15, 15, 0.8));'
+					: 'linear-gradient(to right, rgba(240, 240, 240, 1), rgba(240, 240, 240, 1), transparent, rgba(240, 240, 240, 1), rgba(240, 240, 240, 1));'}"
 				class="h-8 fixed w-full left-0 pointer-events-none"
 			></div>
 			<div
 				bind:this={hoursContainer}
-				class="flex cursor-grab gap-[10px] flex-row justify-between min-w-[1450px]"
+				class="flex cursor-grab gap-[10px] flex-row justify-between w-[1895px]"
 			>
-				<div class="w-[200px]"></div>
-				<!-- 800px -->
+				<div class="w-[500px]"></div>
+				<!-- ???px -->
 				{#each timeSteps as step (step)}
-					<div class="bg-blue-500 p-1 min-w-8 flex justify-center rounded">
+					<button
+						class="bg-blue-500 p-1 min-w-8 flex justify-center rounded cursor-pointer"
+						onclick={() => {
+							let newDate = new SvelteDate(time);
+							newDate.setHours(step.getHours());
+							onDateChange(newDate);
+						}}
+					>
 						{step.getHours()}
-					</div>
+					</button>
 				{/each}
-				<div class="w-[195px]"></div>
+				<div class="w-[500px]"></div>
 			</div>
 		</div>
 		<!-- <input

@@ -171,10 +171,11 @@ body {
 
 .maplibregl-ctrl-bottom-right {
 	transition-duration: 500ms;
+	z-index: 0;
 }
 
 .time-selector-open .maplibregl-ctrl-bottom-right {
-	bottom: 100px;
+	bottom: 120px;
 }
 
 .dark .maplibregl-ctrl.maplibregl-ctrl-group {
