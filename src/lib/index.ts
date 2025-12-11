@@ -940,7 +940,8 @@ export const getNextOmUrls = (omUrl: string, domain: Domain) => {
 		const nextUrlModelRun = closestModelRun(nextUrlDate, domain.model_interval);
 		prevUrl = url + `/${fmtModelRun(prevUrlModelRun)}/${fmtSelectedTime(prevUrlDate)}.om`;
 		nextUrl = url + `/${fmtModelRun(nextUrlModelRun)}/${fmtSelectedTime(nextUrlDate)}.om`;
+		return [prevUrl, nextUrl];
+	} else {
+		return undefined;
 	}
-
-	return [prevUrl, nextUrl];
 };
