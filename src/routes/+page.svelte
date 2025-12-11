@@ -11,6 +11,7 @@
 		GridFactory,
 		OMapsFileReader,
 		type OmProtocolSettings,
+		type OmUrlState,
 		closestModelRun,
 		defaultOmProtocolSettings,
 		domainOptions,
@@ -165,30 +166,30 @@
 		useSAB: true,
 
 		// dynamic (can be changed during runtime)
-		postReadCallback: (
-			omFileReader: OMapsFileReader,
-			data: Data,
-			dataOptions: DataIdentityOptions
-		) => {
+		postReadCallback: (omFileReader: OMapsFileReader, data: Data, state: OmUrlState) => {
 			// dwd icon models are cached locally on server
-			if (!dataOptions.domain.value.startsWith('dwd_icon')) {
-				const nextOmUrls = getNextOmUrls(String(url), $selectedDomain);
+
+			if (!state.dataOptions.domain.value.startsWith('dwd_icon')) {
+				const nextOmUrls = getNextOmUrls(state.omFileUrl, $selectedDomain, metaJson);
 				if (nextOmUrls) {
 					for (const nextOmUrl of nextOmUrls) {
-						// if (!omFileReader.s3BackendCache.has(nextOmUrl)) {
-						fetch(nextOmUrl, {
-							method: 'GET',
-							headers: {
-								Range: 'bytes=0-255' // Just fetch first 256 bytes to trigger caching
-							}
-						}).catch(() => {
-							// Silently ignore errors for prefetches
-						});
-						//}
+						if (!omFileReader.hasFileOpen(nextOmUrl)) {
+							fetch(nextOmUrl, {
+								method: 'GET',
+								headers: {
+									Range: 'bytes=0-255' // Just fetch first 256 bytes to trigger caching
+								}
+							}).catch(() => {
+								// Silently ignore errors for prefetches
+							});
+						}
 					}
 				}
 			}
-			if (dataOptions.domain.value === 'ecmwf_ifs' && dataOptions.variable === 'pressure_msl') {
+			if (
+				state.dataOptions.domain.value === 'ecmwf_ifs' &&
+				state.dataOptions.variable === 'pressure_msl'
+			) {
 				if (data.values) {
 					data.values = data.values?.map((value) => value / 100);
 				}
