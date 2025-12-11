@@ -6,10 +6,10 @@
 	import type { Domain } from '@openmeteo/mapbox-layer';
 
 	interface Props {
-		selectedDomain: Domain;
+		domain: Domain;
 	}
 
-	let { selectedDomain }: Props = $props();
+	let { domain }: Props = $props();
 </script>
 
 <div class="flex flex-col gap-2.5">
@@ -20,7 +20,7 @@
 		role="combobox"
 	>
 		<div class="truncate">
-			{selectedDomain?.label || 'Select a domain...'}
+			{domain?.label || 'Select a domain...'}
 		</div>
 		<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
 	</Button>

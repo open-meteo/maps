@@ -55,8 +55,8 @@
 				let match = mjVariable.match(LEVEL_REGEX);
 				if (match) {
 					const prefixMatch = mjVariable.match(LEVEL_PREFIX);
-					if (prefixMatch) {
-						const prefix = prefixMatch.groups?.prefix;
+					const prefix = prefixMatch?.groups?.prefix;
+					if (prefix) {
 						if (!variables.includes(prefix)) variables.push(prefix);
 						continue;
 					}
@@ -70,15 +70,17 @@
 
 	const levelGroupsList = $derived.by(() => {
 		if (metaJson) {
-			const groups = {};
+			const groups: { [key: string]: [{ value: string; label: string }] } = {};
 			for (let mjVariable of metaJson.variables) {
 				let match = mjVariable.match(LEVEL_REGEX);
 				if (match && match.groups) {
 					const prefixMatch = mjVariable.match(LEVEL_PREFIX);
-					if (prefixMatch) {
-						const { prefix } = prefixMatch.groups;
+					const prefix = prefixMatch?.groups?.prefix;
+
+					if (prefix) {
 						let variableObject = variableOptions.find(({ value }) => value === mjVariable) ?? {
-							value: mjVariable
+							value: mjVariable,
+							label: mjVariable
 						};
 						if (!Object.keys(groups).includes(prefix)) {
 							groups[prefix] = [variableObject];
@@ -176,20 +178,22 @@
 			: undefined
 	);
 
-	const checkDefaultLevel = (value: string) => {
-		const levelGroup = levelGroupsList[levelGroupSelected.value];
-		if (levelGroup) {
-			// define some default levels
-			for (let level of levelGroup) {
-				if (level.value.includes('2m')) {
-					return level.value;
-				} else if (level.value.includes('10m')) {
-					return level.value;
-				} else if (level.value.includes('100m')) {
-					return level.value;
+	const checkDefaultLevel = (value: string | undefined) => {
+		if (levelGroupsList && levelGroupSelected) {
+			const levelGroup = levelGroupsList[levelGroupSelected.value];
+			if (levelGroup) {
+				// define some default levels
+				for (let level of levelGroup) {
+					if (level.value.includes('2m')) {
+						return level.value;
+					} else if (level.value.includes('10m')) {
+						return level.value;
+					} else if (level.value.includes('100m')) {
+						return level.value;
+					}
 				}
+				return levelGroup[0].value;
 			}
-			return levelGroup[0].value;
 		}
 		return value;
 	};
@@ -201,7 +205,7 @@
 		: '-left-[182px]'} "
 >
 	{#if $loading && metaJson}
-		<VariableSelectionEmpty {$selectedDomain} />
+		<VariableSelectionEmpty domain={$selectedDomain} />
 	{:else}
 		<div class="flex flex-col gap-2.5">
 			<Popover.Root
@@ -482,8 +486,8 @@
 								<Command.Empty>No levels found.</Command.Empty>
 								<Command.Group>
 									{#each levelGroupsList[levelGroupSelected.value] as { value, label } (value)}
-										{@const lvl = value.match(LEVEL_UNIT_REGEX).groups.level}
-										{@const u = value.match(LEVEL_UNIT_REGEX).groups.unit}
+										{@const lvl = value.match(LEVEL_UNIT_REGEX)?.groups?.level}
+										{@const u = value.match(LEVEL_UNIT_REGEX)?.groups?.unit}
 
 										{#if !value.includes('v_component') && !value.includes('_direction')}
 											<Command.Item

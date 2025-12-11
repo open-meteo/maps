@@ -714,7 +714,7 @@ export const addPopup = (map: maplibregl.Map) => {
 
 			if (isFinite(value)) {
 				const dark = mode.current === 'dark';
-				const colorScale = getColorScale(get(v));
+				const colorScale = getColorScale(get(v), dark);
 				const color = getColor(colorScale, value);
 				const content =
 					'<span class="popup-value">' + value.toFixed(1) + '</span>' + colorScale.unit;
