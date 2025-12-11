@@ -3,7 +3,8 @@
 	import { SvelteDate } from 'svelte/reactivity';
 	import { get } from 'svelte/store';
 
-	import { domainStep } from '@openmeteo/mapbox-layer';
+	import { domainStep, pad } from '@openmeteo/mapbox-layer';
+	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
 	import { browser } from '$app/environment';
@@ -13,8 +14,6 @@
 		selectedDomain,
 		variableSelectionOpen as vSO
 	} from '$lib/stores/preferences';
-
-	import { pad } from '$lib';
 
 	import type { ModelDt } from '@openmeteo/mapbox-layer';
 
@@ -42,23 +41,27 @@
 	const previousHour = () => {
 		const date = domainStep(time, resolution, 'backward');
 		onDateChange(date);
+		centerDateButton(date.getHours(), true);
 	};
 
 	const nextHour = () => {
 		const date = domainStep(time, resolution, 'forward');
 		onDateChange(date);
+		centerDateButton(date.getHours(), true);
 	};
 
 	const previousDay = () => {
 		time.setHours(time.getHours() - 23);
 		const date = domainStep(time, resolution, 'backward');
 		onDateChange(date);
+		centerDateButton(date.getHours(), true);
 	};
 
 	const nextDay = () => {
 		time.setHours(time.getHours() + 23);
 		const date = domainStep(time, resolution, 'forward');
 		onDateChange(date);
+		centerDateButton(date.getHours(), true);
 	};
 
 	let domainSelectionOpen = $state(get(dSO));
@@ -103,17 +106,121 @@
 			window.removeEventListener('keydown', keydownEvent);
 		}
 	});
+
+	const dark = $derived(mode.current === 'dark');
+
+	const timeInterval = $derived.by(() => {
+		const timeIntervalString = $selectedDomain.time_interval as ModelDt;
+		if (timeIntervalString === '15_minute') {
+			return 0.25;
+		} else if (timeIntervalString === 'hourly') {
+			return 1;
+		} else if (timeIntervalString === '3_hourly') {
+			return 3;
+		} else if (timeIntervalString === '6_hourly') {
+			return 6;
+		} else if (timeIntervalString === '12_hourly') {
+			return 12;
+		} else if (timeIntervalString === 'daily') {
+			return 24;
+		} else {
+			return undefined;
+		}
+	});
+
+	const timeSteps = $derived.by(() => {
+		if (timeInterval) {
+			return [...Array(24 / timeInterval)].map((i, index) => {
+				const date = new SvelteDate(currentDate);
+				date.setHours(index * timeInterval);
+				return date;
+			});
+		} else {
+			return undefined;
+		}
+	});
+
+	let hoursContainer: HTMLElement | undefined = $state();
+	let hoursContainerParent: HTMLElement | undefined = $state();
+
+	let movingToNextHour = $state(false);
+	let movingToNextHourTimeout: NodeJS.Timeout | undefined = $state(undefined);
+
+	onMount(() => {
+		if (hoursContainer && hoursContainerParent) {
+			hoursContainer.scrollIntoView({
+				behavior: 'instant',
+				block: 'center',
+				inline: 'center'
+			});
+
+			hoursContainerParent.addEventListener('scroll', (e) => {
+				if (!movingToNextHour) {
+					const target = e.currentTarget as Element;
+					const width = target.getBoundingClientRect().width;
+					const left = target.scrollLeft;
+
+					const percentage = left / width;
+
+					if (left === 0) {
+						currentDate.setHours(0);
+					}
+					if (percentage) {
+						console.log(percentage);
+						currentDate.setHours(Math.floor(percentage * 25));
+					}
+				}
+			});
+
+			hoursContainerParent.addEventListener('scrollend', (e) => {
+				if (!movingToNextHour) {
+					onDateChange(currentDate);
+				}
+			});
+		}
+	});
+	const centerDateButton = (hour: number, smooth = false) => {
+		if (hoursContainer && hoursContainerParent) {
+			if (smooth) {
+				movingToNextHour = true;
+				if (movingToNextHourTimeout) clearTimeout(movingToNextHourTimeout);
+			}
+			const target = hoursContainer;
+			const width = target.getBoundingClientRect().width;
+			const left = (width + 18) * (hour / 24);
+			console.log(left, width);
+			hoursContainerParent.scrollTo({ left: left, behavior: smooth ? 'smooth' : 'instant' });
+			if (smooth)
+				movingToNextHourTimeout = setTimeout(() => {
+					movingToNextHour = false;
+				}, 500);
+		}
+	};
 </script>
 
 <div
-	style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
-	class="time-selector bg-background/90 dark:bg-background/70 bottom-14.5 transform-[translate(-50%)] absolute left-[50%] mx-auto rounded-[4px] px-3 py-3 {!timeSelector
-		? 'pointer-events-none opacity-0'
-		: 'opacity-100'}"
+	style="background-color: {dark
+		? 'rgba(15, 15, 15, 0.8)'
+		: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
+	class="time-selector absolute h-[120px] w-full py-4 {timeSelector
+		? 'opacity-100 bottom-0'
+		: 'pointer-events-none opacity-0 bottom-[-120px]'}"
 >
+	<div
+		class="font-bold absolute -top-[40px] left-1/2 h-[40px] text-2xl pointer-events-none -translate-x-1/2"
+	>
+		<div
+			style="background-color: {dark
+				? 'rgba(15, 15, 15, 0.8)'
+				: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
+			class="px-4 rounded-t-xl h-[40.5px] flex items-center justify-center min-w-[105px]"
+		>
+			{pad(currentDate.getHours()) + ':' + pad(currentDate.getMinutes())}
+		</div>
+	</div>
 	<div class="flex flex-col {disabled ? 'cursor-not-allowed' : ''}">
 		<div class="flex items-center justify-center gap-0.5">
-			<button
+			<!-- <button
 				id="prev_hour"
 				class="cursor-pointer rounded border bg-white p-1.5 delay-75 duration-200 dark:bg-[#646464cc] {disabled
 					? 'border-foreground/50  text-black/50 dark:text-white/50 '
@@ -149,8 +256,8 @@
 						: ' text-black  dark:text-white'}"
 				>
 					{Intl.DateTimeFormat().resolvedOptions().timeZone} ({currentDate.getTimezoneOffset() < 0
-						? '+'
-						: '-'}{-currentDate.getTimezoneOffset() / 60}:00)
+						? 'UTC+'
+						: 'UTC-'}{-currentDate.getTimezoneOffset() / 60}:00)
 				</span>
 			</div>
 
@@ -175,9 +282,45 @@
 					class="lucide lucide-chevron-right-icon lucide-chevron-right"
 					><path d="m9 18 6-6-6-6" /></svg
 				></button
-			>
+			> -->
+			|
 		</div>
-		<input
+		<div
+			style="box-shadow: inset -50w 0 10px -50w red, inset 50w 0 10px -50vw red;"
+			bind:this={hoursContainerParent}
+			class="relative overflow-x-scroll mt-2 w-[100vw]"
+		>
+			<!-- <div
+				style="background: {dark
+					? 'linear-gradient(to right, rgba(15, 15, 15, 0.8), rgba(15, 15, 15, 0.8), transparent, rgba(15, 15, 15, 0.8), rgba(15, 15, 15, 0.8));'
+					: 'linear-gradient(to right, rgba(240, 240, 240, 1), rgba(240, 240, 240, 1), transparent, rgba(240, 240, 240, 1), rgba(240, 240, 240, 1));'}"
+				class="h-8 fixed w-full left-0 pointer-events-none"
+			></div> -->
+			<div class="flex cursor-grab flex-row w-[calc(200vw-64px)] pb-2">
+				<div class="w-[calc(50vw-16px)]"></div>
+				<div
+					bind:this={hoursContainer}
+					class="w-[calc(100vw-32px)] flex flex-row items-center justify-between"
+				>
+					{#each timeSteps as step (step)}
+						<button
+							class="bg-blue-500 p-1 text-white min-w-12 flex justify-center rounded cursor-pointer"
+							onclick={() => {
+								let newDate = new SvelteDate(time);
+								newDate.setHours(step.getHours());
+								onDateChange(newDate);
+								centerDateButton(step.getHours(), true);
+							}}
+						>
+							{pad(step.getHours())}
+						</button>
+					{/each}
+				</div>
+
+				<div class="w-[50vw-16px]"></div>
+			</div>
+		</div>
+		<!-- <input
 			id="time_slider"
 			class="w-full delay-75 duration-200"
 			type="range"
@@ -200,8 +343,8 @@
 				date.setHours(Number(value));
 				onDateChange(date);
 			}}
-		/>
-		<input
+		/> -->
+		<!-- <input
 			type="date"
 			id="date_picker"
 			class="date-time-selection rounded bg-white text-sm delay-75 duration-200 dark:bg-[#646464cc] {disabled
@@ -216,6 +359,6 @@
 				date.setHours(currentHour);
 				onDateChange(date);
 			}}
-		/>
+		/> -->
 	</div>
 </div>

@@ -8,9 +8,10 @@
 
 	interface Props {
 		showScale: boolean;
+		timeSelector: boolean;
 	}
 
-	let { showScale }: Props = $props();
+	let { showScale, timeSelector }: Props = $props();
 
 	const isDark = $derived(mode.current === 'dark');
 	const colorScale: RGBAColorScale = $derived(getColorScale($variable, isDark));
@@ -21,7 +22,12 @@
 
 {#if showScale}
 	{@const digits = Math.abs(Math.floor(1 / Math.log(colorScale.max - colorScale.min)))}
-	<div class="absolute bottom-2.5 left-2.5 z-10 max-h-[{colorScaleHeight + 100}px]">
+
+	<div
+		class="absolute {timeSelector
+			? 'bottom-32.5'
+			: 'bottom-2.5'} left-2.5 z-10 duration-500 max-h-[{colorScaleHeight + 100}px]"
+	>
 		<div
 			style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
 			class="flex flex-col-reverse overflow-hidden rounded-[4px]"

@@ -136,6 +136,7 @@
 		return json;
 	};
 
+	let timeSelectorOpen = $derived($preferences.timeSelector);
 	let localStorageVersion = $derived(get(lSV));
 	onMount(() => {
 		url = new URL(document.location.href);
@@ -293,8 +294,12 @@
 	</div>
 {/if}
 
-<div class="map" id="#map_container" bind:this={mapContainer}></div>
-<Scale showScale={$preferences.showScale} />
+<div
+	class="map maplibregl-map {timeSelectorOpen ? 'time-selector-open' : ''}"
+	id="#map_container"
+	bind:this={mapContainer}
+></div>
+<Scale showScale={$preferences.showScale} timeSelector={timeSelectorOpen} />
 
 <HelpDialog />
 <VariableSelection
@@ -312,7 +317,7 @@
 	bind:time={$time}
 	bind:domain={$domain}
 	disabled={$loading}
-	timeSelector={$preferences.timeSelector}
+	timeSelector={timeSelectorOpen}
 	onDateChange={(date: Date) => {
 		$time = new SvelteDate(date);
 		url.searchParams.set('time', fmtISOWithoutTimezone($time));
