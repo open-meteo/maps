@@ -948,14 +948,13 @@ export const getNextOmUrls = (omUrl: string, domain: Domain) => {
 		? `https://s3.servert.ch`
 		: `https://map-tiles.open-meteo.com`;
 
-	let url = `${uri}/data_spatial/${domain}`;
+	const url = `${uri}/data_spatial/${domain}`;
 
 	if (resolution) {
 		const re = new RegExp(/([0-9]{2}-[0-9]{2}-[0-9]{2}T[0-9]{2}00)/);
 		const matches = omUrl.match(re);
 		if (matches) {
 			const date = new Date('20' + matches[0].substring(0, matches[0].length - 2) + ':00Z');
-			console.log(date);
 			const prevUrlDate = domainStep(date, domain.time_interval, 'backward');
 			const nextUrlDate = domainStep(date, domain.time_interval, 'forward');
 			const prevUrlModelRun = closestModelRun(prevUrlDate, domain.model_interval);
