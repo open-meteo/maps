@@ -167,13 +167,12 @@
 		// dynamic (can be changed during runtime)
 		postReadCallback: (
 			omFileReader: OMapsFileReader,
-			omUrl: string,
 			data: Data,
 			dataOptions: DataIdentityOptions
 		) => {
 			// dwd icon models are cached locally on server
 			if (!dataOptions.domain.value.startsWith('dwd_icon')) {
-				const nextOmUrls = getNextOmUrls(omUrl, $selectedDomain);
+				const nextOmUrls = getNextOmUrls(String(url), $selectedDomain);
 				if (nextOmUrls) {
 					for (const nextOmUrl of nextOmUrls) {
 						// if (!omFileReader.s3BackendCache.has(nextOmUrl)) {
