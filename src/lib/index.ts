@@ -35,7 +35,7 @@ import {
 	variableSelectionExtended
 } from '$lib/stores/preferences';
 
-import type { DomainMetaData } from '@openmeteo/mapbox-layer';
+import type { Domain, DomainMetaData, ModelDt } from '@openmeteo/mapbox-layer';
 
 let preferences = get(p);
 p.subscribe((newPreferences) => {
@@ -919,4 +919,52 @@ export const getOMUrl = () => {
 	}
 
 	return url;
+};
+
+export const getHourlyInterval = (domain: Domain) => {
+	const timeIntervalString = domain.time_interval as ModelDt;
+	if (timeIntervalString === '15_minute') {
+		return 0.25;
+	} else if (timeIntervalString === 'hourly') {
+		return 1;
+	} else if (timeIntervalString === '3_hourly') {
+		return 3;
+	} else if (timeIntervalString === '6_hourly') {
+		return 6;
+	} else if (timeIntervalString === '12_hourly') {
+		return 12;
+	} else if (timeIntervalString === 'daily') {
+		return 24;
+	} else {
+		return undefined;
+	}
+};
+
+export const getNextOmUrls = (omUrl: string, domain: Domain) => {
+	const resolution = getHourlyInterval(domain);
+	let nextUrl, prevUrl;
+	if (resolution) {
+		const re = new RegExp(/([0-9]{2}-[0-9]{2}-[0-9]{2}T[0-9]{2}00)/);
+		const matches = omUrl.match(re);
+		if (matches) {
+			const date = new Date('20' + matches[0].substring(0, matches[0].length - 2) + ':00Z');
+
+			date.setUTCHours(date.getUTCHours() - resolution);
+			prevUrl = omUrl.replace(
+				re,
+				`${String(date.getUTCFullYear()).substring(2, 4)}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}00`
+			);
+
+			date.setUTCHours(date.getUTCHours() + 2 * resolution);
+			nextUrl = omUrl.replace(
+				re,
+				`${String(date.getUTCFullYear()).substring(2, 4)}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}00`
+			);
+		}
+	}
+	if (prevUrl && nextUrl) {
+		return [prevUrl, nextUrl];
+	} else {
+		return undefined;
+	}
 };

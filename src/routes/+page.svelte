@@ -5,6 +5,8 @@
 	import { fade } from 'svelte/transition';
 
 	import {
+		type Data,
+		type DataIdentityOptions,
 		type DomainMetaData,
 		GridFactory,
 		OMapsFileReader,
@@ -35,6 +37,7 @@
 		resetStates,
 		resolution,
 		resolutionSet,
+		selectedDomain,
 		selectedVariable,
 		sheet,
 		time,
@@ -66,6 +69,7 @@
 		checkClosestDomainInterval,
 		checkClosestModelRun,
 		checkHighDefinition,
+		getNextOmUrls,
 		getPaddedBounds,
 		getStyle,
 		setMapControlSettings,
@@ -132,6 +136,7 @@
 		return json;
 	};
 
+	let timeSelectorOpen = $derived($preferences.timeSelector);
 	let localStorageVersion = $derived(get(lSV));
 	onMount(() => {
 		url = new URL(document.location.href);
@@ -160,10 +165,35 @@
 		// static
 		useSAB: true,
 
-		// could be dynamic
-		postReadCallback: (omFileReader: OMapsFileReader, omUrl: string) => {
-			if (!omUrl.includes('dwd_icon')) {
-				omFileReader._prefetch(omUrl);
+		// dynamic (can be changed during runtime)
+		postReadCallback: (
+			omFileReader: OMapsFileReader,
+			omUrl: string,
+			data: Data,
+			dataOptions: DataIdentityOptions
+		) => {
+			// dwd icon models are cached locally on server
+			if (!dataOptions.domain.value.startsWith('dwd_icon')) {
+				const nextOmUrls = getNextOmUrls(omUrl, $selectedDomain);
+				if (nextOmUrls) {
+					for (const nextOmUrl of nextOmUrls) {
+						// if (!omFileReader.s3BackendCache.has(nextOmUrl)) {
+						fetch(nextOmUrl, {
+							method: 'GET',
+							headers: {
+								Range: 'bytes=0-255' // Just fetch first 256 bytes to trigger caching
+							}
+						}).catch(() => {
+							// Silently ignore errors for prefetches
+						});
+						//}
+					}
+				}
+			}
+			if (dataOptions.domain.value === 'ecmwf_ifs' && dataOptions.variable === 'pressure_msl') {
+				if (data.values) {
+					data.values = data.values?.map((value) => value / 100);
+				}
 			}
 		}
 	});
@@ -265,8 +295,12 @@
 	</div>
 {/if}
 
-<div class="map" id="#map_container" bind:this={mapContainer}></div>
-<Scale showScale={$preferences.showScale} />
+<div
+	class="map maplibregl-map {timeSelectorOpen ? 'time-selector-open' : ''}"
+	id="#map_container"
+	bind:this={mapContainer}
+></div>
+<Scale showScale={$preferences.showScale} timeSelector={timeSelectorOpen} />
 
 <HelpDialog />
 <VariableSelection
@@ -284,7 +318,7 @@
 	bind:time={$time}
 	bind:domain={$domain}
 	disabled={$loading}
-	timeSelector={$preferences.timeSelector}
+	timeSelector={timeSelectorOpen}
 	onDateChange={(date: Date) => {
 		$time = new SvelteDate(date);
 		url.searchParams.set('time', fmtISOWithoutTimezone($time));
