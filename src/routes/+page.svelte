@@ -42,10 +42,8 @@
 	} from '$lib/stores/preferences';
 
 	import {
-		ClipWaterButton,
 		DarkModeButton,
 		HillshadeButton,
-		PartialButton,
 		SettingsButton,
 		TimeButton,
 		reloadStyles
@@ -211,8 +209,6 @@
 
 			map.addControl(new DarkModeButton(map, url));
 			map.addControl(new SettingsButton());
-			map.addControl(new PartialButton(map, url, metaJson));
-			map.addControl(new ClipWaterButton(map, url, metaJson));
 			map.addControl(new TimeButton(map, url));
 			metaJson = await getDomainData();
 

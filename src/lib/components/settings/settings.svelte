@@ -3,7 +3,9 @@
 	import ArrowsSettings from './arrows-settings.svelte';
 	import ContourSettings from './contour-settings.svelte';
 	import GridSettings from './grid-settings.svelte';
+	import PartialSettings from './partial-settings.svelte';
 	import ResolutionSettings from './resolution-settings.svelte';
+	import WaterClipSetting from './water-clip-setting.svelte';
 
 	import type { Map } from 'maplibre-gl';
 
@@ -20,6 +22,8 @@
 <ArrowsSettings {map} {url} />
 <ContourSettings {map} {url} />
 <ResolutionSettings {map} {url} />
+<PartialSettings />
+<WaterClipSetting />
 <div class="mt-6">
 	<h2 class="text-lg font-bold">States</h2>
 	<Button class="cursor-pointer" onclick={onReset}>Reset all states</Button>
