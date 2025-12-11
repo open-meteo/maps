@@ -41,23 +41,27 @@
 	const previousHour = () => {
 		const date = domainStep(time, resolution, 'backward');
 		onDateChange(date);
+		centerDateButton(date.getHours(), true);
 	};
 
 	const nextHour = () => {
 		const date = domainStep(time, resolution, 'forward');
 		onDateChange(date);
+		centerDateButton(date.getHours(), true);
 	};
 
 	const previousDay = () => {
 		time.setHours(time.getHours() - 23);
 		const date = domainStep(time, resolution, 'backward');
 		onDateChange(date);
+		centerDateButton(date.getHours(), true);
 	};
 
 	const nextDay = () => {
 		time.setHours(time.getHours() + 23);
 		const date = domainStep(time, resolution, 'forward');
 		onDateChange(date);
+		centerDateButton(date.getHours(), true);
 	};
 
 	let domainSelectionOpen = $state(get(dSO));
@@ -139,6 +143,9 @@
 	let hoursContainer: HTMLElement | undefined = $state();
 	let hoursContainerParent: HTMLElement | undefined = $state();
 
+	let movingToNextHour = $state(false);
+	let movingToNextHourTimeout: NodeJS.Timeout | undefined = $state(undefined);
+
 	onMount(() => {
 		if (hoursContainer && hoursContainerParent) {
 			hoursContainer.scrollIntoView({
@@ -148,34 +155,45 @@
 			});
 
 			hoursContainerParent.addEventListener('scroll', (e) => {
-				const target = e.currentTarget as Element;
-				const width = target.getBoundingClientRect().width;
-				const left = target.scrollLeft;
+				if (!movingToNextHour) {
+					const target = e.currentTarget as Element;
+					const width = target.getBoundingClientRect().width;
+					const left = target.scrollLeft;
 
-				const percentage = left / width;
+					const percentage = left / width;
 
-				if (left === 0) {
-					currentDate.setHours(0);
-				}
-				if (percentage) {
-					console.log(percentage);
-					currentDate.setHours(Math.floor(percentage * 25));
+					if (left === 0) {
+						currentDate.setHours(0);
+					}
+					if (percentage) {
+						console.log(percentage);
+						currentDate.setHours(Math.floor(percentage * 25));
+					}
 				}
 			});
 
 			hoursContainerParent.addEventListener('scrollend', (e) => {
-				console.log('scrollend');
-				onDateChange(currentDate);
+				if (!movingToNextHour) {
+					onDateChange(currentDate);
+				}
 			});
 		}
 	});
-	const centerDateButton = (hour: number) => {
-		if (hoursContainer) {
+	const centerDateButton = (hour: number, smooth = false) => {
+		if (hoursContainer && hoursContainerParent) {
+			if (smooth) {
+				movingToNextHour = true;
+				if (movingToNextHourTimeout) clearTimeout(movingToNextHourTimeout);
+			}
 			const target = hoursContainer;
 			const width = target.getBoundingClientRect().width;
-
-			const left = width * (hour / 24);
-			hoursContainer.scrollTo({ left: left });
+			const left = (width + 18) * (hour / 24);
+			console.log(left, width);
+			hoursContainerParent.scrollTo({ left: left, behavior: smooth ? 'smooth' : 'instant' });
+			if (smooth)
+				movingToNextHourTimeout = setTimeout(() => {
+					movingToNextHour = false;
+				}, 500);
 		}
 	};
 </script>
@@ -195,7 +213,7 @@
 			style="background-color: {dark
 				? 'rgba(15, 15, 15, 0.8)'
 				: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
-			class="px-4 rounded-t-xl h-[40.5px] flex items-center justify-center min-w-[100px]"
+			class="px-4 rounded-t-xl h-[40.5px] flex items-center justify-center min-w-[105px]"
 		>
 			{pad(currentDate.getHours()) + ':' + pad(currentDate.getMinutes())}
 		</div>
@@ -267,24 +285,31 @@
 			> -->
 			|
 		</div>
-		<div bind:this={hoursContainerParent} class="relative overflow-x-scroll mt-2 w-[100vw]">
+		<div
+			style="box-shadow: inset -50w 0 10px -50w red, inset 50w 0 10px -50vw red;"
+			bind:this={hoursContainerParent}
+			class="relative overflow-x-scroll mt-2 w-[100vw]"
+		>
 			<!-- <div
 				style="background: {dark
 					? 'linear-gradient(to right, rgba(15, 15, 15, 0.8), rgba(15, 15, 15, 0.8), transparent, rgba(15, 15, 15, 0.8), rgba(15, 15, 15, 0.8));'
 					: 'linear-gradient(to right, rgba(240, 240, 240, 1), rgba(240, 240, 240, 1), transparent, rgba(240, 240, 240, 1), rgba(240, 240, 240, 1));'}"
 				class="h-8 fixed w-full left-0 pointer-events-none"
 			></div> -->
-			<div bind:this={hoursContainer} class="flex cursor-grab flex-row w-[calc(200vw-64px)]">
+			<div class="flex cursor-grab flex-row w-[calc(200vw-64px)] pb-2">
 				<div class="w-[calc(50vw-16px)]"></div>
-				<div class="w-[calc(100vw-32px)] flex flex-row items-center justify-between">
+				<div
+					bind:this={hoursContainer}
+					class="w-[calc(100vw-32px)] flex flex-row items-center justify-between"
+				>
 					{#each timeSteps as step (step)}
 						<button
-							class="bg-blue-500 p-1 text-white min-w-8 flex justify-center rounded cursor-pointer"
+							class="bg-blue-500 p-1 text-white min-w-12 flex justify-center rounded cursor-pointer"
 							onclick={() => {
 								let newDate = new SvelteDate(time);
 								newDate.setHours(step.getHours());
 								onDateChange(newDate);
-								centerDateButton(step.getHours());
+								centerDateButton(step.getHours(), true);
 							}}
 						>
 							{pad(step.getHours())}
