@@ -5,10 +5,13 @@
 	import { fade } from 'svelte/transition';
 
 	import {
+		type Data,
+		type DataIdentityOptions,
 		type DomainMetaData,
 		GridFactory,
 		OMapsFileReader,
 		type OmProtocolSettings,
+		type OmUrlState,
 		closestModelRun,
 		defaultOmProtocolSettings,
 		domainOptions,
@@ -35,6 +38,7 @@
 		resetStates,
 		resolution,
 		resolutionSet,
+		selectedDomain,
 		selectedVariable,
 		sheet,
 		time,
@@ -66,6 +70,7 @@
 		checkClosestDomainInterval,
 		checkClosestModelRun,
 		checkHighDefinition,
+		getNextOmUrls,
 		getPaddedBounds,
 		getStyle,
 		setMapControlSettings,
@@ -160,10 +165,34 @@
 		// static
 		useSAB: true,
 
-		// could be dynamic
-		postReadCallback: (omFileReader: OMapsFileReader, omUrl: string) => {
-			if (!omUrl.includes('dwd_icon')) {
-				omFileReader._prefetch(omUrl);
+		// dynamic (can be changed during runtime)
+		postReadCallback: (omFileReader: OMapsFileReader, data: Data, state: OmUrlState) => {
+			// dwd icon models are cached locally on server
+
+			if (!state.dataOptions.domain.value.startsWith('dwd_icon')) {
+				const nextOmUrls = getNextOmUrls(state.omFileUrl, $selectedDomain, metaJson);
+				if (nextOmUrls) {
+					for (const nextOmUrl of nextOmUrls) {
+						if (!omFileReader.hasFileOpen(nextOmUrl)) {
+							fetch(nextOmUrl, {
+								method: 'GET',
+								headers: {
+									Range: 'bytes=0-255' // Just fetch first 256 bytes to trigger caching
+								}
+							}).catch(() => {
+								// Silently ignore errors for prefetches
+							});
+						}
+					}
+				}
+			}
+			if (
+				state.dataOptions.domain.value === 'ecmwf_ifs' &&
+				state.dataOptions.variable === 'pressure_msl'
+			) {
+				if (data.values) {
+					data.values = data.values?.map((value) => value / 100);
+				}
 			}
 		}
 	});
