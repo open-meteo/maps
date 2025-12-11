@@ -28,6 +28,8 @@
 	import * as Command from '$lib/components/ui/command';
 	import * as Popover from '$lib/components/ui/popover';
 
+	import { LEVEL_PREFIX, LEVEL_REGEX, LEVEL_UNIT_REGEX } from '$lib/constants';
+
 	import VariableSelectionEmpty from './variable-selection-empty.svelte';
 
 	import type { DomainMetaData } from '@openmeteo/mapbox-layer';
@@ -39,13 +41,6 @@
 	}
 
 	let { metaJson, domainChange, variableChange }: Props = $props();
-
-	const LEVEL_REGEX =
-		/(?<height_level_to>\d+_to_.*)|(?<pressure_level>\d+hPa)|(?<height_level>\d+m|cm)/;
-
-	const LEVEL_PREFIX =
-		/(?<prefix>(cloud_cover|geopotential_height|relative_humidity|temperature|soil_moisture|soil_temperature|temperature|vertical_velocity|wind(?!_gusts|_direction)))_/;
-	const LEVEL_UNIT_REGEX = /_(?<level>\d+)(?<unit>(m|cm|hPa))/;
 
 	// list of variables, with the level groups filtered out, and adding a prefix for the group
 	let variableList = $derived.by(() => {

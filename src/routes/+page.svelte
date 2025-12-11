@@ -71,6 +71,7 @@
 		setMapControlSettings,
 		urlParamsToPreferences
 	} from '$lib';
+	import { LEVEL_PREFIX, VARIABLE_PREFIX } from '$lib/constants';
 	import { fmtISOWithoutTimezone } from '$lib/index';
 
 	import '../styles.css';
@@ -106,8 +107,27 @@
 		if ($modelRun.getTime() - $time.getTime() > 0) {
 			$time = domainStep($modelRun, object.time_interval, 'forward');
 		}
+
+		let matchedVariable = undefined;
 		if (!metaJson.variables.includes($variable)) {
-			$variable = metaJson.variables[0];
+			// check for similar level variables
+			const prefixMatch = $variable.match(VARIABLE_PREFIX);
+			const prefix = prefixMatch?.groups?.prefix;
+			if (prefix) {
+				for (let mjVariable of metaJson.variables) {
+					if (mjVariable.startsWith(prefix)) {
+						matchedVariable = mjVariable;
+						break;
+					}
+				}
+			}
+
+			if (!matchedVariable) {
+				matchedVariable = metaJson.variables[0];
+			}
+		}
+		if (matchedVariable) {
+			$variable = matchedVariable;
 			url.searchParams.set('variable', $variable);
 			pushState(url + map._hash.getHashString(), {});
 			toast('Variable set to: ' + $variable);
