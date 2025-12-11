@@ -921,27 +921,7 @@ export const getOMUrl = () => {
 	return url;
 };
 
-export const getHourlyInterval = (domain: Domain) => {
-	const timeIntervalString = domain.time_interval as ModelDt;
-	if (timeIntervalString === '15_minute') {
-		return 0.25;
-	} else if (timeIntervalString === 'hourly') {
-		return 1;
-	} else if (timeIntervalString === '3_hourly') {
-		return 3;
-	} else if (timeIntervalString === '6_hourly') {
-		return 6;
-	} else if (timeIntervalString === '12_hourly') {
-		return 12;
-	} else if (timeIntervalString === 'daily') {
-		return 24;
-	} else {
-		return undefined;
-	}
-};
-
 export const getNextOmUrls = (omUrl: string, domain: Domain) => {
-	const resolution = getHourlyInterval(domain);
 	let nextUrl, prevUrl;
 
 	const uri = domain.value.startsWith('dwd_icon')
@@ -950,22 +930,17 @@ export const getNextOmUrls = (omUrl: string, domain: Domain) => {
 
 	const url = `${uri}/data_spatial/${domain}`;
 
-	if (resolution) {
-		const re = new RegExp(/([0-9]{2}-[0-9]{2}-[0-9]{2}T[0-9]{2}00)/);
-		const matches = omUrl.match(re);
-		if (matches) {
-			const date = new Date('20' + matches[0].substring(0, matches[0].length - 2) + ':00Z');
-			const prevUrlDate = domainStep(date, domain.time_interval, 'backward');
-			const nextUrlDate = domainStep(date, domain.time_interval, 'forward');
-			const prevUrlModelRun = closestModelRun(prevUrlDate, domain.model_interval);
-			const nextUrlModelRun = closestModelRun(nextUrlDate, domain.model_interval);
-			prevUrl = url + `/${fmtModelRun(prevUrlModelRun)}/${fmtSelectedTime(prevUrlDate)}.om`;
-			nextUrl = url + `/${fmtModelRun(nextUrlModelRun)}/${fmtSelectedTime(nextUrlDate)}.om`;
-		}
+	const re = new RegExp(/([0-9]{2}-[0-9]{2}-[0-9]{2}T[0-9]{2}00)/);
+	const matches = omUrl.match(re);
+	if (matches) {
+		const date = new Date('20' + matches[0].substring(0, matches[0].length - 2) + ':00Z');
+		const prevUrlDate = domainStep(date, domain.time_interval, 'backward');
+		const nextUrlDate = domainStep(date, domain.time_interval, 'forward');
+		const prevUrlModelRun = closestModelRun(prevUrlDate, domain.model_interval);
+		const nextUrlModelRun = closestModelRun(nextUrlDate, domain.model_interval);
+		prevUrl = url + `/${fmtModelRun(prevUrlModelRun)}/${fmtSelectedTime(prevUrlDate)}.om`;
+		nextUrl = url + `/${fmtModelRun(nextUrlModelRun)}/${fmtSelectedTime(nextUrlDate)}.om`;
 	}
-	if (prevUrl && nextUrl) {
-		return [prevUrl, nextUrl];
-	} else {
-		return undefined;
-	}
+
+	return [prevUrl, nextUrl];
 };
