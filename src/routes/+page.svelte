@@ -5,14 +5,10 @@
 	import { fade } from 'svelte/transition';
 
 	import {
-		type Data,
 		type DomainMetaData,
 		GridFactory,
-		OMapsFileReader,
-		type OmProtocolSettings,
-		type OmUrlState,
+		type RenderableColorScale,
 		closestModelRun,
-		defaultOmProtocolSettings,
 		domainOptions,
 		domainStep,
 		omProtocol
@@ -37,12 +33,13 @@
 		resetStates,
 		resolution,
 		resolutionSet,
-		selectedDomain,
 		selectedVariable,
 		sheet,
 		time,
 		variable
 	} from '$lib/stores/preferences';
+	import { metaJson } from '$lib/stores/state';
+	import { omProtocolSettings } from '$lib/stores/state';
 
 	import {
 		ClipWaterButton,
@@ -69,9 +66,9 @@
 		checkClosestDomainInterval,
 		checkClosestModelRun,
 		checkHighDefinition,
-		getNextOmUrls,
 		getPaddedBounds,
 		getStyle,
+		hashValue,
 		setMapControlSettings,
 		urlParamsToPreferences
 	} from '$lib';
@@ -82,7 +79,7 @@
 
 	let url: URL = $state() as URL;
 	let map: maplibregl.Map = $state() as maplibregl.Map;
-	let metaJson: DomainMetaData | undefined = $state();
+
 	let mapContainer: HTMLElement | null;
 
 	const changeOmDomain = async (newValue: string, updateUrlState = true): Promise<void> => {
@@ -103,23 +100,23 @@
 			pushState(url + map._hash.getHashString(), {});
 			toast('Domain set to: ' + object.label);
 		}
-		metaJson = await getDomainData();
+		$metaJson = await getDomainData();
 
 		// align model run with new model_interval on domain change
 		$modelRun = closestModelRun($modelRun, object.model_interval);
-		checkClosestModelRun(map, url, metaJson); // checks and updates time and model run to fit the current domain selection
+		checkClosestModelRun(map, url, $metaJson); // checks and updates time and model run to fit the current domain selection
 
 		if ($modelRun.getTime() - $time.getTime() > 0) {
 			$time = domainStep($modelRun, object.time_interval, 'forward');
 		}
 
 		let matchedVariable = undefined;
-		if (!metaJson.variables.includes($variable)) {
+		if (!$metaJson.variables.includes($variable)) {
 			// check for similar level variables
 			const prefixMatch = $variable.match(VARIABLE_PREFIX);
 			const prefix = prefixMatch?.groups?.prefix;
 			if (prefix) {
-				for (let mjVariable of metaJson.variables) {
+				for (let mjVariable of $metaJson.variables) {
 					if (mjVariable.startsWith(prefix)) {
 						matchedVariable = mjVariable;
 						break;
@@ -128,7 +125,7 @@
 			}
 
 			if (!matchedVariable) {
-				matchedVariable = metaJson.variables[0];
+				matchedVariable = $metaJson.variables[0];
 			}
 		}
 		if (matchedVariable) {
@@ -138,7 +135,7 @@
 			toast('Variable set to: ' + $variable);
 		}
 
-		changeOMfileURL(map, url, metaJson);
+		changeOMfileURL(map, url, $metaJson);
 	};
 
 	const getDomainData = async (inProgress = false): Promise<DomainMetaData> => {
@@ -177,43 +174,6 @@
 				resetStates();
 			}
 			lSV.set(version);
-		}
-	});
-
-	const omProtocolSettings: OmProtocolSettings = $derived({
-		...defaultOmProtocolSettings,
-		// static
-		useSAB: true,
-
-		// dynamic (can be changed during runtime)
-		postReadCallback: (omFileReader: OMapsFileReader, data: Data, state: OmUrlState) => {
-			// dwd icon models are cached locally on server
-
-			if (!state.dataOptions.domain.value.startsWith('dwd_icon')) {
-				const nextOmUrls = getNextOmUrls(state.omFileUrl, $selectedDomain, metaJson);
-				if (nextOmUrls) {
-					for (const nextOmUrl of nextOmUrls) {
-						if (!omFileReader.hasFileOpen(nextOmUrl)) {
-							fetch(nextOmUrl, {
-								method: 'GET',
-								headers: {
-									Range: 'bytes=0-255' // Just fetch first 256 bytes to trigger caching
-								}
-							}).catch(() => {
-								// Silently ignore errors for prefetches
-							});
-						}
-					}
-				}
-			}
-			if (
-				state.dataOptions.domain.value === 'ecmwf_ifs' &&
-				state.dataOptions.variable === 'pressure_msl'
-			) {
-				if (data.values) {
-					data.values = data.values?.map((value) => value / 100);
-				}
-			}
 		}
 	});
 
@@ -260,10 +220,10 @@
 
 			map.addControl(new DarkModeButton(map, url));
 			map.addControl(new SettingsButton());
-			map.addControl(new PartialButton(map, url, metaJson));
-			map.addControl(new ClipWaterButton(map, url, metaJson));
+			map.addControl(new PartialButton(map, url, $metaJson));
+			map.addControl(new ClipWaterButton(map, url, $metaJson));
 			map.addControl(new TimeButton(map, url));
-			metaJson = await getDomainData();
+			$metaJson = await getDomainData();
 
 			addOmFileLayers(map);
 			addHillshadeSources(map);
@@ -273,11 +233,11 @@
 		});
 
 		map.on('zoomend', () => {
-			checkBounds(map, url, metaJson);
+			checkBounds(map, url, $metaJson);
 		});
 
 		map.on('dragend', () => {
-			checkBounds(map, url, metaJson);
+			checkBounds(map, url, $metaJson);
 		});
 	});
 
@@ -315,17 +275,25 @@
 {/if}
 
 <div class="map" id="#map_container" bind:this={mapContainer}></div>
-<Scale showScale={$preferences.showScale} />
+<Scale
+	showScale={$preferences.showScale}
+	afterColorScaleChange={async (variable: string, colorScale: RenderableColorScale) => {
+		omProtocolSettings.colorScales[variable] = colorScale;
+		const colorHash = await hashValue(JSON.stringify(omProtocolSettings.colorScales));
+		url.searchParams.set('color_hash', colorHash);
+		changeOMfileURL(map, url, $metaJson);
+		toast('Changed color scale');
+	}}
+/>
 
 <HelpDialog />
 <VariableSelection
-	{metaJson}
 	domainChange={changeOmDomain}
 	variableChange={(newValue: string | undefined) => {
 		if (newValue) $variable = newValue;
 		url.searchParams.set('variable', $variable);
 		pushState(url + map._hash.getHashString(), {});
-		changeOMfileURL(map, url, metaJson);
+		changeOMfileURL(map, url, $metaJson);
 		toast('Variable set to: ' + $selectedVariable.label);
 	}}
 />
@@ -338,7 +306,7 @@
 		$time = new SvelteDate(date);
 		url.searchParams.set('time', fmtISOWithoutTimezone($time));
 		pushState(url + map._hash.getHashString(), {});
-		changeOMfileURL(map, url, metaJson);
+		changeOMfileURL(map, url, $metaJson);
 	}}
 />
 <div class="absolute">
@@ -356,7 +324,7 @@
 						}
 						reloadStyles(map);
 						await changeOmDomain($domain, false);
-						changeOMfileURL(map, url, metaJson);
+						changeOMfileURL(map, url, $metaJson);
 						pushState(url + map._hash.getHashString(), {});
 						toast('Reset all states to default');
 					}}

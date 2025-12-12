@@ -4,6 +4,8 @@ import { domainOptions, variableOptions } from '@openmeteo/mapbox-layer';
 import { setMode } from 'mode-watcher';
 import { type Persisted, persisted } from 'svelte-persisted-store';
 
+import type { RenderableColorScale } from '@openmeteo/mapbox-layer';
+
 const defaultPreferences = {
 	globe: false,
 	partial: false,
@@ -77,6 +79,11 @@ export const resolution: Persisted<0.5 | 1 | 2> = persisted('resolution', 1);
 // check for retina on first load, and set the resolution to 2
 export const resolutionSet = persisted('resolution-set', false);
 
+export const customColorScales = persisted<Record<string, RenderableColorScale>>(
+	'custom-color-scales',
+	{}
+);
+
 export const localStorageVersion: Persisted<string | undefined> = persisted(
 	'local-storage-version',
 	undefined
@@ -107,6 +114,8 @@ export const resetStates = () => {
 	tileSize.set(256);
 	resolution.set(1);
 	resolutionSet.set(false);
+
+	customColorScales.set({});
 
 	setMode('system');
 };

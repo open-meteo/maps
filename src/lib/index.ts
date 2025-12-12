@@ -35,7 +35,9 @@ import {
 	variableSelectionExtended
 } from '$lib/stores/preferences';
 
-import type { Domain, DomainMetaData, ModelDt } from '@openmeteo/mapbox-layer';
+import { omProtocolSettings } from './stores/state';
+
+import type { Domain, DomainMetaData } from '@openmeteo/mapbox-layer';
 
 let preferences = get(p);
 p.subscribe((newPreferences) => {
@@ -685,8 +687,12 @@ export const textWhite = (
 	[r, g, b, a]: [number, number, number, number] | [number, number, number],
 	dark?: boolean
 ): boolean => {
-	if (a != undefined && a < 0.65 && !dark) {
-		return false;
+	if (a != undefined && a < 0.65) {
+		if (dark) {
+			return true;
+		} else {
+			return false;
+		}
 	}
 	// check luminance
 	return r * 0.299 + g * 0.587 + b * 0.114 <= 186;
@@ -714,7 +720,7 @@ export const addPopup = (map: maplibregl.Map) => {
 
 			if (isFinite(value)) {
 				const dark = mode.current === 'dark';
-				const colorScale = getColorScale(get(v), dark);
+				const colorScale = getColorScale(get(v), dark, omProtocolSettings.colorScales);
 				const color = getColor(colorScale, value);
 				const content =
 					'<span class="popup-value">' + value.toFixed(1) + '</span>' + colorScale.unit;
@@ -955,3 +961,12 @@ export const getNextOmUrls = (
 		return undefined;
 	}
 };
+
+export const hashValue = (val: string) =>
+	crypto.subtle.digest('SHA-256', new TextEncoder().encode(val)).then((h) => {
+		const hexes = [],
+			view = new DataView(h);
+		for (let i = 0; i < view.byteLength; i += 4)
+			hexes.push(('00000000' + view.getUint32(i).toString(16)).slice(-8));
+		return hexes.join('');
+	});

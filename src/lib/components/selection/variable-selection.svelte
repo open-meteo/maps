@@ -23,6 +23,7 @@
 		variableSelectionExtended as vSE,
 		variableSelectionOpen as vSO
 	} from '$lib/stores/preferences';
+	import { metaJson } from '$lib/stores/state';
 
 	import { Button } from '$lib/components/ui/button';
 	import * as Command from '$lib/components/ui/command';
@@ -32,21 +33,18 @@
 
 	import VariableSelectionEmpty from './variable-selection-empty.svelte';
 
-	import type { DomainMetaData } from '@openmeteo/mapbox-layer';
-
 	interface Props {
-		metaJson: DomainMetaData | undefined;
 		domainChange: (value: string) => Promise<void>;
 		variableChange: (value: string | undefined) => void;
 	}
 
-	let { metaJson, domainChange, variableChange }: Props = $props();
+	let { domainChange, variableChange }: Props = $props();
 
 	// list of variables, with the level groups filtered out, and adding a prefix for the group
 	let variableList = $derived.by(() => {
-		if (metaJson) {
+		if ($metaJson) {
 			const variables: string[] = [];
-			for (let mjVariable of metaJson.variables) {
+			for (let mjVariable of $metaJson.variables) {
 				let match = mjVariable.match(LEVEL_REGEX);
 				if (match) {
 					const prefixMatch = mjVariable.match(LEVEL_PREFIX);
@@ -64,9 +62,9 @@
 	});
 
 	const levelGroupsList = $derived.by(() => {
-		if (metaJson) {
+		if ($metaJson) {
 			const groups: { [key: string]: [{ value: string; label: string }] } = {};
-			for (let mjVariable of metaJson.variables) {
+			for (let mjVariable of $metaJson.variables) {
 				let match = mjVariable.match(LEVEL_REGEX);
 				if (match && match.groups) {
 					const prefixMatch = mjVariable.match(LEVEL_PREFIX);
@@ -206,7 +204,7 @@
 		? 'left-2.5'
 		: '-left-[182px]'} "
 >
-	{#if $loading && metaJson}
+	{#if $loading && $metaJson}
 		<VariableSelectionEmpty domain={$selectedDomain} />
 	{:else}
 		<div class="flex flex-col gap-2.5">
