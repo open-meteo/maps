@@ -28,7 +28,7 @@
 	let arrows = $derived(vectorOptions.arrows);
 </script>
 
-<div class="mt-6">
+<div>
 	<h2 class="text-lg font-bold">Arrows settings</h2>
 	<div class="mt-3 flex gap-3 cursor-pointer">
 		<Switch

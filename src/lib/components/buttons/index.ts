@@ -5,7 +5,7 @@ import { mode, setMode } from 'mode-watcher';
 
 import { pushState } from '$app/navigation';
 
-import { preferences as p, sheet } from '$lib/stores/preferences';
+import { helpOpen as hO, preferences as p, sheet } from '$lib/stores/preferences';
 
 import {
 	addHillshadeLayer,
@@ -18,50 +18,6 @@ import {
 const preferences = get(p);
 
 let terrainControl: maplibregl.TerrainControl;
-
-// export class PartialButton {
-// 	map;
-// 	url;
-// 	latest;
-// 	constructor(map: maplibregl.Map, url: URL, latest: DomainMetaData | undefined) {
-// 		this.map = map;
-// 		this.url = url;
-// 		this.latest = latest;
-// 	}
-// 	onAdd() {
-// 		const div = document.createElement('div');
-// 		div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
-// 		div.title = 'Partial requests';
-
-// 		const partialSVG = `<button style="display:flex;justify-content:center;align-items:center;color:rgb(51,181,229);">
-// 				<svg xmlns="http://www.w3.org/2000/svg" stroke-width="1.2" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-database-zap-icon lucide-database-zap"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 15 21.84"/><path d="M21 5V8"/><path d="M21 12L18 17H22L19 22"/><path d="M3 12A9 3 0 0 0 14.59 14.87"/></svg>
-//             </button>`;
-// 		const fullSVG = `<button style="display:flex;justify-content:center;align-items:center;">
-// 				<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" stroke-width="1.2" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-database-icon lucide-database"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
-//        </button>`;
-// 		div.innerHTML = preferences.partial ? partialSVG : fullSVG;
-// 		div.addEventListener('contextmenu', (e) => e.preventDefault());
-// 		div.addEventListener('click', () => {
-// 			preferences.partial = !preferences.partial;
-// 			p.set(preferences);
-// 			div.innerHTML = preferences.partial ? partialSVG : fullSVG;
-// 			if (preferences.partial) {
-// 				this.url.searchParams.set('partial', String(preferences.partial));
-// 				getPaddedBounds(this.map);
-// 			} else {
-// 				this.url.searchParams.delete('partial');
-// 				this.map.removeLayer('paddedBoundsLayer');
-// 				this.map.removeSource('paddedBoundsSource');
-// 				paddedBoundsLayer.set(undefined);
-// 				paddedBoundsSource.set(undefined);
-// 			}
-// 			pushState(this.url + this.map._hash.getHashString(), {});
-// 			changeOMfileURL(this.map, this.url, this.latest);
-// 		});
-// 		return div;
-// 	}
-// 	onRemove() {}
-// }
 
 export class SettingsButton {
 	onAdd() {
@@ -267,52 +223,23 @@ export class HillshadeButton {
 	onRemove() {}
 }
 
-// export class ClipWaterButton {
-// 	map;
-// 	url;
-// 	latest;
-// 	constructor(map: maplibregl.Map, url: URL, latest: DomainMetaData | undefined) {
-// 		this.map = map;
-// 		this.url = url;
-// 		this.latest = latest;
-// 	}
-// 	onAdd() {
-// 		const div = document.createElement('div');
-// 		div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
-// 		div.title = 'Clip Water';
+export class HelpButton {
+	onAdd() {
+		const div = document.createElement('div');
+		div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+		div.title = 'Help';
 
-// 		const clipWater = `<button style="display:flex;justify-content:center;align-items:center;color:rgb(51,181,229);">
-// 			<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-waves-icon lucide-waves"><path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/></svg>
-//             </button>`;
-// 		const dontClipWater = `<button style="display:flex;justify-content:center;align-items:center;">
-// 			<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-waves-icon lucide-waves"><path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/></svg>
-//        </button>`;
-// 		div.innerHTML = preferences.clipWater ? clipWater : dontClipWater;
-// 		div.addEventListener('contextmenu', (e) => e.preventDefault());
-// 		div.addEventListener('click', () => {
-// 			preferences.clipWater = !preferences.clipWater;
-// 			p.set(preferences);
-// 			div.innerHTML = preferences.clipWater ? clipWater : dontClipWater;
-// 			if (preferences.clipWater) {
-// 				this.url.searchParams.set('clip-water', String(preferences.clipWater));
-// 			} else {
-// 				this.url.searchParams.delete('clip-water');
-// 			}
-// 			pushState(this.url + this.map._hash.getHashString(), {});
-// 			getStyle().then((style) => {
-// 				this.map.setStyle(style);
-// 				this.map.once('styledata', () => {
-// 					setTimeout(() => {
-// 						addOmFileLayers(this.map);
-// 						addHillshadeSources(this.map);
-// 						if (preferences.hillshade) {
-// 							addHillshadeLayer(this.map);
-// 						}
-// 					}, 50);
-// 				});
-// 			});
-// 		});
-// 		return div;
-// 	}
-// 	onRemove() {}
-// }
+		const helpSVG = `<button style="display:flex;justify-content:center;align-items:center;">
+			<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" opacity="0.75" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-circle-question-mark-icon lucide-message-circle-question-mark"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+			 </button>`;
+		div.innerHTML = helpSVG;
+
+		div.addEventListener('contextmenu', (e) => e.preventDefault());
+		div.addEventListener('click', () => {
+			const helpOpen = get(hO);
+			hO.set(!helpOpen);
+		});
+		return div;
+	}
+	onRemove() {}
+}

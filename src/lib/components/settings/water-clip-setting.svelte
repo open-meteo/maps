@@ -1,33 +1,55 @@
 <script lang="ts">
-	import Button from '../ui/button/button.svelte';
+	import { pushState } from '$app/navigation';
+
+	import { preferences as p } from '$lib/stores/preferences';
+
+	import { Label } from '$lib/components/ui/label';
+	import { Switch } from '$lib/components/ui/switch';
+
+	import { addHillshadeLayer, addHillshadeSources, addOmFileLayers, getStyle } from '$lib';
+
+	import type { Map } from 'maplibre-gl';
+
+	interface Props {
+		map: Map;
+		url: URL;
+	}
+
+	let { map = $bindable(), url }: Props = $props();
+
+	const preferences = $derived($p);
 </script>
 
 <div>
-	<!-- <Button
-		onclick={() => {
-			preferences.clipWater = !preferences.clipWater;
-			p.set(preferences);
-			div.innerHTML = preferences.clipWater ? clipWater : dontClipWater;
-			if (preferences.clipWater) {
-				this.url.searchParams.set('clip-water', String(preferences.clipWater));
-			} else {
-				this.url.searchParams.delete('clip-water');
-			}
-			pushState(this.url + this.map._hash.getHashString(), {});
-			getStyle().then((style) => {
-				this.map.setStyle(style);
-				this.map.once('styledata', () => {
-					setTimeout(() => {
-						addOmFileLayers(this.map);
-						addHillshadeSources(this.map);
-						if (preferences.hillshade) {
-							addHillshadeLayer(this.map);
-						}
-					}, 50);
+	<h2 class="text-lg font-bold">Clip Water</h2>
+	<div class="mt-3 flex gap-3 cursor-pointer">
+		<Switch
+			id="arrows"
+			checked={preferences.clipWater}
+			onCheckedChange={() => {
+				preferences.clipWater = !preferences.clipWater;
+				p.set(preferences);
+
+				if (preferences.clipWater) {
+					url.searchParams.set('clip-water', String(preferences.clipWater));
+				} else {
+					url.searchParams.delete('clip-water');
+				}
+				pushState(url + map._hash.getHashString(), {});
+				getStyle().then((style) => {
+					map.setStyle(style);
+					map.once('styledata', () => {
+						setTimeout(() => {
+							addOmFileLayers(map);
+							addHillshadeSources(map);
+							if (preferences.hillshade) {
+								addHillshadeLayer(map);
+							}
+						}, 50);
+					});
 				});
-			});
-		}}
-	>
-		Clip Water</Button
-	> -->
+			}}
+		/>
+		<Label for="arrows">Clip Water {preferences.clipWater ? 'on' : 'off'}</Label>
+	</div>
 </div>

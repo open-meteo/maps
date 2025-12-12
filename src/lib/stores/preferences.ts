@@ -81,6 +81,8 @@ export const localStorageVersion: Persisted<string | undefined> = persisted(
 	undefined
 );
 
+export const helpOpen = writable(false);
+
 export const resetStates = () => {
 	preferences.set(defaultPreferences);
 	vectorOptions.set(defaultVectorOptions);

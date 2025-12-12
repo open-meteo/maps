@@ -396,7 +396,11 @@ export const addOmFileLayers = (map: maplibregl.Map) => {
 		{
 			id: 'omRasterLayer',
 			type: 'raster',
-			source: 'omRasterSource'
+			source: 'omRasterSource',
+			paint: {
+				'raster-opacity': 0.5,
+				'raster-fade-duration': 1000
+			}
 		},
 		beforeLayerRaster
 	);
@@ -604,7 +608,7 @@ let checkSourceLoadedInterval: ReturnType<typeof setInterval>;
 export const changeOMfileURL = (
 	map: maplibregl.Map,
 	url: URL,
-	latest?: DomainMetaData | undefined,
+	metaJson?: DomainMetaData | undefined,
 	resetBounds = true,
 	vectorOnly = false,
 	rasterOnly = false
@@ -635,7 +639,7 @@ export const changeOMfileURL = (
 		}
 		getPaddedBounds(map);
 
-		checkClosestModelRun(map, url, latest);
+		checkClosestModelRun(map, url, metaJson);
 
 		omUrl = getOMUrl();
 		if (!vectorOnly) {

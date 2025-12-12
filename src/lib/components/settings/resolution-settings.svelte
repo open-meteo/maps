@@ -3,9 +3,9 @@
 
 	import { resolution as r, tileSize as tS } from '$lib/stores/preferences';
 
-	import { changeOMfileURL } from '$lib';
+	import Button from '$lib/components/ui/button/button.svelte';
 
-	import Button from '../ui/button/button.svelte';
+	import { changeOMfileURL } from '$lib';
 
 	import type { Map } from 'maplibre-gl';
 
@@ -37,7 +37,7 @@
 	});
 </script>
 
-<div class="mt-6">
+<div>
 	<h2 class="text-lg font-bold">Resolution settings</h2>
 	<div class="mt-3 flex gap-3">
 		<Button
@@ -54,7 +54,7 @@
 		>
 	</div>
 </div>
-<div class="mt-6">
+<div>
 	<h2 class="text-lg font-bold">Tile Size</h2>
 	<div class="mt-3 flex gap-3">
 		<Button

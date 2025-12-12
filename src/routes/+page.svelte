@@ -43,6 +43,7 @@
 
 	import {
 		DarkModeButton,
+		HelpButton,
 		HillshadeButton,
 		SettingsButton,
 		TimeButton,
@@ -210,6 +211,7 @@
 			map.addControl(new DarkModeButton(map, url));
 			map.addControl(new SettingsButton());
 			map.addControl(new TimeButton(map, url));
+			map.addControl(new HelpButton());
 			metaJson = await getDomainData();
 
 			addOmFileLayers(map);
@@ -290,25 +292,22 @@
 />
 <div class="absolute">
 	<Sheet.Root bind:open={$sheet}>
-		<Sheet.Content
-			><div class="px-6 pt-12">
-				<div><h2 class="text-lg font-bold">Units</h2></div>
-				<Settings
-					{map}
-					{url}
-					onReset={async () => {
-						resetStates();
-						for (let [key] of url.searchParams) {
-							url.searchParams.delete(key);
-						}
-						reloadStyles(map);
-						await changeOmDomain($domain, false);
-						changeOMfileURL(map, url, metaJson);
-						pushState(url + map._hash.getHashString(), {});
-						toast('Reset all states to default');
-					}}
-				/>
-			</div></Sheet.Content
-		>
+		<Sheet.Content>
+			<Settings
+				{map}
+				{url}
+				onReset={async () => {
+					resetStates();
+					for (let [key] of url.searchParams) {
+						url.searchParams.delete(key);
+					}
+					reloadStyles(map);
+					await changeOmDomain($domain, false);
+					changeOMfileURL(map, url, metaJson);
+					pushState(url + map._hash.getHashString(), {});
+					toast('Reset all states to default');
+				}}
+			/>
+		</Sheet.Content>
 	</Sheet.Root>
 </div>
