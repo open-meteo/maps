@@ -4,6 +4,8 @@ import { domainOptions, variableOptions } from '@openmeteo/mapbox-layer';
 import { setMode } from 'mode-watcher';
 import { type Persisted, persisted } from 'svelte-persisted-store';
 
+import { defaultVectorOptions, vectorOptions } from './vector';
+
 import type { RenderableColorScale } from '@openmeteo/mapbox-layer';
 
 const defaultPreferences = {
@@ -17,15 +19,6 @@ const defaultPreferences = {
 };
 
 export const preferences = persisted('preferences', defaultPreferences);
-
-const defaultVectorOptions = {
-	grid: false,
-	arrows: true,
-	contours: false,
-	contourInterval: 2
-};
-
-export const vectorOptions = persisted('vector-options', defaultVectorOptions);
 
 export const domain = persisted('domain', 'dwd_icon');
 export const variable = persisted('variable', 'temperature_2m');

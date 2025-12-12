@@ -31,9 +31,9 @@ import {
 	tileSize as tS,
 	time,
 	variable as v,
-	vectorOptions as vO,
 	variableSelectionExtended
 } from '$lib/stores/preferences';
+import { vectorOptions as vO } from '$lib/stores/vector';
 
 import { omProtocolSettings } from './stores/state';
 
@@ -479,21 +479,27 @@ export const addVectorLayer = (map: maplibregl.Map) => {
 				paint: {
 					'line-color': [
 						'case',
-						['boolean', ['>', ['to-number', ['get', 'value']], 5], false],
-						'rgba(0,0,0, 0.6)',
+						['boolean', ['>', ['to-number', ['get', 'value']], 12.5], false],
+						mode.current === 'dark' ? 'rgba(0,0,0, 0.6)' : 'rgba(0,0,0, 0.6)',
 						[
 							'case',
-							['boolean', ['>', ['to-number', ['get', 'value']], 4], false],
-							'rgba(0,0,0, 0.5)',
+							['boolean', ['>', ['to-number', ['get', 'value']], 5], false],
+							mode.current === 'dark' ? 'rgba(255,255,255, 0.6)' : 'rgba(0,0,0, 0.6)',
 							[
 								'case',
-								['boolean', ['>', ['to-number', ['get', 'value']], 3], false],
-								'rgba(0,0,0, 0.4)',
+								['boolean', ['>', ['to-number', ['get', 'value']], 4], false],
+								mode.current === 'dark' ? 'rgba(255,255,255, 0.5)' : 'rgba(0,0,0, 0.5)',
+
 								[
 									'case',
-									['boolean', ['>', ['to-number', ['get', 'value']], 2], false],
-									'rgba(0,0,0, 0.3)',
-									'rgba(0,0,0, 0.2)'
+									['boolean', ['>', ['to-number', ['get', 'value']], 3], false],
+									mode.current === 'dark' ? 'rgba(255,255,255, 0.4)' : 'rgba(0,0,0, 0.4)',
+									[
+										'case',
+										['boolean', ['>', ['to-number', ['get', 'value']], 2], false],
+										mode.current === 'dark' ? 'rgba(255,255,255, 0.3)' : 'rgba(0,0,0, 0.3)',
+										mode.current === 'dark' ? 'rgba(255,255,255, 0.2)' : 'rgba(0,0,0, 0.2)'
+									]
 								]
 							]
 						]
@@ -695,7 +701,7 @@ export const textWhite = (
 		}
 	}
 	// check luminance
-	return r * 0.299 + g * 0.587 + b * 0.114 <= 186;
+	return r * 0.299 + g * 0.587 + b * 0.114 <= 150;
 };
 
 let popup: maplibregl.Popup | undefined;
@@ -901,6 +907,7 @@ export const getOMUrl = () => {
 	if (vectorOptions.grid) url += `&grid=true`;
 	if (vectorOptions.arrows) url += `&arrows=true`;
 	if (vectorOptions.contours) url += `&contours=true`;
+	if (vectorOptions.breakpoints) url += `&interval_on_breakpoints=true`;
 	if (
 		vectorOptions.contours &&
 		vectorOptions.contourInterval !== 2 //&&

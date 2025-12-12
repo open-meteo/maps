@@ -5,7 +5,7 @@
 
 	import { pushState } from '$app/navigation';
 
-	import { vectorOptions as vO } from '$lib/stores/preferences';
+	import { vectorOptions as vO } from '$lib/stores/vector';
 
 	import { Label } from '$lib/components/ui/label';
 	import { Switch } from '$lib/components/ui/switch';
