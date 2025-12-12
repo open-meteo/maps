@@ -68,6 +68,7 @@
 		checkHighDefinition,
 		getPaddedBounds,
 		getStyle,
+		hashValue,
 		setMapControlSettings,
 		urlParamsToPreferences
 	} from '$lib';
@@ -80,8 +81,6 @@
 	let map: maplibregl.Map = $state() as maplibregl.Map;
 
 	let mapContainer: HTMLElement | null;
-
-	let color_toggle = false;
 
 	const changeOmDomain = async (newValue: string, updateUrlState = true): Promise<void> => {
 		loading.set(true);
@@ -278,10 +277,10 @@
 <div class="map" id="#map_container" bind:this={mapContainer}></div>
 <Scale
 	showScale={$preferences.showScale}
-	afterColorScaleChange={(variable: string, colorScale: RenderableColorScale) => {
-		color_toggle = !color_toggle;
+	afterColorScaleChange={async (variable: string, colorScale: RenderableColorScale) => {
 		omProtocolSettings.colorScales[variable] = colorScale;
-		url.searchParams.set('color_toggle', color_toggle ? 'true' : 'false');
+		const colorHash = await hashValue(JSON.stringify(omProtocolSettings.colorScales));
+		url.searchParams.set('color_hash', colorHash);
 		changeOMfileURL(map, url, $metaJson);
 		toast('Changed color scale');
 	}}

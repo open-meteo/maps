@@ -52,7 +52,6 @@
 
 	const handleColorClick = (index: number, e: MouseEvent) => {
 		if (!editable) return;
-		console.log(`Clicked color at index ${index}`);
 		e.stopPropagation();
 
 		editingIndex = index;
@@ -72,7 +71,7 @@
 			...scales,
 			[$variable]: newScale
 		}));
-		console.log(`customColorScales[${$variable}]: `, JSON.stringify($customColorScales[$variable]));
+		// console.log(`customColorScales[${$variable}]: `, JSON.stringify($customColorScales[$variable]));
 		afterColorScaleChange($variable, newScale);
 	};
 
