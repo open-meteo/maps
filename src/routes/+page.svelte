@@ -71,7 +71,7 @@
 		setMapControlSettings,
 		urlParamsToPreferences
 	} from '$lib';
-	import { LEVEL_PREFIX, VARIABLE_PREFIX } from '$lib/constants';
+	import { VARIABLE_PREFIX } from '$lib/constants';
 	import { fmtISOWithoutTimezone } from '$lib/index';
 
 	import '../styles.css';
@@ -92,6 +92,7 @@
 		}
 
 		checkClosestDomainInterval(url);
+
 		if (updateUrlState) {
 			url.searchParams.set('domain', $domain);
 			url.searchParams.set('time', fmtISOWithoutTimezone($time));

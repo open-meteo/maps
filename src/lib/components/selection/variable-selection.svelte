@@ -172,6 +172,9 @@
 				) ?? undefined)
 			: undefined
 	);
+	selectedDomain.subscribe(() => {
+		levelGroupSelected = undefined;
+	});
 
 	const checkDefaultLevel = (value: string | undefined) => {
 		if (levelGroupsList && levelGroupSelected) {
