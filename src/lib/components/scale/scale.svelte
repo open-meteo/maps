@@ -8,7 +8,7 @@
 	import { textWhite } from '$lib';
 	import { getAlpha, hexToRgba, rgbaToHex } from '$lib/color';
 
-	import ColorPicker from './ColorPicker.svelte';
+	import ColorPicker from './color-picker.svelte';
 
 	interface Props {
 		showScale: boolean;
