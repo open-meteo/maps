@@ -172,8 +172,12 @@
 				) ?? undefined)
 			: undefined
 	);
-	selectedDomain.subscribe(() => {
-		levelGroupSelected = undefined;
+	selectedVariable.subscribe((newVariable) => {
+		levelGroupSelected = newVariable.value.match(LEVEL_REGEX)
+			? (variableOptions.find(
+					({ value }) => value === $selectedVariable.value.match(LEVEL_PREFIX)?.groups?.prefix
+				) ?? undefined)
+			: undefined;
 	});
 
 	const checkDefaultLevel = (value: string | undefined) => {
