@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { MediaQuery } from 'svelte/reactivity';
+
 	import { type RenderableColorScale, getColor, getColorScale } from '@openmeteo/mapbox-layer';
 	import { mode } from 'mode-watcher';
 
@@ -17,8 +19,6 @@
 	}
 
 	let { showScale, editable = true, afterColorScaleChange }: Props = $props();
-
-	const COLOR_BLOCK_HEIGHT = 20;
 
 	const isDark = $derived(mode.current === 'dark');
 	const baseColorScale: RenderableColorScale = $derived(getColorScale($variable, isDark));
@@ -86,20 +86,21 @@
 	const labelWidth = $derived(
 		17 + Math.max(valueLength, colorScale.unit.length + 1, digits + 2) * 4
 	);
+	const desktop = new MediaQuery('min-width: 768px');
+	const isMobile = $derived(!desktop.current);
+	const colorBlockHeight = $derived(isMobile && labeledColors.length >= 20 ? 10 : 20);
+	const totalHeight = $derived(colorBlockHeight * labeledColors.length);
 </script>
 
 {#if showScale}
-	<div
-		class="absolute bottom-2.5 left-2.5 z-10 max-h-[{COLOR_BLOCK_HEIGHT * labeledColors.length +
-			100}px]"
-	>
+	<div class="absolute bottom-2.5 left-2.5 z-10" style="max-height: {totalHeight + 100}px;">
 		<div
 			style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
 			class="flex flex-col-reverse overflow-hidden rounded-[4px]"
 		>
 			<div
-				class="flex max-h-[{COLOR_BLOCK_HEIGHT * labeledColors.length}px] flex-col-reverse"
-				style={isDark ? 'background:black;' : 'background:white;'}
+				class="flex flex-col-reverse"
+				style="{isDark ? 'background:black;' : 'background:white;'} height: {totalHeight}px;"
 			>
 				{#each labeledColors as lc, i (lc)}
 					{@const alphaValue = getAlpha(lc.color)}
@@ -107,7 +108,7 @@
 						type="button"
 						disabled={!editable && colorScale.type !== 'breakpoint'}
 						onclick={(e) => handleColorClick(i, e)}
-						style={`background: rgba(${lc.color.join(',')});min-width: 28px; width: ${labelWidth}px; height: ${COLOR_BLOCK_HEIGHT}px;`}
+						style={`background: rgba(${lc.color.join(',')});min-width: 28px; width: ${labelWidth}px; height: ${colorBlockHeight}px;`}
 						class="relative border-none outline-none transition-all {editable
 							? 'cursor-pointer hover:brightness-110 hover:z-10 hover:ring-2 hover:ring-white/50'
 							: 'cursor-default'} {editingIndex === i ? 'ring-2 ring-primary z-20' : ''}"
@@ -136,10 +137,10 @@
 			<!-- Labels column - positioned between buttons -->
 			<div class="flex flex-col-reverse" style="width: {labelWidth}px;">
 				{#each labeledColors as lc, i (lc)}
-					{#if i > 0}
+					{#if i > 0 && !(labeledColors.length > 20 && i % 2 === 1 && !desktop.current)}
 						<div
 							class="absolute flex items-center justify-center text-xs"
-							style={`bottom: ${i * COLOR_BLOCK_HEIGHT - 6}px; height: 12px; width: ${labelWidth}px;
+							style={`bottom: ${i * colorBlockHeight - 6}px; height: 12px; width: ${labelWidth}px;
 							color: ${textWhite(lc.color, isDark) ? 'white' : 'black'};`}
 						>
 							<span class="text-foreground/80">
