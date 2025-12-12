@@ -114,5 +114,7 @@ export const resetStates = () => {
 	resolution.set(1);
 	resolutionSet.set(false);
 
+	customColorScales.set({});
+
 	setMode('system');
 };
