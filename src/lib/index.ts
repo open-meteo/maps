@@ -35,9 +35,9 @@ import {
 	variableSelectionExtended
 } from '$lib/stores/preferences';
 
-import { omProtocolSettings } from './constants';
+import { omProtocolSettings } from './stores/state';
 
-import type { DomainMetaData } from '@openmeteo/mapbox-layer';
+import type { Domain, DomainMetaData } from '@openmeteo/mapbox-layer';
 
 let preferences = get(p);
 p.subscribe((newPreferences) => {
@@ -925,4 +925,39 @@ export const getOMUrl = () => {
 	}
 
 	return url;
+};
+
+const TIME_SELECTED_REGEX = new RegExp(/([0-9]{2}-[0-9]{2}-[0-9]{2}T[0-9]{2}00)/);
+export const getNextOmUrls = (
+	omUrl: string,
+	domain: Domain,
+	metaJson: DomainMetaData | undefined
+) => {
+	let nextUrl, prevUrl;
+
+	const url = `https://map-tiles.open-meteo.com/data_spatial/${domain.value}`;
+
+	const matches = omUrl.match(TIME_SELECTED_REGEX);
+	if (matches) {
+		const date = new Date('20' + matches[0].substring(0, matches[0].length - 2) + ':00Z');
+		const prevUrlDate = domainStep(date, domain.time_interval, 'backward');
+		const nextUrlDate = domainStep(date, domain.time_interval, 'forward');
+		let currentModelRun;
+		if (metaJson) {
+			currentModelRun = new Date(metaJson.reference_time);
+		}
+		let prevUrlModelRun = closestModelRun(prevUrlDate, domain.model_interval);
+		if (currentModelRun && prevUrlModelRun > currentModelRun) {
+			prevUrlModelRun = currentModelRun;
+		}
+		let nextUrlModelRun = closestModelRun(nextUrlDate, domain.model_interval);
+		if (currentModelRun && nextUrlModelRun > currentModelRun) {
+			nextUrlModelRun = currentModelRun;
+		}
+		prevUrl = url + `/${fmtModelRun(prevUrlModelRun)}/${fmtSelectedTime(prevUrlDate)}.om`;
+		nextUrl = url + `/${fmtModelRun(nextUrlModelRun)}/${fmtSelectedTime(nextUrlDate)}.om`;
+		return [prevUrl, nextUrl];
+	} else {
+		return undefined;
+	}
 };

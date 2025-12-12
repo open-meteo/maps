@@ -17,20 +17,18 @@
 		variableSelectionExtended as vSE,
 		variableSelectionOpen as vSO
 	} from '$lib/stores/preferences';
+	import { metaJson } from '$lib/stores/state';
 
 	import { Button } from '$lib/components/ui/button';
 	import * as Command from '$lib/components/ui/command';
 	import * as Popover from '$lib/components/ui/popover';
 
-	import type { DomainMetaData } from '@openmeteo/mapbox-layer';
-
 	interface Props {
-		metaJson: DomainMetaData | undefined;
 		domainChange: (value: string) => Promise<void>;
 		variableChange: (value: string | undefined) => void;
 	}
 
-	let { metaJson, domainChange, variableChange }: Props = $props();
+	let { domainChange, variableChange }: Props = $props();
 
 	let domainSelectionOpen = $state(get(dSO));
 	dSO.subscribe((dO) => {
@@ -83,7 +81,7 @@
 		? 'left-2.5'
 		: '-left-[182px]'} "
 >
-	{#if $loading && metaJson}
+	{#if $loading && $metaJson}
 		<div class="flex flex-col gap-2.5">
 			<Button
 				variant="outline"
@@ -274,7 +272,7 @@
 						<Command.List>
 							<Command.Empty>No variables found.</Command.Empty>
 							<Command.Group>
-								{#each metaJson!.variables as vr, i (i)}
+								{#each $metaJson!.variables as vr, i (i)}
 									{#if !vr.includes('v_component') && !vr.includes('_direction')}
 										{@const v = variableOptions.find(({ value }) => value === vr)
 											? variableOptions.find(({ value }) => value === vr)

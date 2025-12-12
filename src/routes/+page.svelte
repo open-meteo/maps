@@ -38,6 +38,8 @@
 		time,
 		variable
 	} from '$lib/stores/preferences';
+	import { metaJson } from '$lib/stores/state';
+	import { omProtocolSettings } from '$lib/stores/state';
 
 	import {
 		ClipWaterButton,
@@ -69,14 +71,13 @@
 		setMapControlSettings,
 		urlParamsToPreferences
 	} from '$lib';
-	import { omProtocolSettings } from '$lib/constants';
 	import { fmtISOWithoutTimezone } from '$lib/index';
 
 	import '../styles.css';
 
 	let url: URL = $state() as URL;
 	let map: maplibregl.Map = $state() as maplibregl.Map;
-	let metaJson: DomainMetaData | undefined = $state();
+
 	let mapContainer: HTMLElement | null;
 
 	let color_toggle = false;
@@ -98,23 +99,23 @@
 			pushState(url + map._hash.getHashString(), {});
 			toast('Domain set to: ' + object.label);
 		}
-		metaJson = await getDomainData();
+		$metaJson = await getDomainData();
 
 		// align model run with new model_interval on domain change
 		$modelRun = closestModelRun($modelRun, object.model_interval);
-		checkClosestModelRun(map, url, metaJson); // checks and updates time and model run to fit the current domain selection
+		checkClosestModelRun(map, url, $metaJson); // checks and updates time and model run to fit the current domain selection
 
 		if ($modelRun.getTime() - $time.getTime() > 0) {
 			$time = domainStep($modelRun, object.time_interval, 'forward');
 		}
-		if (!metaJson.variables.includes($variable)) {
-			$variable = metaJson.variables[0];
+		if (!$metaJson.variables.includes($variable)) {
+			$variable = $metaJson.variables[0];
 			url.searchParams.set('variable', $variable);
 			pushState(url + map._hash.getHashString(), {});
 			toast('Variable set to: ' + $variable);
 		}
 
-		changeOMfileURL(map, url, metaJson);
+		changeOMfileURL(map, url, $metaJson);
 	};
 
 	const getDomainData = async (inProgress = false): Promise<DomainMetaData> => {
@@ -199,10 +200,10 @@
 
 			map.addControl(new DarkModeButton(map, url));
 			map.addControl(new SettingsButton());
-			map.addControl(new PartialButton(map, url, metaJson));
-			map.addControl(new ClipWaterButton(map, url, metaJson));
+			map.addControl(new PartialButton(map, url, $metaJson));
+			map.addControl(new ClipWaterButton(map, url, $metaJson));
 			map.addControl(new TimeButton(map, url));
-			metaJson = await getDomainData();
+			$metaJson = await getDomainData();
 
 			addOmFileLayers(map);
 			addHillshadeSources(map);
@@ -212,11 +213,11 @@
 		});
 
 		map.on('zoomend', () => {
-			checkBounds(map, url, metaJson);
+			checkBounds(map, url, $metaJson);
 		});
 
 		map.on('dragend', () => {
-			checkBounds(map, url, metaJson);
+			checkBounds(map, url, $metaJson);
 		});
 	});
 
@@ -260,20 +261,19 @@
 		color_toggle = !color_toggle;
 		omProtocolSettings.colorScales[variable] = colorScale;
 		url.searchParams.set('color_toggle', color_toggle ? 'true' : 'false');
-		changeOMfileURL(map, url, metaJson);
+		changeOMfileURL(map, url, $metaJson);
 		toast('Changed color scale');
 	}}
 />
 
 <HelpDialog />
 <VariableSelection
-	{metaJson}
 	domainChange={changeOmDomain}
 	variableChange={(newValue: string | undefined) => {
 		if (newValue) $variable = newValue;
 		url.searchParams.set('variable', $variable);
 		pushState(url + map._hash.getHashString(), {});
-		changeOMfileURL(map, url, metaJson);
+		changeOMfileURL(map, url, $metaJson);
 		toast('Variable set to: ' + $selectedVariable.label);
 	}}
 />
@@ -286,7 +286,7 @@
 		$time = new SvelteDate(date);
 		url.searchParams.set('time', fmtISOWithoutTimezone($time));
 		pushState(url + map._hash.getHashString(), {});
-		changeOMfileURL(map, url, metaJson);
+		changeOMfileURL(map, url, $metaJson);
 	}}
 />
 <div class="absolute">
@@ -304,7 +304,7 @@
 						}
 						reloadStyles(map);
 						await changeOmDomain($domain, false);
-						changeOMfileURL(map, url, metaJson);
+						changeOMfileURL(map, url, $metaJson);
 						pushState(url + map._hash.getHashString(), {});
 						toast('Reset all states to default');
 					}}
