@@ -379,7 +379,7 @@ export const addOmFileLayers = (map: maplibregl.Map) => {
 		url: 'om://' + omUrl,
 		type: 'raster',
 		tileSize: 256,
-		maxzoom: 12
+		maxzoom: 14
 	});
 
 	omRasterSource = map.getSource('omRasterSource');
@@ -682,7 +682,7 @@ export const getStyle = async () => {
 };
 
 export const textWhite = (
-	[r, g, b, a]: [number, number, number, number],
+	[r, g, b, a]: [number, number, number, number] | [number, number, number],
 	dark?: boolean
 ): boolean => {
 	if (a != undefined && a < 0.65 && !dark) {
