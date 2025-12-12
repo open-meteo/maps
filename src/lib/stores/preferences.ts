@@ -51,6 +51,7 @@ export const selectedVariable = derived(variable, ($variable) => {
 		};
 	}
 });
+export const pressureLevels = persisted('pressure-levels', [2]);
 
 const now = new Date();
 now.setHours(now.getHours() + 1, 0, 0, 0);
@@ -63,10 +64,10 @@ export const loading = writable(false);
 
 export const domainSelectionOpen = writable(false);
 export const variableSelectionOpen = writable(false);
+export const pressureLevelsSelectionOpen = writable(false);
 export const variableSelectionExtended = persisted('variables-open', false);
 
 export const mapBounds: Writable<maplibregl.LngLatBounds | null> = writable(null);
-
 export const paddedBounds: Writable<maplibregl.LngLatBounds | null> = writable(null);
 export const paddedBoundsLayer: Writable<maplibregl.StyleLayer | undefined> = writable(undefined);
 export const paddedBoundsSource: Writable<maplibregl.GeoJSONSource | undefined> =

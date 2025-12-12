@@ -67,6 +67,9 @@
 						<div class="flex items-center gap-2">
 							<Kbd.Root>v</Kbd.Root> Variable Selection
 						</div>
+						<div class="flex items-center gap-2">
+							<Kbd.Root>l</Kbd.Root> Level Selection
+						</div>
 					</div>
 				</div>
 			</div>
