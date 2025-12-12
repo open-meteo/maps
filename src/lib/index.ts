@@ -398,11 +398,7 @@ export const addOmFileLayers = (map: maplibregl.Map) => {
 		{
 			id: 'omRasterLayer',
 			type: 'raster',
-			source: 'omRasterSource',
-			paint: {
-				'raster-opacity': 0.5,
-				'raster-fade-duration': 1000
-			}
+			source: 'omRasterSource'
 		},
 		beforeLayerRaster
 	);
