@@ -35,7 +35,9 @@ import {
 	variableSelectionExtended
 } from '$lib/stores/preferences';
 
-import type { DomainMetaData } from '@openmeteo/mapbox-layer';
+import { omProtocolSettings } from './stores/state';
+
+import type { Domain, DomainMetaData } from '@openmeteo/mapbox-layer';
 
 let preferences = get(p);
 p.subscribe((newPreferences) => {
@@ -379,7 +381,7 @@ export const addOmFileLayers = (map: maplibregl.Map) => {
 		url: 'om://' + omUrl,
 		type: 'raster',
 		tileSize: 256,
-		maxzoom: 12
+		maxzoom: 14
 	});
 
 	omRasterSource = map.getSource('omRasterSource');
@@ -686,11 +688,15 @@ export const getStyle = async () => {
 };
 
 export const textWhite = (
-	[r, g, b, a]: [number, number, number, number],
+	[r, g, b, a]: [number, number, number, number] | [number, number, number],
 	dark?: boolean
 ): boolean => {
-	if (a != undefined && a < 0.65 && !dark) {
-		return false;
+	if (a != undefined && a < 0.65) {
+		if (dark) {
+			return true;
+		} else {
+			return false;
+		}
 	}
 	// check luminance
 	return r * 0.299 + g * 0.587 + b * 0.114 <= 186;
@@ -718,7 +724,7 @@ export const addPopup = (map: maplibregl.Map) => {
 
 			if (isFinite(value)) {
 				const dark = mode.current === 'dark';
-				const colorScale = getColorScale(get(v), dark);
+				const colorScale = getColorScale(get(v), dark, omProtocolSettings.colorScales);
 				const color = getColor(colorScale, value);
 				const content =
 					'<span class="popup-value">' + value.toFixed(1) + '</span>' + colorScale.unit;
@@ -924,3 +930,47 @@ export const getOMUrl = () => {
 
 	return url;
 };
+
+const TIME_SELECTED_REGEX = new RegExp(/([0-9]{2}-[0-9]{2}-[0-9]{2}T[0-9]{2}00)/);
+export const getNextOmUrls = (
+	omUrl: string,
+	domain: Domain,
+	metaJson: DomainMetaData | undefined
+) => {
+	let nextUrl, prevUrl;
+
+	const url = `https://map-tiles.open-meteo.com/data_spatial/${domain.value}`;
+
+	const matches = omUrl.match(TIME_SELECTED_REGEX);
+	if (matches) {
+		const date = new Date('20' + matches[0].substring(0, matches[0].length - 2) + ':00Z');
+		const prevUrlDate = domainStep(date, domain.time_interval, 'backward');
+		const nextUrlDate = domainStep(date, domain.time_interval, 'forward');
+		let currentModelRun;
+		if (metaJson) {
+			currentModelRun = new Date(metaJson.reference_time);
+		}
+		let prevUrlModelRun = closestModelRun(prevUrlDate, domain.model_interval);
+		if (currentModelRun && prevUrlModelRun > currentModelRun) {
+			prevUrlModelRun = currentModelRun;
+		}
+		let nextUrlModelRun = closestModelRun(nextUrlDate, domain.model_interval);
+		if (currentModelRun && nextUrlModelRun > currentModelRun) {
+			nextUrlModelRun = currentModelRun;
+		}
+		prevUrl = url + `/${fmtModelRun(prevUrlModelRun)}/${fmtSelectedTime(prevUrlDate)}.om`;
+		nextUrl = url + `/${fmtModelRun(nextUrlModelRun)}/${fmtSelectedTime(nextUrlDate)}.om`;
+		return [prevUrl, nextUrl];
+	} else {
+		return undefined;
+	}
+};
+
+export const hashValue = (val: string) =>
+	crypto.subtle.digest('SHA-256', new TextEncoder().encode(val)).then((h) => {
+		const hexes = [],
+			view = new DataView(h);
+		for (let i = 0; i < view.byteLength; i += 4)
+			hexes.push(('00000000' + view.getUint32(i).toString(16)).slice(-8));
+		return hexes.join('');
+	});

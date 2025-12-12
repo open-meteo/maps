@@ -14,7 +14,7 @@
 	interface Props {
 		map: Map;
 		url: URL;
-		metaJson: DomainMetaData;
+		metaJson: DomainMetaData | undefined;
 		onReset: () => Promise<void>;
 	}
 

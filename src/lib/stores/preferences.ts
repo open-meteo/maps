@@ -4,6 +4,8 @@ import { domainOptions, variableOptions } from '@openmeteo/mapbox-layer';
 import { setMode } from 'mode-watcher';
 import { type Persisted, persisted } from 'svelte-persisted-store';
 
+import type { RenderableColorScale } from '@openmeteo/mapbox-layer';
+
 const defaultPreferences = {
 	globe: false,
 	partial: false,
@@ -49,6 +51,7 @@ export const selectedVariable = derived(variable, ($variable) => {
 		};
 	}
 });
+export const pressureLevels = persisted('pressure-levels', [2]);
 
 const now = new Date();
 now.setHours(now.getHours() + 1, 0, 0, 0);
@@ -61,10 +64,10 @@ export const loading = writable(false);
 
 export const domainSelectionOpen = writable(false);
 export const variableSelectionOpen = writable(false);
+export const pressureLevelsSelectionOpen = writable(false);
 export const variableSelectionExtended = persisted('variables-open', false);
 
 export const mapBounds: Writable<maplibregl.LngLatBounds | null> = writable(null);
-
 export const paddedBounds: Writable<maplibregl.LngLatBounds | null> = writable(null);
 export const paddedBoundsLayer: Writable<maplibregl.StyleLayer | undefined> = writable(undefined);
 export const paddedBoundsSource: Writable<maplibregl.GeoJSONSource | undefined> =
@@ -75,6 +78,11 @@ export const tileSize: Persisted<128 | 256 | 512> = persisted('tile-size', 256);
 export const resolution: Persisted<0.5 | 1 | 2> = persisted('resolution', 1);
 // check for retina on first load, and set the resolution to 2
 export const resolutionSet = persisted('resolution-set', false);
+
+export const customColorScales = persisted<Record<string, RenderableColorScale>>(
+	'custom-color-scales',
+	{}
+);
 
 export const localStorageVersion: Persisted<string | undefined> = persisted(
 	'local-storage-version',
@@ -108,6 +116,8 @@ export const resetStates = () => {
 	tileSize.set(256);
 	resolution.set(1);
 	resolutionSet.set(false);
+
+	customColorScales.set({});
 
 	setMode('system');
 };
