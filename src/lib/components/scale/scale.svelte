@@ -82,7 +82,7 @@
 
 	const digits = 2;
 	const labeledColors = $derived(getLabeledColorsForLegend(colorScale));
-	const valueLength = $derived(String(Math.round(colorScale.max)).length);
+	const valueLength = $derived(String(Math.round(labeledColors.at(-1)?.value ?? 1)).length);
 	const labelWidth = $derived(
 		17 + Math.max(valueLength, colorScale.unit.length + 1, digits + 2) * 4
 	);
