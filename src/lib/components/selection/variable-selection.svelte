@@ -14,16 +14,16 @@
 
 	import { browser } from '$app/environment';
 
+	import { metaJson } from '$lib/stores/om-protocol-settings';
+	import { loading } from '$lib/stores/preferences';
 	import {
 		domainSelectionOpen as dSO,
-		loading,
 		pressureLevelsSelectionOpen as pLSO,
 		selectedDomain,
 		selectedVariable,
 		variableSelectionExtended as vSE,
 		variableSelectionOpen as vSO
-	} from '$lib/stores/preferences';
-	import { metaJson } from '$lib/stores/state';
+	} from '$lib/stores/variables';
 
 	import { Button } from '$lib/components/ui/button';
 	import * as Command from '$lib/components/ui/command';

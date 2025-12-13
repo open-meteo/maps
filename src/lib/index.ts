@@ -18,26 +18,31 @@ import { browser } from '$app/environment';
 import { pushState } from '$app/navigation';
 
 import {
-	domain as d,
-	loading,
+	map as m,
 	mapBounds as mB,
-	modelRun as mR,
-	preferences as p,
 	paddedBounds as pB,
 	paddedBoundsSource as pBS,
 	paddedBoundsGeoJSON,
-	paddedBoundsLayer,
+	paddedBoundsLayer
+} from '$lib/stores/map';
+import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
+import {
+	loading,
+	modelRun as mR,
+	preferences as p,
 	resolution as r,
 	tileSize as tS,
-	time,
-	variable as v,
-	variableSelectionExtended
+	time
 } from '$lib/stores/preferences';
+import { domain as d, variable as v, variableSelectionExtended } from '$lib/stores/variables';
 import { vectorOptions as vO } from '$lib/stores/vector';
 
-import { omProtocolSettings } from './stores/state';
-
 import type { Domain, DomainMetaData } from '@openmeteo/mapbox-layer';
+
+let map = get(m);
+m.subscribe((newMap) => {
+	map = newMap;
+});
 
 let preferences = get(p);
 p.subscribe((newPreferences) => {

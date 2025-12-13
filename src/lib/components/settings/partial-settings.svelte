@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { pushState } from '$app/navigation';
 
-	import { preferences as p, paddedBoundsLayer, paddedBoundsSource } from '$lib/stores/preferences';
+	import { paddedBoundsLayer, paddedBoundsSource } from '$lib/stores/map';
+	import { preferences as p } from '$lib/stores/preferences';
 
 	import { Label } from '$lib/components/ui/label';
 	import { Switch } from '$lib/components/ui/switch';

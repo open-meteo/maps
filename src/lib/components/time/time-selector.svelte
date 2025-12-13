@@ -12,7 +12,7 @@
 		domainSelectionOpen as dSO,
 		selectedDomain,
 		variableSelectionOpen as vSO
-	} from '$lib/stores/preferences';
+	} from '$lib/stores/variables';
 
 	import { pad } from '$lib';
 

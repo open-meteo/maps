@@ -1,32 +1,39 @@
 import { type Writable, writable } from 'svelte/store';
 import { get } from 'svelte/store';
 
-import {
-	OMapsFileReader,
-	type OmProtocolSettings,
-	defaultOmProtocolSettings
-} from '@openmeteo/mapbox-layer';
+import { OMapsFileReader, defaultOmProtocolSettings } from '@openmeteo/mapbox-layer';
+import { persisted } from 'svelte-persisted-store';
 
 import { getNextOmUrls } from '$lib';
 
-import { customColorScales, selectedDomain } from './preferences';
+import { selectedDomain } from './variables';
 
-import type { Data, DomainMetaData, OmUrlState } from '@openmeteo/mapbox-layer';
+import type {
+	Data,
+	DomainMetaData,
+	OmProtocolSettings,
+	OmUrlState,
+	RenderableColorScale
+} from '@openmeteo/mapbox-layer';
 
 export const metaJson: Writable<DomainMetaData | undefined> = writable(undefined);
 
-const initialCustomValues = get(customColorScales);
+export const customColorScales = persisted<Record<string, RenderableColorScale>>(
+	'custom-color-scales',
+	{}
+);
+
+const initialCustomColorScales = get(customColorScales);
 export const omProtocolSettings: OmProtocolSettings = {
 	...defaultOmProtocolSettings,
-	colorScales: { ...defaultOmProtocolSettings.colorScales, ...initialCustomValues },
 	// static
 	useSAB: true,
 
-	// could be dynamic
 	// dynamic (can be changed during runtime)
+	colorScales: { ...defaultOmProtocolSettings.colorScales, ...initialCustomColorScales },
+
 	postReadCallback: (omFileReader: OMapsFileReader, data: Data, state: OmUrlState) => {
 		// dwd icon models are cached locally on server
-
 		if (!state.dataOptions.domain.value.startsWith('dwd_icon')) {
 			const nextOmUrls = getNextOmUrls(state.omFileUrl, get(selectedDomain), get(metaJson));
 			if (nextOmUrls) {

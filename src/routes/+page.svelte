@@ -22,24 +22,20 @@
 	import { version } from '$app/environment';
 	import { pushState } from '$app/navigation';
 
+	import { map as m, mapBounds, paddedBounds } from '$lib/stores/map';
+	import { metaJson, omProtocolSettings } from '$lib/stores/om-protocol-settings';
 	import {
-		domain,
 		localStorageVersion as lSV,
 		loading,
-		mapBounds,
 		modelRun,
-		paddedBounds,
 		preferences,
 		resetStates,
 		resolution,
 		resolutionSet,
-		selectedVariable,
 		sheet,
-		time,
-		variable
+		time
 	} from '$lib/stores/preferences';
-	import { metaJson } from '$lib/stores/state';
-	import { omProtocolSettings } from '$lib/stores/state';
+	import { domain, selectedVariable, variable } from '$lib/stores/variables';
 
 	import {
 		DarkModeButton,

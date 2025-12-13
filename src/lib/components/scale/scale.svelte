@@ -4,8 +4,8 @@
 	import { type RenderableColorScale, getColor, getColorScale } from '@openmeteo/mapbox-layer';
 	import { mode } from 'mode-watcher';
 
-	import { customColorScales } from '$lib/stores/preferences';
-	import { variable } from '$lib/stores/preferences';
+	import { customColorScales } from '$lib/stores/om-protocol-settings';
+	import { variable } from '$lib/stores/variables';
 
 	import { textWhite } from '$lib';
 	import { getAlpha, hexToRgba, rgbaToHex } from '$lib/color';
