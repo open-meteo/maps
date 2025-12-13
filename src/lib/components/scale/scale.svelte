@@ -138,13 +138,11 @@
 				{#each labeledColors as lc, i (lc)}
 					{#if i > 0 && !(labeledColors.length > 20 && i % 2 === 1 && !desktop.current)}
 						<div
-							class="absolute flex items-center justify-center text-xs z-20"
+							class="absolute flex items-center justify-center text-xs z-20 pointer-events-none"
 							style={`bottom: ${i * colorBlockHeight - 6}px; height: 12px; width: ${labelWidth}px;
 							color: ${textWhite(lc.color, isDark) ? 'white' : 'black'};`}
 						>
-							<span class="pointer-events-none">
-								{formatValue(lc.value, digits)}
-							</span>
+							{formatValue(lc.value, digits)}
 						</div>
 					{/if}
 				{/each}
