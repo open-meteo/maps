@@ -576,9 +576,9 @@
 		>
 		<div
 			style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
-			class="absolute opacity-0 text-sm group-hover:opacity-100 bg-background/90 dark:bg-background/70 rounded-[4px] duration-300 group-hover:delay-400 right-[-300px] group-hover:right-[-145px] h-7.25 px-2 flex justify-center items-center z-10"
+			class="absolute opacity-0 text-sm group-hover:opacity-100 bg-background/95 dark:bg-background/90 rounded-[4px] duration-300 group-hover:delay-400 right-[-300px] group-hover:right-[-145px] h-7.25 px-2 flex justify-center items-center z-10"
 		>
-			Variable selection
+			Variable Selection
 		</div>
 	</button>
 </div>

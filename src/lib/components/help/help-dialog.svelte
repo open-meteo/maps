@@ -44,7 +44,26 @@
 		{#if desktop.current}
 			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 				<div class="flex flex-col">
-					<h2 class="mb-2 text-lg font-bold">Time Selector</h2>
+					<div class="flex items-center mb-2 gap-1.25 -ml-0.5">
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							opacity="0.75"
+							stroke-width="1.75"
+							width="23"
+							height="23"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							class="lucide lucide-calendar-off-icon lucide-calendar-off"
+							><path d="M16 14v2.2l1.6 1"></path><path d="M16 2v4"></path><path
+								d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5"
+							></path><path d="M3 10h5"></path><path d="M8 2v4"></path><circle cx="16" cy="16" r="6"
+							></circle></svg
+						>
+						<h2 class="text-lg font-bold">Time Selector</h2>
+					</div>
 					<div class="flex flex-col gap-1">
 						<div class="flex items-center gap-2">
 							<Kbd.Root>↓</Kbd.Root> Previous Day
@@ -62,7 +81,28 @@
 				</div>
 
 				<div>
-					<h2 class="mb-2 text-lg font-bold">Variables</h2>
+					<div class="flex items-center mb-2 gap-1.25 -ml-0.5">
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							opacity="0.75"
+							stroke-width="1.75"
+							width="24"
+							height="24"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							class="lucide lucide-variable-icon lucide-variable"
+							><path d="M8 21s-4-3-4-9 4-9 4-9"></path><path d="M16 3s4 3 4 9-4 9-4 9"></path><line
+								x1="15"
+								x2="9"
+								y1="9"
+								y2="15"
+							></line><line x1="9" x2="15" y1="9" y2="15"></line></svg
+						>
+						<h2 class="text-lg font-bold">Variables</h2>
+					</div>
 					<div class="flex flex-col gap-1">
 						<div class="flex items-center gap-2">
 							<Kbd.Root>d</Kbd.Root> Domain Selection
@@ -78,7 +118,23 @@
 			</div>
 		{/if}
 		<div>
-			<h2 class="mb-2 text-lg font-bold">Buttons</h2>
+			<div class="flex items-center mb-2 gap-1.5 -ml-0.5">
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="23"
+					height="23"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					opacity="0.75"
+					stroke-width="1.75"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					class="lucide lucide-toggle-left-icon lucide-toggle-left"
+					><circle cx="9" cy="12" r="3" /><rect width="20" height="14" x="2" y="5" rx="7" /></svg
+				>
+				<h2 class="text-lg font-bold">Buttons</h2>
+			</div>
 			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 				<div class="flex flex-col gap-3">
 					<div class="flex items-center gap-2">
@@ -166,6 +222,8 @@
 						</div>
 						<div class="truncate">Darkmode / Brightmode</div>
 					</div>
+				</div>
+				<div class="flex flex-col gap-3">
 					<div class="flex items-center gap-2">
 						<div title="Settings" class="maplibregl-ctrl maplibregl-ctrl-group">
 							<button
@@ -192,35 +250,6 @@
 						</div>
 						<div class="truncate">Additional Settings</div>
 					</div>
-				</div>
-				<div class="flex flex-col gap-3">
-					<div class="flex items-center gap-2">
-						<div class="maplibregl-ctrl maplibregl-ctrl-group" title="Partial requests">
-							<button
-								style="display:flex;justify-content:center;align-items:center;"
-								aria-label="Explanation Partial Button"
-							>
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									opacity="0.75"
-									stroke-width="1.2"
-									width="22"
-									height="22"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									class="lucide lucide-database-icon lucide-database"
-									><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path
-										d="M3 5V19A9 3 0 0 0 21 19V5"
-									></path><path d="M3 12A9 3 0 0 0 21 12"></path></svg
-								>
-							</button>
-						</div>
-						<div class="truncate">Enable / Disable Partial Requests</div>
-					</div>
-
 					<div class="flex items-center gap-2">
 						<div class="maplibregl-ctrl maplibregl-ctrl-group" title="Time selector">
 							<button
@@ -338,8 +367,52 @@
 			</div>
 		</div>
 		<div>
-			<h2 class="mb-2 text-lg font-bold">Settings</h2>
-			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2"></div>
+			<div class="flex mb-2 items-center gap-1.25 -ml-0.5">
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					opacity="0.75"
+					stroke-width="1.75"
+					width="24"
+					height="24"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					class="lucide lucide-settings-icon lucide-settings"
+					><path
+						d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"
+					></path><circle cx="12" cy="12" r="3"></circle></svg
+				>
+				<h2 class=" text-lg font-bold">Additional Settings</h2>
+			</div>
+			<div class="grid grid-cols-1 sm:gap-3 sm:grid-cols-2">
+				<div>
+					<div><b>Units</b> - WIP</div>
+					<b>Grid</b> - Show individual model grid points as orange dots on map
+					<div>
+						<b>Arrows</b> - Show directional arrows on maps with speed and direction (wind / wave)
+					</div>
+					<div><b>Contours</b> - Show contour lines between certain thresholds</div>
+				</div>
+				<div>
+					<div>
+						<b>Resolution</b> - Resolution factor for the generated tiles, for Retina / HD Displays
+						a factor of <b><i>2</i></b> is recommended, otherwise <b><i>1</i></b> will suffice
+					</div>
+					<div>
+						<b>Tile Size</b> - Size in pixels of the generated tiles, <b><i>256</i></b> recommended
+					</div>
+					<div>
+						<b>Partial Requests</b> - Only request the data of the current viewport. Will update on zoom
+						/ pan
+					</div>
+					<div>
+						<b>Clip Water</b> - Overlay the oceans over the generated tiles. Makes sense for certain variables
+						like 'Soil Temperature' where values in the oceans don't represent anything
+					</div>
+				</div>
+			</div>
 		</div>
 	</Dialog.Content>
 </Dialog.Root>
