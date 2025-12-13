@@ -488,7 +488,7 @@ export const addVectorLayer = (map: maplibregl.Map) => {
 					'line-color': [
 						'case',
 						['boolean', ['>', ['to-number', ['get', 'value']], 9], false],
-						mode.current === 'dark' ? 'rgba(0,0,0, 0.6)' : 'rgba(0,0,0, 0.6)',
+						mode.current === 'dark' ? 'rgba(255,255,255, 0.6)' : 'rgba(0,0,0, 0.6)',
 						[
 							'case',
 							['boolean', ['>', ['to-number', ['get', 'value']], 5], false],
