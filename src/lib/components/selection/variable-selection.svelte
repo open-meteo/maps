@@ -14,16 +14,16 @@
 
 	import { browser } from '$app/environment';
 
+	import { loading, metaJson } from '$lib/stores/preferences';
 	import {
 		domainSelectionOpen as dSO,
-		loading,
 		pressureLevelsSelectionOpen as pLSO,
 		selectedDomain,
 		selectedVariable,
 		variableSelectionExtended as vSE,
-		variableSelectionOpen as vSO
-	} from '$lib/stores/preferences';
-	import { metaJson } from '$lib/stores/state';
+		variableSelectionOpen as vSO,
+		variable
+	} from '$lib/stores/variables';
 
 	import { Button } from '$lib/components/ui/button';
 	import * as Command from '$lib/components/ui/command';
@@ -35,10 +35,9 @@
 
 	interface Props {
 		domainChange: (value: string) => Promise<void>;
-		variableChange: (value: string | undefined) => void;
 	}
 
-	let { domainChange, variableChange }: Props = $props();
+	let { domainChange }: Props = $props();
 
 	// list of variables, with the level groups filtered out, and adding a prefix for the group
 	let variableList = $derived.by(() => {
@@ -178,7 +177,7 @@
 			: undefined;
 	});
 
-	const checkDefaultLevel = (value: string | undefined) => {
+	const checkDefaultLevel = (value: string) => {
 		if (levelGroupsList && levelGroupSelected) {
 			const levelGroup = levelGroupsList[levelGroupSelected.value];
 			if (levelGroup) {
@@ -205,7 +204,7 @@
 		: '-left-[182px]'} "
 >
 	{#if $loading && $metaJson}
-		<VariableSelectionEmpty domain={$selectedDomain} />
+		<VariableSelectionEmpty />
 	{:else}
 		<div class="flex flex-col gap-2.5">
 			<Popover.Root
@@ -386,7 +385,7 @@
 												: ''}"
 											onSelect={() => {
 												levelGroupSelected = v;
-												variableChange(checkDefaultLevel(v?.value));
+												$variable = checkDefaultLevel(v?.value as string);
 												vSO.set(false);
 											}}
 										>
@@ -413,7 +412,7 @@
 												: ''}"
 											onSelect={() => {
 												levelGroupSelected = undefined;
-												variableChange(v?.value);
+												$variable = v?.value as string;
 												vSO.set(false);
 											}}
 										>
@@ -496,7 +495,7 @@
 													? '!bg-primary/15'
 													: ''}"
 												onSelect={() => {
-													variableChange(value);
+													$variable = value;
 													pLSO.set(false);
 												}}
 											>
@@ -520,7 +519,7 @@
 
 	<button
 		style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
-		class=" bg-background/90 dark:bg-background/70 hover:!bg-background h-7.25 w-7.25 flex cursor-pointer items-center rounded-[4px] p-0"
+		class="group bg-background/90 dark:bg-background/70 hover:!bg-background h-7.25 w-7.25 flex cursor-pointer items-center rounded-[4px] p-0 z-20"
 		onclick={() => {
 			vSE.set(!get(vSE));
 		}}
@@ -574,5 +573,11 @@
 				y2="15"
 			/><line x1="9" x2="15" y1="9" y2="15" /></svg
 		>
+		<div
+			style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
+			class="absolute opacity-0 text-sm group-hover:opacity-100 bg-background/95 dark:bg-background/90 rounded-[4px] duration-300 group-hover:delay-400 right-[-300px] group-hover:right-[-145px] h-7.25 px-2 flex justify-center items-center z-10"
+		>
+			Variable Selection
+		</div>
 	</button>
 </div>

@@ -8,11 +8,12 @@
 
 	import { browser } from '$app/environment';
 
+	import { loading, preferences } from '$lib/stores/preferences';
 	import {
 		domainSelectionOpen as dSO,
 		selectedDomain,
 		variableSelectionOpen as vSO
-	} from '$lib/stores/preferences';
+	} from '$lib/stores/variables';
 
 	import { pad } from '$lib';
 
@@ -20,19 +21,13 @@
 
 	interface Props {
 		time: Date;
-		domain: string;
-		disabled: boolean;
-		timeSelector: boolean;
 		onDateChange: (date: Date) => void;
 	}
 
-	let {
-		time = $bindable(),
-		domain = $bindable(),
-		disabled,
-		timeSelector,
-		onDateChange
-	}: Props = $props();
+	let { time = $bindable(), onDateChange }: Props = $props();
+
+	let disabled = $derived($loading);
+	let timeSelector = $derived($preferences.timeSelector);
 
 	let currentDate = $derived(time);
 	let currentHour = $derived(currentDate.getHours());
@@ -107,7 +102,7 @@
 
 <div
 	style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
-	class="time-selector bg-background/90 dark:bg-background/70 bottom-14.5 transform-[translate(-50%)] absolute left-[50%] mx-auto rounded-[4px] px-3 py-3 {!timeSelector
+	class="time-selector bg-background/90 dark:bg-background/70 duration-300 bottom-14.5 transform-[translate(-50%)] absolute left-[50%] mx-auto rounded-[4px] px-3 py-3 {!timeSelector
 		? 'pointer-events-none opacity-0'
 		: 'opacity-100'}"
 >

@@ -3,27 +3,18 @@
 
 	import { resolution as r, tileSize as tS } from '$lib/stores/preferences';
 
+	import Button from '$lib/components/ui/button/button.svelte';
+
 	import { changeOMfileURL } from '$lib';
-
-	import Button from '../ui/button/button.svelte';
-
-	import type { Map } from 'maplibre-gl';
-
-	interface Props {
-		map: Map;
-		url: URL;
-	}
-
-	let { map = $bindable(), url }: Props = $props();
 
 	const handleResolutionChange = (res: 0.5 | 1 | 2) => {
 		r.set(res);
-		changeOMfileURL(map, url);
+		changeOMfileURL();
 	};
 
 	const handleTileSizeChange = (tile: 128 | 256 | 512) => {
 		tS.set(tile);
-		changeOMfileURL(map, url);
+		changeOMfileURL();
 	};
 
 	let resolution = $state(get(r));
@@ -37,7 +28,7 @@
 	});
 </script>
 
-<div class="mt-6">
+<div>
 	<h2 class="text-lg font-bold">Resolution settings</h2>
 	<div class="mt-3 flex gap-3">
 		<Button
@@ -54,7 +45,7 @@
 		>
 	</div>
 </div>
-<div class="mt-6">
+<div>
 	<h2 class="text-lg font-bold">Tile Size</h2>
 	<div class="mt-3 flex gap-3">
 		<Button
