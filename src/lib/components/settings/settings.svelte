@@ -21,7 +21,7 @@
 </script>
 
 <Sheet.Root bind:open={$sheet}>
-	<Sheet.Content class="max-h-screen">
+	<Sheet.Content class="max-h-screen border-none">
 		<div class="flex flex-col px-6 pt-12 pb-18 gap-6 min-h-full overflow-y-scroll">
 			<UnitSettings />
 			<GridSettings />
