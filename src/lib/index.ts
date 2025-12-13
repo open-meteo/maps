@@ -819,7 +819,7 @@ export const checkBounds = (latest: DomainMetaData | undefined) => {
 			exceededPadding = true;
 		}
 		if (exceededPadding) {
-			changeOMfileURL(latest, false);
+			changeOMfileURL(false);
 		}
 	}
 };

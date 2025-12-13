@@ -5,6 +5,7 @@ import { persisted } from 'svelte-persisted-store';
 
 import { getNextOmUrls } from '$lib';
 
+import { metaJson } from './preferences';
 import { selectedDomain } from './variables';
 
 import type {

@@ -142,7 +142,7 @@ const addTerrainControl = () => {
 
 		map.addControl(terrainControl);
 
-		terrainControl._terrainButton.addEventListener('click', () => terrainHandler(url));
+		terrainControl._terrainButton.addEventListener('click', () => terrainHandler());
 	}
 	if (preferences.terrain) {
 		map.setTerrain({ source: 'terrainSource' });

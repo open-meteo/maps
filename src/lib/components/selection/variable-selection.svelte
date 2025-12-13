@@ -204,7 +204,7 @@
 		: '-left-[182px]'} "
 >
 	{#if $loading && $metaJson}
-		<VariableSelectionEmpty domain={$selectedDomain} />
+		<VariableSelectionEmpty />
 	{:else}
 		<div class="flex flex-col gap-2.5">
 			<Popover.Root
