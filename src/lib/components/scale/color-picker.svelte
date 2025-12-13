@@ -42,7 +42,6 @@
 			brightness = hsv.v;
 		}
 		alpha = initialAlpha;
-		console.log(alpha);
 	});
 
 	const currentRgb = $derived(hsvToRgb(hue, saturation, brightness));

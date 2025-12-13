@@ -484,7 +484,7 @@ export const addVectorLayer = (map: maplibregl.Map) => {
 				paint: {
 					'line-color': [
 						'case',
-						['boolean', ['>', ['to-number', ['get', 'value']], 12.5], false],
+						['boolean', ['>', ['to-number', ['get', 'value']], 9], false],
 						mode.current === 'dark' ? 'rgba(0,0,0, 0.6)' : 'rgba(0,0,0, 0.6)',
 						[
 							'case',
@@ -509,7 +509,28 @@ export const addVectorLayer = (map: maplibregl.Map) => {
 							]
 						]
 					],
-					'line-width': 2
+					'line-width': [
+						'case',
+						['boolean', ['>', ['to-number', ['get', 'value']], 20], false],
+						2.8,
+						[
+							'case',
+							['boolean', ['>', ['to-number', ['get', 'value']], 10], false],
+							2.2,
+							[
+								'case',
+								['boolean', ['>', ['to-number', ['get', 'value']], 5], false],
+								2,
+
+								[
+									'case',
+									['boolean', ['>', ['to-number', ['get', 'value']], 3], false],
+									1.8,
+									['case', ['boolean', ['>', ['to-number', ['get', 'value']], 2], false], 1.6, 1.5]
+								]
+							]
+						]
+					]
 				},
 				layout: {
 					'line-cap': 'round'
