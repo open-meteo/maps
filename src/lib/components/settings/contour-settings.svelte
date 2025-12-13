@@ -1,9 +1,7 @@
 <script lang="ts">
-	import { get } from 'svelte/store';
-
 	import { toast } from 'svelte-sonner';
 
-	import { defaultVectorOptions, vectorOptions as vO } from '$lib/stores/vector';
+	import { defaultVectorOptions, vectorOptions } from '$lib/stores/vector';
 
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -11,68 +9,52 @@
 
 	import { changeOMfileURL, updateUrl } from '$lib';
 
-	let vectorOptions = $state(get(vO));
-	vO.subscribe((newVectorOptions) => {
-		vectorOptions = newVectorOptions;
-	});
+	let contours = $derived($vectorOptions.contours);
+	let breakpoints = $derived($vectorOptions.breakpoints);
 
-	let contours = $derived(vectorOptions.contours);
-	let breakpoints = $derived(vectorOptions.breakpoints);
-	let contourInterval = $derived(vectorOptions.contourInterval);
-
-	const handleContourIntervalChange = (event: Event) => {
-		const target = event.target as HTMLInputElement;
-		const value = target?.value;
-
-		vectorOptions.contourInterval = Number(value);
-		vO.set(vectorOptions);
-
-		updateUrl('contour_interval', String(vectorOptions.contourInterval));
-
-		if (vectorOptions.contours) {
-			changeOMfileURL(false, false, true);
-		}
+	const handleContourIntervalChange = () => {
+		updateUrl('contour_interval', String($vectorOptions.contourInterval));
+		changeOMfileURL(false, true);
 	};
 </script>
 
 <div>
 	<h2 class="text-lg font-bold">Contour settings</h2>
-	<div class="mt-3 flex gap-3 cursor-pointer">
+	<div class="mt-3 flex gap-3">
 		<Switch
 			id="contouring"
-			checked={contours}
+			class="cursor-pointer"
+			bind:checked={$vectorOptions.contours}
 			onCheckedChange={() => {
-				vectorOptions.contours = !vectorOptions.contours;
-				vO.set(vectorOptions);
-
 				updateUrl('contours', String(contours));
 
 				changeOMfileURL();
-				toast.info('Contours turned ' + contours ? 'on' : 'off');
+				toast.info('Contours turned ' + (contours ? 'on' : 'off'));
 			}}
 		/>
-		<Label for="contouring">Contouring {contours ? 'on' : 'off'}</Label>
+		<Label class="cursor-pointer" for="contouring">Contouring {contours ? 'on' : 'off'}</Label>
 	</div>
-	<div class="mt-3 flex gap-3 cursor-pointer">
+	<div class="mt-3 flex gap-3">
 		<Switch
-			id="contouring"
-			checked={breakpoints}
+			id="breakpoints"
+			class="cursor-pointer"
+			bind:checked={$vectorOptions.breakpoints}
 			onCheckedChange={() => {
-				vectorOptions.breakpoints = !vectorOptions.breakpoints;
-				vO.set(vectorOptions);
-
 				updateUrl(
 					'interval_on_breakpoints',
 					String(breakpoints),
 					String(defaultVectorOptions.breakpoints) // key is different
 				);
 
-				changeOMfileURL();
-
-				toast.info('Contour interval on colorscale turned ' + breakpoints ? 'on' : 'off');
+				if (contours) {
+					changeOMfileURL();
+					toast.info('Contour interval on colorscale turned ' + (breakpoints ? 'on' : 'off'));
+				}
 			}}
 		/>
-		<Label for="contouring">Interval on breakpoints {breakpoints ? 'on' : 'off'}</Label>
+		<Label class="cursor-pointer" for="contouring"
+			>Interval on breakpoints {breakpoints ? 'on' : 'off'}</Label
+		>
 	</div>
 	<div class="mt-3 flex gap-3 duration-300 {breakpoints ? 'opacity-50' : ''}">
 		<input
@@ -81,16 +63,16 @@
 			class="w-[100px] delay-75 duration-200"
 			type="range"
 			min="0"
-			max="200"
-			bind:value={contourInterval}
-			oninput={handleContourIntervalChange}
+			max="50"
+			bind:value={$vectorOptions.contourInterval}
+			onchange={handleContourIntervalChange}
 		/>
 		<Label for="interval">Contouring interval:</Label><Input
 			id="interval"
 			class="w-20"
 			step="0.5"
-			bind:value={contourInterval}
-			oninput={handleContourIntervalChange}
+			bind:value={$vectorOptions.contourInterval}
+			onchange={handleContourIntervalChange}
 		/>
 	</div>
 </div>

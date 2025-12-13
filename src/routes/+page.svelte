@@ -308,7 +308,7 @@
 		await changeOmDomain($domain, false);
 		changeOMfileURL();
 		updateUrl();
-		toast('Reset all states to default');
+		toast.info('All default states reset');
 	}}
 />
 

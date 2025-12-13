@@ -12,13 +12,12 @@
 
 <div>
 	<h2 class="text-lg font-bold">Partial Requests</h2>
-	<div class="mt-3 flex gap-3 cursor-pointer">
+	<div class="mt-3 flex gap-3">
 		<Switch
 			id="arrows"
-			checked={partial}
+			class="cursor-pointer"
+			bind:checked={$preferences.partial}
 			onCheckedChange={() => {
-				$preferences.partial = !$preferences.partial;
-
 				updateUrl('partial', String(partial), String(defaultPreferences.partial));
 
 				if (partial) {
@@ -33,6 +32,6 @@
 				changeOMfileURL();
 			}}
 		/>
-		<Label for="arrows">Partials {partial ? 'on' : 'off'}</Label>
+		<Label class="cursor-pointer" for="arrows">Partials {partial ? 'on' : 'off'}</Label>
 	</div>
 </div>

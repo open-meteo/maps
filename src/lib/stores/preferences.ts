@@ -92,8 +92,6 @@ export const resetStates = () => {
 
 	customColorScales.set({});
 
-	url.set(new URL(''));
-
 	setMode('system');
 };
 

@@ -452,16 +452,17 @@ export const addVectorLayer = () => {
 					'line-color': [
 						'case',
 						['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
-						'rgba(0,0,0,0.5)',
+						mode.current === 'dark' ? 'rgba(255,255,255, 0.8)' : 'rgba(0,0,0, 0.6)',
 						[
 							'case',
 							['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
-							'rgba(0,0,0,0.4)',
+							mode.current === 'dark' ? 'rgba(255,255,255, 0.7)' : 'rgba(0,0,0, 0.5)',
+
 							[
 								'case',
 								['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
-								'rgba(0,0,0,0.35)',
-								'rgba(0,0,0,0.3)'
+								mode.current === 'dark' ? 'rgba(255,255,255, 0.6)' : 'rgba(0,0,0, 0.4)',
+								mode.current === 'dark' ? 'rgba(255,255,255, 0.5)' : 'rgba(0,0,0, 0.3)'
 							]
 						]
 					],
@@ -595,7 +596,7 @@ export const addVectorLayer = () => {
 					'text-offset': [0, -0.6]
 				},
 				paint: {
-					'text-color': 'rgba(0,0,0,0.7)'
+					'text-color': mode.current === 'dark' ? 'rgba(255,255,255, 0.8)' : 'rgba(0,0,0, 0.7)'
 				}
 			},
 			preferences.clipWater ? beforeLayerVectorWaterClip : beforeLayerVector
@@ -672,7 +673,6 @@ export const changeOMfileURL = (resetBounds = true, vectorOnly = false, rasterOn
 			omRasterSource.setUrl('om://' + omUrl);
 		}
 
-		omVectorSource = map.getSource('omVectorSource');
 		if (!rasterOnly && omVectorSource) {
 			omVectorSource.setUrl('om://' + omUrl);
 		}

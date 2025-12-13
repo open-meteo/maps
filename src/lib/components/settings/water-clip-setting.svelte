@@ -1,13 +1,17 @@
 <script lang="ts">
-	import { pushState } from '$app/navigation';
-
 	import { map } from '$lib/stores/map';
-	import { preferences, url } from '$lib/stores/preferences';
+	import { defaultPreferences, preferences } from '$lib/stores/preferences';
 
 	import { Label } from '$lib/components/ui/label';
 	import { Switch } from '$lib/components/ui/switch';
 
-	import { addHillshadeLayer, addHillshadeSources, addOmFileLayers, getStyle } from '$lib';
+	import {
+		addHillshadeLayer,
+		addHillshadeSources,
+		addOmFileLayers,
+		getStyle,
+		updateUrl
+	} from '$lib';
 
 	const clipWater = $derived($preferences.clipWater);
 </script>
@@ -17,16 +21,10 @@
 	<div class="mt-3 flex gap-3 cursor-pointer">
 		<Switch
 			id="arrows"
-			checked={clipWater}
+			bind:checked={$preferences.clipWater}
 			onCheckedChange={() => {
-				$preferences.clipWater = !$preferences.clipWater;
+				updateUrl('clip_water', String(clipWater), String(defaultPreferences.clipWater)); // different key,
 
-				if (clipWater) {
-					$url.searchParams.set('clip_water', String(clipWater));
-				} else {
-					$url.searchParams.delete('clip_water');
-				}
-				pushState($url + $map._hash.getHashString(), {});
 				getStyle().then((style) => {
 					$map.setStyle(style);
 					$map.once('styledata', () => {

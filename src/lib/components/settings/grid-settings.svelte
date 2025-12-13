@@ -24,7 +24,7 @@
 				updateUrl('grid', String(grid));
 
 				changeOMfileURL();
-				toast.info('Grid turned ' + grid ? 'on' : 'off');
+				toast.info('Grid turned ' + (grid ? 'on' : 'off'));
 			}}
 		/>
 		<Label for="grid" class="cursor-pointer">Gridpoints {grid ? 'on' : 'off'}</Label>
