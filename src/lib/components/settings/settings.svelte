@@ -1,4 +1,8 @@
 <script lang="ts">
+	import { sheet } from '$lib/stores/preferences';
+
+	import * as Sheet from '$lib/components/ui/sheet';
+
 	import ArrowsSettings from './arrows-settings.svelte';
 	import ContourSettings from './contour-settings.svelte';
 	import GridSettings from './grid-settings.svelte';
@@ -16,14 +20,18 @@
 	let { onReset }: Props = $props();
 </script>
 
-<div class="flex flex-col px-6 pt-12 pb-18 gap-6 min-h-full">
-	<UnitSettings />
-	<GridSettings />
-	<ArrowsSettings />
-	<ContourSettings />
-	<ResolutionSettings />
-	<PartialSettings />
-	<WaterClipSetting />
-	<OpacitySetting />
-	<StateSettings {onReset} />
-</div>
+<Sheet.Root bind:open={$sheet}>
+	<Sheet.Content class="max-h-screen">
+		<div class="flex flex-col px-6 pt-12 pb-18 gap-6 min-h-full overflow-y-scroll">
+			<UnitSettings />
+			<GridSettings />
+			<ArrowsSettings />
+			<ContourSettings />
+			<ResolutionSettings />
+			<PartialSettings />
+			<WaterClipSetting />
+			<OpacitySetting />
+			<StateSettings {onReset} />
+		</div>
+	</Sheet.Content>
+</Sheet.Root>

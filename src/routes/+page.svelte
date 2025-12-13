@@ -33,7 +33,6 @@
 		resetStates,
 		resolution,
 		resolutionSet,
-		sheet,
 		time,
 		url
 	} from '$lib/stores/preferences';
@@ -52,7 +51,6 @@
 	import VariableSelection from '$lib/components/selection/variable-selection.svelte';
 	import Settings from '$lib/components/settings/settings.svelte';
 	import TimeSelector from '$lib/components/time/time-selector.svelte';
-	import * as Sheet from '$lib/components/ui/sheet';
 
 	import {
 		addHillshadeSources,
@@ -290,7 +288,6 @@
 	}}
 />
 
-<HelpDialog />
 <VariableSelection domainChange={changeOmDomain} />
 <TimeSelector
 	bind:time={$time}
@@ -300,22 +297,19 @@
 		changeOMfileURL();
 	}}
 />
-<div class="absolute">
-	<Sheet.Root bind:open={$sheet}>
-		<Sheet.Content>
-			<Settings
-				onReset={async () => {
-					resetStates();
-					for (let [key] of $url.searchParams) {
-						$url.searchParams.delete(key);
-					}
-					reloadStyles();
-					await changeOmDomain($domain, false);
-					changeOMfileURL();
-					updateUrl();
-					toast('Reset all states to default');
-				}}
-			/>
-		</Sheet.Content>
-	</Sheet.Root>
-</div>
+
+<Settings
+	onReset={async () => {
+		resetStates();
+		for (let [key] of $url.searchParams) {
+			$url.searchParams.delete(key);
+		}
+		reloadStyles();
+		await changeOmDomain($domain, false);
+		changeOMfileURL();
+		updateUrl();
+		toast('Reset all states to default');
+	}}
+/>
+
+<HelpDialog />
