@@ -519,7 +519,7 @@
 
 	<button
 		style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
-		class="group bg-background/90 dark:bg-background/70 hover:!bg-background h-7.25 w-7.25 flex cursor-pointer items-center rounded-[4px] p-0 z-20"
+		class="bg-background/90 dark:bg-background/70 hover:!bg-background h-7.25 w-7.25 flex cursor-pointer items-center rounded-[4px] p-0 z-20"
 		onclick={() => {
 			vSE.set(!get(vSE));
 		}}
@@ -573,11 +573,5 @@
 				y2="15"
 			/><line x1="9" x2="15" y1="9" y2="15" /></svg
 		>
-		<div
-			style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
-			class="absolute opacity-0 text-sm group-hover:opacity-100 bg-background/95 dark:bg-background/90 rounded-[4px] duration-300 group-hover:delay-400 right-[-300px] group-hover:right-[-145px] h-7.25 px-2 flex justify-center items-center z-10"
-		>
-			Variable Selection
-		</div>
 	</button>
 </div>
