@@ -33,6 +33,7 @@ import {
 	loading,
 	metaJson as mJ,
 	modelRun as mR,
+	opacity,
 	preferences as p,
 	resolution as r,
 	tileSize as tS,
@@ -407,13 +408,14 @@ export const addOmFileLayers = () => {
 		});
 	}
 
+	const opacityValue = get(opacity);
 	map.addLayer(
 		{
 			id: 'omRasterLayer',
 			type: 'raster',
 			source: 'omRasterSource',
 			paint: {
-				'raster-opacity': mode.current === 'dark' ? 0.6 : 0.75
+				'raster-opacity': mode.current === 'dark' ? (opacityValue - 10) / 100 : opacityValue / 100
 			}
 		},
 		beforeLayerRaster

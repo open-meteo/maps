@@ -2,6 +2,7 @@
 	import ArrowsSettings from './arrows-settings.svelte';
 	import ContourSettings from './contour-settings.svelte';
 	import GridSettings from './grid-settings.svelte';
+	import OpacitySetting from './opacity-setting.svelte';
 	import PartialSettings from './partial-settings.svelte';
 	import ResolutionSettings from './resolution-settings.svelte';
 	import StateSettings from './state-settings.svelte';
@@ -23,5 +24,6 @@
 	<ResolutionSettings />
 	<PartialSettings />
 	<WaterClipSetting />
+	<OpacitySetting />
 	<StateSettings {onReset} />
 </div>
