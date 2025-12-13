@@ -37,7 +37,7 @@
 </script>
 
 <Dialog.Root bind:open={$helpOpen}>
-	<Dialog.Content class="min-h-1/4">
+	<Dialog.Content class="min-h-1/4 max-h-[95vh] overflow-auto">
 		<Dialog.Header>
 			<Dialog.Title class="text-2xl">Help</Dialog.Title>
 		</Dialog.Header>
