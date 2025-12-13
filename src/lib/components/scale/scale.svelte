@@ -5,6 +5,7 @@
 	import { mode } from 'mode-watcher';
 
 	import { customColorScales } from '$lib/stores/om-protocol-settings';
+	import { opacity } from '$lib/stores/preferences';
 	import { variable } from '$lib/stores/variables';
 
 	import { textWhite } from '$lib';
@@ -102,12 +103,13 @@
 				style="{isDark ? 'background:black;' : 'background:white;'} height: {totalHeight}px;"
 			>
 				{#each labeledColors as lc, i (lc)}
-					{@const alphaValue = getAlpha(lc.color)}
+					{@const alphaValue = getAlpha(lc.color) === 1 ? $opacity / 100 : getAlpha(lc.color)}
 					<button
 						type="button"
 						disabled={!editable && colorScale.type !== 'breakpoint'}
 						onclick={(e) => handleColorClick(i, e)}
-						style={`background: rgba(${lc.color.join(',')});min-width: 28px; width: ${labelWidth}px; height: ${colorBlockHeight}px;`}
+						style={`background: rgb({lc.color[0]}, {lc.color[1]}, {lc
+							.color[2]}); opacity: {alphaValue};min-width: 28px; width: ${labelWidth}px; height: ${colorBlockHeight}px;`}
 						class="relative border-none outline-none transition-all {editable
 							? 'cursor-pointer hover:brightness-110 hover:z-10 hover:ring-3 hover:ring-white/65'
 							: 'cursor-default'} {editingIndex === i ? 'ring-2 ring-white/40  z-20' : ''}"
@@ -140,7 +142,7 @@
 						<div
 							class="absolute flex items-center justify-center text-xs z-20 pointer-events-none"
 							style={`bottom: ${i * colorBlockHeight - 6}px; height: 12px; width: ${labelWidth}px;
-							color: ${textWhite(lc.color, isDark) ? 'white' : 'black'};`}
+							color: ${textWhite(lc.color, isDark, $opacity) ? 'white' : 'black'};`}
 						>
 							{formatValue(lc.value, digits)}
 						</div>

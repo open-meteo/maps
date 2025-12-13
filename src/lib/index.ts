@@ -713,9 +713,10 @@ export const getStyle = async () => {
 
 export const textWhite = (
 	[r, g, b, a]: [number, number, number, number] | [number, number, number],
-	dark?: boolean
+	dark?: boolean,
+	globalOpacity?: number
 ): boolean => {
-	if (a != undefined && a < 0.65) {
+	if ((a != undefined && a < 0.65) || (globalOpacity && globalOpacity < 65)) {
 		if (dark) {
 			return true;
 		} else {
