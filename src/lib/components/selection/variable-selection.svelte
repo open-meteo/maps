@@ -14,15 +14,15 @@
 
 	import { browser } from '$app/environment';
 
-	import { metaJson } from '$lib/stores/om-protocol-settings';
-	import { loading } from '$lib/stores/preferences';
+	import { loading, metaJson } from '$lib/stores/preferences';
 	import {
 		domainSelectionOpen as dSO,
 		pressureLevelsSelectionOpen as pLSO,
 		selectedDomain,
 		selectedVariable,
 		variableSelectionExtended as vSE,
-		variableSelectionOpen as vSO
+		variableSelectionOpen as vSO,
+		variable
 	} from '$lib/stores/variables';
 
 	import { Button } from '$lib/components/ui/button';
@@ -35,10 +35,9 @@
 
 	interface Props {
 		domainChange: (value: string) => Promise<void>;
-		variableChange: (value: string | undefined) => void;
 	}
 
-	let { domainChange, variableChange }: Props = $props();
+	let { domainChange }: Props = $props();
 
 	// list of variables, with the level groups filtered out, and adding a prefix for the group
 	let variableList = $derived.by(() => {
@@ -178,7 +177,7 @@
 			: undefined;
 	});
 
-	const checkDefaultLevel = (value: string | undefined) => {
+	const checkDefaultLevel = (value: string) => {
 		if (levelGroupsList && levelGroupSelected) {
 			const levelGroup = levelGroupsList[levelGroupSelected.value];
 			if (levelGroup) {
@@ -386,7 +385,7 @@
 												: ''}"
 											onSelect={() => {
 												levelGroupSelected = v;
-												variableChange(checkDefaultLevel(v?.value));
+												$variable = checkDefaultLevel(v?.value as string);
 												vSO.set(false);
 											}}
 										>
@@ -413,7 +412,7 @@
 												: ''}"
 											onSelect={() => {
 												levelGroupSelected = undefined;
-												variableChange(v?.value);
+												$variable = v?.value as string;
 												vSO.set(false);
 											}}
 										>
@@ -496,7 +495,7 @@
 													? '!bg-primary/15'
 													: ''}"
 												onSelect={() => {
-													variableChange(value);
+													$variable = value;
 													pLSO.set(false);
 												}}
 											>

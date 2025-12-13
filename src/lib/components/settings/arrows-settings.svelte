@@ -3,23 +3,12 @@
 
 	import { toast } from 'svelte-sonner';
 
-	import { pushState } from '$app/navigation';
-
 	import { vectorOptions as vO } from '$lib/stores/vector';
 
 	import { Label } from '$lib/components/ui/label';
 	import { Switch } from '$lib/components/ui/switch';
 
-	import { addVectorLayer, changeOMfileURL, removeVectorLayer } from '$lib';
-
-	import type { Map } from 'maplibre-gl';
-
-	interface Props {
-		map: Map;
-		url: URL;
-	}
-
-	let { map = $bindable(), url }: Props = $props();
+	import { changeOMfileURL, updateUrl } from '$lib';
 
 	let vectorOptions = $state(get(vO));
 	vO.subscribe((newVectorOptions) => {
@@ -37,19 +26,10 @@
 			onCheckedChange={() => {
 				vectorOptions.arrows = !vectorOptions.arrows;
 				vO.set(vectorOptions);
-
-				vectorOptions = get(vO);
 				arrows = vectorOptions.arrows;
-				if (!vectorOptions.arrows) {
-					url.searchParams.set('arrows', 'false');
-					removeVectorLayer(map);
-				} else {
-					url.searchParams.delete('arrows');
-					addVectorLayer(map);
-				}
-				pushState(url + map._hash.getHashString(), {});
-				toast.info(vectorOptions.arrows ? 'Arrows turned on' : 'Arrows turned off');
-				changeOMfileURL(map, url);
+				updateUrl('arrows', String(arrows));
+				changeOMfileURL();
+				toast.info('Arrows turned ' + vectorOptions.arrows ? 'on' : 'off');
 			}}
 		/>
 		<Label for="arrows">Arrows {vectorOptions.arrows ? 'on' : 'off'}</Label>

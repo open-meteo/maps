@@ -3,21 +3,35 @@ import { get } from 'svelte/store';
 import * as maplibregl from 'maplibre-gl';
 import { mode, setMode } from 'mode-watcher';
 
-import { pushState } from '$app/navigation';
-
-import { helpOpen as hO, preferences as p, sheet } from '$lib/stores/preferences';
+import { map as m } from '$lib/stores/map';
+import {
+	defaultPreferences,
+	helpOpen as hO,
+	preferences as p,
+	sheet,
+	url as u
+} from '$lib/stores/preferences';
 
 import {
 	addHillshadeLayer,
 	addHillshadeSources,
 	addOmFileLayers,
 	getStyle,
-	terrainHandler
+	terrainHandler,
+	updateUrl
 } from '$lib';
 
-const preferences = get(p);
+let url = get(u);
+u.subscribe((newUrl) => {
+	url = newUrl;
+});
 
-let terrainControl: maplibregl.TerrainControl;
+let map = get(m);
+m.subscribe((newMap) => {
+	map = newMap;
+});
+
+const preferences = get(p);
 
 export class SettingsButton {
 	onAdd() {
@@ -37,15 +51,15 @@ export class SettingsButton {
 	onRemove() {}
 }
 
-export const reloadStyles = (map: maplibregl.Map) => {
+export const reloadStyles = () => {
 	getStyle().then((style) => {
 		map.setStyle(style);
 		map.once('styledata', () => {
 			setTimeout(() => {
-				addOmFileLayers(map);
-				addHillshadeSources(map);
+				addOmFileLayers();
+				addHillshadeSources();
 				if (preferences.hillshade) {
-					addHillshadeLayer(map);
+					addHillshadeLayer();
 				}
 			}, 50);
 		});
@@ -53,12 +67,6 @@ export const reloadStyles = (map: maplibregl.Map) => {
 };
 
 export class DarkModeButton {
-	map;
-	url;
-	constructor(map: maplibregl.Map, url: URL) {
-		this.map = map;
-		this.url = url;
-	}
 	onAdd() {
 		const div = document.createElement('div');
 		div.title = 'Darkmode';
@@ -81,7 +89,7 @@ export class DarkModeButton {
 				setMode('light');
 			}
 			div.innerHTML = mode.current !== 'dark' ? lightSVG : darkSVG;
-			reloadStyles(this.map);
+			reloadStyles();
 		});
 		return div;
 	}
@@ -89,14 +97,6 @@ export class DarkModeButton {
 }
 
 export class TimeButton {
-	map;
-	url;
-
-	constructor(map: maplibregl.Map, url: URL) {
-		this.map = map;
-		this.url = url;
-	}
-
 	onAdd() {
 		const div = document.createElement('div');
 		div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
@@ -118,12 +118,12 @@ export class TimeButton {
 		div.addEventListener('click', () => {
 			preferences.timeSelector = !preferences.timeSelector;
 			p.set(preferences);
-			if (preferences.timeSelector) {
-				this.url.searchParams.delete('time-selector');
-			} else {
-				this.url.searchParams.set('time-selector', String(preferences.timeSelector));
-			}
-			pushState(this.url + this.map._hash.getHashString(), {});
+
+			updateUrl(
+				'time_selector',
+				String(preferences.timeSelector),
+				String(defaultPreferences.timeSelector)
+			);
 
 			div.innerHTML = preferences.timeSelector ? clockSVG : calendarSVG;
 		});
@@ -132,39 +132,30 @@ export class TimeButton {
 	onRemove() {}
 }
 
-export class HillshadeButton {
-	map;
-	url;
+let terrainControl: maplibregl.TerrainControl;
+const addTerrainControl = () => {
+	if (!map.hasControl(terrainControl)) {
+		terrainControl = new maplibregl.TerrainControl({
+			source: 'terrainSource',
+			exaggeration: 1
+		});
 
-	constructor(map: maplibregl.Map, url: URL) {
-		this.map = map;
-		this.url = url;
+		map.addControl(terrainControl);
+
+		terrainControl._terrainButton.addEventListener('click', () => terrainHandler(url));
 	}
+	if (preferences.terrain) {
+		map.setTerrain({ source: 'terrainSource' });
+	}
+};
+const removeTerrainControl = () => {
+	if (map.hasControl(terrainControl)) {
+		map.removeControl(terrainControl);
+	}
+	map.setTerrain(null);
+};
 
-	addTerrainControl = () => {
-		if (!this.map.hasControl(terrainControl)) {
-			terrainControl = new maplibregl.TerrainControl({
-				source: 'terrainSource',
-				exaggeration: 1
-			});
-
-			this.map.addControl(terrainControl);
-
-			terrainControl._terrainButton.addEventListener('click', () =>
-				terrainHandler(this.map, this.url)
-			);
-		}
-		if (preferences.terrain) {
-			this.map.setTerrain({ source: 'terrainSource' });
-		}
-	};
-	removeTerrainControl = () => {
-		if (this.map.hasControl(terrainControl)) {
-			this.map.removeControl(terrainControl);
-		}
-		this.map.setTerrain(null);
-	};
-
+export class HillshadeButton {
 	onAdd() {
 		const div = document.createElement('div');
 		div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
@@ -185,8 +176,8 @@ export class HillshadeButton {
 
 		setTimeout(() => {
 			if (preferences.hillshade) {
-				addHillshadeLayer(this.map);
-				this.addTerrainControl();
+				addHillshadeLayer();
+				addTerrainControl();
 			}
 		}, 100);
 
@@ -196,27 +187,21 @@ export class HillshadeButton {
 			p.set(preferences);
 			if (preferences.hillshade) {
 				div.innerHTML = hillshadeSVG;
-				this.url.searchParams.set('hillshade', String(preferences.hillshade));
-				pushState(this.url + this.map._hash.getHashString(), {});
-				addHillshadeLayer(this.map);
-
-				this.map.once('styledata', () => {
+				addHillshadeLayer();
+				map.once('styledata', () => {
 					setTimeout(() => {
-						this.addTerrainControl();
+						addTerrainControl();
 					}, 50);
 				});
 			} else {
 				div.innerHTML = noHillshadeSVG;
-				this.url.searchParams.delete('hillshade');
-				pushState(this.url + this.map._hash.getHashString(), {});
-				this.map.removeLayer('hillshadeLayer');
-
-				this.map.once('styledata', () => {
+				map.once('styledata', () => {
 					setTimeout(() => {
-						this.removeTerrainControl();
+						removeTerrainControl();
 					}, 50);
 				});
 			}
+			updateUrl('hillshade', String(preferences.hillshade), String(defaultPreferences.hillshade));
 		});
 		return div;
 	}

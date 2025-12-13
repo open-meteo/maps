@@ -1,4 +1,3 @@
-import { type Writable, writable } from 'svelte/store';
 import { get } from 'svelte/store';
 
 import { OMapsFileReader, defaultOmProtocolSettings } from '@openmeteo/mapbox-layer';
@@ -10,13 +9,12 @@ import { selectedDomain } from './variables';
 
 import type {
 	Data,
-	DomainMetaData,
 	OmProtocolSettings,
 	OmUrlState,
 	RenderableColorScale
 } from '@openmeteo/mapbox-layer';
 
-export const metaJson: Writable<DomainMetaData | undefined> = writable(undefined);
+export const defaultColorHash = '';
 
 export const customColorScales = persisted<Record<string, RenderableColorScale>>(
 	'custom-color-scales',

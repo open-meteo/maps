@@ -22,20 +22,22 @@
 	import { version } from '$app/environment';
 	import { pushState } from '$app/navigation';
 
-	import { map as m, mapBounds, paddedBounds } from '$lib/stores/map';
-	import { metaJson, omProtocolSettings } from '$lib/stores/om-protocol-settings';
+	import { map, mapBounds, paddedBounds } from '$lib/stores/map';
+	import { defaultColorHash, omProtocolSettings } from '$lib/stores/om-protocol-settings';
 	import {
 		localStorageVersion as lSV,
 		loading,
+		metaJson,
 		modelRun,
 		preferences,
 		resetStates,
 		resolution,
 		resolutionSet,
 		sheet,
-		time
+		time,
+		url
 	} from '$lib/stores/preferences';
-	import { domain, selectedVariable, variable } from '$lib/stores/variables';
+	import { domain, selectedDomain, selectedVariable, variable } from '$lib/stores/variables';
 
 	import {
 		DarkModeButton,
@@ -65,15 +67,13 @@
 		getStyle,
 		hashValue,
 		setMapControlSettings,
+		updateUrl,
 		urlParamsToPreferences
 	} from '$lib';
 	import { VARIABLE_PREFIX } from '$lib/constants';
 	import { fmtISOWithoutTimezone } from '$lib/index';
 
 	import '../styles.css';
-
-	let url: URL = $state() as URL;
-	let map: maplibregl.Map = $state() as maplibregl.Map;
 
 	let mapContainer: HTMLElement | null;
 
@@ -87,19 +87,19 @@
 			if (newValue) $domain = newValue;
 		}
 
-		checkClosestDomainInterval(url);
+		checkClosestDomainInterval();
 
 		if (updateUrlState) {
-			url.searchParams.set('domain', $domain);
-			url.searchParams.set('time', fmtISOWithoutTimezone($time));
-			pushState(url + map._hash.getHashString(), {});
+			$url.searchParams.set('domain', $domain);
+			$url.searchParams.set('time', fmtISOWithoutTimezone($time));
+			pushState($url + $map._hash.getHashString(), {});
 			toast('Domain set to: ' + object.label);
 		}
 		$metaJson = await getDomainData();
 
 		// align model run with new model_interval on domain change
 		$modelRun = closestModelRun($modelRun, object.model_interval);
-		checkClosestModelRun(map, url, $metaJson); // checks and updates time and model run to fit the current domain selection
+		checkClosestModelRun(); // checks and updates time and model run to fit the current domain selection
 
 		if ($modelRun.getTime() - $time.getTime() > 0) {
 			$time = domainStep($modelRun, object.time_interval, 'forward');
@@ -125,12 +125,12 @@
 		}
 		if (matchedVariable) {
 			$variable = matchedVariable;
-			url.searchParams.set('variable', $variable);
-			pushState(url + map._hash.getHashString(), {});
-			toast('Variable set to: ' + $variable);
+			// $url.searchParams.set('variable', $variable);
+			// pushState($url + $map._hash.getHashString(), {});
+			// toast('Variable set to: ' + $variable);
 		}
 
-		changeOMfileURL(map, url, $metaJson);
+		changeOMfileURL();
 	};
 
 	const getDomainData = async (inProgress = false): Promise<DomainMetaData> => {
@@ -140,19 +140,19 @@
 				: `https://map-tiles.open-meteo.com`;
 
 		const metaJsonUrl = `${uri}/data_spatial/${$domain}/${inProgress ? 'in-progress' : 'latest'}.json`;
-		const res = await fetch(metaJsonUrl);
-		if (!res.ok) {
+		const metaJsonResult = await fetch(metaJsonUrl);
+		if (!metaJsonResult.ok) {
 			loading.set(false);
-			throw new Error(`HTTP ${res.status}`);
+			throw new Error(`HTTP ${metaJsonResult.status}`);
 		}
-		const json = await res.json();
+		const json = await metaJsonResult.json();
 		return json;
 	};
 
 	let localStorageVersion = $derived(get(lSV));
 	onMount(() => {
-		url = new URL(document.location.href);
-		urlParamsToPreferences(url);
+		$url = new URL(document.location.href);
+		urlParamsToPreferences();
 
 		// first time check if monitor supports high definition, for increased tileResolution
 		if (!get(resolutionSet)) {
@@ -196,7 +196,7 @@
 		}
 		const grid = GridFactory.create(domainObject.grid);
 
-		map = new maplibregl.Map({
+		$map = new maplibregl.Map({
 			container: mapContainer as HTMLElement,
 			style: style,
 			center: grid.getCenter(),
@@ -206,39 +206,49 @@
 			maxPitch: 85
 		});
 
-		setMapControlSettings(map, url);
+		setMapControlSettings();
 
-		map.on('load', async () => {
-			mapBounds.set(map.getBounds());
-			paddedBounds.set(map.getBounds());
-			getPaddedBounds(map);
+		$map.on('load', async () => {
+			mapBounds.set($map.getBounds());
+			paddedBounds.set($map.getBounds());
+			getPaddedBounds();
 
-			map.addControl(new DarkModeButton(map, url));
-			map.addControl(new SettingsButton());
-			map.addControl(new TimeButton(map, url));
-			map.addControl(new HelpButton());
+			$map.addControl(new DarkModeButton());
+			$map.addControl(new SettingsButton());
+			$map.addControl(new TimeButton());
+			$map.addControl(new HelpButton());
 			$metaJson = await getDomainData();
 
-			addOmFileLayers(map);
-			addHillshadeSources(map);
-			map.addControl(new HillshadeButton(map, url));
+			addOmFileLayers();
+			addHillshadeSources();
+			$map.addControl(new HillshadeButton());
 
-			addPopup(map);
+			addPopup();
 		});
 
-		map.on('zoomend', () => {
-			checkBounds(map, url, $metaJson);
+		$map.on('zoomend', () => {
+			checkBounds($metaJson);
 		});
 
-		map.on('dragend', () => {
-			checkBounds(map, url, $metaJson);
+		$map.on('dragend', () => {
+			checkBounds($metaJson);
 		});
 	});
 
 	onDestroy(() => {
-		if (map) {
-			map.remove();
+		if ($map) {
+			$map.remove();
 		}
+	});
+
+	domain.subscribe((newDomain) => {
+		toast('Domain set to: ' + $selectedDomain.label);
+	});
+
+	variable.subscribe((newVariable) => {
+		updateUrl('variable', newVariable);
+		changeOMfileURL();
+		toast('Variable set to: ' + $selectedVariable.label);
 	});
 </script>
 
@@ -274,51 +284,35 @@
 	afterColorScaleChange={async (variable: string, colorScale: RenderableColorScale) => {
 		omProtocolSettings.colorScales[variable] = colorScale;
 		const colorHash = await hashValue(JSON.stringify(omProtocolSettings.colorScales));
-		url.searchParams.set('color_hash', colorHash);
-		changeOMfileURL(map, url, $metaJson);
+		updateUrl('color_hash', colorHash, defaultColorHash);
+		changeOMfileURL();
 		toast('Changed color scale');
 	}}
 />
 
 <HelpDialog />
-<VariableSelection
-	domainChange={changeOmDomain}
-	variableChange={(newValue: string | undefined) => {
-		if (newValue) $variable = newValue;
-		url.searchParams.set('variable', $variable);
-		pushState(url + map._hash.getHashString(), {});
-		changeOMfileURL(map, url, $metaJson);
-		toast('Variable set to: ' + $selectedVariable.label);
-	}}
-/>
+<VariableSelection domainChange={changeOmDomain} />
 <TimeSelector
 	bind:time={$time}
-	bind:domain={$domain}
-	disabled={$loading}
-	timeSelector={$preferences.timeSelector}
 	onDateChange={(date: Date) => {
 		$time = new SvelteDate(date);
-		url.searchParams.set('time', fmtISOWithoutTimezone($time));
-		pushState(url + map._hash.getHashString(), {});
-		changeOMfileURL(map, url, $metaJson);
+		updateUrl('time', fmtISOWithoutTimezone($time));
+		changeOMfileURL();
 	}}
 />
 <div class="absolute">
 	<Sheet.Root bind:open={$sheet}>
 		<Sheet.Content>
 			<Settings
-				{map}
-				{url}
-				metaJson={$metaJson}
 				onReset={async () => {
 					resetStates();
-					for (let [key] of url.searchParams) {
-						url.searchParams.delete(key);
+					for (let [key] of $url.searchParams) {
+						$url.searchParams.delete(key);
 					}
-					reloadStyles(map);
+					reloadStyles();
 					await changeOmDomain($domain, false);
-					changeOMfileURL(map, url, $metaJson);
-					pushState(url + map._hash.getHashString(), {});
+					changeOMfileURL();
+					updateUrl();
 					toast('Reset all states to default');
 				}}
 			/>

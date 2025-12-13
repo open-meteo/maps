@@ -8,6 +8,7 @@
 
 	import { browser } from '$app/environment';
 
+	import { loading, preferences } from '$lib/stores/preferences';
 	import {
 		domainSelectionOpen as dSO,
 		selectedDomain,
@@ -20,19 +21,13 @@
 
 	interface Props {
 		time: Date;
-		domain: string;
-		disabled: boolean;
-		timeSelector: boolean;
 		onDateChange: (date: Date) => void;
 	}
 
-	let {
-		time = $bindable(),
-		domain = $bindable(),
-		disabled,
-		timeSelector,
-		onDateChange
-	}: Props = $props();
+	let { time = $bindable(), onDateChange }: Props = $props();
+
+	let disabled = $derived($loading);
+	let timeSelector = $derived($preferences.timeSelector);
 
 	let currentDate = $derived(time);
 	let currentHour = $derived(currentDate.getHours());

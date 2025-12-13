@@ -7,23 +7,14 @@
 
 	import { changeOMfileURL } from '$lib';
 
-	import type { Map } from 'maplibre-gl';
-
-	interface Props {
-		map: Map;
-		url: URL;
-	}
-
-	let { map = $bindable(), url }: Props = $props();
-
 	const handleResolutionChange = (res: 0.5 | 1 | 2) => {
 		r.set(res);
-		changeOMfileURL(map, url);
+		changeOMfileURL();
 	};
 
 	const handleTileSizeChange = (tile: 128 | 256 | 512) => {
 		tS.set(tile);
-		changeOMfileURL(map, url);
+		changeOMfileURL();
 	};
 
 	let resolution = $state(get(r));

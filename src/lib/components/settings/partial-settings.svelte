@@ -1,26 +1,13 @@
 <script lang="ts">
-	import { pushState } from '$app/navigation';
-
-	import { paddedBoundsLayer, paddedBoundsSource } from '$lib/stores/map';
-	import { preferences as p } from '$lib/stores/preferences';
+	import { map, paddedBoundsLayer, paddedBoundsSource } from '$lib/stores/map';
+	import { defaultPreferences, preferences } from '$lib/stores/preferences';
 
 	import { Label } from '$lib/components/ui/label';
 	import { Switch } from '$lib/components/ui/switch';
 
-	import { changeOMfileURL, getPaddedBounds } from '$lib';
+	import { changeOMfileURL, getPaddedBounds, updateUrl } from '$lib';
 
-	import type { DomainMetaData } from '@openmeteo/mapbox-layer';
-	import type { Map } from 'maplibre-gl';
-
-	interface Props {
-		map: Map;
-		url: URL;
-		metaJson: DomainMetaData | undefined;
-	}
-
-	let { map = $bindable(), url, metaJson }: Props = $props();
-
-	const preferences = $derived($p);
+	let partial = $derived($preferences.partial);
 </script>
 
 <div>
@@ -28,32 +15,24 @@
 	<div class="mt-3 flex gap-3 cursor-pointer">
 		<Switch
 			id="arrows"
-			checked={preferences.partial}
+			checked={partial}
 			onCheckedChange={() => {
-				preferences.partial = !preferences.partial;
-				p.set(preferences);
+				$preferences.partial = !$preferences.partial;
 
-				if (preferences.partial) {
-					url.searchParams.set('partial', String(preferences.partial));
-				} else {
-					url.searchParams.delete('partial');
-				}
-				pushState(url + map._hash.getHashString(), {});
+				updateUrl('partial', String(partial), String(defaultPreferences.partial));
 
-				if (preferences.partial) {
-					url.searchParams.set('partial', String(preferences.partial));
-					getPaddedBounds(map);
+				if (partial) {
+					getPaddedBounds();
 				} else {
-					url.searchParams.delete('partial');
-					map.removeLayer('paddedBoundsLayer');
-					map.removeSource('paddedBoundsSource');
+					$map.removeLayer('paddedBoundsLayer');
+					$map.removeSource('paddedBoundsSource');
 					paddedBoundsLayer.set(undefined);
 					paddedBoundsSource.set(undefined);
 				}
-				pushState(url + map._hash.getHashString(), {});
-				changeOMfileURL(map, url, metaJson);
+
+				changeOMfileURL();
 			}}
 		/>
-		<Label for="arrows">Partials {preferences.partial ? 'on' : 'off'}</Label>
+		<Label for="arrows">Partials {partial ? 'on' : 'off'}</Label>
 	</div>
 </div>

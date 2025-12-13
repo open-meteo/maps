@@ -3,8 +3,11 @@ import { derived, writable } from 'svelte/store';
 import { domainOptions, variableOptions } from '@openmeteo/mapbox-layer';
 import { persisted } from 'svelte-persisted-store';
 
-export const domain = persisted('domain', 'dwd_icon');
-export const variable = persisted('variable', 'temperature_2m');
+export const defaultDomain = 'dwd_icon';
+export const domain = persisted('domain', defaultDomain);
+
+export const defaultVariable = 'temperature_2m';
+export const variable = persisted('variable', defaultVariable);
 
 export const selectedDomain = derived(domain, ($domain) => {
 	const object = domainOptions.find(({ value }) => value === $domain);
@@ -27,9 +30,8 @@ export const selectedVariable = derived(variable, ($variable) => {
 		};
 	}
 });
-export const pressureLevels = persisted('pressure-levels', [2]);
 
 export const domainSelectionOpen = writable(false);
 export const variableSelectionOpen = writable(false);
 export const pressureLevelsSelectionOpen = writable(false);
-export const variableSelectionExtended = persisted('variables-open', false);
+export const variableSelectionExtended = persisted('variables_open', false);
