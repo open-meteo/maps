@@ -20,9 +20,13 @@
 	import { loading, metaJson } from '$lib/stores/preferences';
 	import {
 		domainSelectionOpen as dSO,
+		domain,
+		level,
+		levelGroupSelected,
 		pressureLevelsSelectionOpen as pLSO,
 		selectedDomain,
 		selectedVariable,
+		unit,
 		variableSelectionExtended as vSE,
 		variableSelectionOpen as vSO,
 		variable
@@ -33,12 +37,6 @@
 	import * as Popover from '$lib/components/ui/popover';
 
 	import VariableSelectionEmpty from './variable-selection-empty.svelte';
-
-	interface Props {
-		domainChange: (value: string) => Promise<void>;
-	}
-
-	let { domainChange }: Props = $props();
 
 	// list of variables, with the level groups filtered out, and adding a prefix for the group
 	let variableList = $derived.by(() => {
@@ -84,24 +82,6 @@
 				}
 			}
 			return groups;
-		}
-	});
-
-	let level = $derived.by(() => {
-		const match = $selectedVariable.value.match(LEVEL_UNIT_REGEX);
-		if (match && match.groups) {
-			return match.groups.level;
-		} else {
-			return undefined;
-		}
-	});
-
-	let unit = $derived.by(() => {
-		const match = $selectedVariable.value.match(LEVEL_UNIT_REGEX);
-		if (match && match.groups) {
-			return match.groups.unit;
-		} else {
-			return undefined;
 		}
 	});
 
@@ -163,24 +143,9 @@
 		}
 	});
 
-	let levelGroupSelected = $state(
-		$selectedVariable.value.match(LEVEL_REGEX)
-			? (variableOptions.find(
-					({ value }) => value === $selectedVariable.value.match(LEVEL_PREFIX)?.groups?.prefix
-				) ?? undefined)
-			: undefined
-	);
-	selectedVariable.subscribe((newVariable) => {
-		levelGroupSelected = newVariable.value.match(LEVEL_REGEX)
-			? (variableOptions.find(
-					({ value }) => value === $selectedVariable.value.match(LEVEL_PREFIX)?.groups?.prefix
-				) ?? undefined)
-			: undefined;
-	});
-
 	const checkDefaultLevel = (value: string) => {
-		if (levelGroupsList && levelGroupSelected) {
-			const levelGroup = levelGroupsList[levelGroupSelected.value];
+		if (levelGroupsList && $levelGroupSelected) {
+			const levelGroup = levelGroupsList[$levelGroupSelected.value];
 			if (levelGroup) {
 				// define some default levels
 				for (let level of levelGroup) {
@@ -204,7 +169,7 @@
 		? 'left-2.5'
 		: '-left-[182px]'} "
 >
-	{#if $loading && $metaJson}
+	{#if $loading || !$metaJson}
 		<VariableSelectionEmpty />
 	{:else}
 		<div class="flex flex-col gap-2.5">
@@ -282,8 +247,8 @@
 												class="hover:!bg-primary/25 cursor-pointer {$selectedDomain.value === value
 													? '!bg-primary/15'
 													: ''}"
-												onSelect={async () => {
-													domainChange(value);
+												onSelect={() => {
+													$domain = value;
 													dSO.set(false);
 												}}
 												aria-selected={$selectedDomain.value === value}
@@ -320,8 +285,8 @@
 						aria-expanded={variableSelectionOpen}
 					>
 						<div class="truncate">
-							{levelGroupSelected
-								? levelGroupSelected.label
+							{$levelGroupSelected
+								? $levelGroupSelected?.label
 								: $selectedVariable?.label || 'Select a variable...'}
 						</div>
 						<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
@@ -380,12 +345,12 @@
 									{#if levelGroupVariables.includes(vr)}
 										<Command.Item
 											value={v?.value}
-											class="hover:!bg-primary/25 cursor-pointer {levelGroupSelected &&
-											levelGroupSelected.value === v?.value
+											class="hover:!bg-primary/25 cursor-pointer {$levelGroupSelected &&
+											$levelGroupSelected.value === v?.value
 												? '!bg-primary/15'
 												: ''}"
 											onSelect={() => {
-												levelGroupSelected = v;
+												$levelGroupSelected = v;
 												$variable = checkDefaultLevel(v?.value as string);
 												vSO.set(false);
 											}}
@@ -394,7 +359,7 @@
 												{v?.label}
 												<CheckIcon
 													class="size-4 {!levelGroupSelected ||
-													levelGroupSelected.value !== v?.value
+													$levelGroupSelected?.value !== v?.value
 														? 'text-transparent'
 														: ''}"
 												/>
@@ -412,7 +377,7 @@
 												? '!bg-primary/15'
 												: ''}"
 											onSelect={() => {
-												levelGroupSelected = undefined;
+												$levelGroupSelected = undefined;
 												$variable = v?.value as string;
 												vSO.set(false);
 											}}
@@ -433,7 +398,7 @@
 					</Command.Root>
 				</Popover.Content>
 			</Popover.Root>
-			{#if levelGroupsList && levelGroupSelected && levelGroupSelected.value && levelGroupsList[levelGroupSelected.value]}
+			{#if levelGroupsList && $levelGroupSelected && $levelGroupSelected?.value && levelGroupsList[$levelGroupSelected.value]}
 				<Popover.Root
 					bind:open={pressureLevelSelectionOpen}
 					onOpenChange={(e) => {
@@ -449,7 +414,7 @@
 							aria-expanded={pressureLevelSelectionOpen}
 						>
 							<div class="truncate">
-								{level + ' ' + unit || 'Select a level...'}
+								{$level + ' ' + $unit || 'Select a level...'}
 							</div>
 							<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
 						</Button>
@@ -485,14 +450,14 @@
 							<Command.List>
 								<Command.Empty>No levels found.</Command.Empty>
 								<Command.Group>
-									{#each levelGroupsList[levelGroupSelected.value] as { value, label } (value)}
+									{#each levelGroupsList[$levelGroupSelected.value] as { value, label } (value)}
 										{@const lvl = value.match(LEVEL_UNIT_REGEX)?.groups?.level}
 										{@const u = value.match(LEVEL_UNIT_REGEX)?.groups?.unit}
 
 										{#if !value.includes('v_component') && !value.includes('_direction')}
 											<Command.Item
 												{value}
-												class="hover:!bg-primary/25 cursor-pointer {lvl === level && u === unit
+												class="hover:!bg-primary/25 cursor-pointer {lvl === $level && u === $unit
 													? '!bg-primary/15'
 													: ''}"
 												onSelect={() => {
@@ -503,7 +468,7 @@
 												<div class="flex w-full items-center justify-between">
 													{label}
 													<CheckIcon
-														class="size-4 {lvl !== level || u !== unit ? 'text-transparent' : ''}"
+														class="size-4 {lvl !== $level || u !== $unit ? 'text-transparent' : ''}"
 													/>
 												</div>
 											</Command.Item>

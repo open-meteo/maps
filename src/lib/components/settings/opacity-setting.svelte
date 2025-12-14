@@ -6,7 +6,7 @@
 </script>
 
 <div>
-	<h2 class="text-lg font-bold">Opacity</h2>
+	<h2 class="text-lg font-bold">Raster Opacity</h2>
 	<div class="mt-3 flex gap-3">
 		<Label for="interval">Opacity:</Label>
 		<input

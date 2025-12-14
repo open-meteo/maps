@@ -13,8 +13,14 @@
 	let breakpoints = $derived($vectorOptions.breakpoints);
 
 	const handleContourIntervalChange = () => {
-		updateUrl('contour_interval', String($vectorOptions.contourInterval));
-		changeOMfileURL(false, true);
+		updateUrl(
+			'contour_interval',
+			String($vectorOptions.contourInterval),
+			String(defaultVectorOptions.contourInterval) // different urlParam and key
+		);
+		if (contours) {
+			changeOMfileURL(false, true);
+		}
 	};
 </script>
 

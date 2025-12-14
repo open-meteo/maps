@@ -4,6 +4,8 @@ import { get } from 'svelte/store';
 
 import {
 	GridFactory,
+	TIME_SELECTED_REGEX,
+	VARIABLE_PREFIX,
 	closestModelRun,
 	domainOptions,
 	domainStep,
@@ -40,7 +42,7 @@ import {
 	time,
 	url as u
 } from '$lib/stores/preferences';
-import { domain as d, variable as v } from '$lib/stores/variables';
+import { domain as d, selectedDomain, variable as v, variable } from '$lib/stores/variables';
 import { vectorOptions as vO } from '$lib/stores/vector';
 
 import type { Domain, DomainMetaData } from '@openmeteo/mapbox-layer';
@@ -211,22 +213,16 @@ export const urlParamsToPreferences = () => {
 export const fmtISOWithoutTimezone = (d: Date) => d.toISOString().replace(/[:Z]/g, '').slice(0, 15);
 
 export const checkClosestDomainInterval = () => {
-	const original = get(time);
-	const t = new Date(original.getTime());
-	const domain = domainOptions.find(({ value }) => value === get(d));
-	if (domain) {
-		const closestTime = domainStep(t, domain.time_interval, 'floor');
-		url.searchParams.set('time', fmtISOWithoutTimezone(closestTime));
-		time.set(closestTime);
-	}
+	const t = get(time);
+	const domain = get(selectedDomain);
+	const closestTime = domainStep(t, domain.time_interval, 'floor');
+	updateUrl('time', fmtISOWithoutTimezone(closestTime));
+	time.set(closestTime);
 };
 
 export const checkClosestModelRun = () => {
-	const domain = domainOptions.find(({ value }) => value === get(d));
-	if (!domain) {
-		throw new Error('Domain not found');
-	}
 	let timeStep = get(time);
+	const domain = get(selectedDomain);
 
 	// other than seasonal models, data is not available longer than 7 days
 	if (domain.model_interval !== 'monthly') {
@@ -282,10 +278,11 @@ export const checkClosestModelRun = () => {
 
 	if (setToModelRun.getTime() !== modelRun.getTime()) {
 		mR.set(setToModelRun);
-		url.searchParams.set('model_run', fmtISOWithoutTimezone(setToModelRun));
+		updateUrl('model_run', fmtISOWithoutTimezone(setToModelRun));
 		toast.info('Model run set to: ' + fmtISOWithoutTimezone(setToModelRun));
+	} else {
+		updateUrl();
 	}
-	updateUrl();
 };
 
 export const setMapControlSettings = () => {
@@ -781,7 +778,7 @@ export const addPopup = () => {
 };
 
 const padding = 25; //%
-export const checkBounds = (latest: DomainMetaData | undefined) => {
+export const checkBounds = () => {
 	const domain = get(d);
 	const domainObject = domainOptions.find(({ value }) => value === domain);
 
@@ -957,7 +954,6 @@ export const getOMUrl = () => {
 	return url;
 };
 
-const TIME_SELECTED_REGEX = new RegExp(/([0-9]{2}-[0-9]{2}-[0-9]{2}T[0-9]{2}00)/);
 export const getNextOmUrls = (
 	omUrl: string,
 	domain: Domain,
@@ -1027,5 +1023,47 @@ export const updateUrl = async (
 		} else {
 			pushState(url, {});
 		}
+	}
+};
+
+export const getMetaData = async (inProgress = false): Promise<DomainMetaData> => {
+	const domain = get(selectedDomain);
+	const uri =
+		domain && domain.value.startsWith('dwd_icon')
+			? `https://s3.servert.ch`
+			: `https://map-tiles.open-meteo.com`;
+
+	const metaJsonUrl = `${uri}/data_spatial/${domain.value}/${inProgress ? 'in-progress' : 'latest'}.json`;
+	const metaJsonResult = await fetch(metaJsonUrl);
+	if (!metaJsonResult.ok) {
+		loading.set(false);
+		throw new Error(`HTTP ${metaJsonResult.status}`);
+	}
+	const json = await metaJsonResult.json();
+	return json;
+};
+
+export const matchVariableOrFirst = () => {
+	const variable = get(v);
+	let matchedVariable = undefined;
+	if (metaJson && !metaJson?.variables.includes(variable)) {
+		// check for similar level variables
+		const prefixMatch = variable.match(VARIABLE_PREFIX);
+		const prefix = prefixMatch?.groups?.prefix;
+		if (prefix) {
+			for (const mjVariable of metaJson.variables) {
+				if (mjVariable.startsWith(prefix)) {
+					matchedVariable = mjVariable;
+					break;
+				}
+			}
+		}
+
+		if (!matchedVariable) {
+			matchedVariable = metaJson.variables[0];
+		}
+	}
+	if (matchedVariable) {
+		v.set(matchedVariable);
 	}
 };

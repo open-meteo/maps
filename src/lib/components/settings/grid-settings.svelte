@@ -17,10 +17,8 @@
 		<Switch
 			id="grid"
 			class="cursor-pointer"
-			checked={grid}
+			bind:checked={$vectorOptions.grid}
 			onCheckedChange={() => {
-				$vectorOptions.grid = !$vectorOptions.grid;
-
 				updateUrl('grid', String(grid));
 
 				changeOMfileURL();

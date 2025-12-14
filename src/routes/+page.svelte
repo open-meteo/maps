@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
+	import { onDestroy, onMount, tick } from 'svelte';
 	import { SvelteDate } from 'svelte/reactivity';
 	import { get } from 'svelte/store';
 	import { fade } from 'svelte/transition';
@@ -26,8 +26,8 @@
 	import { map, mapBounds, paddedBounds } from '$lib/stores/map';
 	import { defaultColorHash, omProtocolSettings } from '$lib/stores/om-protocol-settings';
 	import {
-		localStorageVersion as lSV,
 		loading,
+		localStorageVersion,
 		metaJson,
 		modelRun,
 		preferences,
@@ -62,9 +62,11 @@
 		checkClosestDomainInterval,
 		checkClosestModelRun,
 		checkHighDefinition,
+		getMetaData,
 		getPaddedBounds,
 		getStyle,
 		hashValue,
+		matchVariableOrFirst,
 		setMapControlSettings,
 		updateUrl,
 		urlParamsToPreferences
@@ -75,84 +77,11 @@
 
 	let mapContainer: HTMLElement | null;
 
-	const changeOmDomain = async (newValue: string, updateUrlState = true): Promise<void> => {
-		loading.set(true);
-
-		const object = domainOptions.find(({ value }) => value === newValue);
-		if (!object) {
-			throw new Error('Domain not found');
-		} else {
-			if (newValue) $domain = newValue;
-		}
-
-		checkClosestDomainInterval();
-
-		if (updateUrlState) {
-			$url.searchParams.set('domain', $domain);
-			$url.searchParams.set('time', fmtISOWithoutTimezone($time));
-			pushState($url + $map._hash.getHashString(), {});
-			toast('Domain set to: ' + object.label);
-		}
-		$metaJson = await getDomainData();
-
-		// align model run with new model_interval on domain change
-		$modelRun = closestModelRun($modelRun, object.model_interval);
-		checkClosestModelRun(); // checks and updates time and model run to fit the current domain selection
-
-		if ($modelRun.getTime() - $time.getTime() > 0) {
-			$time = domainStep($modelRun, object.time_interval, 'forward');
-		}
-
-		let matchedVariable = undefined;
-		if (!$metaJson.variables.includes($variable)) {
-			// check for similar level variables
-			const prefixMatch = $variable.match(VARIABLE_PREFIX);
-			const prefix = prefixMatch?.groups?.prefix;
-			if (prefix) {
-				for (let mjVariable of $metaJson.variables) {
-					if (mjVariable.startsWith(prefix)) {
-						matchedVariable = mjVariable;
-						break;
-					}
-				}
-			}
-
-			if (!matchedVariable) {
-				matchedVariable = $metaJson.variables[0];
-			}
-		}
-		if (matchedVariable) {
-			$variable = matchedVariable;
-			// $url.searchParams.set('variable', $variable);
-			// pushState($url + $map._hash.getHashString(), {});
-			// toast('Variable set to: ' + $variable);
-		}
-
-		changeOMfileURL();
-	};
-
-	const getDomainData = async (inProgress = false): Promise<DomainMetaData> => {
-		const uri =
-			$domain && $domain.startsWith('dwd_icon')
-				? `https://s3.servert.ch`
-				: `https://map-tiles.open-meteo.com`;
-
-		const metaJsonUrl = `${uri}/data_spatial/${$domain}/${inProgress ? 'in-progress' : 'latest'}.json`;
-		const metaJsonResult = await fetch(metaJsonUrl);
-		if (!metaJsonResult.ok) {
-			loading.set(false);
-			throw new Error(`HTTP ${metaJsonResult.status}`);
-		}
-		const json = await metaJsonResult.json();
-		return json;
-	};
-
-	let localStorageVersion = $derived(get(lSV));
 	onMount(() => {
 		$url = new URL(document.location.href);
 		urlParamsToPreferences();
 
-		// first time check if monitor supports high definition, for increased tileResolution
+		// first time on load, check if monitor supports high definition, for increased tile resolution factor
 		if (!get(resolutionSet)) {
 			if (checkHighDefinition()) {
 				resolution.set(2);
@@ -160,13 +89,12 @@
 			resolutionSet.set(true);
 		}
 
-		// resets all the states when a new version is set in 'package.json'
-		// and version already set before
-		if (version !== localStorageVersion) {
-			if (localStorageVersion) {
+		// resets all the states when a new version is set in 'package.json' and version already set before
+		if (version !== $localStorageVersion) {
+			if ($localStorageVersion) {
 				resetStates();
 			}
-			lSV.set(version);
+			$localStorageVersion = version;
 		}
 	});
 
@@ -215,7 +143,7 @@
 			$map.addControl(new SettingsButton());
 			$map.addControl(new TimeButton());
 			$map.addControl(new HelpButton());
-			$metaJson = await getDomainData();
+			$metaJson = await getMetaData();
 
 			addOmFileLayers();
 			addHillshadeSources();
@@ -225,28 +153,50 @@
 		});
 
 		$map.on('zoomend', () => {
-			checkBounds($metaJson);
+			checkBounds();
 		});
 
 		$map.on('dragend', () => {
-			checkBounds($metaJson);
+			checkBounds();
 		});
+	});
+
+	const domainSubsription = domain.subscribe(async (newDomain) => {
+		await tick(); // await the selectedDomain to be set
+		updateUrl('domain', newDomain);
+
+		$metaJson = await getMetaData();
+
+		checkClosestDomainInterval();
+		// align model run with new model_interval on domain change
+		$modelRun = closestModelRun($modelRun, $selectedDomain.model_interval);
+		checkClosestModelRun(); // checks and updates time and model run to fit the current domain selection
+
+		if ($modelRun.getTime() - $time.getTime() > 0) {
+			$time = domainStep($modelRun, $selectedDomain.time_interval, 'forward');
+		}
+
+		matchVariableOrFirst();
+
+		changeOMfileURL();
+		toast('Domain set to: ' + $selectedDomain.label);
+	});
+
+	const variableSubsription = variable.subscribe(async (newVar) => {
+		await tick(); // await the selectedVariable to be set
+		updateUrl('variable', newVar);
+		if (!$loading) {
+			changeOMfileURL();
+		}
+		toast('Variable set to: ' + $selectedVariable.label);
 	});
 
 	onDestroy(() => {
 		if ($map) {
 			$map.remove();
 		}
-	});
-
-	// domain.subscribe((newDomain) => {
-	// 	toast('Domain set to: ' + $selectedDomain.label);
-	// });
-
-	variable.subscribe((newVariable) => {
-		// updateUrl('variable', newVariable);
-		// changeOMfileURL();
-		toast('Variable set to: ' + $selectedVariable.label);
+		domainSubsription(); // unsubscribe
+		variableSubsription(); // unsubscribe
 	});
 </script>
 
@@ -288,7 +238,7 @@
 	}}
 />
 
-<VariableSelection domainChange={changeOmDomain} />
+<VariableSelection />
 <TimeSelector
 	bind:time={$time}
 	onDateChange={(date: Date) => {

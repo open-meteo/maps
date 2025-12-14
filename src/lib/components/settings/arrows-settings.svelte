@@ -17,9 +17,8 @@
 		<Switch
 			id="arrows"
 			class="cursor-pointer"
-			checked={arrows}
+			bind:checked={$vectorOptions.arrows}
 			onCheckedChange={() => {
-				$vectorOptions.arrows = !$vectorOptions.arrows;
 				updateUrl('arrows', String(arrows));
 				changeOMfileURL();
 				toast.info('Arrows turned ' + (arrows ? 'on' : 'off'));
