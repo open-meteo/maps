@@ -5,7 +5,7 @@
 	import { mode } from 'mode-watcher';
 
 	import { customColorScales } from '$lib/stores/om-protocol-settings';
-	import { opacity } from '$lib/stores/preferences';
+	import { opacity, preferences } from '$lib/stores/preferences';
 	import { variable } from '$lib/stores/variables';
 
 	import { textWhite } from '$lib';
@@ -14,12 +14,11 @@
 	import ColorPicker from './color-picker.svelte';
 
 	interface Props {
-		showScale: boolean;
 		editable?: boolean;
 		afterColorScaleChange: (variable: string, colorScale: RenderableColorScale) => void;
 	}
 
-	let { showScale, editable = true, afterColorScaleChange }: Props = $props();
+	let { editable = true, afterColorScaleChange }: Props = $props();
 
 	const isDark = $derived(mode.current === 'dark');
 	const baseColorScale: RenderableColorScale = $derived(getColorScale($variable, isDark));
@@ -92,7 +91,7 @@
 	const totalHeight = $derived(colorBlockHeight * labeledColors.length);
 </script>
 
-{#if showScale}
+{#if $preferences.showScale}
 	<div class="absolute bottom-2.5 left-2.5 z-10" style="max-height: {totalHeight + 100}px;">
 		<div
 			style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"

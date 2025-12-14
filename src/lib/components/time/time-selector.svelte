@@ -19,12 +19,6 @@
 
 	import type { ModelDt } from '@openmeteo/mapbox-layer';
 
-	const onDateChange = (date: Date) => {
-		$time = new SvelteDate(date);
-		updateUrl('time', fmtISOWithoutTimezone($time));
-		changeOMfileURL();
-	};
-
 	let disabled = $derived($loading);
 	let timeSelector = $derived($preferences.timeSelector);
 
@@ -64,6 +58,12 @@
 	vSO.subscribe((vO) => {
 		variableSelectionOpen = vO;
 	});
+
+	const onDateChange = (date: Date) => {
+		$time = new SvelteDate(date);
+		updateUrl('time', fmtISOWithoutTimezone($time));
+		changeOMfileURL();
+	};
 
 	const keydownEvent = (event: KeyboardEvent) => {
 		const canNavigate = !(domainSelectionOpen || variableSelectionOpen);

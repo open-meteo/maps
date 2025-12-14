@@ -1,14 +1,10 @@
 <script lang="ts">
 	import { onDestroy, onMount, tick } from 'svelte';
-	import { SvelteDate } from 'svelte/reactivity';
 	import { get } from 'svelte/store';
-	import { fade } from 'svelte/transition';
 
 	import {
-		type DomainMetaData,
 		GridFactory,
 		type RenderableColorScale,
-		VARIABLE_PREFIX,
 		closestModelRun,
 		domainOptions,
 		domainStep,
@@ -21,7 +17,6 @@
 	import { toast } from 'svelte-sonner';
 
 	import { version } from '$app/environment';
-	import { pushState } from '$app/navigation';
 
 	import { map, mapBounds, paddedBounds } from '$lib/stores/map';
 	import { defaultColorHash, omProtocolSettings } from '$lib/stores/om-protocol-settings';
@@ -30,7 +25,6 @@
 		localStorageVersion,
 		metaJson,
 		modelRun,
-		preferences,
 		resetStates,
 		resolution,
 		resolutionSet,
@@ -44,10 +38,10 @@
 		HelpButton,
 		HillshadeButton,
 		SettingsButton,
-		TimeButton,
-		reloadStyles
+		TimeButton
 	} from '$lib/components/buttons';
 	import HelpDialog from '$lib/components/help/help-dialog.svelte';
+	import Spinner from '$lib/components/loading/spinner.svelte';
 	import Scale from '$lib/components/scale/scale.svelte';
 	import VariableSelection from '$lib/components/selection/variable-selection.svelte';
 	import Settings from '$lib/components/settings/settings.svelte';
@@ -71,7 +65,6 @@
 		updateUrl,
 		urlParamsToPreferences
 	} from '$lib';
-	import { fmtISOWithoutTimezone } from '$lib/index';
 
 	import '../styles.css';
 
@@ -205,30 +198,12 @@
 </svelte:head>
 
 {#if $loading}
-	<div
-		in:fade={{ delay: 1200, duration: 400 }}
-		out:fade={{ duration: 150 }}
-		class="pointer-events-none absolute top-[50%] left-[50%] z-50 transform-[translate(-50%,-50%)]"
-	>
-		<svg
-			xmlns="http://www.w3.org/2000/svg"
-			width="48"
-			height="48"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="2"
-			stroke-linecap="round"
-			stroke-linejoin="round"
-			class="lucide lucide-loader-circle-icon lucide-loader-circle animate-spin"
-			><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg
-		>
-	</div>
+	<Spinner />
 {/if}
 
 <div class="map" id="#map_container" bind:this={mapContainer}></div>
+
 <Scale
-	showScale={$preferences.showScale}
 	afterColorScaleChange={async (variable: string, colorScale: RenderableColorScale) => {
 		omProtocolSettings.colorScales[variable] = colorScale;
 		const colorHash = await hashValue(JSON.stringify(omProtocolSettings.colorScales));
@@ -237,7 +212,6 @@
 		toast('Changed color scale');
 	}}
 />
-
 <VariableSelection />
 <TimeSelector />
 <Settings />
