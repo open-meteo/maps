@@ -239,27 +239,6 @@
 />
 
 <VariableSelection />
-<TimeSelector
-	bind:time={$time}
-	onDateChange={(date: Date) => {
-		$time = new SvelteDate(date);
-		updateUrl('time', fmtISOWithoutTimezone($time));
-		changeOMfileURL();
-	}}
-/>
-
-<Settings
-	onReset={async () => {
-		resetStates();
-		for (let [key] of $url.searchParams) {
-			$url.searchParams.delete(key);
-		}
-		reloadStyles();
-		await changeOmDomain($domain, false);
-		changeOMfileURL();
-		updateUrl();
-		toast.info('All default states reset');
-	}}
-/>
-
+<TimeSelector />
+<Settings />
 <HelpDialog />

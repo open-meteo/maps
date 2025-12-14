@@ -76,7 +76,7 @@ export const resetStates = () => {
 
 	domainSelectionOpen.set(false);
 	variableSelectionOpen.set(false);
-	variableSelectionExtended.set(false);
+	variableSelectionExtended.set(undefined);
 
 	mapBounds.set(null);
 	paddedBounds.set(null);

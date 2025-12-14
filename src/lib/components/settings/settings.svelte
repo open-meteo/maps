@@ -12,12 +12,6 @@
 	import StateSettings from './state-settings.svelte';
 	import UnitSettings from './unit-settings.svelte';
 	import WaterClipSetting from './water-clip-setting.svelte';
-
-	interface Props {
-		onReset: () => Promise<void>;
-	}
-
-	let { onReset }: Props = $props();
 </script>
 
 <Sheet.Root bind:open={$sheet}>
@@ -31,7 +25,7 @@
 			<PartialSettings />
 			<WaterClipSetting />
 			<OpacitySetting />
-			<StateSettings {onReset} />
+			<StateSettings />
 		</div>
 	</Sheet.Content>
 </Sheet.Root>

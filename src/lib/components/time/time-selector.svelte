@@ -8,51 +8,50 @@
 
 	import { browser } from '$app/environment';
 
-	import { loading, preferences } from '$lib/stores/preferences';
+	import { loading, preferences, time } from '$lib/stores/preferences';
 	import {
 		domainSelectionOpen as dSO,
 		selectedDomain,
 		variableSelectionOpen as vSO
 	} from '$lib/stores/variables';
 
-	import { pad } from '$lib';
+	import { changeOMfileURL, fmtISOWithoutTimezone, pad, updateUrl } from '$lib';
 
 	import type { ModelDt } from '@openmeteo/mapbox-layer';
 
-	interface Props {
-		time: Date;
-		onDateChange: (date: Date) => void;
-	}
-
-	let { time = $bindable(), onDateChange }: Props = $props();
+	const onDateChange = (date: Date) => {
+		$time = new SvelteDate(date);
+		updateUrl('time', fmtISOWithoutTimezone($time));
+		changeOMfileURL();
+	};
 
 	let disabled = $derived($loading);
 	let timeSelector = $derived($preferences.timeSelector);
 
-	let currentDate = $derived(time);
+	let currentDate = $derived($time);
 	let currentHour = $derived(currentDate.getHours());
 
 	const resolution: ModelDt = $derived($selectedDomain.time_interval);
 
 	const previousHour = () => {
-		const date = domainStep(time, resolution, 'backward');
+		const date = domainStep($time, resolution, 'backward');
 		onDateChange(date);
 	};
 
 	const nextHour = () => {
-		const date = domainStep(time, resolution, 'forward');
+		const date = domainStep($time, resolution, 'forward');
 		onDateChange(date);
 	};
 
 	const previousDay = () => {
-		time.setHours(time.getHours() - 23);
-		const date = domainStep(time, resolution, 'backward');
+		$time.setHours($time.getHours() - 23);
+		const date = domainStep($time, resolution, 'backward');
 		onDateChange(date);
 	};
 
 	const nextDay = () => {
-		time.setHours(time.getHours() + 23);
-		const date = domainStep(time, resolution, 'forward');
+		$time.setHours($time.getHours() + 23);
+		const date = domainStep($time, resolution, 'forward');
 		onDateChange(date);
 	};
 
