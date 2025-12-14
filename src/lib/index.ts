@@ -941,12 +941,12 @@ export const getOMUrl = () => {
 	// values may not be parsed by url, but the url has to change for tile reload
 	const tileSize = get(tS);
 	if (tileSize !== 256) {
-		url += `&tile-size=${tileSize}`;
+		url += `&tile_size=${tileSize}`;
 	}
 
 	const resolution = get(r);
 	if (resolution !== 1) {
-		url += `&resolution-factor=${resolution}`;
+		url += `&resolution_factor=${resolution}`;
 	}
 
 	const paddedBounds = get(pB);

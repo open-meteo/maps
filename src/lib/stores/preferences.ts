@@ -48,7 +48,7 @@ export const modelRun = writable(new Date());
 export const sheet = writable(false);
 export const loading = writable(false);
 
-export const tileSize: Persisted<128 | 256 | 512> = persisted('tile-size', 256);
+export const tileSize: Persisted<128 | 256 | 512> = persisted('tile_size', 256);
 export const resolution: Persisted<0.5 | 1 | 2> = persisted('resolution', 1);
 // check for retina / hd on first load, afterwards the resolution won't be set
 export const resolutionSet = persisted('resolution-set', false);

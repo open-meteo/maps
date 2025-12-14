@@ -6,6 +6,9 @@
 	import CheckIcon from '@lucide/svelte/icons/check';
 	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down';
 	import {
+		LEVEL_PREFIX,
+		LEVEL_REGEX,
+		LEVEL_UNIT_REGEX,
 		domainGroups,
 		domainOptions,
 		levelGroupVariables,
@@ -28,8 +31,6 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Command from '$lib/components/ui/command';
 	import * as Popover from '$lib/components/ui/popover';
-
-	import { LEVEL_PREFIX, LEVEL_REGEX, LEVEL_UNIT_REGEX } from '$lib/constants';
 
 	import VariableSelectionEmpty from './variable-selection-empty.svelte';
 

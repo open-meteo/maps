@@ -8,6 +8,7 @@
 		type DomainMetaData,
 		GridFactory,
 		type RenderableColorScale,
+		VARIABLE_PREFIX,
 		closestModelRun,
 		domainOptions,
 		domainStep,
@@ -68,7 +69,6 @@
 		updateUrl,
 		urlParamsToPreferences
 	} from '$lib';
-	import { VARIABLE_PREFIX } from '$lib/constants';
 	import { fmtISOWithoutTimezone } from '$lib/index';
 
 	import '../styles.css';
@@ -239,13 +239,13 @@
 		}
 	});
 
-	domain.subscribe((newDomain) => {
-		toast('Domain set to: ' + $selectedDomain.label);
-	});
+	// domain.subscribe((newDomain) => {
+	// 	toast('Domain set to: ' + $selectedDomain.label);
+	// });
 
 	variable.subscribe((newVariable) => {
-		updateUrl('variable', newVariable);
-		changeOMfileURL();
+		// updateUrl('variable', newVariable);
+		// changeOMfileURL();
 		toast('Variable set to: ' + $selectedVariable.label);
 	});
 </script>
