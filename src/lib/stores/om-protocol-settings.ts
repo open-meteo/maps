@@ -1,6 +1,6 @@
 import { get } from 'svelte/store';
 
-import { OMapsFileReader, defaultOmProtocolSettings } from '@openmeteo/mapbox-layer';
+import { type OMapsFileReader, defaultOmProtocolSettings } from '@openmeteo/mapbox-layer';
 import { persisted } from 'svelte-persisted-store';
 
 import { getNextOmUrls } from '$lib';

@@ -358,7 +358,7 @@
 											<div class="flex w-full items-center justify-between">
 												{v?.label}
 												<CheckIcon
-													class="size-4 {!levelGroupSelected ||
+													class="size-4 {!$levelGroupSelected ||
 													$levelGroupSelected?.value !== v?.value
 														? 'text-transparent'
 														: ''}"

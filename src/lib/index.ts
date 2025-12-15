@@ -724,7 +724,8 @@ export const textWhite = (
 	dark?: boolean,
 	globalOpacity?: number
 ): boolean => {
-	if ((a != undefined && a < 0.65) || (globalOpacity && globalOpacity < 65)) {
+	const alpha = ((a || 1) * (globalOpacity || 100)) / 100;
+	if (alpha < 0.65) {
 		if (dark) {
 			return true;
 		} else {
