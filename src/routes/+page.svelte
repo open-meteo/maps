@@ -154,7 +154,7 @@
 		});
 	});
 
-	const domainSubsription = domain.subscribe(async (newDomain) => {
+	const domainSubscription = domain.subscribe(async (newDomain) => {
 		await tick(); // await the selectedDomain to be set
 		updateUrl('domain', newDomain);
 
@@ -175,7 +175,7 @@
 		toast('Domain set to: ' + $selectedDomain.label);
 	});
 
-	const variableSubsription = variable.subscribe(async (newVar) => {
+	const variableSubscription = variable.subscribe(async (newVar) => {
 		await tick(); // await the selectedVariable to be set
 		updateUrl('variable', newVar);
 		if (!$loading) {
@@ -188,8 +188,8 @@
 		if ($map) {
 			$map.remove();
 		}
-		domainSubsription(); // unsubscribe
-		variableSubsription(); // unsubscribe
+		domainSubscription(); // unsubscribe
+		variableSubscription(); // unsubscribe
 	});
 </script>
 
