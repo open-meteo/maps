@@ -4,8 +4,9 @@
 	import { type RenderableColorScale, getColor, getColorScale } from '@openmeteo/mapbox-layer';
 	import { mode } from 'mode-watcher';
 
-	import { customColorScales } from '$lib/stores/preferences';
-	import { variable } from '$lib/stores/preferences';
+	import { customColorScales } from '$lib/stores/om-protocol-settings';
+	import { opacity, preferences } from '$lib/stores/preferences';
+	import { variable } from '$lib/stores/variables';
 
 	import { textWhite } from '$lib';
 	import { getAlpha, hexToRgba, rgbaToHex } from '$lib/color';
@@ -13,12 +14,11 @@
 	import ColorPicker from './color-picker.svelte';
 
 	interface Props {
-		showScale: boolean;
 		editable?: boolean;
 		afterColorScaleChange: (variable: string, colorScale: RenderableColorScale) => void;
 	}
 
-	let { showScale, editable = true, afterColorScaleChange }: Props = $props();
+	let { editable = true, afterColorScaleChange }: Props = $props();
 
 	const isDark = $derived(mode.current === 'dark');
 	const baseColorScale: RenderableColorScale = $derived(getColorScale($variable, isDark));
@@ -91,7 +91,7 @@
 	const totalHeight = $derived(colorBlockHeight * labeledColors.length);
 </script>
 
-{#if showScale}
+{#if $preferences.showScale}
 	<div class="absolute bottom-2.5 left-2.5 z-10" style="max-height: {totalHeight + 100}px;">
 		<div
 			style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
@@ -107,10 +107,11 @@
 						type="button"
 						disabled={!editable && colorScale.type !== 'breakpoint'}
 						onclick={(e) => handleColorClick(i, e)}
-						style={`background: rgba(${lc.color.join(',')});min-width: 28px; width: ${labelWidth}px; height: ${colorBlockHeight}px;`}
+						style={`background: rgb({lc.color[0]}, {lc.color[1]}, {lc
+							.color[2]}); opacity: {alphaValue};min-width: 28px; width: ${labelWidth}px; height: ${colorBlockHeight}px;`}
 						class="relative border-none outline-none transition-all {editable
-							? 'cursor-pointer hover:brightness-110 hover:z-10 hover:ring-2 hover:ring-white/50'
-							: 'cursor-default'} {editingIndex === i ? 'ring-2 ring-primary z-20' : ''}"
+							? 'cursor-pointer hover:brightness-110 hover:z-10 hover:ring-3 hover:ring-white/65'
+							: 'cursor-default'} {editingIndex === i ? 'ring-2 ring-white/40  z-20' : ''}"
 						title={editable
 							? `Click to change color (opacity: ${Math.round(alphaValue * 100)}%)`
 							: undefined}
@@ -118,7 +119,7 @@
 						<div
 							class="absolute inset-0"
 							style="background: rgb({lc.color[0]}, {lc.color[1]}, {lc
-								.color[2]}); opacity: {alphaValue};"
+								.color[2]}); opacity: {(alphaValue * $opacity) / 100};"
 						></div>
 					</button>
 					<!-- Color Picker Popover -->
@@ -138,13 +139,11 @@
 				{#each labeledColors as lc, i (lc)}
 					{#if i > 0 && !(labeledColors.length > 20 && i % 2 === 1 && !desktop.current)}
 						<div
-							class="absolute flex items-center justify-center text-xs"
+							class="absolute flex items-center justify-center text-xs z-20 pointer-events-none"
 							style={`bottom: ${i * colorBlockHeight - 6}px; height: 12px; width: ${labelWidth}px;
-							color: ${textWhite(lc.color, isDark) ? 'white' : 'black'};`}
+							color: ${textWhite(lc.color, isDark, $opacity) ? 'white' : 'black'};`}
 						>
-							<span class="text-foreground/80">
-								{formatValue(lc.value, digits)}
-							</span>
+							{formatValue(lc.value, digits)}
 						</div>
 					{/if}
 				{/each}

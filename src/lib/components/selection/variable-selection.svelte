@@ -6,6 +6,9 @@
 	import CheckIcon from '@lucide/svelte/icons/check';
 	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down';
 	import {
+		LEVEL_PREFIX,
+		LEVEL_REGEX,
+		LEVEL_UNIT_REGEX,
 		domainGroups,
 		domainOptions,
 		levelGroupVariables,
@@ -14,31 +17,26 @@
 
 	import { browser } from '$app/environment';
 
+	import { loading, metaJson } from '$lib/stores/preferences';
 	import {
 		domainSelectionOpen as dSO,
-		loading,
+		domain,
+		level,
+		levelGroupSelected,
 		pressureLevelsSelectionOpen as pLSO,
 		selectedDomain,
 		selectedVariable,
+		unit,
 		variableSelectionExtended as vSE,
-		variableSelectionOpen as vSO
-	} from '$lib/stores/preferences';
-	import { metaJson } from '$lib/stores/state';
+		variableSelectionOpen as vSO,
+		variable
+	} from '$lib/stores/variables';
 
 	import { Button } from '$lib/components/ui/button';
 	import * as Command from '$lib/components/ui/command';
 	import * as Popover from '$lib/components/ui/popover';
 
-	import { LEVEL_PREFIX, LEVEL_REGEX, LEVEL_UNIT_REGEX } from '$lib/constants';
-
 	import VariableSelectionEmpty from './variable-selection-empty.svelte';
-
-	interface Props {
-		domainChange: (value: string) => Promise<void>;
-		variableChange: (value: string | undefined) => void;
-	}
-
-	let { domainChange, variableChange }: Props = $props();
 
 	// list of variables, with the level groups filtered out, and adding a prefix for the group
 	let variableList = $derived.by(() => {
@@ -84,24 +82,6 @@
 				}
 			}
 			return groups;
-		}
-	});
-
-	let level = $derived.by(() => {
-		const match = $selectedVariable.value.match(LEVEL_UNIT_REGEX);
-		if (match && match.groups) {
-			return match.groups.level;
-		} else {
-			return undefined;
-		}
-	});
-
-	let unit = $derived.by(() => {
-		const match = $selectedVariable.value.match(LEVEL_UNIT_REGEX);
-		if (match && match.groups) {
-			return match.groups.unit;
-		} else {
-			return undefined;
 		}
 	});
 
@@ -163,24 +143,9 @@
 		}
 	});
 
-	let levelGroupSelected = $state(
-		$selectedVariable.value.match(LEVEL_REGEX)
-			? (variableOptions.find(
-					({ value }) => value === $selectedVariable.value.match(LEVEL_PREFIX)?.groups?.prefix
-				) ?? undefined)
-			: undefined
-	);
-	selectedVariable.subscribe((newVariable) => {
-		levelGroupSelected = newVariable.value.match(LEVEL_REGEX)
-			? (variableOptions.find(
-					({ value }) => value === $selectedVariable.value.match(LEVEL_PREFIX)?.groups?.prefix
-				) ?? undefined)
-			: undefined;
-	});
-
-	const checkDefaultLevel = (value: string | undefined) => {
-		if (levelGroupsList && levelGroupSelected) {
-			const levelGroup = levelGroupsList[levelGroupSelected.value];
+	const checkDefaultLevel = (value: string) => {
+		if (levelGroupsList && $levelGroupSelected) {
+			const levelGroup = levelGroupsList[$levelGroupSelected.value];
 			if (levelGroup) {
 				// define some default levels
 				for (let level of levelGroup) {
@@ -204,8 +169,8 @@
 		? 'left-2.5'
 		: '-left-[182px]'} "
 >
-	{#if $loading && $metaJson}
-		<VariableSelectionEmpty domain={$selectedDomain} />
+	{#if $loading || !$metaJson}
+		<VariableSelectionEmpty />
 	{:else}
 		<div class="flex flex-col gap-2.5">
 			<Popover.Root
@@ -282,8 +247,9 @@
 												class="hover:!bg-primary/25 cursor-pointer {$selectedDomain.value === value
 													? '!bg-primary/15'
 													: ''}"
-												onSelect={async () => {
-													domainChange(value);
+												onSelect={() => {
+													$loading = true;
+													$domain = value;
 													dSO.set(false);
 												}}
 												aria-selected={$selectedDomain.value === value}
@@ -320,8 +286,8 @@
 						aria-expanded={variableSelectionOpen}
 					>
 						<div class="truncate">
-							{levelGroupSelected
-								? levelGroupSelected.label
+							{$levelGroupSelected
+								? $levelGroupSelected?.label
 								: $selectedVariable?.label || 'Select a variable...'}
 						</div>
 						<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
@@ -380,27 +346,27 @@
 									{#if levelGroupVariables.includes(vr)}
 										<Command.Item
 											value={v?.value}
-											class="hover:!bg-primary/25 cursor-pointer {levelGroupSelected &&
-											levelGroupSelected.value === v?.value
+											class="hover:!bg-primary/25 cursor-pointer {$levelGroupSelected &&
+											$levelGroupSelected.value === v?.value
 												? '!bg-primary/15'
 												: ''}"
 											onSelect={() => {
-												levelGroupSelected = v;
-												variableChange(checkDefaultLevel(v?.value));
+												$levelGroupSelected = v;
+												$variable = checkDefaultLevel(v?.value as string);
 												vSO.set(false);
 											}}
 										>
 											<div class="flex w-full items-center justify-between">
 												{v?.label}
 												<CheckIcon
-													class="size-4 {!levelGroupSelected ||
-													levelGroupSelected.value !== v?.value
+													class="size-4 {!$levelGroupSelected ||
+													$levelGroupSelected?.value !== v?.value
 														? 'text-transparent'
 														: ''}"
 												/>
 											</div>
 										</Command.Item>
-									{:else if !vr.includes('v_component') && !vr.includes('_direction')}
+									{:else if !vr.includes('_v_') && !vr.includes('_direction')}
 										{@const v = variableOptions.find(({ value }) => value === vr)
 											? variableOptions.find(({ value }) => value === vr)
 											: { value: vr, label: vr }}
@@ -412,8 +378,8 @@
 												? '!bg-primary/15'
 												: ''}"
 											onSelect={() => {
-												levelGroupSelected = undefined;
-												variableChange(v?.value);
+												$levelGroupSelected = undefined;
+												$variable = v?.value as string;
 												vSO.set(false);
 											}}
 										>
@@ -433,7 +399,7 @@
 					</Command.Root>
 				</Popover.Content>
 			</Popover.Root>
-			{#if levelGroupsList && levelGroupSelected && levelGroupSelected.value && levelGroupsList[levelGroupSelected.value]}
+			{#if levelGroupsList && $levelGroupSelected && $levelGroupSelected?.value && levelGroupsList[$levelGroupSelected.value]}
 				<Popover.Root
 					bind:open={pressureLevelSelectionOpen}
 					onOpenChange={(e) => {
@@ -449,7 +415,7 @@
 							aria-expanded={pressureLevelSelectionOpen}
 						>
 							<div class="truncate">
-								{level + ' ' + unit || 'Select a level...'}
+								{$level + ' ' + $unit || 'Select a level...'}
 							</div>
 							<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
 						</Button>
@@ -485,25 +451,25 @@
 							<Command.List>
 								<Command.Empty>No levels found.</Command.Empty>
 								<Command.Group>
-									{#each levelGroupsList[levelGroupSelected.value] as { value, label } (value)}
+									{#each levelGroupsList[$levelGroupSelected.value] as { value, label } (value)}
 										{@const lvl = value.match(LEVEL_UNIT_REGEX)?.groups?.level}
 										{@const u = value.match(LEVEL_UNIT_REGEX)?.groups?.unit}
 
 										{#if !value.includes('v_component') && !value.includes('_direction')}
 											<Command.Item
 												{value}
-												class="hover:!bg-primary/25 cursor-pointer {lvl === level && u === unit
+												class="hover:!bg-primary/25 cursor-pointer {lvl === $level && u === $unit
 													? '!bg-primary/15'
 													: ''}"
 												onSelect={() => {
-													variableChange(value);
+													$variable = value;
 													pLSO.set(false);
 												}}
 											>
 												<div class="flex w-full items-center justify-between">
 													{label}
 													<CheckIcon
-														class="size-4 {lvl !== level || u !== unit ? 'text-transparent' : ''}"
+														class="size-4 {lvl !== $level || u !== $unit ? 'text-transparent' : ''}"
 													/>
 												</div>
 											</Command.Item>
@@ -520,7 +486,7 @@
 
 	<button
 		style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
-		class=" bg-background/90 dark:bg-background/70 hover:!bg-background h-7.25 w-7.25 flex cursor-pointer items-center rounded-[4px] p-0"
+		class="bg-background/90 dark:bg-background/70 hover:!bg-background h-7.25 w-7.25 flex cursor-pointer items-center rounded-[4px] p-0 z-20"
 		onclick={() => {
 			vSE.set(!get(vSE));
 		}}
