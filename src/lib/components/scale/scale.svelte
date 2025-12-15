@@ -93,7 +93,9 @@
 
 {#if $preferences.showScale}
 	<div
-		class="absolute {$preferences.timeSelector ? 'bottom-32.5' : 'bottom-2.5'} left-2.5 z-10"
+		class="absolute {$preferences.timeSelector
+			? 'bottom-32.5'
+			: 'bottom-2.5'} duration-500 left-2.5 z-10"
 		style="max-height: {totalHeight + 100}px;"
 	>
 		<div

@@ -21,10 +21,7 @@
 	import type { ModelDt } from '@openmeteo/mapbox-layer';
 
 	let disabled = $derived($loading);
-	let timeSelector = $derived($preferences.timeSelector);
-
 	let currentDate = $derived($time);
-	let currentHour = $derived(currentDate.getHours());
 
 	const resolution: ModelDt = $derived($selectedDomain.time_interval);
 
@@ -198,7 +195,7 @@
 	style="background-color: {dark
 		? 'rgba(15, 15, 15, 0.8)'
 		: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
-	class="time-selector absolute h-[120px] w-full py-4 {timeSelector
+	class="time-selector absolute h-[120px] w-full py-4 {$preferences.timeSelector
 		? 'opacity-100 bottom-0'
 		: 'pointer-events-none opacity-0 bottom-[-120px]'}"
 >
