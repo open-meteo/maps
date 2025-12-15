@@ -200,6 +200,7 @@ export class HillshadeButton {
 				if (map.getLayer('hillshadeLayer')) {
 					map.removeLayer('hillshadeLayer');
 				}
+
 				map.once('styledata', () => {
 					setTimeout(() => {
 						removeTerrainControl();

@@ -261,7 +261,7 @@ export const checkClosestModelRun = () => {
 	} else {
 		if (latestReferenceTime) {
 			if (latestReferenceTime.getTime() === modelRun.getTime()) {
-				url.searchParams.delete('model_run');
+				updateUrl('model_run', undefined);
 			} else if (
 				timeStep.getTime() > latestReferenceTime.getTime() &&
 				latestReferenceTime.getTime() > modelRun.getTime()
