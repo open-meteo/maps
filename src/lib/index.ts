@@ -1051,8 +1051,7 @@ export const getMetaData = async (inProgress = false): Promise<DomainMetaData> =
 		loading.set(false);
 		throw new Error(`HTTP ${metaJsonResult.status}`);
 	}
-	const json = await metaJsonResult.json();
-	return json;
+	return await metaJsonResult.json();
 };
 
 export const matchVariableOrFirst = () => {
