@@ -261,7 +261,7 @@ export const checkClosestModelRun = () => {
 	} else {
 		if (latestReferenceTime) {
 			if (latestReferenceTime.getTime() === modelRun.getTime()) {
-				url.searchParams.delete('model_run');
+				updateUrl('model_run', undefined);
 			} else if (
 				timeStep.getTime() > latestReferenceTime.getTime() &&
 				latestReferenceTime.getTime() > modelRun.getTime()
@@ -1051,8 +1051,7 @@ export const getMetaData = async (inProgress = false): Promise<DomainMetaData> =
 		loading.set(false);
 		throw new Error(`HTTP ${metaJsonResult.status}`);
 	}
-	const json = await metaJsonResult.json();
-	return json;
+	return await metaJsonResult.json();
 };
 
 export const matchVariableOrFirst = () => {
