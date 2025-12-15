@@ -122,7 +122,7 @@ export class TimeButton {
 			updateUrl(
 				'time_selector',
 				String(preferences.timeSelector),
-				String(defaultPreferences.timeSelector)
+				String(defaultPreferences.timeSelector) // different key
 			);
 
 			div.innerHTML = preferences.timeSelector ? clockSVG : calendarSVG;
@@ -185,9 +185,11 @@ export class HillshadeButton {
 		div.addEventListener('click', () => {
 			preferences.hillshade = !preferences.hillshade;
 			p.set(preferences);
+
 			if (preferences.hillshade) {
 				div.innerHTML = hillshadeSVG;
 				addHillshadeLayer();
+
 				map.once('styledata', () => {
 					setTimeout(() => {
 						addTerrainControl();
@@ -195,6 +197,9 @@ export class HillshadeButton {
 				});
 			} else {
 				div.innerHTML = noHillshadeSVG;
+				if (map.getLayer('hillshadeLayer')) {
+					map.removeLayer('hillshadeLayer');
+				}
 				map.once('styledata', () => {
 					setTimeout(() => {
 						removeTerrainControl();
