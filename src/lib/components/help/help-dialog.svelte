@@ -12,11 +12,7 @@
 	const keydownEvent = (event: KeyboardEvent) => {
 		switch (event.key) {
 			case 'h':
-				if ($helpOpen) {
-					$helpOpen = false;
-				} else {
-					$helpOpen = true;
-				}
+				$helpOpen = !$helpOpen;
 				break;
 		}
 	};

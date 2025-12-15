@@ -248,6 +248,7 @@
 													? '!bg-primary/15'
 													: ''}"
 												onSelect={() => {
+													$loading = true;
 													$domain = value;
 													dSO.set(false);
 												}}
