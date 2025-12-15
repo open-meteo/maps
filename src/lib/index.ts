@@ -286,73 +286,74 @@ export const checkClosestModelRun = () => {
 };
 
 export const setMapControlSettings = () => {
-	if (map) {
-		map.touchZoomRotate.disableRotation();
+	if (!map) return;
 
-		const navigationControl = new maplibregl.NavigationControl({
-			visualizePitch: true,
-			showZoom: true,
-			showCompass: true
-		});
-		map.addControl(navigationControl);
+	map.touchZoomRotate.disableRotation();
 
-		const locateControl = new maplibregl.GeolocateControl({
-			fitBoundsOptions: {
-				maxZoom: 13.5
-			},
-			positionOptions: {
-				enableHighAccuracy: true
-			},
-			trackUserLocation: true
-		});
-		map.addControl(locateControl);
+	const navigationControl = new maplibregl.NavigationControl({
+		visualizePitch: true,
+		showZoom: true,
+		showCompass: true
+	});
+	map.addControl(navigationControl);
 
-		const globeControl = new maplibregl.GlobeControl();
-		map.addControl(globeControl);
-		globeControl._globeButton.addEventListener('click', () => globeHandler());
+	const locateControl = new maplibregl.GeolocateControl({
+		fitBoundsOptions: {
+			maxZoom: 13.5
+		},
+		positionOptions: {
+			enableHighAccuracy: true
+		},
+		trackUserLocation: true
+	});
+	map.addControl(locateControl);
 
-		// improved scrolling
-		map.scrollZoom.setZoomRate(1 / 85);
-		map.scrollZoom.setWheelZoomRate(1 / 85);
-	}
+	const globeControl = new maplibregl.GlobeControl();
+	map.addControl(globeControl);
+	globeControl._globeButton.addEventListener('click', () => globeHandler());
+
+	// improved scrolling
+	map.scrollZoom.setZoomRate(1 / 85);
+	map.scrollZoom.setWheelZoomRate(1 / 85);
 };
 
 export const addHillshadeSources = () => {
-	if (map) {
-		map.setSky({
-			'sky-color': '#000000',
-			'sky-horizon-blend': 0.8,
-			'horizon-color': '#80C1FF',
-			'horizon-fog-blend': 0.6,
-			'fog-color': '#D6EAFF',
-			'fog-ground-blend': 0
-		});
+	if (!map) return;
 
-		map.addSource('terrainSource', {
-			type: 'raster-dem',
-			tiles: ['mapterhorn://{z}/{x}/{y}'],
-			encoding: 'terrarium',
-			tileSize: 512,
-			attribution: '<a href="https://mapterhorn.com/attribution">© Mapterhorn</a>'
-		});
-	}
+	map.setSky({
+		'sky-color': '#000000',
+		'sky-horizon-blend': 0.8,
+		'horizon-color': '#80C1FF',
+		'horizon-fog-blend': 0.6,
+		'fog-color': '#D6EAFF',
+		'fog-ground-blend': 0
+	});
+
+	map.addSource('terrainSource', {
+		type: 'raster-dem',
+		tiles: ['mapterhorn://{z}/{x}/{y}'],
+		encoding: 'terrarium',
+		tileSize: 512,
+		attribution: '<a href="https://mapterhorn.com/attribution">© Mapterhorn</a>'
+	});
 };
 
 export const addHillshadeLayer = () => {
-	if (map)
-		map.addLayer(
-			{
-				source: 'terrainSource',
-				id: 'hillshadeLayer',
-				type: 'hillshade',
-				paint: {
-					'hillshade-method': 'igor',
-					'hillshade-shadow-color': 'rgba(0,0,0,0.4)',
-					'hillshade-highlight-color': 'rgba(255,255,255,0.35)'
-				}
-			},
-			beforeLayerRaster
-		);
+	if (!map) return;
+
+	map.addLayer(
+		{
+			source: 'terrainSource',
+			id: 'hillshadeLayer',
+			type: 'hillshade',
+			paint: {
+				'hillshade-method': 'igor',
+				'hillshade-shadow-color': 'rgba(0,0,0,0.4)',
+				'hillshade-highlight-color': 'rgba(255,255,255,0.35)'
+			}
+		},
+		beforeLayerRaster
+	);
 };
 
 function isHighDensity() {
@@ -392,248 +393,242 @@ export const checkHighDefinition = () => {
 
 let omRasterSource: maplibregl.RasterTileSource | undefined;
 export const addOmFileLayers = () => {
-	if (map) {
-		omUrl = getOMUrl();
-		map.addSource('omRasterSource', {
-			url: 'om://' + omUrl,
-			type: 'raster',
-			tileSize: 256,
-			maxzoom: 14
+	if (!map) return;
+
+	omUrl = getOMUrl();
+	map.addSource('omRasterSource', {
+		url: 'om://' + omUrl,
+		type: 'raster',
+		tileSize: 256,
+		maxzoom: 14
+	});
+
+	omRasterSource = map.getSource('omRasterSource');
+	if (omRasterSource) {
+		omRasterSource.on('error', (e) => {
+			checked = 0;
+			loading.set(false);
+			clearInterval(checkSourceLoadedInterval);
+			toast.error(e.error.message);
 		});
+	}
 
-		omRasterSource = map.getSource('omRasterSource');
-		if (omRasterSource) {
-			omRasterSource.on('error', (e) => {
-				checked = 0;
-				loading.set(false);
-				clearInterval(checkSourceLoadedInterval);
-				toast.error(e.error.message);
-			});
-		}
+	const opacityValue = get(opacity);
+	map.addLayer(
+		{
+			id: 'omRasterLayer',
+			type: 'raster',
+			source: 'omRasterSource',
+			paint: {
+				'raster-opacity': mode.current === 'dark' ? (opacityValue - 10) / 100 : opacityValue / 100
+			}
+		},
+		beforeLayerRaster
+	);
 
-		const opacityValue = get(opacity);
-		map.addLayer(
-			{
-				id: 'omRasterLayer',
-				type: 'raster',
-				source: 'omRasterSource',
-				paint: {
-					'raster-opacity': mode.current === 'dark' ? (opacityValue - 10) / 100 : opacityValue / 100
-				}
-			},
-			beforeLayerRaster
-		);
-
-		if (vectorOptions.contours || vectorOptions.arrows) {
-			addVectorLayer();
-		}
+	if (vectorOptions.contours || vectorOptions.arrows) {
+		addVectorLayer();
 	}
 };
 
 let omVectorSource: maplibregl.VectorTileSource | undefined;
 export const addVectorLayer = () => {
-	if (map) {
-		if (!map.getSource('omVectorSource')) {
-			map.addSource('omVectorSource', {
-				url: 'om://' + omUrl,
-				type: 'vector'
+	if (!map) return;
+	if (!map.getSource('omVectorSource')) {
+		map.addSource('omVectorSource', {
+			url: 'om://' + omUrl,
+			type: 'vector'
+		});
+		omVectorSource = map.getSource('omVectorSource');
+		if (omVectorSource) {
+			omVectorSource.on('error', (e) => {
+				toast.error(e.error.message);
 			});
-			omVectorSource = map.getSource('omVectorSource');
-			if (omVectorSource) {
-				omVectorSource.on('error', (e) => {
-					toast.error(e.error.message);
-				});
-			}
 		}
+	}
 
-		if (!map.getLayer('omVectorContourLayer')) {
-			map.addLayer(
-				{
-					id: 'omVectorContourLayer',
-					type: 'line',
-					source: 'omVectorSource',
-					'source-layer': 'contours',
-					paint: {
-						'line-color': [
+	if (!map.getLayer('omVectorContourLayer')) {
+		map.addLayer(
+			{
+				id: 'omVectorContourLayer',
+				type: 'line',
+				source: 'omVectorSource',
+				'source-layer': 'contours',
+				paint: {
+					'line-color': [
+						'case',
+						['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
+						mode.current === 'dark' ? 'rgba(255,255,255, 0.8)' : 'rgba(0,0,0, 0.6)',
+						[
 							'case',
-							['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
-							mode.current === 'dark' ? 'rgba(255,255,255, 0.8)' : 'rgba(0,0,0, 0.6)',
+							['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
+							mode.current === 'dark' ? 'rgba(255,255,255, 0.7)' : 'rgba(0,0,0, 0.5)',
+
 							[
 								'case',
-								['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
-								mode.current === 'dark' ? 'rgba(255,255,255, 0.7)' : 'rgba(0,0,0, 0.5)',
-
-								[
-									'case',
-									['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
-									mode.current === 'dark' ? 'rgba(255,255,255, 0.6)' : 'rgba(0,0,0, 0.4)',
-									mode.current === 'dark' ? 'rgba(255,255,255, 0.5)' : 'rgba(0,0,0, 0.3)'
-								]
-							]
-						],
-						'line-width': [
-							'case',
-							['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
-							3,
-							[
-								'case',
-								['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
-								2.5,
-								[
-									'case',
-									['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
-									2,
-									1
-								]
+								['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
+								mode.current === 'dark' ? 'rgba(255,255,255, 0.6)' : 'rgba(0,0,0, 0.4)',
+								mode.current === 'dark' ? 'rgba(255,255,255, 0.5)' : 'rgba(0,0,0, 0.3)'
 							]
 						]
-					}
-				},
-				preferences.clipWater ? beforeLayerVectorWaterClip : beforeLayerVector
-			);
-		}
-
-		if (!map.getLayer('omVectorArrowLayer')) {
-			map.addLayer(
-				{
-					id: 'omVectorArrowLayer',
-					type: 'line',
-					source: 'omVectorSource',
-					'source-layer': 'wind-arrows',
-					paint: {
-						'line-color': [
+					],
+					'line-width': [
+						'case',
+						['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
+						3,
+						[
 							'case',
-							['boolean', ['>', ['to-number', ['get', 'value']], 9], false],
+							['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
+							2.5,
+							[
+								'case',
+								['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
+								2,
+								1
+							]
+						]
+					]
+				}
+			},
+			preferences.clipWater ? beforeLayerVectorWaterClip : beforeLayerVector
+		);
+	}
+
+	if (!map.getLayer('omVectorArrowLayer')) {
+		map.addLayer(
+			{
+				id: 'omVectorArrowLayer',
+				type: 'line',
+				source: 'omVectorSource',
+				'source-layer': 'wind-arrows',
+				paint: {
+					'line-color': [
+						'case',
+						['boolean', ['>', ['to-number', ['get', 'value']], 9], false],
+						mode.current === 'dark' ? 'rgba(255,255,255, 0.6)' : 'rgba(0,0,0, 0.6)',
+						[
+							'case',
+							['boolean', ['>', ['to-number', ['get', 'value']], 5], false],
 							mode.current === 'dark' ? 'rgba(255,255,255, 0.6)' : 'rgba(0,0,0, 0.6)',
 							[
 								'case',
-								['boolean', ['>', ['to-number', ['get', 'value']], 5], false],
-								mode.current === 'dark' ? 'rgba(255,255,255, 0.6)' : 'rgba(0,0,0, 0.6)',
+								['boolean', ['>', ['to-number', ['get', 'value']], 4], false],
+								mode.current === 'dark' ? 'rgba(255,255,255, 0.5)' : 'rgba(0,0,0, 0.5)',
+
 								[
 									'case',
-									['boolean', ['>', ['to-number', ['get', 'value']], 4], false],
-									mode.current === 'dark' ? 'rgba(255,255,255, 0.5)' : 'rgba(0,0,0, 0.5)',
-
+									['boolean', ['>', ['to-number', ['get', 'value']], 3], false],
+									mode.current === 'dark' ? 'rgba(255,255,255, 0.4)' : 'rgba(0,0,0, 0.4)',
 									[
 										'case',
-										['boolean', ['>', ['to-number', ['get', 'value']], 3], false],
-										mode.current === 'dark' ? 'rgba(255,255,255, 0.4)' : 'rgba(0,0,0, 0.4)',
-										[
-											'case',
-											['boolean', ['>', ['to-number', ['get', 'value']], 2], false],
-											mode.current === 'dark' ? 'rgba(255,255,255, 0.3)' : 'rgba(0,0,0, 0.3)',
-											mode.current === 'dark' ? 'rgba(255,255,255, 0.2)' : 'rgba(0,0,0, 0.2)'
-										]
-									]
-								]
-							]
-						],
-						'line-width': [
-							'case',
-							['boolean', ['>', ['to-number', ['get', 'value']], 20], false],
-							2.8,
-							[
-								'case',
-								['boolean', ['>', ['to-number', ['get', 'value']], 10], false],
-								2.2,
-								[
-									'case',
-									['boolean', ['>', ['to-number', ['get', 'value']], 5], false],
-									2,
-
-									[
-										'case',
-										['boolean', ['>', ['to-number', ['get', 'value']], 3], false],
-										1.8,
-										[
-											'case',
-											['boolean', ['>', ['to-number', ['get', 'value']], 2], false],
-											1.6,
-											1.5
-										]
+										['boolean', ['>', ['to-number', ['get', 'value']], 2], false],
+										mode.current === 'dark' ? 'rgba(255,255,255, 0.3)' : 'rgba(0,0,0, 0.3)',
+										mode.current === 'dark' ? 'rgba(255,255,255, 0.2)' : 'rgba(0,0,0, 0.2)'
 									]
 								]
 							]
 						]
-					},
-					layout: {
-						'line-cap': 'round'
-					}
-				},
-				preferences.clipWater ? beforeLayerVectorWaterClip : beforeLayerVector
-			);
-		}
+					],
+					'line-width': [
+						'case',
+						['boolean', ['>', ['to-number', ['get', 'value']], 20], false],
+						2.8,
+						[
+							'case',
+							['boolean', ['>', ['to-number', ['get', 'value']], 10], false],
+							2.2,
+							[
+								'case',
+								['boolean', ['>', ['to-number', ['get', 'value']], 5], false],
+								2,
 
-		if (!map.getLayer('omVectorGridLayer')) {
-			map.addLayer(
-				{
-					id: 'omVectorGridLayer',
-					type: 'circle',
-					source: 'omVectorSource',
-					'source-layer': 'grid',
-					paint: {
-						'circle-radius': [
-							'interpolate',
-							['exponential', 1.5],
-							['zoom'],
-							// zoom is 0 -> circle radius will be 1px
-							0,
-							0.1,
-							// zoom is 12 (or greater) -> circle radius will be 20px
-							12,
-							10
-						],
-						'circle-color': 'orange'
-					}
+								[
+									'case',
+									['boolean', ['>', ['to-number', ['get', 'value']], 3], false],
+									1.8,
+									['case', ['boolean', ['>', ['to-number', ['get', 'value']], 2], false], 1.6, 1.5]
+								]
+							]
+						]
+					]
 				},
-				preferences.clipWater ? beforeLayerVectorWaterClip : beforeLayerVector
-			);
-		}
+				layout: {
+					'line-cap': 'round'
+				}
+			},
+			preferences.clipWater ? beforeLayerVectorWaterClip : beforeLayerVector
+		);
+	}
 
-		if (!map.getLayer('omVectorContourLayerLabels')) {
-			map.addLayer(
-				{
-					id: 'omVectorContourLayerLabels',
-					type: 'symbol',
-					source: 'omVectorSource',
-					'source-layer': 'contours',
-					layout: {
-						'symbol-placement': 'line-center',
-						'symbol-spacing': 1,
-						'text-font': ['Noto Sans Regular'],
-						'text-field': ['to-string', ['get', 'value']],
-						'text-padding': 1,
-						'text-offset': [0, -0.6]
-					},
-					paint: {
-						'text-color': mode.current === 'dark' ? 'rgba(255,255,255, 0.8)' : 'rgba(0,0,0, 0.7)'
-					}
+	if (!map.getLayer('omVectorGridLayer')) {
+		map.addLayer(
+			{
+				id: 'omVectorGridLayer',
+				type: 'circle',
+				source: 'omVectorSource',
+				'source-layer': 'grid',
+				paint: {
+					'circle-radius': [
+						'interpolate',
+						['exponential', 1.5],
+						['zoom'],
+						// zoom is 0 -> circle radius will be 1px
+						0,
+						0.1,
+						// zoom is 12 (or greater) -> circle radius will be 20px
+						12,
+						10
+					],
+					'circle-color': 'orange'
+				}
+			},
+			preferences.clipWater ? beforeLayerVectorWaterClip : beforeLayerVector
+		);
+	}
+
+	if (!map.getLayer('omVectorContourLayerLabels')) {
+		map.addLayer(
+			{
+				id: 'omVectorContourLayerLabels',
+				type: 'symbol',
+				source: 'omVectorSource',
+				'source-layer': 'contours',
+				layout: {
+					'symbol-placement': 'line-center',
+					'symbol-spacing': 1,
+					'text-font': ['Noto Sans Regular'],
+					'text-field': ['to-string', ['get', 'value']],
+					'text-padding': 1,
+					'text-offset': [0, -0.6]
 				},
-				preferences.clipWater ? beforeLayerVectorWaterClip : beforeLayerVector
-			);
-		}
+				paint: {
+					'text-color': mode.current === 'dark' ? 'rgba(255,255,255, 0.8)' : 'rgba(0,0,0, 0.7)'
+				}
+			},
+			preferences.clipWater ? beforeLayerVectorWaterClip : beforeLayerVector
+		);
 	}
 };
 
 export const removeVectorLayer = () => {
-	if (map) {
-		if (!vectorOptions.grid) {
-			if (map.getLayer('omVectorGridLayer')) {
-				map.removeLayer('omVectorGridLayer');
-			}
+	if (!map) return;
+
+	if (!vectorOptions.grid) {
+		if (map.getLayer('omVectorGridLayer')) {
+			map.removeLayer('omVectorGridLayer');
 		}
-		if (!vectorOptions.arrows) {
-			if (map.getLayer('omVectorArrowLayer')) {
-				map.removeLayer('omVectorArrowLayer');
-			}
+	}
+	if (!vectorOptions.arrows) {
+		if (map.getLayer('omVectorArrowLayer')) {
+			map.removeLayer('omVectorArrowLayer');
 		}
-		if (!vectorOptions.contours) {
-			if (map.getLayer('omVectorContourLayerLabels')) {
-				map.removeLayer('omVectorContourLayerLabels');
-			}
-			if (map.getLayer('omVectorContourLayer')) {
-				map.removeLayer('omVectorContourLayer');
-			}
+	}
+	if (!vectorOptions.contours) {
+		if (map.getLayer('omVectorContourLayerLabels')) {
+			map.removeLayer('omVectorContourLayerLabels');
+		}
+		if (map.getLayer('omVectorContourLayer')) {
+			map.removeLayer('omVectorContourLayer');
 		}
 	}
 };
@@ -653,56 +648,56 @@ export const globeHandler = () => {
 let checked = 0;
 let checkSourceLoadedInterval: ReturnType<typeof setInterval>;
 export const changeOMfileURL = (resetBounds = true, vectorOnly = false, rasterOnly = false) => {
-	if (map && omRasterSource) {
-		// needs more testing
-		// if (map.style.tileManagers.omRasterSource) {
-		// 	const tileManager = map.style.tileManagers.omRasterSource;
-		// 	if (tileManager._tiles) {
-		// 		for (const tileId in tileManager._tiles) {
-		// 			const tile = tileManager._tiles[tileId];
-		// 			tile.unloadVectorData();
-		// 		}
-		// 		tileManager._tiles = {};
-		// 	}
-		// 	tileManager._cache.reset();
-		// 	// tileManager.update(map.transform);
-		// 	// map.triggerRepaint();
-		// }
+	if (!map || !omRasterSource) return;
 
-		loading.set(true);
-		if (popup) {
-			popup.remove();
-		}
-		mB.set(map.getBounds());
-		if (resetBounds) {
-			pB.set(map.getBounds());
-		}
-		getPaddedBounds();
+	// needs more testing
+	// if (map.style.tileManagers.omRasterSource) {
+	// 	const tileManager = map.style.tileManagers.omRasterSource;
+	// 	if (tileManager._tiles) {
+	// 		for (const tileId in tileManager._tiles) {
+	// 			const tile = tileManager._tiles[tileId];
+	// 			tile.unloadVectorData();
+	// 		}
+	// 		tileManager._tiles = {};
+	// 	}
+	// 	tileManager._cache.reset();
+	// 	// tileManager.update(map.transform);
+	// 	// map.triggerRepaint();
+	// }
 
-		checkClosestModelRun();
-
-		omUrl = getOMUrl();
-		if (!vectorOnly) {
-			omRasterSource.setUrl('om://' + omUrl);
-		}
-
-		if (!rasterOnly && omVectorSource) {
-			omVectorSource.setUrl('om://' + omUrl);
-		}
-
-		checkSourceLoadedInterval = setInterval(() => {
-			checked++;
-			if ((omRasterSource && omRasterSource.loaded()) || checked >= 200) {
-				if (checked >= 200) {
-					// Timeout after 10s
-					toast.error('Request timed out');
-				}
-				checked = 0;
-				loading.set(false);
-				clearInterval(checkSourceLoadedInterval);
-			}
-		}, 50);
+	loading.set(true);
+	if (popup) {
+		popup.remove();
 	}
+	mB.set(map.getBounds());
+	if (resetBounds) {
+		pB.set(map.getBounds());
+	}
+	getPaddedBounds();
+
+	checkClosestModelRun();
+
+	omUrl = getOMUrl();
+	if (!vectorOnly) {
+		omRasterSource.setUrl('om://' + omUrl);
+	}
+
+	if (!rasterOnly && omVectorSource) {
+		omVectorSource.setUrl('om://' + omUrl);
+	}
+
+	checkSourceLoadedInterval = setInterval(() => {
+		checked++;
+		if ((omRasterSource && omRasterSource.loaded()) || checked >= 200) {
+			if (checked >= 200) {
+				// Timeout after 10s
+				toast.error('Request timed out');
+			}
+			checked = 0;
+			loading.set(false);
+			clearInterval(checkSourceLoadedInterval);
+		}
+	}, 50);
 };
 
 export const getStyle = async () => {
@@ -743,184 +738,177 @@ export const textWhite = (
 let popup: maplibregl.Popup | undefined;
 let showPopup = false;
 export const addPopup = () => {
-	const updatePopup = (e: maplibregl.MapMouseEvent) => {
-		if (showPopup) {
-			const coordinates = e.lngLat;
-			if (!popup) {
-				popup = new maplibregl.Popup({ closeButton: false })
-					.setLngLat(coordinates)
-					.setHTML(`<span class="value-popup">Outside domain</span>`)
-					.addTo(map);
-			} else {
-				popup.addTo(map);
-			}
-			const { value } = getValueFromLatLong(
-				coordinates.lat,
-				coordinates.lng,
-				omRasterSource?.url || ''
-			);
+	if (!map) return;
 
-			if (isFinite(value)) {
-				const dark = mode.current === 'dark';
-				const colorScale = getColorScale(get(v), dark, omProtocolSettings.colorScales);
-				const color = getColor(colorScale, value);
-				const content =
-					'<span class="popup-value">' + value.toFixed(1) + '</span>' + colorScale.unit;
-				popup
-					.setLngLat(coordinates)
-					.setHTML(
-						`<div style="font-weight: bold; background-color: rgba(${color.join(',')}); color: ${textWhite(color, dark) ? 'white' : 'black'};" class="popup-div">${content}</div>`
-					);
-			} else {
-				popup
-					.setLngLat(coordinates)
-					.setHTML(`<span style="padding: 3px 5px;" class="popup-string">Outside domain</span>`);
-			}
+	const updatePopup = (e: maplibregl.MapMouseEvent) => {
+		if (!showPopup) return;
+
+		const coordinates = e.lngLat;
+		if (!popup) {
+			popup = new maplibregl.Popup({ closeButton: false })
+				.setLngLat(coordinates)
+				.setHTML(`<span class="value-popup">Outside domain</span>`)
+				.addTo(map);
+		} else {
+			popup.addTo(map);
+		}
+		const { value } = getValueFromLatLong(
+			coordinates.lat,
+			coordinates.lng,
+			omRasterSource?.url || ''
+		);
+
+		if (isFinite(value)) {
+			const dark = mode.current === 'dark';
+			const colorScale = getColorScale(get(v), dark, omProtocolSettings.colorScales);
+			const color = getColor(colorScale, value);
+			const content = '<span class="popup-value">' + value.toFixed(1) + '</span>' + colorScale.unit;
+			popup
+				.setLngLat(coordinates)
+				.setHTML(
+					`<div style="font-weight: bold; background-color: rgba(${color.join(',')}); color: ${textWhite(color, dark) ? 'white' : 'black'};" class="popup-div">${content}</div>`
+				);
+		} else {
+			popup
+				.setLngLat(coordinates)
+				.setHTML(`<span style="padding: 3px 5px;" class="popup-string">Outside domain</span>`);
 		}
 	};
 
-	if (map) {
-		map.on('mousemove', updatePopup);
-		map.on('click', (e: maplibregl.MapMouseEvent) => {
-			showPopup = !showPopup;
-			if (!showPopup && popup) {
-				popup.remove();
-			}
-			if (showPopup && popup) {
-				const coordinates = e.lngLat;
-				popup.setLngLat(coordinates).addTo(map);
-			}
-			updatePopup(e);
-		});
-	}
+	map.on('mousemove', updatePopup);
+	map.on('click', (e: maplibregl.MapMouseEvent) => {
+		showPopup = !showPopup;
+		if (!showPopup && popup) {
+			popup.remove();
+		}
+		if (showPopup && popup) {
+			const coordinates = e.lngLat;
+			popup.setLngLat(coordinates).addTo(map);
+		}
+		updatePopup(e);
+	});
 };
 
 const padding = 25; //%
 export const checkBounds = () => {
-	if (map) {
-		const domain = get(d);
-		const domainObject = domainOptions.find(({ value }) => value === domain);
+	if (!map) return;
 
-		const geojson = get(paddedBoundsGeoJSON);
-		const paddedBounds = get(pB);
-		const mapBounds = map.getBounds();
-		const paddedBoundsSource = get(pBS);
+	const domain = get(d);
+	const domainObject = domainOptions.find(({ value }) => value === domain);
 
-		mB.set(mapBounds);
+	const geojson = get(paddedBoundsGeoJSON);
+	const paddedBounds = get(pB);
+	const mapBounds = map.getBounds();
+	const paddedBoundsSource = get(pBS);
 
-		if (domainObject && paddedBounds && preferences.partial) {
-			let exceededPadding = false;
+	mB.set(mapBounds);
 
-			if (geojson) {
-				// @ts-expect-error stupid conflicting types from geojson
-				geojson.features[0].geometry.coordinates = [
-					[paddedBounds?.getSouthWest()['lng'], paddedBounds?.getSouthWest()['lat']],
-					[paddedBounds?.getNorthWest()['lng'], paddedBounds?.getNorthWest()['lat']],
-					[paddedBounds?.getNorthEast()['lng'], paddedBounds?.getNorthEast()['lat']],
-					[paddedBounds?.getSouthEast()['lng'], paddedBounds?.getSouthEast()['lat']],
-					[paddedBounds?.getSouthWest()['lng'], paddedBounds?.getSouthWest()['lat']]
-				];
-				paddedBoundsSource?.setData(geojson);
-			}
+	if (domainObject && paddedBounds && preferences.partial) {
+		let exceededPadding = false;
 
-			const gridBounds = GridFactory.create(domainObject.grid).getBounds();
+		if (geojson) {
+			// @ts-expect-error stupid conflicting types from geojson
+			geojson.features[0].geometry.coordinates = [
+				[paddedBounds?.getSouthWest()['lng'], paddedBounds?.getSouthWest()['lat']],
+				[paddedBounds?.getNorthWest()['lng'], paddedBounds?.getNorthWest()['lat']],
+				[paddedBounds?.getNorthEast()['lng'], paddedBounds?.getNorthEast()['lat']],
+				[paddedBounds?.getSouthEast()['lng'], paddedBounds?.getSouthEast()['lat']],
+				[paddedBounds?.getSouthWest()['lng'], paddedBounds?.getSouthWest()['lat']]
+			];
+			paddedBoundsSource?.setData(geojson);
+		}
 
-			if (
-				mapBounds.getSouth() < paddedBounds.getSouth() &&
-				paddedBounds.getSouth() > gridBounds[1]
-			) {
-				exceededPadding = true;
-			}
-			if (mapBounds.getWest() < paddedBounds.getWest() && paddedBounds.getWest() > gridBounds[0]) {
-				exceededPadding = true;
-			}
-			if (
-				mapBounds.getNorth() > paddedBounds.getNorth() &&
-				paddedBounds.getNorth() < gridBounds[3]
-			) {
-				exceededPadding = true;
-			}
-			if (mapBounds.getEast() > paddedBounds.getEast() && paddedBounds.getEast() < gridBounds[2]) {
-				exceededPadding = true;
-			}
-			if (exceededPadding) {
-				changeOMfileURL(false);
-			}
+		const gridBounds = GridFactory.create(domainObject.grid).getBounds();
+
+		if (mapBounds.getSouth() < paddedBounds.getSouth() && paddedBounds.getSouth() > gridBounds[1]) {
+			exceededPadding = true;
+		}
+		if (mapBounds.getWest() < paddedBounds.getWest() && paddedBounds.getWest() > gridBounds[0]) {
+			exceededPadding = true;
+		}
+		if (mapBounds.getNorth() > paddedBounds.getNorth() && paddedBounds.getNorth() < gridBounds[3]) {
+			exceededPadding = true;
+		}
+		if (mapBounds.getEast() > paddedBounds.getEast() && paddedBounds.getEast() < gridBounds[2]) {
+			exceededPadding = true;
+		}
+		if (exceededPadding) {
+			changeOMfileURL(false);
 		}
 	}
 };
 
 export const getPaddedBounds = () => {
-	if (map) {
-		const domain = get(d);
-		const domainObject = domainOptions.find(({ value }) => value === domain);
+	if (!map) return;
 
-		const mapBounds = get(mB);
-		const paddedBounds = get(pB);
-		const paddedBoundsSource = get(pBS);
+	const domain = get(d);
+	const domainObject = domainOptions.find(({ value }) => value === domain);
 
-		if (domainObject && mapBounds && preferences.partial) {
-			const gridBounds = GridFactory.create(domainObject.grid).getBounds();
+	const mapBounds = get(mB);
+	const paddedBounds = get(pB);
+	const paddedBoundsSource = get(pBS);
 
-			if (!paddedBoundsSource) {
-				paddedBoundsGeoJSON.set({
-					type: 'FeatureCollection',
-					features: [
-						{
-							type: 'Feature',
-							geometry: {
-								type: 'LineString',
-								// @ts-expect-error stupid conflicting types from geojson
-								properties: {},
-								coordinates: [
-									[gridBounds[0], gridBounds[1]],
-									[gridBounds[0], gridBounds[3]],
-									[gridBounds[2], gridBounds[3]],
-									[gridBounds[2], gridBounds[1]],
-									[gridBounds[0], gridBounds[1]]
-								]
-							}
+	if (domainObject && mapBounds && preferences.partial) {
+		const gridBounds = GridFactory.create(domainObject.grid).getBounds();
+
+		if (!paddedBoundsSource) {
+			paddedBoundsGeoJSON.set({
+				type: 'FeatureCollection',
+				features: [
+					{
+						type: 'Feature',
+						geometry: {
+							type: 'LineString',
+							// @ts-expect-error stupid conflicting types from geojson
+							properties: {},
+							coordinates: [
+								[gridBounds[0], gridBounds[1]],
+								[gridBounds[0], gridBounds[3]],
+								[gridBounds[2], gridBounds[3]],
+								[gridBounds[2], gridBounds[1]],
+								[gridBounds[0], gridBounds[1]]
+							]
 						}
-					]
-				});
-
-				map.addSource('paddedBoundsSource', {
-					type: 'geojson',
-					data: get(paddedBoundsGeoJSON) as GeoJSON.GeoJSON
-				});
-				pBS.set(map.getSource('paddedBoundsSource'));
-
-				map.addLayer({
-					id: 'paddedBoundsLayer',
-					type: 'line',
-					source: 'paddedBoundsSource',
-					layout: {
-						'line-join': 'round',
-						'line-cap': 'round'
-					},
-					paint: {
-						'line-color': 'orange',
-						'line-width': 5
 					}
-				});
-				paddedBoundsLayer.set(map.getLayer('paddedBoundsLayer'));
-			}
+				]
+			});
 
-			const mapBoundsSW = mapBounds.getSouthWest();
-			const mapBoundsNE = mapBounds.getNorthEast();
-			const dLat = mapBoundsNE['lat'] - mapBoundsSW['lat'];
-			const dLon = mapBoundsNE['lng'] - mapBoundsSW['lng'];
+			map.addSource('paddedBoundsSource', {
+				type: 'geojson',
+				data: get(paddedBoundsGeoJSON) as GeoJSON.GeoJSON
+			});
+			pBS.set(map.getSource('paddedBoundsSource'));
 
-			paddedBounds?.setSouthWest([
-				Math.max(Math.max(mapBoundsSW['lng'] - (dLon * padding) / 100, gridBounds[0]), -180),
-				Math.max(Math.max(mapBoundsSW['lat'] - (dLat * padding) / 100, gridBounds[1]), -90)
-			]);
-			paddedBounds?.setNorthEast([
-				Math.min(Math.min(mapBoundsNE['lng'] + (dLon * padding) / 100, gridBounds[2]), 180),
-				Math.min(Math.min(mapBoundsNE['lat'] + (dLat * padding) / 100, gridBounds[3]), 90)
-			]);
-			pB.set(paddedBounds);
+			map.addLayer({
+				id: 'paddedBoundsLayer',
+				type: 'line',
+				source: 'paddedBoundsSource',
+				layout: {
+					'line-join': 'round',
+					'line-cap': 'round'
+				},
+				paint: {
+					'line-color': 'orange',
+					'line-width': 5
+				}
+			});
+			paddedBoundsLayer.set(map.getLayer('paddedBoundsLayer'));
 		}
+
+		const mapBoundsSW = mapBounds.getSouthWest();
+		const mapBoundsNE = mapBounds.getNorthEast();
+		const dLat = mapBoundsNE['lat'] - mapBoundsSW['lat'];
+		const dLon = mapBoundsNE['lng'] - mapBoundsSW['lng'];
+
+		paddedBounds?.setSouthWest([
+			Math.max(Math.max(mapBoundsSW['lng'] - (dLon * padding) / 100, gridBounds[0]), -180),
+			Math.max(Math.max(mapBoundsSW['lat'] - (dLat * padding) / 100, gridBounds[1]), -90)
+		]);
+		paddedBounds?.setNorthEast([
+			Math.min(Math.min(mapBoundsNE['lng'] + (dLon * padding) / 100, gridBounds[2]), 180),
+			Math.min(Math.min(mapBoundsNE['lat'] + (dLat * padding) / 100, gridBounds[3]), 90)
+		]);
+		pB.set(paddedBounds);
 	}
 };
 
@@ -1025,27 +1013,27 @@ export const updateUrl = async (
 	newValue: undefined | string = undefined,
 	defaultValue: undefined | string = undefined
 ) => {
-	if (url) {
-		if (!defaultValue && urlParam) {
-			if (completeDefaultValues[urlParam]) {
-				defaultValue = String(completeDefaultValues[urlParam]);
-			}
-		}
+	if (!url) return;
 
-		if (urlParam) {
-			if (newValue && newValue !== defaultValue) {
-				url.searchParams.set(urlParam, String(newValue));
-			} else {
-				url.searchParams.delete(urlParam);
-			}
+	if (!defaultValue && urlParam) {
+		if (completeDefaultValues[urlParam]) {
+			defaultValue = String(completeDefaultValues[urlParam]);
 		}
+	}
 
-		await tick();
-		if (map && map._hash) {
-			pushState(url + map._hash.getHashString(), {});
+	if (urlParam) {
+		if (newValue && newValue !== defaultValue) {
+			url.searchParams.set(urlParam, String(newValue));
 		} else {
-			pushState(url, {});
+			url.searchParams.delete(urlParam);
 		}
+	}
+
+	await tick();
+	if (map && map._hash) {
+		pushState(url + map._hash.getHashString(), {});
+	} else {
+		pushState(url, {});
 	}
 };
 
