@@ -102,7 +102,7 @@
 				style="{isDark ? 'background:black;' : 'background:white;'} height: {totalHeight}px;"
 			>
 				{#each labeledColors as lc, i (lc)}
-					{@const alphaValue = getAlpha(lc.color) === 1 ? $opacity / 100 : getAlpha(lc.color)}
+					{@const alphaValue = getAlpha(lc.color)}
 					<button
 						type="button"
 						disabled={!editable && colorScale.type !== 'breakpoint'}
@@ -119,7 +119,7 @@
 						<div
 							class="absolute inset-0"
 							style="background: rgb({lc.color[0]}, {lc.color[1]}, {lc
-								.color[2]}); opacity: {alphaValue};"
+								.color[2]}); opacity: {(alphaValue * $opacity) / 100};"
 						></div>
 					</button>
 					<!-- Color Picker Popover -->
