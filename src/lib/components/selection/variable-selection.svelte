@@ -366,7 +366,7 @@
 												/>
 											</div>
 										</Command.Item>
-									{:else if !vr.includes('v_component') && !vr.includes('_direction')}
+									{:else if !vr.includes('_v_') && !vr.includes('_direction')}
 										{@const v = variableOptions.find(({ value }) => value === vr)
 											? variableOptions.find(({ value }) => value === vr)
 											: { value: vr, label: vr }}
