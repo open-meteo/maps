@@ -9,57 +9,47 @@
 
 	import { browser } from '$app/environment';
 
+	import { loading, preferences, time } from '$lib/stores/preferences';
 	import {
 		domainSelectionOpen as dSO,
 		selectedDomain,
 		variableSelectionOpen as vSO
-	} from '$lib/stores/preferences';
+	} from '$lib/stores/variables';
+
+	import { changeOMfileURL, fmtISOWithoutTimezone, updateUrl } from '$lib';
 
 	import type { ModelDt } from '@openmeteo/mapbox-layer';
 
-	interface Props {
-		time: Date;
-		domain: string;
-		disabled: boolean;
-		timeSelector: boolean;
-		onDateChange: (date: Date) => void;
-	}
+	let disabled = $derived($loading);
+	let timeSelector = $derived($preferences.timeSelector);
 
-	let {
-		time = $bindable(),
-		domain = $bindable(),
-		disabled,
-		timeSelector,
-		onDateChange
-	}: Props = $props();
-
-	let currentDate = $derived(time);
+	let currentDate = $derived($time);
 	let currentHour = $derived(currentDate.getHours());
 
 	const resolution: ModelDt = $derived($selectedDomain.time_interval);
 
 	const previousHour = () => {
-		const date = domainStep(time, resolution, 'backward');
+		const date = domainStep($time, resolution, 'backward');
 		onDateChange(date);
 		centerDateButton(date.getHours(), true);
 	};
 
 	const nextHour = () => {
-		const date = domainStep(time, resolution, 'forward');
+		const date = domainStep($time, resolution, 'forward');
 		onDateChange(date);
 		centerDateButton(date.getHours(), true);
 	};
 
 	const previousDay = () => {
-		time.setHours(time.getHours() - 23);
-		const date = domainStep(time, resolution, 'backward');
+		$time.setHours($time.getHours() - 23);
+		const date = domainStep($time, resolution, 'backward');
 		onDateChange(date);
 		centerDateButton(date.getHours(), true);
 	};
 
 	const nextDay = () => {
-		time.setHours(time.getHours() + 23);
-		const date = domainStep(time, resolution, 'forward');
+		$time.setHours($time.getHours() + 23);
+		const date = domainStep($time, resolution, 'forward');
 		onDateChange(date);
 		centerDateButton(date.getHours(), true);
 	};
@@ -73,6 +63,12 @@
 	vSO.subscribe((vO) => {
 		variableSelectionOpen = vO;
 	});
+
+	const onDateChange = (date: Date) => {
+		$time = new SvelteDate(date);
+		updateUrl('time', fmtISOWithoutTimezone($time));
+		changeOMfileURL();
+	};
 
 	const keydownEvent = (event: KeyboardEvent) => {
 		const canNavigate = !(domainSelectionOpen || variableSelectionOpen);

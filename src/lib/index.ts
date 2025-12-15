@@ -1,8 +1,11 @@
+import { tick } from 'svelte';
 import { SvelteDate } from 'svelte/reactivity';
 import { get } from 'svelte/store';
 
 import {
 	GridFactory,
+	TIME_SELECTED_REGEX,
+	VARIABLE_PREFIX,
 	closestModelRun,
 	domainOptions,
 	domainStep,
@@ -18,29 +21,52 @@ import { browser } from '$app/environment';
 import { pushState } from '$app/navigation';
 
 import {
-	domain as d,
-	loading,
+	map as m,
 	mapBounds as mB,
-	modelRun as mR,
-	preferences as p,
 	paddedBounds as pB,
 	paddedBoundsSource as pBS,
 	paddedBoundsGeoJSON,
-	paddedBoundsLayer,
+	paddedBoundsLayer
+} from '$lib/stores/map';
+import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
+import {
+	completeDefaultValues,
+	defaultPreferences,
+	loading,
+	metaJson as mJ,
+	modelRun as mR,
+	opacity,
+	preferences as p,
 	resolution as r,
 	tileSize as tS,
 	time,
-	variable as v,
-	vectorOptions as vO,
-	variableSelectionExtended
+	url as u
 } from '$lib/stores/preferences';
+import { domain as d, selectedDomain, variable as v } from '$lib/stores/variables';
+import { vectorOptions as vO } from '$lib/stores/vector';
 
-import type { Domain, DomainMetaData, ModelDt } from '@openmeteo/mapbox-layer';
+import type { Domain, DomainMetaData } from '@openmeteo/mapbox-layer';
+
+let url = get(u);
+u.subscribe((newUrl) => {
+	url = newUrl;
+});
+
+let map = get(m);
+m.subscribe((newMap) => {
+	map = newMap;
+});
 
 let preferences = get(p);
 p.subscribe((newPreferences) => {
 	preferences = newPreferences;
 });
+
+let metaJson = get(mJ);
+mJ.subscribe((newMetaJson) => {
+	metaJson = newMetaJson;
+});
+
 let vectorOptions = get(vO);
 vO.subscribe((newVectorOptions) => {
 	vectorOptions = newVectorOptions;
@@ -59,10 +85,10 @@ export const pad = (n: string | number) => {
 	return ('0' + n).slice(-2);
 };
 
-export const urlParamsToPreferences = (url: URL) => {
+export const urlParamsToPreferences = () => {
 	const params = new URLSearchParams(url.search);
 
-	const urlModelTime = params.get('model-run');
+	const urlModelTime = params.get('model_run');
 	if (urlModelTime && urlModelTime.length == 15) {
 		const year = parseInt(urlModelTime.slice(0, 4));
 		const month = parseInt(urlModelTime.slice(5, 7)) - 1;
@@ -87,7 +113,7 @@ export const urlParamsToPreferences = (url: URL) => {
 		// Parse Date from UTC components (urlTime is in UTC)
 		time.set(new SvelteDate(Date.UTC(year, month, day, hour, minute, 0, 0)));
 	}
-	checkClosestDomainInterval(url);
+	checkClosestDomainInterval();
 
 	if (params.get('globe')) {
 		preferences.globe = params.get('globe') === 'true';
@@ -139,19 +165,19 @@ export const urlParamsToPreferences = (url: URL) => {
 		}
 	}
 
-	if (params.get('time-selector')) {
-		preferences.timeSelector = params.get('time-selector') === 'true';
+	if (params.get('time_selector')) {
+		preferences.timeSelector = params.get('time_selector') === 'true';
 	} else {
 		if (!preferences.timeSelector) {
-			url.searchParams.set('time-selector', String(preferences.timeSelector));
+			url.searchParams.set('time_selector', String(preferences.timeSelector));
 		}
 	}
 
-	if (params.get('clip-water')) {
-		preferences.clipWater = params.get('clip-water') === 'true';
+	if (params.get('clip_water')) {
+		preferences.clipWater = params.get('clip_water') === 'true';
 	} else {
 		if (preferences.clipWater) {
-			url.searchParams.set('clip-water', String(preferences.clipWater));
+			url.searchParams.set('clip_water', String(preferences.clipWater));
 		}
 	}
 
@@ -180,38 +206,23 @@ export const urlParamsToPreferences = (url: URL) => {
 	}
 
 	vO.set(vectorOptions);
-
-	if (params.get('variables-open')) {
-		variableSelectionExtended.set(true);
-	}
-
 	p.set(preferences);
 };
 
 /** "YYYY-MM-DDTHHMM" */
 export const fmtISOWithoutTimezone = (d: Date) => d.toISOString().replace(/[:Z]/g, '').slice(0, 15);
 
-export const checkClosestDomainInterval = (url: URL) => {
-	const original = get(time);
-	const t = new Date(original.getTime());
-	const domain = domainOptions.find(({ value }) => value === get(d));
-	if (domain) {
-		const closestTime = domainStep(t, domain.time_interval, 'floor');
-		url.searchParams.set('time', fmtISOWithoutTimezone(closestTime));
-		time.set(closestTime);
-	}
+export const checkClosestDomainInterval = () => {
+	const t = get(time);
+	const domain = get(selectedDomain);
+	const closestTime = domainStep(t, domain.time_interval, 'floor');
+	updateUrl('time', fmtISOWithoutTimezone(closestTime));
+	time.set(closestTime);
 };
 
-export const checkClosestModelRun = (
-	map: maplibregl.Map,
-	url: URL,
-	latest: DomainMetaData | undefined
-) => {
-	const domain = domainOptions.find(({ value }) => value === get(d));
-	if (!domain) {
-		throw new Error('Domain not found');
-	}
+export const checkClosestModelRun = () => {
 	let timeStep = get(time);
+	const domain = get(selectedDomain);
 
 	// other than seasonal models, data is not available longer than 7 days
 	if (domain.model_interval !== 'monthly') {
@@ -225,8 +236,8 @@ export const checkClosestModelRun = (
 		}
 	}
 	// check that requested time is not newer than the latest valid_times in the DomainMetaData
-	if (latest) {
-		const latestTimeStep = new Date(latest.valid_times[latest.valid_times.length - 1]);
+	if (metaJson) {
+		const latestTimeStep = new Date(metaJson.valid_times[metaJson.valid_times.length - 1]);
 		if (timeStep.getTime() > latestTimeStep.getTime()) {
 			toast.warning('Date selected too new, using latest available time');
 			time.set(latestTimeStep);
@@ -239,7 +250,9 @@ export const checkClosestModelRun = (
 
 	let setToModelRun = new SvelteDate(modelRun);
 
-	const latestReferenceTime = latest?.reference_time ? new Date(latest.reference_time) : undefined;
+	const latestReferenceTime = metaJson?.reference_time
+		? new Date(metaJson.reference_time)
+		: undefined;
 
 	if (latestReferenceTime && nearestModelRun.getTime() > latestReferenceTime.getTime()) {
 		setToModelRun = new SvelteDate(latestReferenceTime);
@@ -248,8 +261,7 @@ export const checkClosestModelRun = (
 	} else {
 		if (latestReferenceTime) {
 			if (latestReferenceTime.getTime() === modelRun.getTime()) {
-				url.searchParams.delete('model-run');
-				pushState(url + map._hash.getHashString(), {});
+				url.searchParams.delete('model_run');
 			} else if (
 				timeStep.getTime() > latestReferenceTime.getTime() &&
 				latestReferenceTime.getTime() > modelRun.getTime()
@@ -266,13 +278,16 @@ export const checkClosestModelRun = (
 
 	if (setToModelRun.getTime() !== modelRun.getTime()) {
 		mR.set(setToModelRun);
-		url.searchParams.set('model-run', fmtISOWithoutTimezone(setToModelRun));
-		pushState(url + map._hash.getHashString(), {});
+		updateUrl('model_run', fmtISOWithoutTimezone(setToModelRun));
 		toast.info('Model run set to: ' + fmtISOWithoutTimezone(setToModelRun));
+	} else {
+		updateUrl();
 	}
 };
 
-export const setMapControlSettings = (map: maplibregl.Map, url: URL) => {
+export const setMapControlSettings = () => {
+	if (!map) return;
+
 	map.touchZoomRotate.disableRotation();
 
 	const navigationControl = new maplibregl.NavigationControl({
@@ -295,14 +310,16 @@ export const setMapControlSettings = (map: maplibregl.Map, url: URL) => {
 
 	const globeControl = new maplibregl.GlobeControl();
 	map.addControl(globeControl);
-	globeControl._globeButton.addEventListener('click', () => globeHandler(map, url));
+	globeControl._globeButton.addEventListener('click', () => globeHandler());
 
 	// improved scrolling
 	map.scrollZoom.setZoomRate(1 / 85);
 	map.scrollZoom.setWheelZoomRate(1 / 85);
 };
 
-export const addHillshadeSources = (map: maplibregl.Map) => {
+export const addHillshadeSources = () => {
+	if (!map) return;
+
 	map.setSky({
 		'sky-color': '#000000',
 		'sky-horizon-blend': 0.8,
@@ -321,7 +338,9 @@ export const addHillshadeSources = (map: maplibregl.Map) => {
 	});
 };
 
-export const addHillshadeLayer = (map: maplibregl.Map) => {
+export const addHillshadeLayer = () => {
+	if (!map) return;
+
 	map.addLayer(
 		{
 			source: 'terrainSource',
@@ -373,13 +392,15 @@ export const checkHighDefinition = () => {
 };
 
 let omRasterSource: maplibregl.RasterTileSource | undefined;
-export const addOmFileLayers = (map: maplibregl.Map) => {
+export const addOmFileLayers = () => {
+	if (!map) return;
+
 	omUrl = getOMUrl();
 	map.addSource('omRasterSource', {
 		url: 'om://' + omUrl,
 		type: 'raster',
 		tileSize: 256,
-		maxzoom: 12
+		maxzoom: 14
 	});
 
 	omRasterSource = map.getSource('omRasterSource');
@@ -392,22 +413,27 @@ export const addOmFileLayers = (map: maplibregl.Map) => {
 		});
 	}
 
+	const opacityValue = get(opacity);
 	map.addLayer(
 		{
 			id: 'omRasterLayer',
 			type: 'raster',
-			source: 'omRasterSource'
+			source: 'omRasterSource',
+			paint: {
+				'raster-opacity': mode.current === 'dark' ? (opacityValue - 10) / 100 : opacityValue / 100
+			}
 		},
 		beforeLayerRaster
 	);
 
 	if (vectorOptions.contours || vectorOptions.arrows) {
-		addVectorLayer(map);
+		addVectorLayer();
 	}
 };
 
 let omVectorSource: maplibregl.VectorTileSource | undefined;
-export const addVectorLayer = (map: maplibregl.Map) => {
+export const addVectorLayer = () => {
+	if (!map) return;
 	if (!map.getSource('omVectorSource')) {
 		map.addSource('omVectorSource', {
 			url: 'om://' + omUrl,
@@ -432,16 +458,17 @@ export const addVectorLayer = (map: maplibregl.Map) => {
 					'line-color': [
 						'case',
 						['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
-						'rgba(0,0,0,0.5)',
+						mode.current === 'dark' ? 'rgba(255,255,255, 0.8)' : 'rgba(0,0,0, 0.6)',
 						[
 							'case',
 							['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
-							'rgba(0,0,0,0.4)',
+							mode.current === 'dark' ? 'rgba(255,255,255, 0.7)' : 'rgba(0,0,0, 0.5)',
+
 							[
 								'case',
 								['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
-								'rgba(0,0,0,0.35)',
-								'rgba(0,0,0,0.3)'
+								mode.current === 'dark' ? 'rgba(255,255,255, 0.6)' : 'rgba(0,0,0, 0.4)',
+								mode.current === 'dark' ? 'rgba(255,255,255, 0.5)' : 'rgba(0,0,0, 0.3)'
 							]
 						]
 					],
@@ -477,26 +504,53 @@ export const addVectorLayer = (map: maplibregl.Map) => {
 				paint: {
 					'line-color': [
 						'case',
-						['boolean', ['>', ['to-number', ['get', 'value']], 5], false],
-						'rgba(0,0,0, 0.6)',
+						['boolean', ['>', ['to-number', ['get', 'value']], 9], false],
+						mode.current === 'dark' ? 'rgba(255,255,255, 0.6)' : 'rgba(0,0,0, 0.6)',
 						[
 							'case',
-							['boolean', ['>', ['to-number', ['get', 'value']], 4], false],
-							'rgba(0,0,0, 0.5)',
+							['boolean', ['>', ['to-number', ['get', 'value']], 5], false],
+							mode.current === 'dark' ? 'rgba(255,255,255, 0.6)' : 'rgba(0,0,0, 0.6)',
 							[
 								'case',
-								['boolean', ['>', ['to-number', ['get', 'value']], 3], false],
-								'rgba(0,0,0, 0.4)',
+								['boolean', ['>', ['to-number', ['get', 'value']], 4], false],
+								mode.current === 'dark' ? 'rgba(255,255,255, 0.5)' : 'rgba(0,0,0, 0.5)',
+
 								[
 									'case',
-									['boolean', ['>', ['to-number', ['get', 'value']], 2], false],
-									'rgba(0,0,0, 0.3)',
-									'rgba(0,0,0, 0.2)'
+									['boolean', ['>', ['to-number', ['get', 'value']], 3], false],
+									mode.current === 'dark' ? 'rgba(255,255,255, 0.4)' : 'rgba(0,0,0, 0.4)',
+									[
+										'case',
+										['boolean', ['>', ['to-number', ['get', 'value']], 2], false],
+										mode.current === 'dark' ? 'rgba(255,255,255, 0.3)' : 'rgba(0,0,0, 0.3)',
+										mode.current === 'dark' ? 'rgba(255,255,255, 0.2)' : 'rgba(0,0,0, 0.2)'
+									]
 								]
 							]
 						]
 					],
-					'line-width': 2
+					'line-width': [
+						'case',
+						['boolean', ['>', ['to-number', ['get', 'value']], 20], false],
+						2.8,
+						[
+							'case',
+							['boolean', ['>', ['to-number', ['get', 'value']], 10], false],
+							2.2,
+							[
+								'case',
+								['boolean', ['>', ['to-number', ['get', 'value']], 5], false],
+								2,
+
+								[
+									'case',
+									['boolean', ['>', ['to-number', ['get', 'value']], 3], false],
+									1.8,
+									['case', ['boolean', ['>', ['to-number', ['get', 'value']], 2], false], 1.6, 1.5]
+								]
+							]
+						]
+					]
 				},
 				layout: {
 					'line-cap': 'round'
@@ -548,7 +602,7 @@ export const addVectorLayer = (map: maplibregl.Map) => {
 					'text-offset': [0, -0.6]
 				},
 				paint: {
-					'text-color': 'rgba(0,0,0,0.7)'
+					'text-color': mode.current === 'dark' ? 'rgba(255,255,255, 0.8)' : 'rgba(0,0,0, 0.7)'
 				}
 			},
 			preferences.clipWater ? beforeLayerVectorWaterClip : beforeLayerVector
@@ -556,7 +610,9 @@ export const addVectorLayer = (map: maplibregl.Map) => {
 	}
 };
 
-export const removeVectorLayer = (map: maplibregl.Map) => {
+export const removeVectorLayer = () => {
+	if (!map) return;
+
 	if (!vectorOptions.grid) {
 		if (map.getLayer('omVectorGridLayer')) {
 			map.removeLayer('omVectorGridLayer');
@@ -577,89 +633,71 @@ export const removeVectorLayer = (map: maplibregl.Map) => {
 	}
 };
 
-export const terrainHandler = (map: maplibregl.Map, url: URL) => {
+export const terrainHandler = () => {
 	preferences.terrain = !preferences.terrain;
 	p.set(preferences);
-	if (preferences.terrain) {
-		url.searchParams.set('terrain', String(preferences.terrain));
-	} else {
-		url.searchParams.delete('terrain');
-	}
-	pushState(url + map._hash.getHashString(), {});
+	updateUrl('terrain', String(preferences.terrain), String(defaultPreferences.terrain));
 };
 
-export const globeHandler = (map: maplibregl.Map, url: URL) => {
+export const globeHandler = () => {
 	preferences.globe = !preferences.globe;
 	p.set(preferences);
-	if (preferences.globe) {
-		url.searchParams.set('globe', String(preferences.globe));
-	} else {
-		url.searchParams.delete('globe');
-	}
-	pushState(url + map._hash.getHashString(), {});
+	updateUrl('globe', String(preferences.globe), String(defaultPreferences.globe));
 };
 
 let checked = 0;
 let checkSourceLoadedInterval: ReturnType<typeof setInterval>;
-export const changeOMfileURL = (
-	map: maplibregl.Map,
-	url: URL,
-	latest?: DomainMetaData | undefined,
-	resetBounds = true,
-	vectorOnly = false,
-	rasterOnly = false
-) => {
-	if (map && omRasterSource) {
-		// needs more testing
-		// if (map.style.tileManagers.omRasterSource) {
-		// 	const tileManager = map.style.tileManagers.omRasterSource;
-		// 	if (tileManager._tiles) {
-		// 		for (const tileId in tileManager._tiles) {
-		// 			const tile = tileManager._tiles[tileId];
-		// 			tile.unloadVectorData();
-		// 		}
-		// 		tileManager._tiles = {};
-		// 	}
-		// 	tileManager._cache.reset();
-		// 	// tileManager.update(map.transform);
-		// 	// map.triggerRepaint();
-		// }
+export const changeOMfileURL = (resetBounds = true, vectorOnly = false, rasterOnly = false) => {
+	if (!map || !omRasterSource) return;
 
-		loading.set(true);
-		if (popup) {
-			popup.remove();
-		}
-		mB.set(map.getBounds());
-		if (resetBounds) {
-			pB.set(map.getBounds());
-		}
-		getPaddedBounds(map);
+	// needs more testing
+	// if (map.style.tileManagers.omRasterSource) {
+	// 	const tileManager = map.style.tileManagers.omRasterSource;
+	// 	if (tileManager._tiles) {
+	// 		for (const tileId in tileManager._tiles) {
+	// 			const tile = tileManager._tiles[tileId];
+	// 			tile.unloadVectorData();
+	// 		}
+	// 		tileManager._tiles = {};
+	// 	}
+	// 	tileManager._cache.reset();
+	// 	// tileManager.update(map.transform);
+	// 	// map.triggerRepaint();
+	// }
 
-		checkClosestModelRun(map, url, latest);
-
-		omUrl = getOMUrl();
-		if (!vectorOnly) {
-			omRasterSource.setUrl('om://' + omUrl);
-		}
-
-		omVectorSource = map.getSource('omVectorSource');
-		if (!rasterOnly && omVectorSource) {
-			omVectorSource.setUrl('om://' + omUrl);
-		}
-
-		checkSourceLoadedInterval = setInterval(() => {
-			checked++;
-			if ((omRasterSource && omRasterSource.loaded()) || checked >= 200) {
-				if (checked >= 200) {
-					// Timeout after 10s
-					toast.error('Request timed out');
-				}
-				checked = 0;
-				loading.set(false);
-				clearInterval(checkSourceLoadedInterval);
-			}
-		}, 50);
+	loading.set(true);
+	if (popup) {
+		popup.remove();
 	}
+	mB.set(map.getBounds());
+	if (resetBounds) {
+		pB.set(map.getBounds());
+	}
+	getPaddedBounds();
+
+	checkClosestModelRun();
+
+	omUrl = getOMUrl();
+	if (!vectorOnly) {
+		omRasterSource.setUrl('om://' + omUrl);
+	}
+
+	if (!rasterOnly && omVectorSource) {
+		omVectorSource.setUrl('om://' + omUrl);
+	}
+
+	checkSourceLoadedInterval = setInterval(() => {
+		checked++;
+		if ((omRasterSource && omRasterSource.loaded()) || checked >= 200) {
+			if (checked >= 200) {
+				// Timeout after 10s
+				toast.error('Request timed out');
+			}
+			checked = 0;
+			loading.set(false);
+			clearInterval(checkSourceLoadedInterval);
+		}
+	}, 50);
 };
 
 export const getStyle = async () => {
@@ -682,52 +720,59 @@ export const getStyle = async () => {
 };
 
 export const textWhite = (
-	[r, g, b, a]: [number, number, number, number],
-	dark?: boolean
+	[r, g, b, a]: [number, number, number, number] | [number, number, number],
+	dark?: boolean,
+	globalOpacity?: number
 ): boolean => {
-	if (a != undefined && a < 0.65 && !dark) {
-		return false;
+	const alpha = ((a || 1) * (globalOpacity || 100)) / 100;
+	if (alpha < 0.65) {
+		if (dark) {
+			return true;
+		} else {
+			return false;
+		}
 	}
 	// check luminance
-	return r * 0.299 + g * 0.587 + b * 0.114 <= 186;
+	return r * 0.299 + g * 0.587 + b * 0.114 <= 150;
 };
 
 let popup: maplibregl.Popup | undefined;
 let showPopup = false;
-export const addPopup = (map: maplibregl.Map) => {
-	const updatePopup = (e: maplibregl.MapMouseEvent) => {
-		if (showPopup) {
-			const coordinates = e.lngLat;
-			if (!popup) {
-				popup = new maplibregl.Popup({ closeButton: false })
-					.setLngLat(coordinates)
-					.setHTML(`<span class="value-popup">Outside domain</span>`)
-					.addTo(map);
-			} else {
-				popup.addTo(map);
-			}
-			const { value } = getValueFromLatLong(
-				coordinates.lat,
-				coordinates.lng,
-				omRasterSource?.url || ''
-			);
+export const addPopup = () => {
+	if (!map) return;
 
-			if (isFinite(value)) {
-				const dark = mode.current === 'dark';
-				const colorScale = getColorScale(get(v), dark);
-				const color = getColor(colorScale, value);
-				const content =
-					'<span class="popup-value">' + value.toFixed(1) + '</span>' + colorScale.unit;
-				popup
-					.setLngLat(coordinates)
-					.setHTML(
-						`<div style="font-weight: bold; background-color: rgba(${color.join(',')}); color: ${textWhite(color, dark) ? 'white' : 'black'};" class="popup-div">${content}</div>`
-					);
-			} else {
-				popup
-					.setLngLat(coordinates)
-					.setHTML(`<span style="padding: 3px 5px;" class="popup-string">Outside domain</span>`);
-			}
+	const updatePopup = (e: maplibregl.MapMouseEvent) => {
+		if (!showPopup) return;
+
+		const coordinates = e.lngLat;
+		if (!popup) {
+			popup = new maplibregl.Popup({ closeButton: false })
+				.setLngLat(coordinates)
+				.setHTML(`<span class="value-popup">Outside domain</span>`)
+				.addTo(map);
+		} else {
+			popup.addTo(map);
+		}
+		const { value } = getValueFromLatLong(
+			coordinates.lat,
+			coordinates.lng,
+			omRasterSource?.url || ''
+		);
+
+		if (isFinite(value)) {
+			const dark = mode.current === 'dark';
+			const colorScale = getColorScale(get(v), dark, omProtocolSettings.colorScales);
+			const color = getColor(colorScale, value);
+			const content = '<span class="popup-value">' + value.toFixed(1) + '</span>' + colorScale.unit;
+			popup
+				.setLngLat(coordinates)
+				.setHTML(
+					`<div style="font-weight: bold; background-color: rgba(${color.join(',')}); color: ${textWhite(color, dark) ? 'white' : 'black'};" class="popup-div">${content}</div>`
+				);
+		} else {
+			popup
+				.setLngLat(coordinates)
+				.setHTML(`<span style="padding: 3px 5px;" class="popup-string">Outside domain</span>`);
 		}
 	};
 
@@ -746,7 +791,9 @@ export const addPopup = (map: maplibregl.Map) => {
 };
 
 const padding = 25; //%
-export const checkBounds = (map: maplibregl.Map, url: URL, latest: DomainMetaData | undefined) => {
+export const checkBounds = () => {
+	if (!map) return;
+
 	const domain = get(d);
 	const domainObject = domainOptions.find(({ value }) => value === domain);
 
@@ -787,12 +834,14 @@ export const checkBounds = (map: maplibregl.Map, url: URL, latest: DomainMetaDat
 			exceededPadding = true;
 		}
 		if (exceededPadding) {
-			changeOMfileURL(map, url, latest, false);
+			changeOMfileURL(false);
 		}
 	}
 };
 
-export const getPaddedBounds = (map: maplibregl.Map) => {
+export const getPaddedBounds = () => {
+	if (!map) return;
+
 	const domain = get(d);
 	const domainObject = domainOptions.find(({ value }) => value === domain);
 
@@ -895,22 +944,18 @@ export const getOMUrl = () => {
 	if (vectorOptions.grid) url += `&grid=true`;
 	if (vectorOptions.arrows) url += `&arrows=true`;
 	if (vectorOptions.contours) url += `&contours=true`;
-	if (
-		vectorOptions.contours &&
-		vectorOptions.contourInterval !== 2 //&&
-		// vectorOptions.contourInterval !== defaultOmProtocolSettings.vectorOptions.contourInterval
-	)
-		url += `&interval=${vectorOptions.contourInterval}`;
+	if (vectorOptions.contours && !vectorOptions.breakpoints)
+		url += `&intervals=${vectorOptions.contourInterval}`;
 
 	// values may not be parsed by url, but the url has to change for tile reload
 	const tileSize = get(tS);
 	if (tileSize !== 256) {
-		url += `&tile-size=${tileSize}`;
+		url += `&tile_size=${tileSize}`;
 	}
 
 	const resolution = get(r);
 	if (resolution !== 1) {
-		url += `&resolution-factor=${resolution}`;
+		url += `&resolution_factor=${resolution}`;
 	}
 
 	const paddedBounds = get(pB);
@@ -921,7 +966,6 @@ export const getOMUrl = () => {
 	return url;
 };
 
-const TIME_SELECTED_REGEX = new RegExp(/([0-9]{2}-[0-9]{2}-[0-9]{2}T[0-9]{2}00)/);
 export const getNextOmUrls = (
 	omUrl: string,
 	domain: Domain,
@@ -953,5 +997,85 @@ export const getNextOmUrls = (
 		return [prevUrl, nextUrl];
 	} else {
 		return undefined;
+	}
+};
+
+export const hashValue = (val: string) =>
+	crypto.subtle.digest('SHA-256', new TextEncoder().encode(val)).then((h) => {
+		const hexes = [],
+			view = new DataView(h);
+		for (let i = 0; i < view.byteLength; i += 4)
+			hexes.push(('00000000' + view.getUint32(i).toString(16)).slice(-8));
+		return hexes.join('');
+	});
+
+export const updateUrl = async (
+	urlParam: undefined | string = undefined,
+	newValue: undefined | string = undefined,
+	defaultValue: undefined | string = undefined
+) => {
+	if (!url) return;
+
+	if (!defaultValue && urlParam) {
+		if (completeDefaultValues[urlParam]) {
+			defaultValue = String(completeDefaultValues[urlParam]);
+		}
+	}
+
+	if (urlParam) {
+		if (newValue && newValue !== defaultValue) {
+			url.searchParams.set(urlParam, String(newValue));
+		} else {
+			url.searchParams.delete(urlParam);
+		}
+	}
+
+	await tick();
+	if (map && map._hash) {
+		pushState(url + map._hash.getHashString(), {});
+	} else {
+		pushState(url, {});
+	}
+};
+
+export const getMetaData = async (inProgress = false): Promise<DomainMetaData> => {
+	const domain = get(selectedDomain);
+	const uri =
+		domain && domain.value.startsWith('dwd_icon')
+			? `https://s3.servert.ch`
+			: `https://map-tiles.open-meteo.com`;
+
+	const metaJsonUrl = `${uri}/data_spatial/${domain.value}/${inProgress ? 'in-progress' : 'latest'}.json`;
+	const metaJsonResult = await fetch(metaJsonUrl);
+	if (!metaJsonResult.ok) {
+		loading.set(false);
+		throw new Error(`HTTP ${metaJsonResult.status}`);
+	}
+	const json = await metaJsonResult.json();
+	return json;
+};
+
+export const matchVariableOrFirst = () => {
+	const variable = get(v);
+	let matchedVariable = undefined;
+	if (metaJson && !metaJson?.variables.includes(variable)) {
+		// check for similar level variables
+		const prefixMatch = variable.match(VARIABLE_PREFIX);
+		const prefix = prefixMatch?.groups?.prefix;
+		if (prefix) {
+			for (const mjVariable of metaJson.variables) {
+				if (mjVariable.startsWith(prefix)) {
+					matchedVariable = mjVariable;
+					break;
+				}
+			}
+		}
+
+		if (!matchedVariable) {
+			matchedVariable = metaJson.variables[0];
+		}
+	}
+	if (matchedVariable) {
+		v.set(matchedVariable);
 	}
 };

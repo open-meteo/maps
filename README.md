@@ -16,12 +16,14 @@ This is not the [Open-Meteo weather API](https://github.com/open-meteo/open-mete
 ## Development
 
 Install and run dev server:
+
 ```bash
 npm install
 npm run dev
 ```
 
 Build for production:
+
 ```bash
 npm run build
 npm run preview
