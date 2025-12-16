@@ -645,8 +645,24 @@ export const globeHandler = () => {
 	updateUrl('globe', String(preferences.globe), String(defaultPreferences.globe));
 };
 
-let checked = 0;
 let checkSourceLoadedInterval: ReturnType<typeof setInterval>;
+const checkLoaded = () => {
+	if (checkSourceLoadedInterval) clearInterval(checkSourceLoadedInterval);
+	let checked = 0;
+	checkSourceLoadedInterval = setInterval(() => {
+		checked++;
+		if (omRasterSource && omRasterSource.loaded()) {
+			if (checked >= 200) {
+				// Timeout after 10s
+				toast.error('Request timed out');
+			}
+			checked = 0;
+			loading.set(false);
+			clearInterval(checkSourceLoadedInterval);
+		}
+	}, 50);
+};
+
 export const changeOMfileURL = (resetBounds = true, vectorOnly = false, rasterOnly = false) => {
 	if (!map || !omRasterSource) return;
 
@@ -686,18 +702,7 @@ export const changeOMfileURL = (resetBounds = true, vectorOnly = false, rasterOn
 		omVectorSource.setUrl('om://' + omUrl);
 	}
 
-	checkSourceLoadedInterval = setInterval(() => {
-		checked++;
-		if ((omRasterSource && omRasterSource.loaded()) || checked >= 200) {
-			if (checked >= 200) {
-				// Timeout after 10s
-				toast.error('Request timed out');
-			}
-			checked = 0;
-			loading.set(false);
-			clearInterval(checkSourceLoadedInterval);
-		}
-	}, 50);
+	checkLoaded();
 };
 
 export const getStyle = async () => {
@@ -977,7 +982,7 @@ export const getNextOmUrls = (
 
 	const matches = omUrl.match(TIME_SELECTED_REGEX);
 	if (matches) {
-		const date = new Date('20' + matches[0].substring(0, matches[0].length - 2) + ':00Z');
+		const date = new Date('20' + matches[0].substring(0, matches[0].length) + 'Z');
 		const prevUrlDate = domainStep(date, domain.time_interval, 'backward');
 		const nextUrlDate = domainStep(date, domain.time_interval, 'forward');
 		let currentModelRun;
@@ -1078,4 +1083,33 @@ export const matchVariableOrFirst = () => {
 	if (matchedVariable) {
 		v.set(matchedVariable);
 	}
+};
+
+export const throttle = <T extends unknown[]>(callback: (...args: T) => void, delay: number) => {
+	let waiting = false;
+
+	return (...args: T) => {
+		if (waiting) {
+			return;
+		}
+
+		callback(...args);
+		waiting = true;
+
+		setTimeout(() => {
+			waiting = false;
+		}, delay);
+	};
+};
+
+export const debounce = <T extends unknown[]>(callback: (...args: T) => void, delay: number) => {
+	let timeoutTimer: ReturnType<typeof setTimeout>;
+
+	return (...args: T) => {
+		clearTimeout(timeoutTimer);
+
+		timeoutTimer = setTimeout(() => {
+			callback(...args);
+		}, delay);
+	};
 };

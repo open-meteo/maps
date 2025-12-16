@@ -16,7 +16,7 @@
 		variableSelectionOpen as vSO
 	} from '$lib/stores/variables';
 
-	import { changeOMfileURL, fmtISOWithoutTimezone, updateUrl } from '$lib';
+	import { changeOMfileURL, fmtISOWithoutTimezone, throttle, updateUrl } from '$lib';
 
 	import type { ModelDt } from '@openmeteo/mapbox-layer';
 
@@ -61,9 +61,9 @@
 		variableSelectionOpen = vO;
 	});
 
-	const onDateChange = (date: Date) => {
+	const onDateChange = (date: Date, callUpdateUrl = true) => {
 		$time = new SvelteDate(date);
-		updateUrl('time', fmtISOWithoutTimezone($time));
+		if (callUpdateUrl) updateUrl('time', fmtISOWithoutTimezone($time));
 		changeOMfileURL();
 	};
 
@@ -123,9 +123,9 @@
 
 	const timeSteps = $derived.by(() => {
 		if (timeInterval) {
-			return [...Array(24 / timeInterval)].map((i, index) => {
+			return [...Array(23 / timeInterval)].map((i, index) => {
 				const date = new SvelteDate(currentDate);
-				date.setHours(index * timeInterval);
+				date.setUTCHours(index * timeInterval);
 				return date;
 			});
 		} else {
@@ -137,7 +137,39 @@
 	let hoursContainerParent: HTMLElement | undefined = $state();
 
 	let movingToNextHour = $state(false);
-	let movingToNextHourTimeout: NodeJS.Timeout | undefined = $state(undefined);
+	let movingToNextHourTimeout: ReturnType<typeof setTimeout> | undefined = $state(undefined);
+
+	const onScrollEvent = (e: Event) => {
+		if (!movingToNextHour) {
+			let changed = false;
+
+			const target = e.target as Element;
+			const width = target.getBoundingClientRect().width;
+			const left = target.scrollLeft;
+			const percentage = left / width;
+
+			if (left === 0) {
+				currentDate.setHours(0);
+				changed = true;
+			}
+			if (percentage && timeInterval) {
+				const hour = Math.floor(percentage * (25 / timeInterval)) * timeInterval;
+				if ($time.getHours() !== hour) {
+					currentDate.setHours(hour);
+					changed = true;
+				}
+			}
+			if ($selectedDomain.value.startsWith('dwd_icon') && changed) {
+				onDateChange(currentDate, false);
+			}
+		}
+	};
+
+	let isDown = $state(false);
+	let startX = $state(0);
+	let startY = $state(0);
+	let scrollLeft = $state(0);
+	let scrollTop = $state(0);
 
 	onMount(() => {
 		if (hoursContainer && hoursContainerParent) {
@@ -147,28 +179,45 @@
 				inline: 'center'
 			});
 
-			hoursContainerParent.addEventListener('scroll', (e) => {
-				if (!movingToNextHour) {
-					const target = e.currentTarget as Element;
-					const width = target.getBoundingClientRect().width;
-					const left = target.scrollLeft;
+			hoursContainerParent.addEventListener('scroll', throttle(onScrollEvent, 150));
 
-					const percentage = left / width;
-
-					if (left === 0) {
-						currentDate.setHours(0);
-					}
-					if (percentage) {
-						console.log(percentage);
-						currentDate.setHours(Math.floor(percentage * 25));
-					}
+			hoursContainerParent.addEventListener('scrollend', () => {
+				if (!movingToNextHour && !$selectedDomain.value.startsWith('dwd_icon')) {
+					onDateChange(currentDate);
+				}
+				if ($selectedDomain.value.startsWith('dwd_icon')) {
+					updateUrl();
 				}
 			});
 
-			hoursContainerParent.addEventListener('scrollend', (e) => {
-				if (!movingToNextHour) {
-					onDateChange(currentDate);
-				}
+			hoursContainerParent.addEventListener('mousedown', (e) => {
+				isDown = true;
+				startX = e.pageX - hoursContainerParent.offsetLeft;
+				startY = e.pageY - hoursContainerParent.offsetTop;
+				scrollLeft = hoursContainerParent.scrollLeft;
+				scrollTop = hoursContainerParent.scrollTop;
+				hoursContainer.style.cursor = 'grabbing';
+			});
+
+			hoursContainerParent.addEventListener('mouseleave', () => {
+				isDown = false;
+				hoursContainer.style.cursor = 'grab';
+			});
+
+			hoursContainerParent.addEventListener('mouseup', () => {
+				isDown = false;
+				hoursContainer.style.cursor = 'grab';
+			});
+
+			hoursContainerParent.addEventListener('mousemove', (e) => {
+				if (!isDown) return;
+				e.preventDefault();
+				const x = e.pageX - hoursContainerParent.offsetLeft;
+				const y = e.pageY - hoursContainerParent.offsetTop;
+				const walkX = (x - startX) * 1; // Change this number to adjust the scroll speed
+				const walkY = (y - startY) * 1; // Change this number to adjust the scroll speed
+				hoursContainerParent.scrollLeft = scrollLeft - walkX;
+				hoursContainerParent.scrollTop = scrollTop - walkY;
 			});
 		}
 	});
@@ -181,12 +230,11 @@
 			const target = hoursContainer;
 			const width = target.getBoundingClientRect().width;
 			const left = (width + 18) * (hour / 24);
-			console.log(left, width);
 			hoursContainerParent.scrollTo({ left: left, behavior: smooth ? 'smooth' : 'instant' });
 			if (smooth)
 				movingToNextHourTimeout = setTimeout(() => {
 					movingToNextHour = false;
-				}, 500);
+				}, 700);
 		}
 	};
 </script>
@@ -206,7 +254,7 @@
 			style="background-color: {dark
 				? 'rgba(15, 15, 15, 0.8)'
 				: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
-			class="px-4 rounded-t-xl h-[40.5px] flex items-center justify-center min-w-[105px]"
+			class="px-4 rounded-t-xl h-[40.1px] flex items-center justify-center min-w-[105px]"
 		>
 			{pad(currentDate.getHours()) + ':' + pad(currentDate.getMinutes())}
 		</div>
@@ -278,6 +326,7 @@
 			> -->
 			|
 		</div>
+		<!-- {$loading ? 'overflow-hidden' : ''}  -->
 		<div
 			style="box-shadow: inset -50w 0 10px -50w red, inset 50w 0 10px -50vw red;"
 			bind:this={hoursContainerParent}
@@ -297,9 +346,11 @@
 				>
 					{#each timeSteps as step (step)}
 						<button
-							class="bg-blue-500 p-1 text-white min-w-12 flex justify-center rounded cursor-pointer"
+							class="bg-blue-500 p-1 text-white min-w-12 flex justify-center rounded {isDown
+								? 'cursor-grabbing'
+								: 'cursor-pointer'}"
 							onclick={() => {
-								let newDate = new SvelteDate(time);
+								let newDate = new SvelteDate($time);
 								newDate.setHours(step.getHours());
 								onDateChange(newDate);
 								centerDateButton(step.getHours(), true);
