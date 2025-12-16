@@ -22,33 +22,34 @@
 
 	let disabled = $derived($loading);
 	let currentDate = $derived($time);
+	let dateTimePickerOpen = $state(false);
 
 	const resolution: ModelDt = $derived($selectedDomain.time_interval);
 
 	const previousHour = () => {
 		const date = domainStep($time, resolution, 'backward');
 		onDateChange(date);
-		centerDateButton(date.getHours(), true);
+		centerDateButton(date.getUTCHours(), true);
 	};
 
 	const nextHour = () => {
 		const date = domainStep($time, resolution, 'forward');
 		onDateChange(date);
-		centerDateButton(date.getHours(), true);
+		centerDateButton(date.getUTCHours(), true);
 	};
 
 	const previousDay = () => {
-		$time.setHours($time.getHours() - 23);
+		$time.setUTCHours($time.getUTCHours() - 23);
 		const date = domainStep($time, resolution, 'backward');
 		onDateChange(date);
-		centerDateButton(date.getHours(), true);
+		centerDateButton(date.getUTCHours(), true);
 	};
 
 	const nextDay = () => {
-		$time.setHours($time.getHours() + 23);
+		$time.setUTCHours($time.getUTCHours() + 23);
 		const date = domainStep($time, resolution, 'forward');
 		onDateChange(date);
-		centerDateButton(date.getHours(), true);
+		centerDateButton(date.getUTCHours(), true);
 	};
 
 	let domainSelectionOpen = $state(get(dSO));
@@ -123,7 +124,7 @@
 
 	const timeSteps = $derived.by(() => {
 		if (timeInterval) {
-			return [...Array(23 / timeInterval)].map((i, index) => {
+			return [...Array(24 / timeInterval)].map((i, index) => {
 				const date = new SvelteDate(currentDate);
 				date.setUTCHours(index * timeInterval);
 				return date;
@@ -149,18 +150,29 @@
 			const percentage = left / width;
 
 			if (left === 0) {
-				currentDate.setHours(0);
+				currentDate.setUTCHours(0);
 				changed = true;
 			}
 			if (percentage && timeInterval) {
 				const hour = Math.floor(percentage * (25 / timeInterval)) * timeInterval;
-				if ($time.getHours() !== hour) {
-					currentDate.setHours(hour);
+				if ($time.getUTCHours() !== hour) {
+					currentDate.setUTCHours(hour);
 					changed = true;
 				}
 			}
 			if ($selectedDomain.value.startsWith('dwd_icon') && changed) {
 				onDateChange(currentDate, false);
+			}
+		}
+	};
+
+	const onScrollEndEvent = () => {
+		if (!isDown) {
+			if (!movingToNextHour && !$selectedDomain.value.startsWith('dwd_icon')) {
+				onDateChange(currentDate);
+			}
+			if ($selectedDomain.value.startsWith('dwd_icon')) {
+				updateUrl('time', fmtISOWithoutTimezone($time));
 			}
 		}
 	};
@@ -181,14 +193,7 @@
 
 			hoursContainerParent.addEventListener('scroll', throttle(onScrollEvent, 150));
 
-			hoursContainerParent.addEventListener('scrollend', () => {
-				if (!movingToNextHour && !$selectedDomain.value.startsWith('dwd_icon')) {
-					onDateChange(currentDate);
-				}
-				if ($selectedDomain.value.startsWith('dwd_icon')) {
-					updateUrl('time', fmtISOWithoutTimezone($time));
-				}
-			});
+			hoursContainerParent.addEventListener('scrollend', throttle(onScrollEndEvent, 150));
 
 			hoursContainerParent.addEventListener('mousedown', (e) => {
 				if (!hoursContainerParent) return;
@@ -200,14 +205,15 @@
 				if (hoursContainer) hoursContainer.style.cursor = 'grabbing';
 			});
 
-			hoursContainerParent.addEventListener('mouseleave', () => {
-				isDown = false;
-				if (hoursContainer) hoursContainer.style.cursor = 'grab';
-			});
+			// hoursContainerParent.addEventListener('mouseleave', () => {
+			// 	isDown = false;
+			// 	if (hoursContainer) hoursContainer.style.cursor = 'grab';
+			// });
 
 			hoursContainerParent.addEventListener('mouseup', () => {
 				isDown = false;
 				if (hoursContainer) hoursContainer.style.cursor = 'grab';
+				onScrollEndEvent();
 			});
 
 			hoursContainerParent.addEventListener('mousemove', (e) => {
@@ -228,9 +234,8 @@
 				movingToNextHour = true;
 				if (movingToNextHourTimeout) clearTimeout(movingToNextHourTimeout);
 			}
-			const target = hoursContainer;
-			const width = target.getBoundingClientRect().width;
-			const left = (width + 18) * (hour / 24);
+			const width = hoursContainer.getBoundingClientRect().width;
+			const left = 8 + width * (hour / 23.5);
 			hoursContainerParent.scrollTo({ left: left, behavior: smooth ? 'smooth' : 'instant' });
 			if (smooth)
 				movingToNextHourTimeout = setTimeout(() => {
@@ -238,6 +243,8 @@
 				}, 700);
 		}
 	};
+
+	let dateString = $derived($time.toISOString().slice(0, 16));
 </script>
 
 <div
@@ -248,16 +255,65 @@
 		? 'opacity-100 bottom-0'
 		: 'pointer-events-none opacity-0 bottom-[-120px]'}"
 >
-	<div
-		class="font-bold absolute -top-[40px] left-1/2 h-[40px] text-2xl pointer-events-none -translate-x-1/2"
-	>
+	<div class="font-bold absolute -top-[40px] left-1/2 h-[40px] text-2xl -translate-x-1/2">
 		<div
 			style="background-color: {dark
 				? 'rgba(15, 15, 15, 0.8)'
 				: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
-			class="px-4 rounded-t-xl h-[40.1px] flex items-center justify-center min-w-[105px]"
+			class="px-4 rounded-t-xl h-[40.1px] flex items-center justify-center gap-2 min-w-[105px]"
 		>
-			{pad(currentDate.getHours()) + ':' + pad(currentDate.getMinutes())}
+			<div class="datetime-picker">
+				<button
+					class="flex items center cursor-pointer"
+					aria-label="Date Picker Button"
+					onclick={() => (dateTimePickerOpen = !dateTimePickerOpen)}
+				>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="24"
+						height="24"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						class="lucide lucide-calendar1-icon lucide-calendar-1"
+						><path d="M11 14h1v4" /><path d="M16 2v4" /><path d="M3 10h18" /><path
+							d="M8 2v4"
+						/><rect x="3" y="4" width="18" height="18" rx="2" /></svg
+					>
+				</button>
+
+				{#if dateTimePickerOpen}
+					<div
+						class="picker-overlay absolute -top-[65px] flex p-2 rounded -left-[65px]"
+						style="background-color: {dark
+							? 'rgba(15, 15, 15, 0.8)'
+							: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
+					>
+						<div class="picker-panel">
+							<input
+								type="datetime-local"
+								bind:value={dateString}
+								onchange={(e) => {
+									const hour = $time.getUTCHours();
+									const target = e.target as HTMLInputElement;
+									const value = target?.value;
+									const newDate = new SvelteDate(value);
+									newDate.setUTCHours(hour);
+									onDateChange(newDate);
+									centerDateButton(newDate.getUTCHours(), true);
+								}}
+								class="native-picker"
+							/>
+						</div>
+					</div>
+				{/if}
+			</div>
+			<div>
+				{pad(currentDate.getUTCHours()) + ':' + pad(currentDate.getMinutes())}
+			</div>
 		</div>
 	</div>
 	<div class="flex flex-col {disabled ? 'cursor-not-allowed' : ''}">
@@ -352,12 +408,12 @@
 								: 'cursor-pointer'}"
 							onclick={() => {
 								let newDate = new SvelteDate($time);
-								newDate.setHours(step.getHours());
+								newDate.setUTCHours(step.getUTCHours());
 								onDateChange(newDate);
-								centerDateButton(step.getHours(), true);
+								centerDateButton(step.getUTCHours(), true);
 							}}
 						>
-							{pad(step.getHours())}
+							{pad(step.getUTCHours())}
 						</button>
 					{/each}
 				</div>
