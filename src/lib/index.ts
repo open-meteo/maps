@@ -406,9 +406,8 @@ export const addOmFileLayers = () => {
 	omRasterSource = map.getSource('omRasterSource');
 	if (omRasterSource) {
 		omRasterSource.on('error', (e) => {
-			checked = 0;
+			if (checkSourceLoadedInterval) clearInterval(checkSourceLoadedInterval);
 			loading.set(false);
-			clearInterval(checkSourceLoadedInterval);
 			toast.error(e.error.message);
 		});
 	}

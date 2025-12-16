@@ -186,31 +186,32 @@
 					onDateChange(currentDate);
 				}
 				if ($selectedDomain.value.startsWith('dwd_icon')) {
-					updateUrl();
+					updateUrl('time', fmtISOWithoutTimezone($time));
 				}
 			});
 
 			hoursContainerParent.addEventListener('mousedown', (e) => {
+				if (!hoursContainerParent) return;
 				isDown = true;
 				startX = e.pageX - hoursContainerParent.offsetLeft;
 				startY = e.pageY - hoursContainerParent.offsetTop;
 				scrollLeft = hoursContainerParent.scrollLeft;
 				scrollTop = hoursContainerParent.scrollTop;
-				hoursContainer.style.cursor = 'grabbing';
+				if (hoursContainer) hoursContainer.style.cursor = 'grabbing';
 			});
 
 			hoursContainerParent.addEventListener('mouseleave', () => {
 				isDown = false;
-				hoursContainer.style.cursor = 'grab';
+				if (hoursContainer) hoursContainer.style.cursor = 'grab';
 			});
 
 			hoursContainerParent.addEventListener('mouseup', () => {
 				isDown = false;
-				hoursContainer.style.cursor = 'grab';
+				if (hoursContainer) hoursContainer.style.cursor = 'grab';
 			});
 
 			hoursContainerParent.addEventListener('mousemove', (e) => {
-				if (!isDown) return;
+				if (!isDown || !hoursContainerParent) return;
 				e.preventDefault();
 				const x = e.pageX - hoursContainerParent.offsetLeft;
 				const y = e.pageY - hoursContainerParent.offsetTop;
