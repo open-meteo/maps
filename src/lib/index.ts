@@ -406,9 +406,8 @@ export const addOmFileLayers = () => {
 	omRasterSource = map.getSource('omRasterSource');
 	if (omRasterSource) {
 		omRasterSource.on('error', (e) => {
-			checked = 0;
 			loading.set(false);
-			clearInterval(checkSourceLoadedInterval);
+			clearInterval(checkRasterSourceLoadedInterval);
 			toast.error(e.error.message);
 		});
 	}
@@ -434,12 +433,12 @@ export const addOmFileLayers = () => {
 let omVectorSource: maplibregl.VectorTileSource | undefined;
 export const addVectorLayer = () => {
 	if (!map) return;
-	if (!map.getSource('omVectorSource')) {
-		map.addSource('omVectorSource', {
+	if (!map.getSource('omVectorSource' + String(vectorRequests))) {
+		map.addSource('omVectorSource' + String(vectorRequests), {
 			url: 'om://' + omUrl,
 			type: 'vector'
 		});
-		omVectorSource = map.getSource('omVectorSource');
+		omVectorSource = map.getSource('omVectorSource' + String(vectorRequests));
 		if (omVectorSource) {
 			omVectorSource.on('error', (e) => {
 				toast.error(e.error.message);
@@ -447,12 +446,12 @@ export const addVectorLayer = () => {
 		}
 	}
 
-	if (!map.getLayer('omVectorContourLayer')) {
+	if (!map.getLayer('omVectorContourLayer' + String(vectorRequests))) {
 		map.addLayer(
 			{
-				id: 'omVectorContourLayer',
+				id: 'omVectorContourLayer' + String(vectorRequests),
 				type: 'line',
-				source: 'omVectorSource',
+				source: 'omVectorSource' + String(vectorRequests),
 				'source-layer': 'contours',
 				paint: {
 					'line-color': [
@@ -494,12 +493,12 @@ export const addVectorLayer = () => {
 		);
 	}
 
-	if (!map.getLayer('omVectorArrowLayer')) {
+	if (!map.getLayer('omVectorArrowLayer' + String(vectorRequests))) {
 		map.addLayer(
 			{
-				id: 'omVectorArrowLayer',
+				id: 'omVectorArrowLayer' + String(vectorRequests),
 				type: 'line',
-				source: 'omVectorSource',
+				source: 'omVectorSource' + String(vectorRequests),
 				'source-layer': 'wind-arrows',
 				paint: {
 					'line-color': [
@@ -560,12 +559,12 @@ export const addVectorLayer = () => {
 		);
 	}
 
-	if (!map.getLayer('omVectorGridLayer')) {
+	if (!map.getLayer('omVectorGridLayer' + String(vectorRequests))) {
 		map.addLayer(
 			{
-				id: 'omVectorGridLayer',
+				id: 'omVectorGridLayer' + String(vectorRequests),
 				type: 'circle',
-				source: 'omVectorSource',
+				source: 'omVectorSource' + String(vectorRequests),
 				'source-layer': 'grid',
 				paint: {
 					'circle-radius': [
@@ -586,12 +585,12 @@ export const addVectorLayer = () => {
 		);
 	}
 
-	if (!map.getLayer('omVectorContourLayerLabels')) {
+	if (!map.getLayer('omVectorContourLayerLabels' + String(vectorRequests))) {
 		map.addLayer(
 			{
-				id: 'omVectorContourLayerLabels',
+				id: 'omVectorContourLayerLabels' + String(vectorRequests),
 				type: 'symbol',
-				source: 'omVectorSource',
+				source: 'omVectorSource' + String(vectorRequests),
 				'source-layer': 'contours',
 				layout: {
 					'symbol-placement': 'line-center',
@@ -610,26 +609,22 @@ export const addVectorLayer = () => {
 	}
 };
 
-export const removeVectorLayer = () => {
+export const removeVectorLayers = (requestNumber = vectorRequests) => {
 	if (!map) return;
 
-	if (!vectorOptions.grid) {
-		if (map.getLayer('omVectorGridLayer')) {
-			map.removeLayer('omVectorGridLayer');
-		}
+	if (map.getLayer('omVectorGridLayer' + String(requestNumber))) {
+		map.removeLayer('omVectorGridLayer' + String(requestNumber));
 	}
-	if (!vectorOptions.arrows) {
-		if (map.getLayer('omVectorArrowLayer')) {
-			map.removeLayer('omVectorArrowLayer');
-		}
+
+	if (map.getLayer('omVectorArrowLayer' + String(requestNumber))) {
+		map.removeLayer('omVectorArrowLayer' + String(requestNumber));
 	}
-	if (!vectorOptions.contours) {
-		if (map.getLayer('omVectorContourLayerLabels')) {
-			map.removeLayer('omVectorContourLayerLabels');
-		}
-		if (map.getLayer('omVectorContourLayer')) {
-			map.removeLayer('omVectorContourLayer');
-		}
+
+	if (map.getLayer('omVectorContourLayerLabels' + String(requestNumber))) {
+		map.removeLayer('omVectorContourLayerLabels' + String(requestNumber));
+	}
+	if (map.getLayer('omVectorContourLayer' + String(requestNumber))) {
+		map.removeLayer('omVectorContourLayer' + String(requestNumber));
 	}
 };
 
@@ -645,30 +640,46 @@ export const globeHandler = () => {
 	updateUrl('globe', String(preferences.globe), String(defaultPreferences.globe));
 };
 
-let checked = 0;
-let checkSourceLoadedInterval: ReturnType<typeof setInterval>;
+let checkRasterSourceLoadedInterval: ReturnType<typeof setInterval>;
+const checkRasterLoaded = () => {
+	if (checkRasterSourceLoadedInterval) clearInterval(checkRasterSourceLoadedInterval);
+	let checked = 0;
+	checkRasterSourceLoadedInterval = setInterval(() => {
+		checked++;
+		if (omRasterSource && omRasterSource.loaded()) {
+			if (checked >= 200) {
+				// Timeout after 10s
+				toast.error('Request timed out');
+			}
+			checked = 0;
+			loading.set(false);
+			clearInterval(checkRasterSourceLoadedInterval);
+		}
+	}, 50);
+};
+
+let checkVectorSourceLoadedInterval: ReturnType<typeof setInterval>;
+const checkVectorLoaded = (requestNumber: number) => {
+	if (checkVectorSourceLoadedInterval) clearInterval(checkVectorSourceLoadedInterval);
+	checkVectorSourceLoadedInterval = setInterval(() => {
+		if (omVectorSource && omVectorSource.loaded()) {
+			console.log('loaded new vector source');
+			setTimeout(() => removeVectorLayers(requestNumber - 1), 50);
+			clearInterval(checkVectorSourceLoadedInterval);
+		}
+	}, 50);
+};
+
+let vectorRequests = 0;
 export const changeOMfileURL = (resetBounds = true, vectorOnly = false, rasterOnly = false) => {
 	if (!map || !omRasterSource) return;
-
-	// needs more testing
-	// if (map.style.tileManagers.omRasterSource) {
-	// 	const tileManager = map.style.tileManagers.omRasterSource;
-	// 	if (tileManager._tiles) {
-	// 		for (const tileId in tileManager._tiles) {
-	// 			const tile = tileManager._tiles[tileId];
-	// 			tile.unloadVectorData();
-	// 		}
-	// 		tileManager._tiles = {};
-	// 	}
-	// 	tileManager._cache.reset();
-	// 	// tileManager.update(map.transform);
-	// 	// map.triggerRepaint();
-	// }
-
 	loading.set(true);
+
 	if (popup) {
 		popup.remove();
 	}
+
+	// bounds & partial
 	mB.set(map.getBounds());
 	if (resetBounds) {
 		pB.set(map.getBounds());
@@ -678,26 +689,17 @@ export const changeOMfileURL = (resetBounds = true, vectorOnly = false, rasterOn
 	checkClosestModelRun();
 
 	omUrl = getOMUrl();
+
 	if (!vectorOnly) {
 		omRasterSource.setUrl('om://' + omUrl);
+		checkRasterLoaded();
 	}
-
 	if (!rasterOnly && omVectorSource) {
-		omVectorSource.setUrl('om://' + omUrl);
+		vectorRequests++;
+		addVectorLayer();
+		// omVectorSource.setUrl('om://' + omUrl);
+		checkVectorLoaded(vectorRequests);
 	}
-
-	checkSourceLoadedInterval = setInterval(() => {
-		checked++;
-		if ((omRasterSource && omRasterSource.loaded()) || checked >= 200) {
-			if (checked >= 200) {
-				// Timeout after 10s
-				toast.error('Request timed out');
-			}
-			checked = 0;
-			loading.set(false);
-			clearInterval(checkSourceLoadedInterval);
-		}
-	}, 50);
 };
 
 export const getStyle = async () => {
