@@ -441,6 +441,7 @@ export const addVectorLayer = () => {
 		omVectorSource = map.getSource('omVectorSource' + String(vectorRequests));
 		if (omVectorSource) {
 			omVectorSource.on('error', (e) => {
+				clearInterval(checkVectorSourceLoadedInterval);
 				toast.error(e.error.message);
 			});
 		}
@@ -663,9 +664,8 @@ const checkVectorLoaded = (requestNumber: number) => {
 	if (checkVectorSourceLoadedInterval) clearInterval(checkVectorSourceLoadedInterval);
 	checkVectorSourceLoadedInterval = setInterval(() => {
 		if (omVectorSource && omVectorSource.loaded()) {
-			console.log('loaded new vector source');
-			setTimeout(() => removeVectorLayers(requestNumber - 1), 50);
 			clearInterval(checkVectorSourceLoadedInterval);
+			setTimeout(() => removeVectorLayers(requestNumber - 1), 20);
 		}
 	}, 50);
 };
@@ -697,7 +697,6 @@ export const changeOMfileURL = (resetBounds = true, vectorOnly = false, rasterOn
 	if (!rasterOnly && omVectorSource) {
 		vectorRequests++;
 		addVectorLayer();
-		// omVectorSource.setUrl('om://' + omUrl);
 		checkVectorLoaded(vectorRequests);
 	}
 };
