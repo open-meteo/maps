@@ -172,8 +172,10 @@ body {
 	z-index: 0;
 }
 
-.time-selector-open .maplibregl-ctrl-bottom-right {
-	bottom: 120px;
+@media (max-width: 768px) {
+	.time-selector-open .maplibregl-ctrl-bottom-right {
+		bottom: 75px;
+	}
 }
 
 .dark .maplibregl-ctrl.maplibregl-ctrl-group {
