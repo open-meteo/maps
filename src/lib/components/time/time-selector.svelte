@@ -106,9 +106,25 @@
 
 	const amountOfDays = $derived(daysBetween(firstTime, lastTime));
 
+	const timeStepsLength = $derived($metaJson?.valid_times.length);
+
 	const timeSteps = $derived.by(() =>
 		$metaJson?.valid_times.map((validTime) => new Date(validTime))
 	);
+
+	const daySteps = $derived.by(() => {
+		const days = [];
+		for (let day of Array.from({ length: 1 + amountOfDays }, (_, i) => i)) {
+			const date = new SvelteDate(firstTime);
+			date.setUTCHours(0);
+			date.setUTCMinutes(0);
+			date.setUTCSeconds(0);
+			date.setUTCMilliseconds(0);
+			date.setDate(date.getDate() + day);
+			days.push(date);
+		}
+		return days;
+	});
 
 	const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -117,6 +133,8 @@
 
 	let movingToNextHour = $state(false);
 	let movingToNextHourTimeout: ReturnType<typeof setTimeout> | undefined = $state(undefined);
+
+	let timeInterval = 1; // FIX LATER
 
 	const onScrollEvent = (e: Event) => {
 		if (!movingToNextHour) {
@@ -239,19 +257,17 @@
 		</div>
 	</div>
 	<div class="flex gap-2">
-		{#each dayNames as dayName, i (i)}
-			<div>{dayName}</div>
-			{#each timeSteps as step, i (i)}
-				{@const day = step.getDay()}
-				{#if dayNames[day] === dayName}
+		{#each daySteps as dayStep, i (i)}
+			<div>{dayNames[dayStep.getDay()]}</div>
+			{#each timeSteps as timeStep, i (i)}
+				{#if timeStep.getTime() >= dayStep.getTime() && timeStep.getTime() < dayStep.getTime() + millisecondsPerDay}
 					<button
-						class="cursor-pointer"
+						class="cursor-pointer {timeStep.getTime() === $time.getTime() ? 'font-bold' : ''}"
 						onclick={() => {
-							let newDate = new SvelteDate($time);
-							newDate.setUTCHours(step.getUTCHours());
+							let newDate = new SvelteDate(timeStep);
 							onDateChange(newDate);
-							centerDateButton(step.getUTCHours(), true);
-						}}>{step.getUTCHours()}</button
+							centerDateButton(newDate.getUTCHours(), true);
+						}}>{timeStep.getUTCHours()}</button
 					>
 				{/if}
 			{/each}
