@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 	import { SvelteDate } from 'svelte/reactivity';
-	import { get } from 'svelte/store';
+	import { fade } from 'svelte/transition';
 
 	import { domainStep, pad } from '@openmeteo/mapbox-layer';
 	import { mode } from 'mode-watcher';
@@ -224,6 +224,7 @@
 			});
 		}
 	});
+
 	const centerDateButton = (hour: number, smooth = false) => {
 		if (hoursContainer && hoursContainerParent) {
 			if (smooth) {
@@ -240,132 +241,180 @@
 		}
 	};
 
-	let dateString = $derived($time.toISOString().slice(0, 16));
+	// for datefield
+	// let dateString = $derived($time.toISOString().slice(0, 16));
+	//
+	let percentage = $state(0);
+	let hoursHoverContainer: HTMLElement | undefined = $state();
+	let hoursHoverContainerWidth = $derived(hoursHoverContainer?.getBoundingClientRect().width);
+	let hoveredHour = $derived(timeSteps[Math.floor(timeSteps.length * percentage)]);
+
+	onMount(() => {
+		if (hoursHoverContainer) {
+			hoursHoverContainer.addEventListener('mousemove', (e) => {
+				percentage = e.layerX / hoursHoverContainerWidth;
+				console.log(e);
+			});
+			hoursHoverContainer.addEventListener('mouseout', (e) => {
+				percentage = 0;
+			});
+			hoursHoverContainer.addEventListener('click', () => {
+				onDateChange(timeSteps[Math.floor(timeSteps.length * percentage)]);
+			});
+			console.log(hoursHoverContainer);
+		}
+	});
 </script>
 
 <div
-	style="background-color: {dark
-		? 'rgba(15, 15, 15, 0.8)'
-		: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
-	class="time-selector absolute h-[60px] min-w-full md:min-w-[unset] md:max-w-[75vw] px-4 overflow-x-scroll left-1/2 rounded-t-2xl -translate-x-1/2 py-4 {$preferences.timeSelector
-		? 'opacity-100 bottom-0'
-		: 'pointer-events-none opacity-0 bottom-[-120px]'}"
+	class="absolute bottom-0 min-w-full md:min-w-[unset] md:max-w-[75vw] -translate-x-1/2 left-1/2"
 >
-	<div class="tooltip absolute -top-7">
-		<div>
-			{pad(currentDate.getUTCHours()) + ':' + pad(currentDate.getMinutes())}
+	<div
+		class="relative duration-500 {$preferences.timeSelector
+			? 'opacity-100 bottom-0'
+			: 'pointer-events-none opacity-0 bottom-[-120px]'}"
+	>
+		<div
+			style="background-color: {dark ? 'rgba(15, 15, 15, 0.8)' : 'rgba(240, 240, 240, 0.85)'};"
+			class="tooltip absolute rounded-t-2xl bottom-[60px] px-4 py-1 -translate-x-1/2 left-1/2"
+		>
+			<div class="text-2xl font-bold">
+				{pad(currentDate.getUTCHours()) + ':' + pad(currentDate.getMinutes())}
+			</div>
 		</div>
-	</div>
-	<div class="flex gap-2">
-		{#each daySteps as dayStep, i (i)}
-			<div>{dayNames[dayStep.getDay()]}</div>
-			{#each timeSteps as timeStep, i (i)}
-				{#if timeStep.getTime() >= dayStep.getTime() && timeStep.getTime() < dayStep.getTime() + millisecondsPerDay}
-					<button
-						class="cursor-pointer {timeStep.getTime() === $time.getTime() ? 'font-bold' : ''}"
-						onclick={() => {
-							let newDate = new SvelteDate(timeStep);
-							onDateChange(newDate);
-							centerDateButton(newDate.getUTCHours(), true);
-						}}>{timeStep.getUTCHours()}</button
-					>
-				{/if}
-			{/each}
-			<div>|</div>
-		{/each}
-	</div>
-	<!-- <div class="font-bold absolute -top-[40px] left-1/2 h-[40px] text-2xl -translate-x-1/2">
+		<div bind:this={hoursHoverContainer} class="absolute w-full h-[20px] z-10 cursor-pointer">
+			{#if percentage}
+				<div
+					transition:fade
+					style="left: calc({percentage * 100}% - 33px); background-color: {dark
+						? 'rgba(15, 15, 15, 0.95)'
+						: 'rgba(240, 240, 240, 0.95)'}"
+					class="absolute -top-[40px] p-1 w-[66px] text-center rounded"
+				>
+					{pad(hoveredHour.getUTCHours())}:{pad(hoveredHour.getUTCMinutes())}
+				</div>
+			{/if}
+		</div>
 		<div
 			style="background-color: {dark
 				? 'rgba(15, 15, 15, 0.8)'
 				: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
-			class="px-4 rounded-t-xl h-[40.1px] flex items-center justify-center gap-2 min-w-[105px]"
+			class="time-selector h-[60px] px-4 overflow-x-scroll rounded-t-2xl py-4"
 		>
-			<div class="datetime-picker">
-				<button
-					class="flex items center cursor-pointer"
-					aria-label="Date Picker Button"
-					onclick={() => (dateTimePickerOpen = !dateTimePickerOpen)}
-				>
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						width="24"
-						height="24"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						class="lucide lucide-calendar1-icon lucide-calendar-1"
-						><path d="M11 14h1v4" /><path d="M16 2v4" /><path d="M3 10h18" /><path
-							d="M8 2v4"
-						/><rect x="3" y="4" width="18" height="18" rx="2" /></svg
-					>
-				</button>
-
-				{#if dateTimePickerOpen}
-					<div
-						class="picker-overlay absolute -top-[65px] flex p-2 rounded -left-[65px]"
-						style="background-color: {dark
-							? 'rgba(15, 15, 15, 0.8)'
-							: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
-					>
-						<div class="picker-panel">
-							<input
-								type="datetime-local"
-								bind:value={dateString}
-								onchange={(e) => {
-									const hour = $time.getUTCHours();
-									const target = e.target as HTMLInputElement;
-									const value = target?.value;
-									const newDate = new SvelteDate(value);
-									newDate.setUTCHours(hour);
-									onDateChange(newDate);
-									centerDateButton(newDate.getUTCHours(), true);
-								}}
-								class="native-picker"
-							/>
-						</div>
+			<div class="flex gap-2">
+				{#each daySteps as dayStep, i (i)}
+					<div class="flex gap-1">
+						<div class="absolute bottom-0">{dayNames[dayStep.getDay()]}</div>
+						{#each timeSteps as timeStep, i (i)}
+							{#if i % 3 === 0 && timeStep.getTime() >= dayStep.getTime() && timeStep.getTime() < dayStep.getTime() + millisecondsPerDay}
+								<button
+									class="cursor-pointer {timeStep.getTime() === $time.getTime() ? 'font-bold' : ''}"
+									onclick={() => {
+										let newDate = new SvelteDate(timeStep);
+										onDateChange(newDate);
+										centerDateButton(newDate.getUTCHours(), true);
+									}}>{pad(timeStep.getUTCHours())}</button
+								>
+							{/if}
+						{/each}
+						|
 					</div>
-				{/if}
+				{/each}
 			</div>
-			<div>
-				{pad(currentDate.getUTCHours()) + ':' + pad(currentDate.getMinutes())}
-			</div>
-		</div>
-	</div> -->
-	<!-- <div class="flex flex-col">
-		<div
-			style="box-shadow: inset -50w 0 10px -50w red, inset 50w 0 10px -50vw red;"
-			bind:this={hoursContainerParent}
-			class="relative overflow-x-scroll mt-2 w-[100vw]"
-		>
-			<div class="flex cursor-grab flex-row w-[calc(200vw-64px)] pb-2">
-				<div class="w-[calc(50vw-16px)]"></div>
-				<div
-					bind:this={hoursContainer}
-					class="w-[calc(100vw-32px)] flex flex-row items-center justify-between"
-				>
-					{#each timeSteps as step (step)}
-						<button
-							class="bg-blue-500 p-1 text-white min-w-12 flex justify-center rounded {isDown
-								? 'cursor-grabbing'
-								: 'cursor-pointer'}"
-							onclick={() => {
-								let newDate = new SvelteDate($time);
-								newDate.setUTCHours(step.getUTCHours());
-								onDateChange(newDate);
-								centerDateButton(step.getUTCHours(), true);
-							}}
+			<!-- <div class="font-bold absolute -top-[40px] left-1/2 h-[40px] text-2xl -translate-x-1/2">
+			<div
+				style="background-color: {dark
+					? 'rgba(15, 15, 15, 0.8)'
+					: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
+				class="px-4 rounded-t-xl h-[40.1px] flex items-center justify-center gap-2 min-w-[105px]"
+			>
+				<div class="datetime-picker">
+					<button
+						class="flex items center cursor-pointer"
+						aria-label="Date Picker Button"
+						onclick={() => (dateTimePickerOpen = !dateTimePickerOpen)}
+					>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							width="24"
+							height="24"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							class="lucide lucide-calendar1-icon lucide-calendar-1"
+							><path d="M11 14h1v4" /><path d="M16 2v4" /><path d="M3 10h18" /><path
+								d="M8 2v4"
+							/><rect x="3" y="4" width="18" height="18" rx="2" /></svg
 						>
-							{pad(step.getUTCHours())}
-						</button>
-					{/each}
-				</div>
+					</button>
 
-				<div class="w-[50vw-16px]"></div>
+					{#if dateTimePickerOpen}
+						<div
+							class="picker-overlay absolute -top-[65px] flex p-2 rounded -left-[65px]"
+							style="background-color: {dark
+								? 'rgba(15, 15, 15, 0.8)'
+								: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
+						>
+							<div class="picker-panel">
+								<input
+									type="datetime-local"
+									bind:value={dateString}
+									onchange={(e) => {
+										const hour = $time.getUTCHours();
+										const target = e.target as HTMLInputElement;
+										const value = target?.value;
+										const newDate = new SvelteDate(value);
+										newDate.setUTCHours(hour);
+										onDateChange(newDate);
+										centerDateButton(newDate.getUTCHours(), true);
+									}}
+									class="native-picker"
+								/>
+							</div>
+						</div>
+					{/if}
+				</div>
+				<div>
+					{pad(currentDate.getUTCHours()) + ':' + pad(currentDate.getMinutes())}
+				</div>
 			</div>
+		</div> -->
+			<!-- <div class="flex flex-col">
+			<div
+				style="box-shadow: inset -50w 0 10px -50w red, inset 50w 0 10px -50vw red;"
+				bind:this={hoursContainerParent}
+				class="relative overflow-x-scroll mt-2 w-[100vw]"
+			>
+				<div class="flex cursor-grab flex-row w-[calc(200vw-64px)] pb-2">
+					<div class="w-[calc(50vw-16px)]"></div>
+					<div
+						bind:this={hoursContainer}
+						class="w-[calc(100vw-32px)] flex flex-row items-center justify-between"
+					>
+						{#each timeSteps as step (step)}
+							<button
+								class="bg-blue-500 p-1 text-white min-w-12 flex justify-center rounded {isDown
+									? 'cursor-grabbing'
+									: 'cursor-pointer'}"
+								onclick={() => {
+									let newDate = new SvelteDate($time);
+									newDate.setUTCHours(step.getUTCHours());
+									onDateChange(newDate);
+									centerDateButton(step.getUTCHours(), true);
+								}}
+							>
+								{pad(step.getUTCHours())}
+							</button>
+						{/each}
+					</div>
+
+					<div class="w-[50vw-16px]"></div>
+				</div>
+			</div>
+		</div> -->
 		</div>
-	</div> -->
+	</div>
 </div>
