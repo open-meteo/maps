@@ -253,7 +253,6 @@
 		if (hoursHoverContainer) {
 			hoursHoverContainer.addEventListener('mousemove', (e) => {
 				percentage = e.layerX / hoursHoverContainerWidth;
-				console.log(e);
 			});
 			hoursHoverContainer.addEventListener('mouseout', (e) => {
 				percentage = 0;
@@ -261,7 +260,6 @@
 			hoursHoverContainer.addEventListener('click', () => {
 				onDateChange(timeSteps[Math.floor(timeSteps.length * percentage)]);
 			});
-			console.log(hoursHoverContainer);
 		}
 	});
 </script>
@@ -285,7 +283,7 @@
 		<div bind:this={hoursHoverContainer} class="absolute w-full h-[20px] z-10 cursor-pointer">
 			{#if percentage}
 				<div
-					transition:fade
+					transition:fade={{ duration: 200 }}
 					style="left: calc({percentage * 100}% - 33px); background-color: {dark
 						? 'rgba(15, 15, 15, 0.95)'
 						: 'rgba(240, 240, 240, 0.95)'}"
@@ -303,10 +301,13 @@
 		>
 			<div class="flex gap-2">
 				{#each daySteps as dayStep, i (i)}
-					<div class="flex gap-1">
-						<div class="absolute bottom-0">{dayNames[dayStep.getDay()]}</div>
+					<div class="relative flex gap-1">
+						<div class="absolute -bottom-5 -translate-x-1/2 left-1/2">
+							{dayNames[dayStep.getDay()]}
+							{pad(dayStep.getDate())}-{pad(dayStep.getMonth() + 1)}
+						</div>
 						{#each timeSteps as timeStep, i (i)}
-							{#if i % 3 === 0 && timeStep.getTime() >= dayStep.getTime() && timeStep.getTime() < dayStep.getTime() + millisecondsPerDay}
+							{#if timeStep.getTime() >= dayStep.getTime() && timeStep.getTime() < dayStep.getTime() + millisecondsPerDay}
 								<button
 									class="cursor-pointer {timeStep.getTime() === $time.getTime() ? 'font-bold' : ''}"
 									onclick={() => {
@@ -317,8 +318,8 @@
 								>
 							{/if}
 						{/each}
-						|
 					</div>
+					|
 				{/each}
 			</div>
 			<!-- <div class="font-bold absolute -top-[40px] left-1/2 h-[40px] text-2xl -translate-x-1/2">
