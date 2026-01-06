@@ -394,6 +394,8 @@ export const checkHighDefinition = () => {
 let omRasterSource: maplibregl.RasterTileSource | undefined;
 export const addOmFileLayers = () => {
 	if (!map) return;
+	// when (re)-adding the om-file layers, we need to reset the vectorRequests to fix set the opacity correctly on the first request
+	vectorRequests = 0;
 
 	omUrl = getOMUrl();
 	map.addSource('omRasterSource', {
