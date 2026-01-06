@@ -419,6 +419,8 @@ export const addOmFileLayers = () => {
 			type: 'raster',
 			source: 'omRasterSource',
 			paint: {
+				// currently not working in maplibre-gl-js: https://github.com/maplibre/maplibre-gl-js/issues/5038
+				'raster-fade-duration': 300,
 				'raster-opacity': mode.current === 'dark' ? (opacityValue - 10) / 100 : opacityValue / 100
 			}
 		},
@@ -455,6 +457,8 @@ export const addVectorLayer = () => {
 				source: 'omVectorSource' + String(vectorRequests),
 				'source-layer': 'contours',
 				paint: {
+					'line-opacity': vectorRequests === 0 ? 1 : 0,
+					'line-opacity-transition': { duration: 150, delay: 0 },
 					'line-color': [
 						'case',
 						['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
@@ -502,6 +506,8 @@ export const addVectorLayer = () => {
 				source: 'omVectorSource' + String(vectorRequests),
 				'source-layer': 'wind-arrows',
 				paint: {
+					'line-opacity': vectorRequests === 0 ? 1 : 0,
+					'line-opacity-transition': { duration: 150, delay: 0 },
 					'line-color': [
 						'case',
 						['boolean', ['>', ['to-number', ['get', 'value']], 9], false],
@@ -568,6 +574,8 @@ export const addVectorLayer = () => {
 				source: 'omVectorSource' + String(vectorRequests),
 				'source-layer': 'grid',
 				paint: {
+					'circle-opacity': vectorRequests === 0 ? 1 : 0,
+					'circle-opacity-transition': { duration: 150, delay: 0 },
 					'circle-radius': [
 						'interpolate',
 						['exponential', 1.5],
@@ -602,6 +610,8 @@ export const addVectorLayer = () => {
 					'text-offset': [0, -0.6]
 				},
 				paint: {
+					'text-opacity': vectorRequests === 0 ? 1 : 0,
+					'text-opacity-transition': { duration: 150, delay: 0 },
 					'text-color': mode.current === 'dark' ? 'rgba(255,255,255, 0.8)' : 'rgba(0,0,0, 0.7)'
 				}
 			},
@@ -665,7 +675,10 @@ const checkVectorLoaded = (requestNumber: number) => {
 	checkVectorSourceLoadedInterval = setInterval(() => {
 		if (omVectorSource && omVectorSource.loaded()) {
 			clearInterval(checkVectorSourceLoadedInterval);
-			setTimeout(() => removeVectorLayers(requestNumber - 1), 20);
+			fadeVectorLayers(0, requestNumber - 1);
+			fadeVectorLayers(1, requestNumber);
+
+			setTimeout(() => removeVectorLayers(requestNumber - 1), 300);
 		}
 	}, 50);
 };
@@ -698,6 +711,23 @@ export const changeOMfileURL = (resetBounds = true, vectorOnly = false, rasterOn
 		vectorRequests++;
 		addVectorLayer();
 		checkVectorLoaded(vectorRequests);
+	}
+};
+
+const fadeVectorLayers = (opacity: number, requests: number) => {
+	if (!map) return;
+
+	if (map.getLayer('omVectorContourLayer' + String(requests))) {
+		map.setPaintProperty('omVectorContourLayer' + String(requests), 'line-opacity', opacity);
+	}
+	if (map.getLayer('omVectorArrowLayer' + String(requests))) {
+		map.setPaintProperty('omVectorArrowLayer' + String(requests), 'line-opacity', opacity);
+	}
+	if (map.getLayer('omVectorGridLayer' + String(requests))) {
+		map.setPaintProperty('omVectorGridLayer' + String(requests), 'circle-opacity', opacity);
+	}
+	if (map.getLayer('omVectorContourLayerLabels' + String(requests))) {
+		map.setPaintProperty('omVectorContourLayerLabels' + String(requests), 'text-opacity', opacity);
 	}
 };
 
