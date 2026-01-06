@@ -620,22 +620,25 @@ export const addVectorLayer = () => {
 	}
 };
 
-export const removeVectorLayers = (requestNumber = vectorRequests) => {
+export const removeOldVectorLayers = () => {
 	if (!map) return;
 
-	if (map.getLayer('omVectorGridLayer' + String(requestNumber))) {
-		map.removeLayer('omVectorGridLayer' + String(requestNumber));
-	}
+	const layersOrder = map.getLayersOrder();
+	for (const layer of layersOrder) {
+		if (layer.startsWith('omVectorGridLayer') && !layer.endsWith(String(vectorRequests))) {
+			map.removeLayer(layer);
+		}
 
-	if (map.getLayer('omVectorArrowLayer' + String(requestNumber))) {
-		map.removeLayer('omVectorArrowLayer' + String(requestNumber));
-	}
+		if (layer.startsWith('omVectorArrowLayer') && !layer.endsWith(String(vectorRequests))) {
+			map.removeLayer(layer);
+		}
 
-	if (map.getLayer('omVectorContourLayerLabels' + String(requestNumber))) {
-		map.removeLayer('omVectorContourLayerLabels' + String(requestNumber));
-	}
-	if (map.getLayer('omVectorContourLayer' + String(requestNumber))) {
-		map.removeLayer('omVectorContourLayer' + String(requestNumber));
+		if (layer.startsWith('omVectorContourLayerLabels') && !layer.endsWith(String(vectorRequests))) {
+			map.removeLayer(layer);
+		}
+		if (layer.startsWith('omVectorContourLayer') && !layer.endsWith(String(vectorRequests))) {
+			map.removeLayer(layer);
+		}
 	}
 };
 
@@ -678,7 +681,7 @@ const checkVectorLoaded = (requestNumber: number) => {
 			fadeVectorLayers(0, requestNumber - 1);
 			fadeVectorLayers(1, requestNumber);
 
-			setTimeout(() => removeVectorLayers(requestNumber - 1), 300);
+			setTimeout(() => removeOldVectorLayers(), 300);
 		}
 	}, 50);
 };
