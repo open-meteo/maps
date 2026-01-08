@@ -19,7 +19,11 @@
 	import { version } from '$app/environment';
 
 	import { map, mapBounds, paddedBounds } from '$lib/stores/map';
-	import { defaultColorHash, omProtocolSettings } from '$lib/stores/om-protocol-settings';
+	import {
+		abortController,
+		defaultColorHash,
+		omProtocolSettings
+	} from '$lib/stores/om-protocol-settings';
 	import {
 		loading,
 		localStorageVersion,
@@ -104,7 +108,7 @@
 		);
 
 		maplibregl.addProtocol('om', (params: RequestParameters) =>
-			omProtocol(params, undefined, omProtocolSettings)
+			omProtocol(params, get(abortController), omProtocolSettings)
 		);
 
 		const style = await getStyle();
@@ -123,6 +127,15 @@
 			keyboard: false,
 			hash: true,
 			maxPitch: 85
+		});
+
+		// Abort tiles when map moves (useful for slow connections)
+		$map.on('movestart', () => {
+			// Cancel any ongoing tile requests
+			if ($abortController) {
+				$abortController.abort();
+			}
+			$abortController = new AbortController();
 		});
 
 		setMapControlSettings();

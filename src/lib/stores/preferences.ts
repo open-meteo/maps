@@ -22,7 +22,7 @@ import {
 } from './variables';
 import { defaultVectorOptions, vectorOptions } from './vector';
 
-import type { DomainMetaData } from '@openmeteo/mapbox-layer';
+import type { DomainMetaDataJson } from '@openmeteo/mapbox-layer';
 
 export const defaultPreferences = {
 	globe: false,
@@ -95,7 +95,7 @@ export const resetStates = () => {
 	setMode('system');
 };
 
-export const metaJson: Writable<DomainMetaData | undefined> = writable(undefined);
+export const metaJson: Writable<DomainMetaDataJson | undefined> = writable(undefined);
 
 // used to check against url search parameters
 export const completeDefaultValues: { [key: string]: boolean | string | number } = {

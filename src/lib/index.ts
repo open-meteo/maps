@@ -28,7 +28,7 @@ import {
 	paddedBoundsGeoJSON,
 	paddedBoundsLayer
 } from '$lib/stores/map';
-import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
+import { abortController, omProtocolSettings } from '$lib/stores/om-protocol-settings';
 import {
 	completeDefaultValues,
 	defaultPreferences,
@@ -45,7 +45,7 @@ import {
 import { domain as d, selectedDomain, variable as v } from '$lib/stores/variables';
 import { vectorOptions as vO } from '$lib/stores/vector';
 
-import type { Domain, DomainMetaData } from '@openmeteo/mapbox-layer';
+import type { Domain, DomainMetaDataJson } from '@openmeteo/mapbox-layer';
 
 let url = get(u);
 u.subscribe((newUrl) => {
@@ -679,10 +679,18 @@ export const changeOMfileURL = (resetBounds = true, vectorOnly = false, rasterOn
 
 	omUrl = getOMUrl();
 	if (!vectorOnly) {
+		if (!omRasterSource.loaded()) {
+			get(abortController).abort();
+			abortController.set(new AbortController());
+		}
 		omRasterSource.setUrl('om://' + omUrl);
 	}
 
 	if (!rasterOnly && omVectorSource) {
+		if (!omVectorSource.loaded()) {
+			get(abortController).abort();
+			abortController.set(new AbortController());
+		}
 		omVectorSource.setUrl('om://' + omUrl);
 	}
 
@@ -969,7 +977,7 @@ export const getOMUrl = () => {
 export const getNextOmUrls = (
 	omUrl: string,
 	domain: Domain,
-	metaJson: DomainMetaData | undefined
+	metaJson: DomainMetaDataJson | undefined
 ) => {
 	let nextUrl, prevUrl;
 
@@ -1038,7 +1046,7 @@ export const updateUrl = async (
 	}
 };
 
-export const getMetaData = async (inProgress = false): Promise<DomainMetaData> => {
+export const getMetaData = async (inProgress = false): Promise<DomainMetaDataJson> => {
 	const domain = get(selectedDomain);
 	const uri =
 		domain && domain.value.startsWith('dwd_icon')
