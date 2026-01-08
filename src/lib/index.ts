@@ -45,7 +45,7 @@ import {
 import { domain as d, selectedDomain, variable as v } from '$lib/stores/variables';
 import { vectorOptions as vO } from '$lib/stores/vector';
 
-import type { Domain, DomainMetaData } from '@openmeteo/mapbox-layer';
+import type { Domain, DomainMetaDataJson } from '@openmeteo/mapbox-layer';
 
 let url = get(u);
 u.subscribe((newUrl) => {
@@ -1007,7 +1007,7 @@ export const getOMUrl = () => {
 export const getNextOmUrls = (
 	omUrl: string,
 	domain: Domain,
-	metaJson: DomainMetaData | undefined
+	metaJson: DomainMetaDataJson | undefined
 ) => {
 	let nextUrl, prevUrl;
 
@@ -1076,7 +1076,7 @@ export const updateUrl = async (
 	}
 };
 
-export const getMetaData = async (inProgress = false): Promise<DomainMetaData> => {
+export const getMetaData = async (inProgress = false): Promise<DomainMetaDataJson> => {
 	const domain = get(selectedDomain);
 	const uri =
 		domain && domain.value.startsWith('dwd_icon')
