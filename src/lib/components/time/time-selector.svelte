@@ -19,6 +19,8 @@
 
 	import { changeOMfileURL, fmtISOWithoutTimezone, throttle, updateUrl } from '$lib';
 
+	import Button from '../ui/button/button.svelte';
+
 	import type { ModelDt } from '@openmeteo/mapbox-layer';
 
 	let disabled = $derived($loading);
@@ -245,9 +247,14 @@
 	// let dateString = $derived($time.toISOString().slice(0, 16));
 	//
 	let percentage = $state(0);
+
 	let hoursHoverContainer: HTMLElement | undefined = $state();
 	let hoursHoverContainerWidth = $derived(hoursHoverContainer?.getBoundingClientRect().width);
-	let hoveredHour = $derived(timeSteps[Math.floor(timeSteps.length * percentage)]);
+	let hoveredHour = $derived(timeSteps ? timeSteps[Math.floor(timeSteps.length * percentage)] : 0);
+	let currentTimeStep = $derived(timeSteps.find((tS) => tS.getTime() === $time.getTime()) ?? 0);
+	let currentPercentage = $derived(
+		currentTimeStep ? timeSteps.indexOf(currentTimeStep) / (timeSteps.length - 1) : 0
+	);
 
 	onMount(() => {
 		if (hoursHoverContainer) {
@@ -258,6 +265,7 @@
 				percentage = 0;
 			});
 			hoursHoverContainer.addEventListener('click', () => {
+				console.log(currentPercentage);
 				onDateChange(timeSteps[Math.floor(timeSteps.length * percentage)]);
 			});
 		}
@@ -276,50 +284,72 @@
 			style="background-color: {dark ? 'rgba(15, 15, 15, 0.8)' : 'rgba(240, 240, 240, 0.85)'};"
 			class="tooltip absolute rounded-t-2xl bottom-[60px] px-4 py-1 -translate-x-1/2 left-1/2"
 		>
-			<div class="text-2xl font-bold">
-				{pad(currentDate.getUTCHours()) + ':' + pad(currentDate.getMinutes())}
+			<div class="text-2xl font-bold flex flex-col items-center">
+				<div class="-mt-1">
+					{pad(currentDate.getUTCHours()) + ':' + pad(currentDate.getUTCMinutes())}
+				</div>
+				<div class="text-lg -my-2">
+					{pad(currentDate.getUTCDate())}-{pad(currentDate.getUTCMonth() + 1)}
+				</div>
 			</div>
 		</div>
-		<div bind:this={hoursHoverContainer} class="absolute w-full h-[20px] z-10 cursor-pointer">
-			{#if percentage}
-				<div
-					transition:fade={{ duration: 200 }}
-					style="left: calc({percentage * 100}% - 33px); background-color: {dark
-						? 'rgba(15, 15, 15, 0.95)'
-						: 'rgba(240, 240, 240, 0.95)'}"
-					class="absolute -top-[40px] p-1 w-[66px] text-center rounded"
-				>
-					{pad(hoveredHour.getUTCHours())}:{pad(hoveredHour.getUTCMinutes())}
-				</div>
-			{/if}
-		</div>
+
 		<div
 			style="background-color: {dark
 				? 'rgba(15, 15, 15, 0.8)'
 				: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
-			class="time-selector h-[60px] px-4 overflow-x-scroll rounded-t-2xl py-4"
+			class="time-selector relative h-[60px] px-4 overflow-x-scroll rounded-t-2xl py-4"
 		>
+			<div
+				bind:this={hoursHoverContainer}
+				class="absolute top-0 w-full h-[20px] z-10 cursor-pointer"
+			>
+				{#if percentage}
+					<div
+						transition:fade={{ duration: 200 }}
+						style="left: calc({percentage * 100}% - 33px); background-color: {dark
+							? 'rgba(15, 15, 15, 0.95)'
+							: 'rgba(240, 240, 240, 0.95)'}"
+						class="absolute -top-[40px] p-1 w-[66px] text-center rounded"
+					>
+						{pad(hoveredHour.getUTCHours())}:{pad(hoveredHour.getUTCMinutes())}
+					</div>
+				{/if}
+				{#if currentPercentage}
+					<div
+						style="left: {currentPercentage * 100}%;"
+						class="absolute border-red-800 border border-r-2 top-0 h-3"
+					></div>
+				{/if}
+			</div>
 			<div class="flex gap-2">
 				{#each daySteps as dayStep, i (i)}
-					<div class="relative flex gap-1">
-						<div class="absolute -bottom-5 -translate-x-1/2 left-1/2">
+					<div class="relative flex gap-1 min-w-[150px]">
+						<div
+							class="absolute flex -bottom-5 -translate-x-1/2 left-1/2 items-center justify-center text-center"
+						>
 							{dayNames[dayStep.getDay()]}
-							{pad(dayStep.getDate())}-{pad(dayStep.getMonth() + 1)}
+							{pad(dayStep.getUTCDate())}-{pad(dayStep.getUTCMonth() + 1)}
 						</div>
 						{#each timeSteps as timeStep, i (i)}
 							{#if timeStep.getTime() >= dayStep.getTime() && timeStep.getTime() < dayStep.getTime() + millisecondsPerDay}
-								<button
-									class="cursor-pointer {timeStep.getTime() === $time.getTime() ? 'font-bold' : ''}"
+								<!-- <Button
+									class="p-0 m-0 border-none !h-[unset] hover:bg-transparent bg-transparent text-foreground cursor-pointer {timeStep.getTime() ===
+									$time.getTime()
+										? 'font-bold'
+										: ''}"
 									onclick={() => {
 										let newDate = new SvelteDate(timeStep);
 										onDateChange(newDate);
 										centerDateButton(newDate.getUTCHours(), true);
-									}}>{pad(timeStep.getUTCHours())}</button
-								>
+									}}>{pad(timeStep.getUTCHours())}</Button
+								> -->
 							{/if}
 						{/each}
 					</div>
-					|
+					{#if i !== daySteps.length - 1}
+						|
+					{/if}
 				{/each}
 			</div>
 			<!-- <div class="font-bold absolute -top-[40px] left-1/2 h-[40px] text-2xl -translate-x-1/2">
