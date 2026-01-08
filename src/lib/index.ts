@@ -458,7 +458,7 @@ export const addVectorLayer = () => {
 				'source-layer': 'wind-arrows',
 				paint: {
 					'line-opacity': vectorRequests === 0 ? 1 : 0,
-					'line-opacity-transition': { duration: 150, delay: 0 },
+					'line-opacity-transition': { duration: 300, delay: 0 },
 					'line-color': [
 						'case',
 						['boolean', ['>', ['to-number', ['get', 'value']], 9], false],
@@ -526,7 +526,7 @@ export const addVectorLayer = () => {
 				'source-layer': 'grid',
 				paint: {
 					'circle-opacity': vectorRequests === 0 ? 1 : 0,
-					'circle-opacity-transition': { duration: 150, delay: 0 },
+					'circle-opacity-transition': { duration: 300, delay: 0 },
 					'circle-radius': [
 						'interpolate',
 						['exponential', 1.5],
@@ -554,7 +554,7 @@ export const addVectorLayer = () => {
 				'source-layer': 'contours',
 				paint: {
 					'line-opacity': vectorRequests === 0 ? 1 : 0,
-					'line-opacity-transition': { duration: 150, delay: 0 },
+					'line-opacity-transition': { duration: 300, delay: 0 },
 					'line-color': [
 						'case',
 						['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
@@ -614,7 +614,7 @@ export const addVectorLayer = () => {
 				},
 				paint: {
 					'text-opacity': vectorRequests === 0 ? 1 : 0,
-					'text-opacity-transition': { duration: 150, delay: 0 },
+					'text-opacity-transition': { duration: 300, delay: 0 },
 					'text-color': mode.current === 'dark' ? 'rgba(255,255,255, 0.8)' : 'rgba(0,0,0, 0.7)'
 				}
 			},
@@ -685,7 +685,7 @@ const checkVectorLoaded = (requestNumber: number) => {
 			fadeVectorLayers(0, requestNumber - 1);
 			fadeVectorLayers(1, requestNumber);
 
-			setTimeout(() => debounce(removeOldVectorLayers, 150), 150);
+			setTimeout(() => removeOldVectorLayers(), 300);
 		}
 	}, 50);
 };
@@ -1115,16 +1115,4 @@ export const matchVariableOrFirst = () => {
 	if (matchedVariable) {
 		v.set(matchedVariable);
 	}
-};
-
-export const debounce = <T extends unknown[]>(callback: (...args: T) => void, delay: number) => {
-	let timeoutTimer: ReturnType<typeof setTimeout>;
-
-	return (...args: T) => {
-		clearTimeout(timeoutTimer);
-
-		timeoutTimer = setTimeout(() => {
-			callback(...args);
-		}, delay);
-	};
 };
