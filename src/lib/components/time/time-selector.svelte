@@ -115,6 +115,7 @@
 				type="button"
 				aria-label="Previous hour"
 				onclick={previousHour}
+				{disabled}
 				><svg
 					xmlns="http://www.w3.org/2000/svg"
 					width="22"
@@ -155,6 +156,7 @@
 					: ' border-foreground/75 text-black  dark:text-white'}"
 				type="button"
 				aria-label="Next hour"
+				{disabled}
 				onclick={nextHour}
 				><svg
 					xmlns="http://www.w3.org/2000/svg"

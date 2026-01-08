@@ -681,11 +681,12 @@ const checkVectorLoaded = (requestNumber: number) => {
 	if (checkVectorSourceLoadedInterval) clearInterval(checkVectorSourceLoadedInterval);
 	checkVectorSourceLoadedInterval = setInterval(() => {
 		if (omVectorSource && omVectorSource.loaded()) {
+			loading.set(false);
 			clearInterval(checkVectorSourceLoadedInterval);
 			fadeVectorLayers(0, requestNumber - 1);
 			fadeVectorLayers(1, requestNumber);
 
-			setTimeout(() => removeOldVectorLayers(), 300);
+			setTimeout(() => removeOldVectorLayers(), 500);
 		}
 	}, 50);
 };
