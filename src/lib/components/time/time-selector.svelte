@@ -19,13 +19,10 @@
 
 	import { changeOMfileURL, fmtISOWithoutTimezone, throttle, updateUrl } from '$lib';
 
-	import Button from '../ui/button/button.svelte';
-
 	import type { ModelDt } from '@openmeteo/mapbox-layer';
 
 	let disabled = $derived($loading);
 	let currentDate = $derived($time);
-	let dateTimePickerOpen = $state(false);
 
 	const resolution: ModelDt = $derived($selectedDomain.time_interval);
 
@@ -108,10 +105,10 @@
 
 	const amountOfDays = $derived(daysBetween(firstTime, lastTime));
 
-	const timeStepsLength = $derived($metaJson?.valid_times.length);
+	// const timeStepsLength = $derived($metaJson?.valid_times.length);
 
 	const timeSteps = $derived.by(() =>
-		$metaJson?.valid_times.map((validTime) => new Date(validTime))
+		$metaJson?.valid_times.map((validTime: string) => new Date(validTime))
 	);
 
 	const daySteps = $derived.by(() => {
@@ -251,7 +248,9 @@
 	let hoursHoverContainer: HTMLElement | undefined = $state();
 	let hoursHoverContainerWidth = $derived(hoursHoverContainer?.getBoundingClientRect().width);
 	let hoveredHour = $derived(timeSteps ? timeSteps[Math.floor(timeSteps.length * percentage)] : 0);
-	let currentTimeStep = $derived(timeSteps.find((tS) => tS.getTime() === $time.getTime()) ?? 0);
+	let currentTimeStep = $derived(
+		timeSteps.find((tS: Date) => tS.getTime() === $time.getTime()) ?? 0
+	);
 	let currentPercentage = $derived(
 		currentTimeStep ? timeSteps.indexOf(currentTimeStep) / (timeSteps.length - 1) : 0
 	);
@@ -259,9 +258,9 @@
 	onMount(() => {
 		if (hoursHoverContainer) {
 			hoursHoverContainer.addEventListener('mousemove', (e) => {
-				percentage = e.layerX / hoursHoverContainerWidth;
+				if (hoursHoverContainerWidth) percentage = e.layerX / hoursHoverContainerWidth;
 			});
-			hoursHoverContainer.addEventListener('mouseout', (e) => {
+			hoursHoverContainer.addEventListener('mouseout', () => {
 				percentage = 0;
 			});
 			hoursHoverContainer.addEventListener('click', () => {
@@ -288,7 +287,7 @@
 				<div class="-mt-1">
 					{pad(currentDate.getUTCHours()) + ':' + pad(currentDate.getUTCMinutes())}
 				</div>
-				<div class="text-lg -my-2">
+				<div class="text-lg -my-2.5">
 					{pad(currentDate.getUTCDate())}-{pad(currentDate.getUTCMonth() + 1)}
 				</div>
 			</div>
