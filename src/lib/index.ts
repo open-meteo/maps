@@ -685,7 +685,7 @@ const checkVectorLoaded = (requestNumber: number) => {
 			fadeVectorLayers(0, requestNumber - 1);
 			fadeVectorLayers(1, requestNumber);
 
-			setTimeout(() => debounce(removeOldVectorLayers, 300));
+			setTimeout(() => debounce(removeOldVectorLayers, 150), 150);
 		}
 	}, 50);
 };
@@ -1069,7 +1069,7 @@ export const updateUrl = async (
 	}
 
 	await tick();
-	if (map && map._hash) {
+	if (map && map._hash && map.getCenter()) {
 		pushState(url + map._hash.getHashString(), {});
 	} else {
 		pushState(url, {});
