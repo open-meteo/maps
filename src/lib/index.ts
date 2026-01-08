@@ -421,8 +421,6 @@ export const addOmFileLayers = () => {
 			type: 'raster',
 			source: 'omRasterSource',
 			paint: {
-				// currently not working in maplibre-gl-js: https://github.com/maplibre/maplibre-gl-js/issues/5038
-				'raster-fade-duration': 300,
 				'raster-opacity': mode.current === 'dark' ? (opacityValue - 10) / 100 : opacityValue / 100
 			}
 		},
@@ -451,56 +449,7 @@ export const addVectorLayer = () => {
 		}
 	}
 
-	if (!map.getLayer('omVectorContourLayer' + String(vectorRequests))) {
-		map.addLayer(
-			{
-				id: 'omVectorContourLayer' + String(vectorRequests),
-				type: 'line',
-				source: 'omVectorSource' + String(vectorRequests),
-				'source-layer': 'contours',
-				paint: {
-					'line-opacity': vectorRequests === 0 ? 1 : 0,
-					'line-opacity-transition': { duration: 150, delay: 0 },
-					'line-color': [
-						'case',
-						['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
-						mode.current === 'dark' ? 'rgba(255,255,255, 0.8)' : 'rgba(0,0,0, 0.6)',
-						[
-							'case',
-							['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
-							mode.current === 'dark' ? 'rgba(255,255,255, 0.7)' : 'rgba(0,0,0, 0.5)',
-
-							[
-								'case',
-								['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
-								mode.current === 'dark' ? 'rgba(255,255,255, 0.6)' : 'rgba(0,0,0, 0.4)',
-								mode.current === 'dark' ? 'rgba(255,255,255, 0.5)' : 'rgba(0,0,0, 0.3)'
-							]
-						]
-					],
-					'line-width': [
-						'case',
-						['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
-						3,
-						[
-							'case',
-							['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
-							2.5,
-							[
-								'case',
-								['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
-								2,
-								1
-							]
-						]
-					]
-				}
-			},
-			preferences.clipWater ? beforeLayerVectorWaterClip : beforeLayerVector
-		);
-	}
-
-	if (!map.getLayer('omVectorArrowLayer' + String(vectorRequests))) {
+	if (vectorOptions.arrows && !map.getLayer('omVectorArrowLayer' + String(vectorRequests))) {
 		map.addLayer(
 			{
 				id: 'omVectorArrowLayer' + String(vectorRequests),
@@ -568,7 +517,7 @@ export const addVectorLayer = () => {
 		);
 	}
 
-	if (!map.getLayer('omVectorGridLayer' + String(vectorRequests))) {
+	if (vectorOptions.grid && !map.getLayer('omVectorGridLayer' + String(vectorRequests))) {
 		map.addLayer(
 			{
 				id: 'omVectorGridLayer' + String(vectorRequests),
@@ -596,7 +545,59 @@ export const addVectorLayer = () => {
 		);
 	}
 
-	if (!map.getLayer('omVectorContourLayerLabels' + String(vectorRequests))) {
+	if (vectorOptions.contours && !map.getLayer('omVectorContourLayer' + String(vectorRequests))) {
+		map.addLayer(
+			{
+				id: 'omVectorContourLayer' + String(vectorRequests),
+				type: 'line',
+				source: 'omVectorSource' + String(vectorRequests),
+				'source-layer': 'contours',
+				paint: {
+					'line-opacity': vectorRequests === 0 ? 1 : 0,
+					'line-opacity-transition': { duration: 150, delay: 0 },
+					'line-color': [
+						'case',
+						['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
+						mode.current === 'dark' ? 'rgba(255,255,255, 0.8)' : 'rgba(0,0,0, 0.6)',
+						[
+							'case',
+							['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
+							mode.current === 'dark' ? 'rgba(255,255,255, 0.7)' : 'rgba(0,0,0, 0.5)',
+
+							[
+								'case',
+								['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
+								mode.current === 'dark' ? 'rgba(255,255,255, 0.6)' : 'rgba(0,0,0, 0.4)',
+								mode.current === 'dark' ? 'rgba(255,255,255, 0.5)' : 'rgba(0,0,0, 0.3)'
+							]
+						]
+					],
+					'line-width': [
+						'case',
+						['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
+						3,
+						[
+							'case',
+							['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
+							2.5,
+							[
+								'case',
+								['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
+								2,
+								1
+							]
+						]
+					]
+				}
+			},
+			preferences.clipWater ? beforeLayerVectorWaterClip : beforeLayerVector
+		);
+	}
+
+	if (
+		vectorOptions.contours &&
+		!map.getLayer('omVectorContourLayerLabels' + String(vectorRequests))
+	) {
 		map.addLayer(
 			{
 				id: 'omVectorContourLayerLabels' + String(vectorRequests),
@@ -636,7 +637,8 @@ export const removeOldVectorLayers = () => {
 		}
 
 		if (layer.startsWith('omVectorContourLayerLabels') && !layer.endsWith(String(vectorRequests))) {
-			map.removeLayer(layer);
+			console.log(layer);
+			if (map.getLayer(layer)) map.removeLayer(layer);
 		}
 		if (layer.startsWith('omVectorContourLayer') && !layer.endsWith(String(vectorRequests))) {
 			map.removeLayer(layer);
@@ -683,7 +685,7 @@ const checkVectorLoaded = (requestNumber: number) => {
 			fadeVectorLayers(0, requestNumber - 1);
 			fadeVectorLayers(1, requestNumber);
 
-			setTimeout(() => removeOldVectorLayers(), 300);
+			setTimeout(() => debounce(removeOldVectorLayers, 300));
 		}
 	}, 50);
 };
@@ -719,20 +721,20 @@ export const changeOMfileURL = (resetBounds = true, vectorOnly = false, rasterOn
 	}
 };
 
-const fadeVectorLayers = (opacity: number, requests: number) => {
+const fadeVectorLayers = (opacity: number, request: number) => {
 	if (!map) return;
 
-	if (map.getLayer('omVectorContourLayer' + String(requests))) {
-		map.setPaintProperty('omVectorContourLayer' + String(requests), 'line-opacity', opacity);
+	if (map.getLayer('omVectorContourLayer' + String(request))) {
+		map.setPaintProperty('omVectorContourLayer' + String(request), 'line-opacity', opacity);
 	}
-	if (map.getLayer('omVectorArrowLayer' + String(requests))) {
-		map.setPaintProperty('omVectorArrowLayer' + String(requests), 'line-opacity', opacity);
+	if (map.getLayer('omVectorArrowLayer' + String(request))) {
+		map.setPaintProperty('omVectorArrowLayer' + String(request), 'line-opacity', opacity);
 	}
-	if (map.getLayer('omVectorGridLayer' + String(requests))) {
-		map.setPaintProperty('omVectorGridLayer' + String(requests), 'circle-opacity', opacity);
+	if (map.getLayer('omVectorGridLayer' + String(request))) {
+		map.setPaintProperty('omVectorGridLayer' + String(request), 'circle-opacity', opacity);
 	}
-	if (map.getLayer('omVectorContourLayerLabels' + String(requests))) {
-		map.setPaintProperty('omVectorContourLayerLabels' + String(requests), 'text-opacity', opacity);
+	if (map.getLayer('omVectorContourLayerLabels' + String(request))) {
+		map.setPaintProperty('omVectorContourLayerLabels' + String(request), 'text-opacity', opacity);
 	}
 };
 
@@ -1113,4 +1115,16 @@ export const matchVariableOrFirst = () => {
 	if (matchedVariable) {
 		v.set(matchedVariable);
 	}
+};
+
+export const debounce = <T extends unknown[]>(callback: (...args: T) => void, delay: number) => {
+	let timeoutTimer: ReturnType<typeof setTimeout>;
+
+	return (...args: T) => {
+		clearTimeout(timeoutTimer);
+
+		timeoutTimer = setTimeout(() => {
+			callback(...args);
+		}, delay);
+	};
 };
