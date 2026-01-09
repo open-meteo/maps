@@ -3,11 +3,9 @@ import { SvelteDate } from 'svelte/reactivity';
 import { get } from 'svelte/store';
 
 import {
-	GridFactory,
 	TIME_SELECTED_REGEX,
 	VARIABLE_PREFIX,
 	closestModelRun,
-	domainOptions,
 	domainStep,
 	getColor,
 	getColorScale,
@@ -20,14 +18,7 @@ import { toast } from 'svelte-sonner';
 import { browser } from '$app/environment';
 import { pushState } from '$app/navigation';
 
-import {
-	map as m,
-	mapBounds as mB,
-	paddedBounds as pB,
-	paddedBoundsSource as pBS,
-	paddedBoundsGeoJSON,
-	paddedBoundsLayer
-} from '$lib/stores/map';
+import { map as m } from '$lib/stores/map';
 import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 import {
 	completeDefaultValues,
@@ -45,7 +36,7 @@ import {
 import { domain as d, selectedDomain, variable as v } from '$lib/stores/variables';
 import { vectorOptions as vO } from '$lib/stores/vector';
 
-import type { Domain, DomainMetaData } from '@openmeteo/mapbox-layer';
+import type { Domain, DomainMetaDataJson } from '@openmeteo/mapbox-layer';
 
 let url = get(u);
 u.subscribe((newUrl) => {
@@ -120,14 +111,6 @@ export const urlParamsToPreferences = () => {
 	} else {
 		if (preferences.globe) {
 			url.searchParams.set('globe', String(preferences.globe));
-		}
-	}
-
-	if (params.get('partial')) {
-		preferences.partial = params.get('partial') === 'true';
-	} else {
-		if (preferences.partial) {
-			url.searchParams.set('partial', String(preferences.partial));
 		}
 	}
 
@@ -647,7 +630,7 @@ export const globeHandler = () => {
 
 let checked = 0;
 let checkSourceLoadedInterval: ReturnType<typeof setInterval>;
-export const changeOMfileURL = (resetBounds = true, vectorOnly = false, rasterOnly = false) => {
+export const changeOMfileURL = (vectorOnly = false, rasterOnly = false) => {
 	if (!map || !omRasterSource) return;
 
 	// needs more testing
@@ -669,11 +652,6 @@ export const changeOMfileURL = (resetBounds = true, vectorOnly = false, rasterOn
 	if (popup) {
 		popup.remove();
 	}
-	mB.set(map.getBounds());
-	if (resetBounds) {
-		pB.set(map.getBounds());
-	}
-	getPaddedBounds();
 
 	checkClosestModelRun();
 
@@ -790,129 +768,6 @@ export const addPopup = () => {
 	});
 };
 
-const padding = 25; //%
-export const checkBounds = () => {
-	if (!map) return;
-
-	const domain = get(d);
-	const domainObject = domainOptions.find(({ value }) => value === domain);
-
-	const geojson = get(paddedBoundsGeoJSON);
-	const paddedBounds = get(pB);
-	const mapBounds = map.getBounds();
-	const paddedBoundsSource = get(pBS);
-
-	mB.set(mapBounds);
-
-	if (domainObject && paddedBounds && preferences.partial) {
-		let exceededPadding = false;
-
-		if (geojson) {
-			// @ts-expect-error stupid conflicting types from geojson
-			geojson.features[0].geometry.coordinates = [
-				[paddedBounds?.getSouthWest()['lng'], paddedBounds?.getSouthWest()['lat']],
-				[paddedBounds?.getNorthWest()['lng'], paddedBounds?.getNorthWest()['lat']],
-				[paddedBounds?.getNorthEast()['lng'], paddedBounds?.getNorthEast()['lat']],
-				[paddedBounds?.getSouthEast()['lng'], paddedBounds?.getSouthEast()['lat']],
-				[paddedBounds?.getSouthWest()['lng'], paddedBounds?.getSouthWest()['lat']]
-			];
-			paddedBoundsSource?.setData(geojson);
-		}
-
-		const gridBounds = GridFactory.create(domainObject.grid).getBounds();
-
-		if (mapBounds.getSouth() < paddedBounds.getSouth() && paddedBounds.getSouth() > gridBounds[1]) {
-			exceededPadding = true;
-		}
-		if (mapBounds.getWest() < paddedBounds.getWest() && paddedBounds.getWest() > gridBounds[0]) {
-			exceededPadding = true;
-		}
-		if (mapBounds.getNorth() > paddedBounds.getNorth() && paddedBounds.getNorth() < gridBounds[3]) {
-			exceededPadding = true;
-		}
-		if (mapBounds.getEast() > paddedBounds.getEast() && paddedBounds.getEast() < gridBounds[2]) {
-			exceededPadding = true;
-		}
-		if (exceededPadding) {
-			changeOMfileURL(false);
-		}
-	}
-};
-
-export const getPaddedBounds = () => {
-	if (!map) return;
-
-	const domain = get(d);
-	const domainObject = domainOptions.find(({ value }) => value === domain);
-
-	const mapBounds = get(mB);
-	const paddedBounds = get(pB);
-	const paddedBoundsSource = get(pBS);
-
-	if (domainObject && mapBounds && preferences.partial) {
-		const gridBounds = GridFactory.create(domainObject.grid).getBounds();
-
-		if (!paddedBoundsSource) {
-			paddedBoundsGeoJSON.set({
-				type: 'FeatureCollection',
-				features: [
-					{
-						type: 'Feature',
-						geometry: {
-							type: 'LineString',
-							// @ts-expect-error stupid conflicting types from geojson
-							properties: {},
-							coordinates: [
-								[gridBounds[0], gridBounds[1]],
-								[gridBounds[0], gridBounds[3]],
-								[gridBounds[2], gridBounds[3]],
-								[gridBounds[2], gridBounds[1]],
-								[gridBounds[0], gridBounds[1]]
-							]
-						}
-					}
-				]
-			});
-
-			map.addSource('paddedBoundsSource', {
-				type: 'geojson',
-				data: get(paddedBoundsGeoJSON) as GeoJSON.GeoJSON
-			});
-			pBS.set(map.getSource('paddedBoundsSource'));
-
-			map.addLayer({
-				id: 'paddedBoundsLayer',
-				type: 'line',
-				source: 'paddedBoundsSource',
-				layout: {
-					'line-join': 'round',
-					'line-cap': 'round'
-				},
-				paint: {
-					'line-color': 'orange',
-					'line-width': 5
-				}
-			});
-			paddedBoundsLayer.set(map.getLayer('paddedBoundsLayer'));
-		}
-
-		const mapBoundsSW = mapBounds.getSouthWest();
-		const mapBoundsNE = mapBounds.getNorthEast();
-		const dLat = mapBoundsNE['lat'] - mapBoundsSW['lat'];
-		const dLon = mapBoundsNE['lng'] - mapBoundsSW['lng'];
-
-		paddedBounds?.setSouthWest([
-			Math.max(Math.max(mapBoundsSW['lng'] - (dLon * padding) / 100, gridBounds[0]), -180),
-			Math.max(Math.max(mapBoundsSW['lat'] - (dLat * padding) / 100, gridBounds[1]), -90)
-		]);
-		paddedBounds?.setNorthEast([
-			Math.min(Math.min(mapBoundsNE['lng'] + (dLon * padding) / 100, gridBounds[2]), 180),
-			Math.min(Math.min(mapBoundsNE['lat'] + (dLat * padding) / 100, gridBounds[3]), 90)
-		]);
-		pB.set(paddedBounds);
-	}
-};
-
 /** e.g. /2025/06/06/1200Z/ */
 const fmtModelRun = (modelRun: Date) => {
 	return `${modelRun.getUTCFullYear()}/${pad(modelRun.getUTCMonth() + 1)}/${pad(modelRun.getUTCDate())}/${pad(modelRun.getUTCHours())}${pad(modelRun.getUTCMinutes())}Z`;
@@ -940,7 +795,6 @@ export const getOMUrl = () => {
 	url += `?variable=${variable}`;
 
 	if (mode.current === 'dark') url += `&dark=true`;
-	if (preferences.partial) url += `&partial=true`;
 	if (vectorOptions.grid) url += `&grid=true`;
 	if (vectorOptions.arrows) url += `&arrows=true`;
 	if (vectorOptions.contours) url += `&contours=true`;
@@ -958,18 +812,13 @@ export const getOMUrl = () => {
 		url += `&resolution_factor=${resolution}`;
 	}
 
-	const paddedBounds = get(pB);
-	if (paddedBounds && preferences.partial) {
-		url += `&bounds=${paddedBounds.getSouth()},${paddedBounds.getWest()},${paddedBounds.getNorth()},${paddedBounds.getEast()}`;
-	}
-
 	return url;
 };
 
 export const getNextOmUrls = (
 	omUrl: string,
 	domain: Domain,
-	metaJson: DomainMetaData | undefined
+	metaJson: DomainMetaDataJson | undefined
 ) => {
 	let nextUrl, prevUrl;
 
@@ -1038,7 +887,7 @@ export const updateUrl = async (
 	}
 };
 
-export const getMetaData = async (inProgress = false): Promise<DomainMetaData> => {
+export const getMetaData = async (inProgress = false): Promise<DomainMetaDataJson> => {
 	const domain = get(selectedDomain);
 	const uri =
 		domain && domain.value.startsWith('dwd_icon')

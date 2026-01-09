@@ -3,13 +3,6 @@ import { type Writable, writable } from 'svelte/store';
 import { setMode } from 'mode-watcher';
 import { type Persisted, persisted } from 'svelte-persisted-store';
 
-import {
-	mapBounds,
-	paddedBounds,
-	paddedBoundsGeoJSON,
-	paddedBoundsLayer,
-	paddedBoundsSource
-} from './map';
 import { customColorScales } from './om-protocol-settings';
 import {
 	defaultDomain,
@@ -22,11 +15,10 @@ import {
 } from './variables';
 import { defaultVectorOptions, vectorOptions } from './vector';
 
-import type { DomainMetaData } from '@openmeteo/mapbox-layer';
+import type { DomainMetaDataJson } from '@openmeteo/mapbox-layer';
 
 export const defaultPreferences = {
 	globe: false,
-	partial: false,
 	terrain: false,
 	hillshade: false,
 	clipWater: false,
@@ -78,12 +70,6 @@ export const resetStates = () => {
 	variableSelectionOpen.set(false);
 	variableSelectionExtended.set(undefined);
 
-	mapBounds.set(null);
-	paddedBounds.set(null);
-	paddedBoundsLayer.set(undefined);
-	paddedBoundsSource.set(undefined);
-	paddedBoundsGeoJSON.set(null);
-
 	tileSize.set(256);
 	resolution.set(1);
 	resolutionSet.set(false);
@@ -95,7 +81,7 @@ export const resetStates = () => {
 	setMode('system');
 };
 
-export const metaJson: Writable<DomainMetaData | undefined> = writable(undefined);
+export const metaJson: Writable<DomainMetaDataJson | undefined> = writable(undefined);
 
 // used to check against url search parameters
 export const completeDefaultValues: { [key: string]: boolean | string | number } = {
