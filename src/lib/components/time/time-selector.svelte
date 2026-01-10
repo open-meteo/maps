@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
+	import { cubicInOut, sineInOut } from 'svelte/easing';
+	import { preventDefault } from 'svelte/legacy';
 	import { SvelteDate } from 'svelte/reactivity';
-	import { fade } from 'svelte/transition';
+	import { fade, slide } from 'svelte/transition';
 
 	import { domainStep, pad } from '@openmeteo/mapbox-layer';
 	import { mode } from 'mode-watcher';
@@ -9,7 +11,7 @@
 
 	import { browser } from '$app/environment';
 
-	import { loading, preferences, time } from '$lib/stores/preferences';
+	import { loading, modelRun, preferences, time } from '$lib/stores/preferences';
 	import { metaJson } from '$lib/stores/preferences';
 	import {
 		domainSelectionOpen,
@@ -18,6 +20,8 @@
 	} from '$lib/stores/variables';
 
 	import { changeOMfileURL, fmtISOWithoutTimezone, throttle, updateUrl } from '$lib';
+
+	import Button from '../ui/button/button.svelte';
 
 	import type { ModelDt } from '@openmeteo/mapbox-layer';
 
@@ -93,22 +97,33 @@
 
 	const dark = $derived(mode.current === 'dark');
 
-	const firstTime = $derived(new Date($metaJson?.valid_times[0] as string));
-	const lastTime = $derived(
+	const firstMetaTime = $derived(new Date($metaJson?.valid_times[0] as string));
+	const lastMetaTime = $derived(
 		new Date($metaJson?.valid_times[$metaJson?.valid_times.length - 1] as string)
 	);
+
+	const olderModelRunDifference = $derived(firstMetaTime.getTime() - $modelRun.getTime());
+	const olderModelRun = $derived(olderModelRunDifference !== 0);
+
+	const firstTime = $derived(olderModelRun ? firstMetaTime : $modelRun);
 
 	const millisecondsPerDay = 24 * 60 * 60 * 1000;
 	const daysBetween = (startDate: Date, endDate: Date) => {
 		return (endDate.getTime() - startDate.getTime()) / millisecondsPerDay;
 	};
 
-	const amountOfDays = $derived(daysBetween(firstTime, lastTime));
+	const amountOfDays = $derived(daysBetween(firstMetaTime, lastMetaTime));
 
 	// const timeStepsLength = $derived($metaJson?.valid_times.length);
 
 	const timeSteps = $derived.by(() =>
-		$metaJson?.valid_times.map((validTime: string) => new Date(validTime))
+		$metaJson?.valid_times.map((validTime: string) => {
+			const timeStep = new Date(validTime);
+			if (olderModelRun) {
+				return new Date(timeStep.getTime() - olderModelRunDifference);
+			}
+			return timeStep;
+		})
 	);
 
 	const daySteps = $derived.by(() => {
@@ -270,6 +285,40 @@
 			});
 		}
 	});
+
+	let modelRunLocked = $state(false);
+	let modelRunSelectionOpen = $state(false);
+
+	let modelInterval = $derived.by(() => {
+		let mI = $selectedDomain.model_interval;
+
+		switch (mI) {
+			case 'hourly':
+				return 1;
+			case '3_hourly':
+				return 3;
+			case '6_hourly':
+				return 6;
+			case '12_hourly':
+				return 12;
+			case 'daily':
+				return 24;
+		}
+		return 1;
+	});
+
+	let previousModelSteps = $derived.by(() => {
+		const previousModels = [];
+		for (let day of Array.from({ length: (7 * 24) / modelInterval }, (_, i) => i)) {
+			const date = new SvelteDate(firstMetaTime);
+			date.setUTCMinutes(0);
+			date.setUTCSeconds(0);
+			date.setUTCMilliseconds(0);
+			date.setUTCHours(date.getUTCHours() - day * modelInterval);
+			previousModels.push(date);
+		}
+		return previousModels;
+	});
 </script>
 
 <div class="absolute bottom-0 min-w-full md:min-w-[unset] md:w-[75vw] -translate-x-1/2 left-1/2">
@@ -280,19 +329,24 @@
 	>
 		<div
 			style="background-color: {dark ? 'rgba(15, 15, 15, 0.8)' : 'rgba(240, 240, 240, 0.85)'};"
-			class="tooltip absolute rounded-t-2xl bottom-[60px] px-4 py-1 -translate-x-1/2 left-1/2"
+			class="tooltip absolute rounded-t-2xl px-4 py-1 -translate-x-1/2 left-1/2 duration-500 {modelRunSelectionOpen
+				? 'bottom-[110px]'
+				: 'bottom-[60px]'}"
 		>
 			<div class="text-2xl font-bold flex flex-col items-center">
-				<div class="-mt-1">
-					{pad(currentDate.getUTCHours()) + ':' + pad(currentDate.getUTCMinutes())}
-				</div>
-				<div class="text-lg -my-2.5">
+				<div class="text-lg -mt-1.5">
 					{pad(currentDate.getUTCDate())}-{pad(currentDate.getUTCMonth() + 1)}
+				</div>
+				<div class="-my-2.25">
+					{pad(currentDate.getUTCHours()) + ':' + pad(currentDate.getUTCMinutes())}
 				</div>
 			</div>
 		</div>
 
-		<div bind:this={hoursHoverContainer} class="absolute top-0 w-full h-[20px] z-10 cursor-pointer">
+		<div
+			bind:this={hoursHoverContainer}
+			class="absolute bottom-[35px] w-full h-[25px] z-10 cursor-pointer"
+		>
 			{#if percentage}
 				<div
 					transition:fade={{ duration: 200 }}
@@ -305,11 +359,111 @@
 				</div>
 			{/if}
 		</div>
+		<button
+			onclick={() => (modelRunSelectionOpen = !modelRunSelectionOpen)}
+			style="background-color: {dark ? 'rgba(15, 15, 15, 0.95)' : 'rgba(240, 240, 240, 0.95)'}"
+			class="{modelRunSelectionOpen
+				? '-top-11'
+				: '-top-5'} cursor-pointer left-0 duration-500 absolute flex rounded-t-xl items-center px-2 gap-1"
+		>
+			<div class="duration-500 {modelRunSelectionOpen ? 'text-lg px-1 py-2' : 'text-sm'}">
+				Model run: <small>{pad($modelRun.getUTCDate())}-{pad($modelRun.getUTCMonth() + 1)}</small>
+				{pad($modelRun.getUTCHours())}:{pad($modelRun.getUTCMinutes())}
+			</div>
+			<div
+				onclick={(e) => {
+					e.preventDefault();
+					e.stopPropagation();
+
+					modelRunLocked = !modelRunLocked;
+				}}
+				aria-label="Model Run Lock"
+			>
+				{#if modelRunLocked}
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="14"
+						height="14"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						class="text-red-800 lucide lucide-lock-icon lucide-lock"
+						><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path
+							d="M7 11V7a5 5 0 0 1 10 0v4"
+						/></svg
+					>
+				{:else}
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="14"
+						height="14"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						class="text-green-800 lucide lucide-lock-open-icon lucide-lock-open"
+						><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path
+							d="M7 11V7a5 5 0 0 1 9.9-1"
+						/></svg
+					>
+				{/if}
+			</div>
+
+			<svg
+				xmlns="http://www.w3.org/2000/svg"
+				width="18"
+				height="18"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				class="lucide lucide-chevron-up-icon lucide-chevron-up duration-500 {modelRunSelectionOpen
+					? 'rotate-180'
+					: ''}"><path d="m18 15-6-6-6 6" /></svg
+			>
+		</button>
+		{#if modelRunSelectionOpen}
+			<div
+				transition:slide={{ duration: 500 }}
+				style="background-color: {dark
+					? 'rgba(15, 15, 15, 0.8)'
+					: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
+				class="h-[50px] border-t relative px-4 gap-1 flex-row-reverse overflow-x-scroll items-center rounded-t-r-2xl flex"
+			>
+				{#each previousModelSteps as previousModelStep, i (i)}
+					<Button
+						onclick={() => {
+							$modelRun = previousModelStep;
+							onDateChange(previousModelStep);
+						}}
+						class="bg-transparent px-1.5 py-0.5  text-foreground  hover:bg-accent cursor-pointer {previousModelStep.getTime() ===
+						firstMetaTime.getTime()
+							? 'border-green-500'
+							: ''} {previousModelStep.getTime() === $modelRun.getTime() ? 'border-2' : ''}"
+						><small
+							>{pad(previousModelStep.getUTCDate())}-{pad(
+								previousModelStep.getUTCMonth() + 1
+							)}</small
+						>
+						{pad(previousModelStep.getUTCHours())}:{pad(previousModelStep.getUTCMinutes())}</Button
+					>
+				{/each}
+			</div>
+		{/if}
 		<div
 			style="background-color: {dark
 				? 'rgba(15, 15, 15, 0.8)'
 				: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
-			class="time-selector relative h-[60px] px-4 overflow-x-scroll rounded-t-2xl py-4"
+			class="time-selector {modelRunSelectionOpen
+				? 'border-t'
+				: ''} relative h-[60px] px-4 overflow-x-scroll rounded-t-r-2xl py-4"
 		>
 			<div class="absolute top-0 w-full h-[20px] z-10 cursor-pointer">
 				<!-- {#if percentage}
@@ -326,18 +480,19 @@
 				{#if currentPercentage}
 					<div
 						style="left: {currentPercentage * 100}%;"
-						class="absolute border-red-800 border border-r-2 top-0 h-3"
+						class="absolute border-red-800 dark:border-red-500 border border-r-2 top-0 h-3"
 					></div>
 				{/if}
 			</div>
+
 			<div class="flex gap-2">
 				{#each daySteps as dayStep, i (i)}
 					<div class="relative flex gap-1 min-w-[150px]">
 						<div
-							class="absolute flex -bottom-5 -translate-x-1/2 left-1/2 items-center justify-center text-center"
+							class="absolute flex -bottom-4 -translate-x-1/2 left-1/2 items-center justify-center text-center flex-col"
 						>
-							{dayNames[dayStep.getDay()]}
-							{pad(dayStep.getUTCDate())}-{pad(dayStep.getUTCMonth() + 1)}
+							<div class="-mb-2">{dayNames[dayStep.getDay()]}</div>
+							<small>{pad(dayStep.getUTCDate())}-{pad(dayStep.getUTCMonth() + 1)}</small>
 						</div>
 						{#each timeSteps as timeStep, i (i)}
 							{#if timeStep.getTime() >= dayStep.getTime() && timeStep.getTime() < dayStep.getTime() + millisecondsPerDay}
