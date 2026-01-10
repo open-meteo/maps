@@ -249,10 +249,10 @@
 	let hoursHoverContainerWidth = $derived(hoursHoverContainer?.getBoundingClientRect().width);
 	let hoveredHour = $derived(timeSteps ? timeSteps[Math.floor(timeSteps.length * percentage)] : 0);
 	let currentTimeStep = $derived(
-		timeSteps.find((tS: Date) => tS.getTime() === $time.getTime()) ?? 0
+		timeSteps ? timeSteps.find((tS: Date) => tS.getTime() === $time.getTime()) : new Date()
 	);
 	let currentPercentage = $derived(
-		currentTimeStep ? timeSteps.indexOf(currentTimeStep) / (timeSteps.length - 1) : 0
+		currentTimeStep && timeSteps ? timeSteps.indexOf(currentTimeStep) / (timeSteps.length - 1) : 0
 	);
 
 	onMount(() => {

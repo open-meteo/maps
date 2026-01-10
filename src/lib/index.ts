@@ -1130,3 +1130,32 @@ export const matchVariableOrFirst = () => {
 		v.set(matchedVariable);
 	}
 };
+
+export const throttle = <T extends unknown[]>(callback: (...args: T) => void, delay: number) => {
+	let waiting = false;
+
+	return (...args: T) => {
+		if (waiting) {
+			return;
+		}
+
+		callback(...args);
+		waiting = true;
+
+		setTimeout(() => {
+			waiting = false;
+		}, delay);
+	};
+};
+
+export const debounce = <T extends unknown[]>(callback: (...args: T) => void, delay: number) => {
+	let timeoutTimer: ReturnType<typeof setTimeout>;
+
+	return (...args: T) => {
+		clearTimeout(timeoutTimer);
+
+		timeoutTimer = setTimeout(() => {
+			callback(...args);
+		}, delay);
+	};
+};
