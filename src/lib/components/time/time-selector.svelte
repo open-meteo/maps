@@ -321,17 +321,19 @@
 	});
 </script>
 
-<div class="absolute bottom-0 min-w-full md:min-w-[unset] md:w-[75vw] -translate-x-1/2 left-1/2">
+<div
+	class="absolute bottom-0 min-w-full md:min-w-[unset] md:max-w-[75vw] -translate-x-1/2 left-1/2"
+>
 	<div
-		class="relative duration-500 {$preferences.timeSelector
+		class="relative duration-500 {disabled ? 'text-foreground/50' : ''} {$preferences.timeSelector
 			? 'opacity-100 bottom-0'
-			: 'pointer-events-none opacity-0 bottom-[-120px]'}"
+			: 'pointer-events-none opacity-0 bottom-[-90px]'}"
 	>
 		<div
 			style="background-color: {dark ? 'rgba(15, 15, 15, 0.8)' : 'rgba(240, 240, 240, 0.85)'};"
 			class="tooltip absolute rounded-t-2xl px-4 py-1 -translate-x-1/2 left-1/2 duration-500 {modelRunSelectionOpen
-				? 'bottom-[110px]'
-				: 'bottom-[60px]'}"
+				? 'bottom-[90px]'
+				: 'bottom-[50px]'}"
 		>
 			<div class="text-2xl font-bold flex flex-col items-center">
 				<div class="text-lg -mt-1.5">
@@ -345,7 +347,7 @@
 
 		<div
 			bind:this={hoursHoverContainer}
-			class="absolute bottom-[35px] w-full h-[25px] z-10 cursor-pointer"
+			class="absolute bottom-[25px] w-full h-[25px] z-10 cursor-pointer"
 		>
 			{#if percentage}
 				<div
@@ -353,9 +355,17 @@
 					style="left: calc({percentage * 100}% - 33px); background-color: {dark
 						? 'rgba(15, 15, 15, 0.95)'
 						: 'rgba(240, 240, 240, 0.95)'}"
-					class="absolute -top-[40px] p-1 w-[66px] text-center rounded"
+					class="absolute -top-[38px] p-1 w-[66px] text-center rounded"
 				>
-					{pad(hoveredHour.getUTCHours())}:{pad(hoveredHour.getUTCMinutes())}
+					<div class="relative">
+						{pad(hoveredHour.getUTCHours())}:{pad(hoveredHour.getUTCMinutes())}
+						<div
+							style="background-color: {dark
+								? 'rgba(15, 15, 15, 0.95)'
+								: 'rgba(240, 240, 240, 0.95)'}"
+							class="-z-10 absolute -bottom-2 w-3 h-3 bg-white rotate-45 -translate-x-1/2 left-1/2"
+						></div>
+					</div>
 				</div>
 			{/if}
 		</div>
@@ -374,7 +384,6 @@
 				onclick={(e) => {
 					e.preventDefault();
 					e.stopPropagation();
-
 					modelRunLocked = !modelRunLocked;
 				}}
 				aria-label="Model Run Lock"
@@ -382,8 +391,8 @@
 				{#if modelRunLocked}
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
-						width="14"
-						height="14"
+						width="13"
+						height="13"
 						viewBox="0 0 24 24"
 						fill="none"
 						stroke="currentColor"
@@ -398,8 +407,8 @@
 				{:else}
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
-						width="14"
-						height="14"
+						width="13"
+						height="13"
 						viewBox="0 0 24 24"
 						fill="none"
 						stroke="currentColor"
@@ -435,24 +444,26 @@
 				style="background-color: {dark
 					? 'rgba(15, 15, 15, 0.8)'
 					: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
-				class="h-[50px] border-t relative px-4 gap-1 flex-row-reverse overflow-x-scroll items-center rounded-t-r-2xl flex"
+				class="h-[40px] border-t relative px-4 gap-1 flex-row-reverse overflow-x-scroll items-center rounded-t-r-2xl flex"
 			>
 				{#each previousModelSteps as previousModelStep, i (i)}
-					<Button
+					<button
 						onclick={() => {
 							$modelRun = previousModelStep;
 							onDateChange(previousModelStep);
 						}}
-						class="bg-transparent px-1.5 py-0.5  text-foreground  hover:bg-accent cursor-pointer {previousModelStep.getTime() ===
+						class="px-1.5 py-0.5 border-2 flex items-center rounded gap-1 hover:bg-accent cursor-pointer {previousModelStep.getTime() ===
 						firstMetaTime.getTime()
-							? 'border-green-500'
-							: ''} {previousModelStep.getTime() === $modelRun.getTime() ? 'border-2' : ''}"
+							? 'border-green-600'
+							: ''} {previousModelStep.getTime() === $modelRun.getTime()
+							? ''
+							: 'border-transparent'}"
 						><small
 							>{pad(previousModelStep.getUTCDate())}-{pad(
 								previousModelStep.getUTCMonth() + 1
 							)}</small
 						>
-						{pad(previousModelStep.getUTCHours())}:{pad(previousModelStep.getUTCMinutes())}</Button
+						{pad(previousModelStep.getUTCHours())}:{pad(previousModelStep.getUTCMinutes())}</button
 					>
 				{/each}
 			</div>
@@ -463,7 +474,7 @@
 				: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
 			class="time-selector {modelRunSelectionOpen
 				? 'border-t'
-				: ''} relative h-[60px] px-4 overflow-x-scroll rounded-t-r-2xl py-4"
+				: ''} relative h-[50px] px-4 overflow-x-scroll rounded-t-r-2xl py-4"
 		>
 			<div class="absolute top-0 w-full h-[20px] z-10 cursor-pointer">
 				<!-- {#if percentage}
@@ -489,10 +500,12 @@
 				{#each daySteps as dayStep, i (i)}
 					<div class="relative flex gap-1 min-w-[150px]">
 						<div
-							class="absolute flex -bottom-4 -translate-x-1/2 left-1/2 items-center justify-center text-center flex-col"
+							class="absolute flex -bottom-2 -translate-x-1/2 left-1/2 items-center justify-center text-center flex-col"
 						>
-							<div class="-mb-2">{dayNames[dayStep.getDay()]}</div>
-							<small>{pad(dayStep.getUTCDate())}-{pad(dayStep.getUTCMonth() + 1)}</small>
+							<div class="">{dayNames[dayStep.getDay()]}</div>
+							<small class="-mt-1.5"
+								>{pad(dayStep.getUTCDate())}-{pad(dayStep.getUTCMonth() + 1)}</small
+							>
 						</div>
 						{#each timeSteps as timeStep, i (i)}
 							{#if timeStep.getTime() >= dayStep.getTime() && timeStep.getTime() < dayStep.getTime() + millisecondsPerDay}
