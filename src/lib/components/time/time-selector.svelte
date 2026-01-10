@@ -247,7 +247,9 @@
 
 	let hoursHoverContainer: HTMLElement | undefined = $state();
 	let hoursHoverContainerWidth = $derived(hoursHoverContainer?.getBoundingClientRect().width);
-	let hoveredHour = $derived(timeSteps ? timeSteps[Math.floor(timeSteps.length * percentage)] : 0);
+	let hoveredHour = $derived(
+		timeSteps ? timeSteps[Math.floor(timeSteps.length * percentage)] : new Date()
+	);
 	let currentTimeStep = $derived(
 		timeSteps ? timeSteps.find((tS: Date) => tS.getTime() === $time.getTime()) : new Date()
 	);
@@ -264,16 +266,13 @@
 				percentage = 0;
 			});
 			hoursHoverContainer.addEventListener('click', () => {
-				console.log(currentPercentage);
-				onDateChange(timeSteps[Math.floor(timeSteps.length * percentage)]);
+				if (timeSteps) onDateChange(timeSteps[Math.floor(timeSteps.length * percentage)]);
 			});
 		}
 	});
 </script>
 
-<div
-	class="absolute bottom-0 min-w-full md:min-w-[unset] md:max-w-[75vw] -translate-x-1/2 left-1/2"
->
+<div class="absolute bottom-0 min-w-full md:min-w-[unset] md:w-[75vw] -translate-x-1/2 left-1/2">
 	<div
 		class="relative duration-500 {$preferences.timeSelector
 			? 'opacity-100 bottom-0'
@@ -293,17 +292,27 @@
 			</div>
 		</div>
 
+		<div bind:this={hoursHoverContainer} class="absolute top-0 w-full h-[20px] z-10 cursor-pointer">
+			{#if percentage}
+				<div
+					transition:fade={{ duration: 200 }}
+					style="left: calc({percentage * 100}% - 33px); background-color: {dark
+						? 'rgba(15, 15, 15, 0.95)'
+						: 'rgba(240, 240, 240, 0.95)'}"
+					class="absolute -top-[40px] p-1 w-[66px] text-center rounded"
+				>
+					{pad(hoveredHour.getUTCHours())}:{pad(hoveredHour.getUTCMinutes())}
+				</div>
+			{/if}
+		</div>
 		<div
 			style="background-color: {dark
 				? 'rgba(15, 15, 15, 0.8)'
 				: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
 			class="time-selector relative h-[60px] px-4 overflow-x-scroll rounded-t-2xl py-4"
 		>
-			<div
-				bind:this={hoursHoverContainer}
-				class="absolute top-0 w-full h-[20px] z-10 cursor-pointer"
-			>
-				{#if percentage}
+			<div class="absolute top-0 w-full h-[20px] z-10 cursor-pointer">
+				<!-- {#if percentage}
 					<div
 						transition:fade={{ duration: 200 }}
 						style="left: calc({percentage * 100}% - 33px); background-color: {dark
@@ -313,7 +322,7 @@
 					>
 						{pad(hoveredHour.getUTCHours())}:{pad(hoveredHour.getUTCMinutes())}
 					</div>
-				{/if}
+				{/if} -->
 				{#if currentPercentage}
 					<div
 						style="left: {currentPercentage * 100}%;"
