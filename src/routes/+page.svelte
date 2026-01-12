@@ -140,9 +140,6 @@
 			$map.addControl(new TimeButton());
 			$map.addControl(new HelpButton());
 
-			await getInitialMetaData();
-
-			// $latest = await getMetaData();
 			$metaJson = $latest;
 
 			addOmFileLayers();
@@ -165,16 +162,11 @@
 		await tick(); // await the selectedDomain to be set
 		updateUrl('domain', newDomain);
 
-		checkClosestDomainInterval();
-		// align model run with new model_interval on domain change
-		$modelRun = closestModelRun($modelRun, $selectedDomain.model_interval);
-		checkClosestModelRun(); // checks and updates time and model run to fit the current domain selection
-
+		$modelRun = undefined;
+		await getInitialMetaData();
 		$metaJson = await getMetaData();
 
-		if ($modelRun.getTime() - $time.getTime() > 0) {
-			$time = domainStep($modelRun, $selectedDomain.time_interval, 'forward');
-		}
+		checkClosestDomainInterval();
 
 		matchVariableOrFirst();
 

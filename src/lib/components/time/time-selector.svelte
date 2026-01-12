@@ -102,11 +102,6 @@
 		new Date($metaJson?.valid_times[$metaJson?.valid_times.length - 1] as string)
 	);
 
-	const olderModelRunDifference = $derived(firstMetaTime.getTime() - $modelRun.getTime());
-	const olderModelRun = $derived(olderModelRunDifference !== 0);
-
-	const firstTime = $derived(olderModelRun ? firstMetaTime : $modelRun);
-
 	const millisecondsPerDay = 24 * 60 * 60 * 1000;
 	const daysBetween = (startDate: Date, endDate: Date) => {
 		return (endDate.getTime() - startDate.getTime()) / millisecondsPerDay;
@@ -117,19 +112,13 @@
 	// const timeStepsLength = $derived($metaJson?.valid_times.length);
 
 	const timeSteps = $derived.by(() =>
-		$metaJson?.valid_times.map((validTime: string) => {
-			const timeStep = new Date(validTime);
-			if (olderModelRun) {
-				return new Date(timeStep.getTime() - olderModelRunDifference);
-			}
-			return timeStep;
-		})
+		$metaJson?.valid_times.map((validTime: string) => new Date(validTime))
 	);
 
 	const daySteps = $derived.by(() => {
 		const days = [];
 		for (let day of Array.from({ length: 1 + amountOfDays }, (_, i) => i)) {
-			const date = new SvelteDate(firstTime);
+			const date = new SvelteDate(firstMetaTime);
 			date.setUTCHours(0);
 			date.setUTCMinutes(0);
 			date.setUTCSeconds(0);
@@ -331,19 +320,6 @@
 			: 'pointer-events-none opacity-0 bottom-[-90px]'}"
 	>
 		<div
-			style="background-color: {dark ? 'rgba(15, 15, 15, 0.8)' : 'rgba(240, 240, 240, 0.85)'};"
-			class="tooltip absolute rounded-t-2xl px-4 py-0.5 -translate-x-1/2 left-1/2 duration-500 {modelRunSelectionOpen
-				? 'bottom-[90px]'
-				: 'bottom-[50px]'}"
-		>
-			<!-- <div class="text-2xl font-bold flex flex-col items-center">
-				<div>
-					{pad(currentDate.getUTCHours()) + ':' + pad(currentDate.getUTCMinutes())}
-				</div>
-			</div> -->
-		</div>
-
-		<div
 			bind:this={hoursHoverContainer}
 			class="absolute bottom-[25px] w-full h-[25px] z-10 cursor-pointer"
 		>
@@ -374,7 +350,7 @@
 				? '-top-11'
 				: '-top-5'} cursor-pointer right-0 duration-500 absolute flex rounded-t-xl items-center px-2 gap-1"
 		>
-			{#if modelRunSelectionOpen}
+			{#if modelRunSelectionOpen && modelRun}
 				<div class="duration-500 {modelRunSelectionOpen ? 'text-lg px-1 py-2' : 'text-sm'}">
 					<small>{pad($modelRun.getUTCDate())}-{pad($modelRun.getUTCMonth() + 1)}</small>
 					{pad($modelRun.getUTCHours())}:{pad($modelRun.getUTCMinutes())}

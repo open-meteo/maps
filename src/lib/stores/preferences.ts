@@ -40,10 +40,10 @@ export const preferences = persisted('preferences', defaultPreferences);
 export const url: Writable<URL> = writable();
 
 const now = new Date();
-now.setHours(now.getHours() + 1, 0, 0, 0);
+now.setUTCHours(now.getUTCHours() + 1, 0, 0, 0);
 
 export const time = writable(new Date(now));
-export const modelRun = writable(new Date());
+export const modelRun: Writable<Date | undefined> = writable(undefined);
 
 export const sheet = writable(false);
 export const loading = writable(false);
