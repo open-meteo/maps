@@ -8,7 +8,8 @@
 		closestModelRun,
 		domainOptions,
 		domainStep,
-		omProtocol
+		omProtocol,
+		updateCurrentBounds
 	} from '@openmeteo/mapbox-layer';
 	import { type RequestParameters } from 'maplibre-gl';
 	import * as maplibregl from 'maplibre-gl';
@@ -18,7 +19,7 @@
 
 	import { version } from '$app/environment';
 
-	import { map, mapBounds, paddedBounds } from '$lib/stores/map';
+	import { map } from '$lib/stores/map';
 	import { defaultColorHash, omProtocolSettings } from '$lib/stores/om-protocol-settings';
 	import {
 		latest,
@@ -54,13 +55,11 @@
 		addOmFileLayers,
 		addPopup,
 		changeOMfileURL,
-		checkBounds,
 		checkClosestDomainInterval,
 		checkClosestModelRun,
 		checkHighDefinition,
 		getInitialMetaData,
 		getMetaData,
-		getPaddedBounds,
 		getStyle,
 		hashValue,
 		matchVariableOrFirst,
@@ -130,11 +129,11 @@
 
 		setMapControlSettings();
 
-		$map.on('load', async () => {
-			mapBounds.set($map.getBounds());
-			paddedBounds.set($map.getBounds());
-			getPaddedBounds();
+		$map.on('dataloading', () => {
+			updateCurrentBounds($map.getBounds());
+		});
 
+		$map.on('load', async () => {
 			$map.addControl(new DarkModeButton());
 			$map.addControl(new SettingsButton());
 			$map.addControl(new TimeButton());
@@ -147,14 +146,6 @@
 			$map.addControl(new HillshadeButton());
 
 			addPopup();
-		});
-
-		$map.on('zoomend', () => {
-			checkBounds();
-		});
-
-		$map.on('dragend', () => {
-			checkBounds();
 		});
 	});
 

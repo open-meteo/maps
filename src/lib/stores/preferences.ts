@@ -3,13 +3,6 @@ import { type Writable, writable } from 'svelte/store';
 import { setMode } from 'mode-watcher';
 import { type Persisted, persisted } from 'svelte-persisted-store';
 
-import {
-	mapBounds,
-	paddedBounds,
-	paddedBoundsGeoJSON,
-	paddedBoundsLayer,
-	paddedBoundsSource
-} from './map';
 import { customColorScales } from './om-protocol-settings';
 import {
 	defaultDomain,
@@ -26,7 +19,6 @@ import type { DomainMetaDataJson } from '@openmeteo/mapbox-layer';
 
 export const defaultPreferences = {
 	globe: false,
-	partial: false,
 	terrain: false,
 	hillshade: false,
 	clipWater: false,
@@ -84,12 +76,6 @@ export const resetStates = () => {
 	domainSelectionOpen.set(false);
 	variableSelectionOpen.set(false);
 	variableSelectionExtended.set(undefined);
-
-	mapBounds.set(null);
-	paddedBounds.set(null);
-	paddedBoundsLayer.set(undefined);
-	paddedBoundsSource.set(undefined);
-	paddedBoundsGeoJSON.set(null);
 
 	tileSize.set(256);
 	resolution.set(1);
