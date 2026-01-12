@@ -32,6 +32,8 @@ import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 import {
 	completeDefaultValues,
 	defaultPreferences,
+	inProgress,
+	latest,
 	loading,
 	metaJson as mJ,
 	modelRun as mR,
@@ -1083,15 +1085,46 @@ export const updateUrl = async (
 	}
 
 	await tick();
-	if (map && map._hash && map.getCenter()) {
+	try {
 		pushState(url + map._hash.getHashString(), {});
-	} else {
+	} catch {
 		pushState(url, {});
+	}
+};
+
+export const getInitialMetaData = async () => {
+	const domain = get(selectedDomain);
+
+	const uri =
+		domain && domain.value.startsWith('dwd_icon')
+			? `https://s3.servert.ch`
+			: `https://map-tiles.open-meteo.com`;
+
+	const metaJsonResults = await Promise.all([
+		fetch(`${uri}/data_spatial/${domain.value}/latest.json`),
+		fetch(`${uri}/data_spatial/${domain.value}/in-progress.json`)
+	]);
+
+	for (const metaResult of metaJsonResults) {
+		if (!metaResult.ok) {
+			loading.set(false);
+			throw new Error(`HTTP ${metaResult.status}`);
+		}
+		if (metaResult.url.includes('latest.json')) {
+			latest.set(await metaResult.json());
+		}
+		if (metaResult.url.includes('in-progress.json')) {
+			inProgress.set(await metaResult.json());
+		}
 	}
 };
 
 export const getMetaData = async (inProgress = false): Promise<DomainMetaDataJson> => {
 	const domain = get(selectedDomain);
+	const modelRun = get(mR);
+
+	console.log(modelRun);
+
 	const uri =
 		domain && domain.value.startsWith('dwd_icon')
 			? `https://s3.servert.ch`

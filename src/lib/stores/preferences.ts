@@ -55,6 +55,9 @@ export const resolutionSet = persisted('resolution-set', false);
 
 export const opacity = persisted('opacity', 75);
 
+export const latest: Writable<DomainMetaDataJson | undefined> = writable(undefined);
+export const inProgress: Writable<DomainMetaDataJson | undefined> = writable(undefined);
+
 export const localStorageVersion: Persisted<string | undefined> = persisted(
 	'local-storage-version',
 	undefined
@@ -66,13 +69,17 @@ export const resetStates = () => {
 	preferences.set(defaultPreferences);
 	vectorOptions.set(defaultVectorOptions);
 
-	time.set(new Date(now));
-	modelRun.set(new Date());
 	sheet.set(false);
 	loading.set(false);
 
+	time.set(new Date(now));
+	modelRun.set(new Date());
+
 	domain.set('dwd_icon');
 	variable.set('temperature_2m');
+
+	latest.set(undefined);
+	inProgress.set(undefined);
 
 	domainSelectionOpen.set(false);
 	variableSelectionOpen.set(false);

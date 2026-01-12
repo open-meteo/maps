@@ -309,7 +309,8 @@
 
 	let previousModelSteps = $derived.by(() => {
 		const previousModels = [];
-		for (let day of Array.from({ length: (7 * 24) / modelInterval }, (_, i) => i)) {
+		for (let day of Array.from({ length: Math.floor((6.9 * 24) / modelInterval) }, (_, i) => i)) {
+			// 7 Days
 			const date = new SvelteDate(firstMetaTime);
 			date.setUTCMinutes(0);
 			date.setUTCSeconds(0);
@@ -331,18 +332,15 @@
 	>
 		<div
 			style="background-color: {dark ? 'rgba(15, 15, 15, 0.8)' : 'rgba(240, 240, 240, 0.85)'};"
-			class="tooltip absolute rounded-t-2xl px-4 py-1 -translate-x-1/2 left-1/2 duration-500 {modelRunSelectionOpen
+			class="tooltip absolute rounded-t-2xl px-4 py-0.5 -translate-x-1/2 left-1/2 duration-500 {modelRunSelectionOpen
 				? 'bottom-[90px]'
 				: 'bottom-[50px]'}"
 		>
-			<div class="text-2xl font-bold flex flex-col items-center">
-				<div class="text-lg -mt-1.5">
-					{pad(currentDate.getUTCDate())}-{pad(currentDate.getUTCMonth() + 1)}
-				</div>
-				<div class="-my-2.25">
+			<!-- <div class="text-2xl font-bold flex flex-col items-center">
+				<div>
 					{pad(currentDate.getUTCHours()) + ':' + pad(currentDate.getUTCMinutes())}
 				</div>
-			</div>
+			</div> -->
 		</div>
 
 		<div
@@ -374,12 +372,14 @@
 			style="background-color: {dark ? 'rgba(15, 15, 15, 0.95)' : 'rgba(240, 240, 240, 0.95)'}"
 			class="{modelRunSelectionOpen
 				? '-top-11'
-				: '-top-5'} cursor-pointer left-0 duration-500 absolute flex rounded-t-xl items-center px-2 gap-1"
+				: '-top-5'} cursor-pointer right-0 duration-500 absolute flex rounded-t-xl items-center px-2 gap-1"
 		>
-			<div class="duration-500 {modelRunSelectionOpen ? 'text-lg px-1 py-2' : 'text-sm'}">
-				Model run: <small>{pad($modelRun.getUTCDate())}-{pad($modelRun.getUTCMonth() + 1)}</small>
-				{pad($modelRun.getUTCHours())}:{pad($modelRun.getUTCMinutes())}
-			</div>
+			{#if modelRunSelectionOpen}
+				<div class="duration-500 {modelRunSelectionOpen ? 'text-lg px-1 py-2' : 'text-sm'}">
+					<small>{pad($modelRun.getUTCDate())}-{pad($modelRun.getUTCMonth() + 1)}</small>
+					{pad($modelRun.getUTCHours())}:{pad($modelRun.getUTCMinutes())}
+				</div>
+			{/if}
 			<div
 				onclick={(e) => {
 					e.preventDefault();

@@ -21,6 +21,7 @@
 	import { map, mapBounds, paddedBounds } from '$lib/stores/map';
 	import { defaultColorHash, omProtocolSettings } from '$lib/stores/om-protocol-settings';
 	import {
+		latest,
 		loading,
 		localStorageVersion,
 		metaJson,
@@ -57,6 +58,7 @@
 		checkClosestDomainInterval,
 		checkClosestModelRun,
 		checkHighDefinition,
+		getInitialMetaData,
 		getMetaData,
 		getPaddedBounds,
 		getStyle,
@@ -137,7 +139,11 @@
 			$map.addControl(new SettingsButton());
 			$map.addControl(new TimeButton());
 			$map.addControl(new HelpButton());
-			$metaJson = await getMetaData();
+
+			await getInitialMetaData();
+
+			// $latest = await getMetaData();
+			$metaJson = $latest;
 
 			addOmFileLayers();
 			addHillshadeSources();
@@ -159,12 +165,12 @@
 		await tick(); // await the selectedDomain to be set
 		updateUrl('domain', newDomain);
 
-		$metaJson = await getMetaData();
-
 		checkClosestDomainInterval();
 		// align model run with new model_interval on domain change
 		$modelRun = closestModelRun($modelRun, $selectedDomain.model_interval);
 		checkClosestModelRun(); // checks and updates time and model run to fit the current domain selection
+
+		$metaJson = await getMetaData();
 
 		if ($modelRun.getTime() - $time.getTime() > 0) {
 			$time = domainStep($modelRun, $selectedDomain.time_interval, 'forward');
@@ -185,12 +191,21 @@
 		toast('Variable set to: ' + $selectedVariable.label);
 	});
 
+	let metaDataInterval: ReturnType<typeof setInterval>;
+	onMount(() => {
+		metaDataInterval = setInterval(() => {
+			getInitialMetaData();
+		}, 60 * 1000);
+	});
+
 	onDestroy(() => {
 		if ($map) {
 			$map.remove();
 		}
 		domainSubscription(); // unsubscribe
 		variableSubscription(); // unsubscribe
+
+		clearInterval(metaDataInterval);
 	});
 </script>
 
