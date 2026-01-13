@@ -1,6 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-
 	import {
 		alphaToPercent,
 		hexToRgb,
@@ -23,8 +21,8 @@
 	let hue = $state(0);
 	let saturation = $state(100);
 	let brightness = $state(100);
-	let alpha = $state(initialAlpha);
-	let hexInput = $state(color.slice(0, 7));
+	let alpha = $derived(initialAlpha);
+	let hexInput = $derived(color.slice(0, 7));
 
 	let satBrightRef: HTMLDivElement | null = $state(null);
 	let hueRef: HTMLDivElement | null = $state(null);
@@ -33,7 +31,7 @@
 	type DragTarget = 'satBright' | 'hue' | 'alpha' | null;
 	let dragging: DragTarget = $state(null);
 
-	onMount(() => {
+	$effect(() => {
 		const rgb = hexToRgb(color);
 		if (rgb) {
 			const hsv = rgbToHsv(rgb.r, rgb.g, rgb.b);
@@ -41,6 +39,10 @@
 			saturation = hsv.s;
 			brightness = hsv.v;
 		}
+		hexInput = color.slice(0, 7);
+	});
+
+	$effect(() => {
 		alpha = initialAlpha;
 	});
 
