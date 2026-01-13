@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
-	import { SvelteDate } from 'svelte/reactivity';
+	import { MediaQuery, SvelteDate } from 'svelte/reactivity';
 	import { fade, slide } from 'svelte/transition';
 
 	import { domainStep, pad } from '@openmeteo/mapbox-layer';
@@ -29,28 +29,27 @@
 	const previousHour = () => {
 		const date = domainStep($time, resolution, 'backward');
 		onDateChange(date);
-		centerDateButton(date.getUTCHours(), true);
 	};
 
 	const nextHour = () => {
-		console.log();
 		const date = domainStep($time, resolution, 'forward');
 		onDateChange(date);
-		centerDateButton(date.getUTCHours(), true);
 	};
 
 	const previousDay = () => {
-		$time.setUTCHours($time.getUTCHours() - 23);
-		const date = domainStep($time, resolution, 'backward');
+		const prevDay = new SvelteDate($time);
+		prevDay.setUTCHours(prevDay.getUTCHours() - 24);
+		const date = domainStep(prevDay, resolution, 'backward');
 		onDateChange(date);
-		centerDateButton(date.getUTCHours(), true);
+		$time = prevDay;
 	};
 
 	const nextDay = () => {
-		$time.setUTCHours($time.getUTCHours() + 23);
-		const date = domainStep($time, resolution, 'forward');
+		const nextDay = new SvelteDate($time);
+		nextDay.setUTCHours(nextDay.getUTCHours() + 24);
+		const date = domainStep(nextDay, resolution, 'forward');
 		onDateChange(date);
-		centerDateButton(date.getUTCHours(), true);
+		$time = nextDay;
 	};
 
 	const onDateChange = (date: Date, callUpdateUrl = true) => {
@@ -60,6 +59,7 @@
 				return;
 			}
 		}
+
 		$time = new SvelteDate(date);
 		if (callUpdateUrl) updateUrl('time', fmtISOWithoutTimezone($time));
 		changeOMfileURL();
@@ -103,10 +103,9 @@
 	const latestReferenceTime = $derived(new Date($latest?.reference_time as string));
 
 	const firstMetaTime = $derived(new Date($metaJson?.valid_times[0] as string));
-
-	// const lastMetaTime = $derived(
-	// 	new Date($metaJson?.valid_times[$metaJson?.valid_times.length - 1] as string)
-	// );
+	const lastMetaTime = $derived(
+		new Date($metaJson?.valid_times[$metaJson?.valid_times.length - 1] as string)
+	);
 	// const daysBetween = (startDate: Date, endDate: Date) => {
 	//	return (endDate.getTime() - startDate.getTime()) / millisecondsPerDay;
 	// };
@@ -114,7 +113,7 @@
 	const millisecondsPerDay = 24 * 60 * 60 * 1000;
 
 	const timeSteps = $derived(
-		$metaJson?.valid_times.map((validTime: string) => new Date(validTime))
+		$metaJson?.valid_times.map((validTime: string) => new SvelteDate(validTime))
 	);
 
 	const daySteps = $derived.by(() => {
@@ -138,134 +137,184 @@
 		return days;
 	});
 
-	const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+	let timeInterval = $derived.by(() => {
+		let tI = $selectedDomain.time_interval;
 
-	let hoursContainer: HTMLElement | undefined = $state();
-	let hoursContainerParent: HTMLElement | undefined = $state();
+		switch (tI) {
+			case '15_minute':
+				return 1;
+			case 'hourly':
+				return 1;
+			case '3_hourly':
+				return 1;
+			case '6_hourly':
+				return 1;
 
-	let movingToNextHour = $state(false);
-	let movingToNextHourTimeout: ReturnType<typeof setTimeout> | undefined = $state(undefined);
+			case '12_hourly':
+				return 1;
 
-	let timeInterval = 1; // FIX LATER
+			case 'daily':
+				return 1;
 
-	const onScrollEvent = (e: Event) => {
-		if (!movingToNextHour) {
-			let changed = false;
+			case 'weekly_on_monday':
+				return 1;
 
-			const target = e.target as Element;
-			const width = target.getBoundingClientRect().width;
-			const left = target.scrollLeft;
-			const percentage = left / width;
-
-			if (left === 0) {
-				currentDate.setUTCHours(0);
-				changed = true;
-			}
-			if (percentage && timeInterval) {
-				const hour = Math.floor(percentage * (25 / timeInterval)) * timeInterval;
-				if ($time.getUTCHours() !== hour) {
-					currentDate.setUTCHours(hour);
-					changed = true;
-				}
-			}
-			if ($selectedDomain.value.startsWith('dwd_icon') && changed) {
-				onDateChange(currentDate, false);
-			}
+			case 'monthly':
+				return 1;
 		}
-	};
-
-	const onScrollEndEvent = () => {
-		if (!isDown) {
-			if (!movingToNextHour && !$selectedDomain.value.startsWith('dwd_icon')) {
-				onDateChange(currentDate);
-			}
-			if ($selectedDomain.value.startsWith('dwd_icon')) {
-				updateUrl('time', fmtISOWithoutTimezone($time));
-			}
-		}
-	};
-
-	let isDown = $state(false);
-	let startX = $state(0);
-	let startY = $state(0);
-	let scrollLeft = $state(0);
-	let scrollTop = $state(0);
-
-	onMount(() => {
-		if (hoursContainer && hoursContainerParent) {
-			hoursContainer.scrollIntoView({
-				behavior: 'instant',
-				block: 'center',
-				inline: 'center'
-			});
-
-			hoursContainerParent.addEventListener('scroll', throttle(onScrollEvent, 150));
-
-			hoursContainerParent.addEventListener('scrollend', throttle(onScrollEndEvent, 150));
-
-			hoursContainerParent.addEventListener('mousedown', (e) => {
-				if (!hoursContainerParent) return;
-				isDown = true;
-				startX = e.pageX - hoursContainerParent.offsetLeft;
-				startY = e.pageY - hoursContainerParent.offsetTop;
-				scrollLeft = hoursContainerParent.scrollLeft;
-				scrollTop = hoursContainerParent.scrollTop;
-				if (hoursContainer) hoursContainer.style.cursor = 'grabbing';
-			});
-
-			// hoursContainerParent.addEventListener('mouseleave', () => {
-			// 	isDown = false;
-			// 	if (hoursContainer) hoursContainer.style.cursor = 'grab';
-			// });
-
-			hoursContainerParent.addEventListener('mouseup', () => {
-				isDown = false;
-				if (hoursContainer) hoursContainer.style.cursor = 'grab';
-				onScrollEndEvent();
-			});
-
-			hoursContainerParent.addEventListener('mousemove', (e) => {
-				if (!isDown || !hoursContainerParent) return;
-				e.preventDefault();
-				const x = e.pageX - hoursContainerParent.offsetLeft;
-				const y = e.pageY - hoursContainerParent.offsetTop;
-				const walkX = (x - startX) * 1; // Change this number to adjust the scroll speed
-				const walkY = (y - startY) * 1; // Change this number to adjust the scroll speed
-				hoursContainerParent.scrollLeft = scrollLeft - walkX;
-				hoursContainerParent.scrollTop = scrollTop - walkY;
-			});
-		}
+		return 1;
 	});
 
-	const centerDateButton = (hour: number, smooth = false) => {
-		if (hoursContainer && hoursContainerParent) {
-			if (smooth) {
-				movingToNextHour = true;
-				if (movingToNextHourTimeout) clearTimeout(movingToNextHourTimeout);
+	const timeStepsComplete = $derived.by(() => {
+		const timeStepsComplete = [];
+		for (let day of daySteps) {
+			for (let i = 0; i <= 23; i += timeInterval) {
+				const date = new SvelteDate(day);
+				date.setUTCHours(i);
+				timeStepsComplete.push(date);
 			}
-			const width = hoursContainer.getBoundingClientRect().width;
-			const left = 8 + width * (hour / 23.5);
-			hoursContainerParent.scrollTo({ left: left, behavior: smooth ? 'smooth' : 'instant' });
-			if (smooth)
-				movingToNextHourTimeout = setTimeout(() => {
-					movingToNextHour = false;
-				}, 700);
 		}
-	};
+		return timeStepsComplete;
+	});
+
+	$inspect(timeStepsComplete).with(console.log);
+
+	const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+	// let hoursContainer: HTMLElement | undefined = $state();
+	// let hoursContainerParent: HTMLElement | undefined = $state();
+
+	// let movingToNextHour = $state(false);
+	// let movingToNextHourTimeout: ReturnType<typeof setTimeout> | undefined = $state(undefined);
+
+	// const onScrollEvent = (e: Event) => {
+	// 	if (!movingToNextHour) {
+	// 		let changed = false;
+
+	// 		const target = e.target as Element;
+	// 		const width = target.getBoundingClientRect().width;
+	// 		const left = target.scrollLeft;
+	// 		const percentage = left / width;
+
+	// 		if (left === 0) {
+	// 			currentDate.setUTCHours(0);
+	// 			changed = true;
+	// 		}
+	// 		if (percentage && timeInterval) {
+	// 			const hour = Math.floor(percentage * (25 / timeInterval)) * timeInterval;
+	// 			if ($time.getUTCHours() !== hour) {
+	// 				currentDate.setUTCHours(hour);
+	// 				changed = true;
+	// 			}
+	// 		}
+	// 		if ($selectedDomain.value.startsWith('dwd_icon') && changed) {
+	// 			onDateChange(currentDate, false);
+	// 		}
+	// 	}
+	// };
+
+	// const onScrollEndEvent = () => {
+	// 	if (!isDown) {
+	// 		if (!movingToNextHour && !$selectedDomain.value.startsWith('dwd_icon')) {
+	// 			onDateChange(currentDate);
+	// 		}
+	// 		if ($selectedDomain.value.startsWith('dwd_icon')) {
+	// 			updateUrl('time', fmtISOWithoutTimezone($time));
+	// 		}
+	// 	}
+	// };
+
+	// let isDown = $state(false);
+	// let startX = $state(0);
+	// let startY = $state(0);
+	// let scrollLeft = $state(0);
+	// let scrollTop = $state(0);
+
+	onMount(() => {
+		// if (hoursContainer && hoursContainerParent) {
+		// 	hoursContainer.scrollIntoView({
+		// 		behavior: 'instant',
+		// 		block: 'center',
+		// 		inline: 'center'
+		// 	});
+		// 	hoursContainerParent.addEventListener('scroll', throttle(onScrollEvent, 150));
+		// 	hoursContainerParent.addEventListener('scrollend', throttle(onScrollEndEvent, 150));
+		// 	hoursContainerParent.addEventListener('mousedown', (e) => {
+		// 		if (!hoursContainerParent) return;
+		// 		isDown = true;
+		// 		startX = e.pageX - hoursContainerParent.offsetLeft;
+		// 		startY = e.pageY - hoursContainerParent.offsetTop;
+		// 		scrollLeft = hoursContainerParent.scrollLeft;
+		// 		scrollTop = hoursContainerParent.scrollTop;
+		// 		if (hoursContainer) hoursContainer.style.cursor = 'grabbing';
+		// 	});
+		// 	// hoursContainerParent.addEventListener('mouseleave', () => {
+		// 	// 	isDown = false;
+		// 	// 	if (hoursContainer) hoursContainer.style.cursor = 'grab';
+		// 	// });
+		// 	hoursContainerParent.addEventListener('mouseup', () => {
+		// 		isDown = false;
+		// 		if (hoursContainer) hoursContainer.style.cursor = 'grab';
+		// 		onScrollEndEvent();
+		// 	});
+		// 	hoursContainerParent.addEventListener('mousemove', (e) => {
+		// 		if (!isDown || !hoursContainerParent) return;
+		// 		e.preventDefault();
+		// 		const x = e.pageX - hoursContainerParent.offsetLeft;
+		// 		const y = e.pageY - hoursContainerParent.offsetTop;
+		// 		const walkX = (x - startX) * 1; // Change this number to adjust the scroll speed
+		// 		const walkY = (y - startY) * 1; // Change this number to adjust the scroll speed
+		// 		hoursContainerParent.scrollLeft = scrollLeft - walkX;
+		// 		hoursContainerParent.scrollTop = scrollTop - walkY;
+		// 	});
+		// }
+	});
+
+	// const centerDateButton = (hour: number, smooth = false) => {
+	// 	if (hoursContainer && hoursContainerParent) {
+	// 		if (smooth) {
+	// 			movingToNextHour = true;
+	// 			if (movingToNextHourTimeout) clearTimeout(movingToNextHourTimeout);
+	// 		}
+	// 		const width = hoursContainer.getBoundingClientRect().width;
+	// 		const left = 8 + width * (hour / 23.5);
+	// 		hoursContainerParent.scrollTo({ left: left, behavior: smooth ? 'smooth' : 'instant' });
+	// 		if (smooth)
+	// 			movingToNextHourTimeout = setTimeout(() => {
+	// 				movingToNextHour = false;
+	// 			}, 700);
+	// 	}
+	// };
 
 	let percentage = $state(0);
 
 	let hoursHoverContainer: HTMLElement | undefined = $state();
 	let hoursHoverContainerWidth = $derived(hoursHoverContainer?.getBoundingClientRect().width);
 	let hoveredHour = $derived(
-		timeSteps ? timeSteps[Math.floor(timeSteps.length * percentage)] : firstMetaTime
+		timeStepsComplete
+			? timeStepsComplete[Math.floor(timeStepsComplete.length * percentage)]
+			: firstMetaTime
 	);
 	let currentTimeStep = $derived(
-		timeSteps ? timeSteps.find((tS: Date) => tS.getTime() === $time.getTime()) : undefined
+		timeStepsComplete
+			? timeStepsComplete.find((tS: Date) => tS.getTime() === $time.getTime())
+			: undefined
 	);
 	let currentPercentage = $derived(
-		currentTimeStep && timeSteps ? timeSteps.indexOf(currentTimeStep) / (timeSteps.length - 1) : 0
+		currentTimeStep && timeStepsComplete
+			? timeStepsComplete.indexOf(currentTimeStep) / (timeStepsComplete.length - 1)
+			: 0
 	);
+
+	const timeValid = (date: Date) => {
+		if (date && timeSteps)
+			for (let validTime of timeSteps) {
+				if (validTime.getTime() === date.getTime()) {
+					return true;
+				}
+			}
+		return false;
+	};
 
 	onMount(() => {
 		if (hoursHoverContainer) {
@@ -276,7 +325,8 @@
 				percentage = 0;
 			});
 			hoursHoverContainer.addEventListener('click', () => {
-				if (timeSteps) onDateChange(timeSteps[Math.floor(timeSteps.length * percentage)]);
+				const timeStep = timeStepsComplete[Math.floor(timeStepsComplete.length * percentage)];
+				if (timeStep) onDateChange(timeStep);
 			});
 		}
 	});
@@ -323,21 +373,37 @@
 			? new Date($inProgress?.reference_time)
 			: undefined
 	);
+
+	const onModelRunChange = async (step: Date) => {
+		$modelRun = step;
+		$metaJson = await getMetaData();
+		onDateChange($modelRun);
+		if ($modelRun.getTime() !== latestReferenceTime.getTime()) {
+			updateUrl('model_run', fmtISOWithoutTimezone($modelRun));
+		} else {
+			updateUrl('model_run', undefined);
+		}
+		toast.info('Model run set to: ' + fmtISOWithoutTimezone($modelRun));
+	};
+
+	const desktop = new MediaQuery('min-width: 640px');
 </script>
 
 <div
-	class="absolute bottom-0 min-w-full md:min-w-[unset] md:max-w-[75vw] -translate-x-1/2 left-1/2"
+	class="absolute bottom-0 min-w-full md:min-w-[unset] md:max-w-[75vw] -translate-x-1/2 left-1/2 {disabled
+		? 'text-foreground/50 cursor-not-allowed'
+		: ''}"
 >
 	<div
-		class="relative duration-500 {disabled ? 'text-foreground/50' : ''} {$preferences.timeSelector
+		class="relative duration-750 {disabled ? 'pointer-events-none' : ''} {$preferences.timeSelector
 			? 'opacity-100 bottom-0'
-			: 'pointer-events-none opacity-0 bottom-[-90px]'}"
+			: 'pointer-events-none opacity-0 -bottom-22.5'}"
 	>
 		<div
 			bind:this={hoursHoverContainer}
 			class="absolute {modelRunSelectionOpen
-				? 'bottom-[60px]'
-				: 'bottom-[20px]'} w-[calc(100%+8px)] h-[34px] -mx-1 {percentage
+				? 'bottom-15'
+				: 'bottom-5'} w-[calc(100%+8px)] h-8.5 -mx-1 {percentage
 				? 'z-20'
 				: 'z-10'} cursor-pointer duration-500"
 		>
@@ -347,13 +413,13 @@
 					style="left: calc({percentage * 100}% - 33px); background-color: {dark
 						? 'rgba(15, 15, 15, 0.95)'
 						: 'rgba(240, 240, 240, 0.95)'}"
-					class="absolute z-20 -top-[32px] p-0.5 w-[66px] text-center rounded {hoveredHour &&
+					class="absolute z-20 -top-8 p-0.5 w-16.5 text-center rounded {hoveredHour &&
 					currentTimeStep &&
 					currentTimeStep.getTime() === hoveredHour.getTime()
 						? 'font-bold'
 						: ''}"
 				>
-					<div class="relative">
+					<div class="relative {!timeValid(hoveredHour) ? 'text-foreground/50' : ''}">
 						{#if hoveredHour}
 							{pad(hoveredHour.getUTCHours())}:{pad(hoveredHour.getUTCMinutes())}
 						{/if}
@@ -372,11 +438,22 @@
 						100}% - 33px),calc(100% - 70px))); background-color: {dark
 						? 'rgba(15, 15, 15, 0.95)'
 						: 'rgba(240, 240, 240, 0.95)'}"
-					class="absolute -top-[24px] p-0.5 w-[66px] text-center rounded-t"
+					class="absolute {disabled
+						? '-top-8 rounded'
+						: '-top-6 rounded-t'} duration-200 p-0.5 w-16.5 text-center"
 				>
-					<div class="relative font-bold">
+					<div class="relative font-bold text-foreground">
 						{#if currentTimeStep}
 							{pad(currentTimeStep!.getUTCHours())}:{pad(currentTimeStep!.getUTCMinutes())}
+						{/if}
+						{#if disabled}
+							<div
+								transition:fade={{ duration: 200 }}
+								style="background-color: {dark
+									? 'rgba(15, 15, 15, 0.95)'
+									: 'rgba(240, 240, 240, 0.95)'}"
+								class="-z-10 absolute -bottom-2 w-3 h-3 bg-white rotate-45 -translate-x-1/2 left-1/2"
+							></div>
 						{/if}
 					</div>
 				</div>
@@ -405,7 +482,7 @@
 			{/if}
 
 			<button
-				class="cursor-pointer w-[18px] h-[18px] flex items-center justify-center"
+				class="cursor-pointer w-4.5 h-4.5 flex items-center justify-center"
 				onclick={(e) => {
 					e.preventDefault();
 					e.stopPropagation();
@@ -416,15 +493,15 @@
 				{#if modelRunLocked}
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
-						width="13"
-						height="13"
+						width="14"
+						height="14"
 						viewBox="0 0 24 24"
 						fill="none"
 						stroke="currentColor"
-						stroke-width="2"
+						stroke-width="2.5"
 						stroke-linecap="round"
 						stroke-linejoin="round"
-						class="text-red-800 lucide lucide-lock-icon lucide-lock"
+						class="text-red-800 dark:text-red-500 lucide lucide-lock-icon lucide-lock"
 						><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path
 							d="M7 11V7a5 5 0 0 1 10 0v4"
 						/></svg
@@ -432,15 +509,15 @@
 				{:else}
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
-						width="13"
-						height="13"
+						width="14"
+						height="14"
 						viewBox="0 0 24 24"
 						fill="none"
 						stroke="currentColor"
-						stroke-width="2"
+						stroke-width="2.5"
 						stroke-linecap="round"
 						stroke-linejoin="round"
-						class="text-green-800 lucide lucide-lock-open-icon lucide-lock-open"
+						class="text-green-800 dark:text-green-600 lucide lucide-lock-open-icon lucide-lock-open"
 						><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path
 							d="M7 11V7a5 5 0 0 1 9.9-1"
 						/></svg
@@ -468,14 +545,14 @@
 				? 'rgba(15, 15, 15, 0.8)'
 				: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
 			class="time-selector {modelRunSelectionOpen
-				? 'h-[90px]'
-				: 'h-[50px]'} relative overflow-x-scroll flex"
+				? 'h-22.5'
+				: 'h-12.5'} relative overflow-x-scroll flex"
 		>
-			<div class="absolute top-0 left-0 w-full h-[20px] cursor-pointer">
+			<div class="absolute top-0 left-0 w-full h-5 cursor-pointer">
 				{#if percentage}
 					<div
 						style="left: calc({percentage * 100}% - 0.5px);"
-						class="absolute border border-r-1 top-0 h-3"
+						class="absolute border border-r top-0 h-3"
 					></div>
 				{/if}
 				<div
@@ -487,9 +564,7 @@
 			<div class="flex">
 				{#each daySteps as dayStep, i (i)}
 					<div
-						class="relative flex h-[50px] min-w-[170px] {i !== daySteps.length - 1
-							? 'border-r-1'
-							: ''}"
+						class="relative flex h-12.5 min-w-42.5 {i !== daySteps.length - 1 ? 'border-r' : ''}"
 					>
 						<div
 							class="absolute flex mt-2 -translate-x-1/2 left-1/2 items-center justify-center text-center flex-col"
@@ -525,7 +600,7 @@
 			{#if modelRunSelectionOpen}
 				<div
 					transition:slide={{ duration: 500 }}
-					class="absolute right-0 bottom-0 h-[40px] {modelRunLocked
+					class="absolute right-0 bottom-0 h-10 {modelRunLocked
 						? 'opacity-60 cursor-not-allowed'
 						: ''}"
 				>
@@ -533,18 +608,16 @@
 					<div
 						class="{modelRunLocked
 							? 'pointer-events-none'
-							: ''} h-[40px] border-t relative px-4 gap-1 flex-row-reverse overflow-x-scroll items-center flex"
+							: ''} h-10 border-t relative px-4 gap-1 flex-row-reverse overflow-x-scroll items-center flex"
 					>
 						{#if inProgressReferenceTime && $modelRun}
 							<button
-								onclick={async () => {
-									$modelRun = inProgressReferenceTime;
-									$metaJson = await getMetaData();
-									onDateChange(inProgressReferenceTime);
+								onclick={() => {
+									onModelRunChange(inProgressReferenceTime);
 								}}
 								class="px-1.5 py-0.5 border-2 flex items-center rounded gap-1 hover:bg-accent cursor-pointer {inProgressReferenceTime.getTime() ===
 								firstMetaTime.getTime()
-									? 'border-orange-600'
+									? 'border-orange-500 dark:border-orange-300'
 									: ''} {inProgressReferenceTime.getTime() === $modelRun.getTime()
 									? ''
 									: 'border-transparent'}"
@@ -560,14 +633,13 @@
 						{/if}
 						{#each previousModelSteps as previousModelStep, i (i)}
 							<button
-								onclick={async () => {
-									$modelRun = previousModelStep;
-									$metaJson = await getMetaData();
-									onDateChange(previousModelStep);
+								onclick={() => {
+									onModelRunChange(previousModelStep);
 								}}
 								class="px-1.5 py-0.5 border-2 flex items-center rounded gap-1 hover:bg-accent cursor-pointer {previousModelStep.getTime() ===
-								latestReferenceTime.getTime()
-									? 'border-green-600'
+									latestReferenceTime.getTime() &&
+								previousModelStep.getTime() === firstMetaTime.getTime()
+									? 'border-green-700 dark:border-green-500'
 									: ''} {previousModelStep.getTime() === firstMetaTime.getTime()
 									? ''
 									: 'border-transparent'}"

@@ -207,10 +207,11 @@ export const checkClosestDomainInterval = () => {
 	time.set(closestTime);
 };
 
-export const checkClosestModelRun = () => {
+export const checkClosestModelRun = async () => {
 	let timeStep = get(time);
 	const domain = get(selectedDomain);
-	// const latest = get(l);
+	const latest = get(l);
+	const latestReferenceTime = new Date(latest?.reference_time as string);
 
 	// other than seasonal models, data is not available longer than 7 days
 	if (domain.model_interval !== 'monthly') {
@@ -268,7 +269,12 @@ export const checkClosestModelRun = () => {
 
 	if (modelRun && setToModelRun.getTime() !== modelRun.getTime()) {
 		mR.set(setToModelRun);
-		updateUrl('model_run', fmtISOWithoutTimezone(setToModelRun));
+		mJ.set(await getMetaData());
+		if (modelRun.getTime() !== latestReferenceTime.getTime()) {
+			updateUrl('model_run', fmtISOWithoutTimezone(modelRun));
+		} else {
+			updateUrl('model_run', undefined);
+		}
 		toast.info('Model run set to: ' + fmtISOWithoutTimezone(setToModelRun));
 	} else {
 		updateUrl();
@@ -386,6 +392,8 @@ export const addOmFileLayers = () => {
 	if (!map) return;
 	// when (re)-adding the om-file layers, we need to reset the vectorRequests to fix set the opacity correctly on the first request
 	vectorRequests = 0;
+
+	checkClosestModelRun();
 
 	omUrl = getOMUrl();
 	map.addSource('omRasterSource', {
