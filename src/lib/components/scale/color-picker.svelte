@@ -13,15 +13,14 @@
 		color: string;
 		onchange: (color: string, alpha: number) => void;
 		onclose: () => void;
-		initialAlpha?: number;
+		alpha?: number;
 	}
 
-	let { color, onchange, onclose, initialAlpha = 1 }: Props = $props();
+	let { color, onchange, onclose, alpha = 1 }: Props = $props();
 
 	let hue = $state(0);
 	let saturation = $state(100);
 	let brightness = $state(100);
-	let alpha = $derived(initialAlpha);
 	let hexInput = $derived(color.slice(0, 7));
 
 	let satBrightRef: HTMLDivElement | null = $state(null);
@@ -39,11 +38,6 @@
 			saturation = hsv.s;
 			brightness = hsv.v;
 		}
-		hexInput = color.slice(0, 7);
-	});
-
-	$effect(() => {
-		alpha = initialAlpha;
 	});
 
 	const currentRgb = $derived(hsvToRgb(hue, saturation, brightness));
@@ -71,13 +65,13 @@
 		const { x, y } = getNormalizedPosition(e, satBrightRef);
 		saturation = x * 100;
 		brightness = (1 - y) * 100;
-		hexInput = currentHex;
+		color = currentHex;
 	};
 
 	const handleHueMove = (e: MouseEvent | TouchEvent) => {
 		const { x } = getNormalizedPosition(e, hueRef);
 		hue = x * 360;
-		hexInput = currentHex;
+		color = currentHex;
 	};
 
 	const handleAlphaMove = (e: MouseEvent | TouchEvent) => {
@@ -110,7 +104,7 @@
 
 	const handleHexInput = (e: Event) => {
 		const value = (e.target as HTMLInputElement).value;
-		hexInput = value;
+		color = value;
 
 		if (isValidHex(value)) {
 			const rgb = hexToRgb(value);

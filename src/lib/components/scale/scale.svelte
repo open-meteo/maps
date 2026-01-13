@@ -126,7 +126,7 @@
 					{#if editingIndex === i}
 						<ColorPicker
 							color={rgbaToHex(lc.color)}
-							initialAlpha={alphaValue}
+							alpha={alphaValue}
 							onchange={handleColorChange}
 							onclose={closePicker}
 						/>
