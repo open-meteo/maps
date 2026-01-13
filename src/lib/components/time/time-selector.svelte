@@ -17,14 +17,7 @@
 		variableSelectionOpen
 	} from '$lib/stores/variables';
 
-	import {
-		changeOMfileURL,
-		fmtISOWithoutTimezone,
-		getInitialMetaData,
-		getMetaData,
-		throttle,
-		updateUrl
-	} from '$lib';
+	import { changeOMfileURL, fmtISOWithoutTimezone, getMetaData, throttle, updateUrl } from '$lib';
 
 	import type { ModelDt } from '@openmeteo/mapbox-layer';
 
@@ -110,14 +103,15 @@
 	const latestReferenceTime = $derived(new Date($latest?.reference_time as string));
 
 	const firstMetaTime = $derived(new Date($metaJson?.valid_times[0] as string));
-	const lastMetaTime = $derived(
-		new Date($metaJson?.valid_times[$metaJson?.valid_times.length - 1] as string)
-	);
+
+	// const lastMetaTime = $derived(
+	// 	new Date($metaJson?.valid_times[$metaJson?.valid_times.length - 1] as string)
+	// );
+	// const daysBetween = (startDate: Date, endDate: Date) => {
+	//	return (endDate.getTime() - startDate.getTime()) / millisecondsPerDay;
+	// };
 
 	const millisecondsPerDay = 24 * 60 * 60 * 1000;
-	const daysBetween = (startDate: Date, endDate: Date) => {
-		return (endDate.getTime() - startDate.getTime()) / millisecondsPerDay;
-	};
 
 	const timeSteps = $derived(
 		$metaJson?.valid_times.map((validTime: string) => new Date(validTime))
@@ -398,7 +392,7 @@
 				? '-top-[44px] h-[44px]'
 				: '-top-[18px] h-[18px]'} z-10 cursor-pointer right-0 absolute flex rounded-t-xl items-center px-2 gap-0.5"
 		>
-			{#if modelRunSelectionOpen && modelRun}
+			{#if modelRunSelectionOpen && $modelRun}
 				<div
 					transition:slide={{ axis: 'x', duration: 500 }}
 					class="{modelRunSelectionOpen
@@ -541,7 +535,7 @@
 							? 'pointer-events-none'
 							: ''} h-[40px] border-t relative px-4 gap-1 flex-row-reverse overflow-x-scroll items-center flex"
 					>
-						{#if inProgressReferenceTime}
+						{#if inProgressReferenceTime && $modelRun}
 							<button
 								onclick={async () => {
 									$modelRun = inProgressReferenceTime;

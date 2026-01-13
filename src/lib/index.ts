@@ -210,7 +210,7 @@ export const checkClosestDomainInterval = () => {
 export const checkClosestModelRun = () => {
 	let timeStep = get(time);
 	const domain = get(selectedDomain);
-	const latest = get(l);
+	// const latest = get(l);
 
 	// other than seasonal models, data is not available longer than 7 days
 	if (domain.model_interval !== 'monthly') {
@@ -844,7 +844,7 @@ export const getOMUrl = () => {
 
 	let url = `${uri}/data_spatial/${domain}`;
 
-	const modelRun = get(mR);
+	const modelRun = get(mR) as Date;
 	const selectedTime = get(time);
 	url += `/${fmtModelRun(modelRun)}/${fmtSelectedTime(selectedTime)}.om`;
 
