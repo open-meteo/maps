@@ -977,16 +977,13 @@ export const getMetaData = async (): Promise<DomainMetaDataJson> => {
 
 	const latest = get(l);
 	const latestReferenceTime = latest?.reference_time ? new Date(latest?.reference_time) : undefined;
-
 	if (modelRun === undefined) {
 		mR.set(latestReferenceTime);
-		modelRun = get(mR);
+		modelRun = get(mR) as Date;
 	}
-
 	if (latestReferenceTime) {
 		if (modelRun.getTime() === latestReferenceTime?.getTime()) {
-			console.log('mr==latest');
-			return new Promise(() => latest);
+			return latest as DomainMetaDataJson;
 		}
 	}
 
@@ -996,11 +993,9 @@ export const getMetaData = async (): Promise<DomainMetaDataJson> => {
 		: undefined;
 	if (inProgressReferenceTime) {
 		if (modelRun && modelRun.getTime() === inProgressReferenceTime?.getTime()) {
-			return new Promise(() => inProgress);
+			return inProgress as DomainMetaDataJson;
 		}
 	}
-
-	console.log('not latest');
 
 	const uri =
 		domain && domain.value.startsWith('dwd_icon')
@@ -1008,7 +1003,6 @@ export const getMetaData = async (): Promise<DomainMetaDataJson> => {
 			: `https://map-tiles.open-meteo.com`;
 
 	const metaJsonUrl = `${uri}/data_spatial/${domain.value}/${fmtModelRun(modelRun as Date)}/meta.json`;
-	console.log(metaJsonUrl);
 
 	const metaJsonResult = await fetch(metaJsonUrl);
 	if (!metaJsonResult.ok) {

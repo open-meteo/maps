@@ -1,7 +1,5 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
-	import { cubicInOut, sineInOut } from 'svelte/easing';
-	import { preventDefault } from 'svelte/legacy';
 	import { SvelteDate } from 'svelte/reactivity';
 	import { fade, slide } from 'svelte/transition';
 
@@ -12,16 +10,21 @@
 	import { browser } from '$app/environment';
 
 	import { loading, modelRun, preferences, time } from '$lib/stores/preferences';
-	import { metaJson } from '$lib/stores/preferences';
+	import { inProgress, latest, metaJson } from '$lib/stores/preferences';
 	import {
 		domainSelectionOpen,
 		selectedDomain,
 		variableSelectionOpen
 	} from '$lib/stores/variables';
 
-	import { changeOMfileURL, fmtISOWithoutTimezone, throttle, updateUrl } from '$lib';
-
-	import Button from '../ui/button/button.svelte';
+	import {
+		changeOMfileURL,
+		fmtISOWithoutTimezone,
+		getInitialMetaData,
+		getMetaData,
+		throttle,
+		updateUrl
+	} from '$lib';
 
 	import type { ModelDt } from '@openmeteo/mapbox-layer';
 
@@ -37,6 +40,7 @@
 	};
 
 	const nextHour = () => {
+		console.log();
 		const date = domainStep($time, resolution, 'forward');
 		onDateChange(date);
 		centerDateButton(date.getUTCHours(), true);
@@ -57,6 +61,12 @@
 	};
 
 	const onDateChange = (date: Date, callUpdateUrl = true) => {
+		if (modelRunLocked) {
+			if (date.getTime() < firstMetaTime.getTime()) {
+				toast.warning("Model run locked, can't go before first time");
+				return;
+			}
+		}
 		$time = new SvelteDate(date);
 		if (callUpdateUrl) updateUrl('time', fmtISOWithoutTimezone($time));
 		changeOMfileURL();
@@ -97,6 +107,8 @@
 
 	const dark = $derived(mode.current === 'dark');
 
+	const latestReferenceTime = $derived(new Date($latest?.reference_time as string));
+
 	const firstMetaTime = $derived(new Date($metaJson?.valid_times[0] as string));
 	const lastMetaTime = $derived(
 		new Date($metaJson?.valid_times[$metaJson?.valid_times.length - 1] as string)
@@ -107,24 +119,27 @@
 		return (endDate.getTime() - startDate.getTime()) / millisecondsPerDay;
 	};
 
-	const amountOfDays = $derived(daysBetween(firstMetaTime, lastMetaTime));
-
-	// const timeStepsLength = $derived($metaJson?.valid_times.length);
-
-	const timeSteps = $derived.by(() =>
+	const timeSteps = $derived(
 		$metaJson?.valid_times.map((validTime: string) => new Date(validTime))
 	);
 
 	const daySteps = $derived.by(() => {
 		const days = [];
-		for (let day of Array.from({ length: 1 + amountOfDays }, (_, i) => i)) {
-			const date = new SvelteDate(firstMetaTime);
-			date.setUTCHours(0);
-			date.setUTCMinutes(0);
-			date.setUTCSeconds(0);
-			date.setUTCMilliseconds(0);
-			date.setDate(date.getDate() + day);
-			days.push(date);
+		const dates: string[] = [];
+		if (timeSteps) {
+			for (const timeStep of timeSteps) {
+				let monthIndex = timeStep.getUTCMonth();
+				let date = timeStep.getUTCDate();
+				if (dates.includes(`${monthIndex}-${date}`)) {
+					continue;
+				} else {
+					const newDay = new SvelteDate(timeStep);
+					newDay.setUTCHours(0);
+					newDay.setUTCMinutes(0);
+					dates.push(`${monthIndex}-${date}`);
+					days.push(newDay);
+				}
+			}
 		}
 		return days;
 	});
@@ -244,18 +259,15 @@
 		}
 	};
 
-	// for datefield
-	// let dateString = $derived($time.toISOString().slice(0, 16));
-	//
 	let percentage = $state(0);
 
 	let hoursHoverContainer: HTMLElement | undefined = $state();
 	let hoursHoverContainerWidth = $derived(hoursHoverContainer?.getBoundingClientRect().width);
 	let hoveredHour = $derived(
-		timeSteps ? timeSteps[Math.floor(timeSteps.length * percentage)] : new Date()
+		timeSteps ? timeSteps[Math.floor(timeSteps.length * percentage)] : firstMetaTime
 	);
 	let currentTimeStep = $derived(
-		timeSteps ? timeSteps.find((tS: Date) => tS.getTime() === $time.getTime()) : new Date()
+		timeSteps ? timeSteps.find((tS: Date) => tS.getTime() === $time.getTime()) : undefined
 	);
 	let currentPercentage = $derived(
 		currentTimeStep && timeSteps ? timeSteps.indexOf(currentTimeStep) / (timeSteps.length - 1) : 0
@@ -300,7 +312,7 @@
 		const previousModels = [];
 		for (let day of Array.from({ length: Math.floor((6.9 * 24) / modelInterval) }, (_, i) => i)) {
 			// 7 Days
-			const date = new SvelteDate(firstMetaTime);
+			const date = new SvelteDate(latestReferenceTime);
 			date.setUTCMinutes(0);
 			date.setUTCSeconds(0);
 			date.setUTCMilliseconds(0);
@@ -309,6 +321,14 @@
 		}
 		return previousModels;
 	});
+
+	let inProgressReferenceTime = $derived(
+		$inProgress?.reference_time &&
+			$latest?.reference_time &&
+			$inProgress?.reference_time !== $latest?.reference_time
+			? new Date($inProgress?.reference_time)
+			: undefined
+	);
 </script>
 
 <div
@@ -321,7 +341,11 @@
 	>
 		<div
 			bind:this={hoursHoverContainer}
-			class="absolute bottom-[25px] w-full h-[25px] z-10 cursor-pointer"
+			class="absolute {modelRunSelectionOpen
+				? 'bottom-[60px]'
+				: 'bottom-[20px]'} w-[calc(100%+8px)] h-[34px] -mx-1 {percentage
+				? 'z-20'
+				: 'z-10'} cursor-pointer duration-500"
 		>
 			{#if percentage}
 				<div
@@ -329,10 +353,16 @@
 					style="left: calc({percentage * 100}% - 33px); background-color: {dark
 						? 'rgba(15, 15, 15, 0.95)'
 						: 'rgba(240, 240, 240, 0.95)'}"
-					class="absolute -top-[38px] p-1 w-[66px] text-center rounded"
+					class="absolute z-20 -top-[32px] p-0.5 w-[66px] text-center rounded {hoveredHour &&
+					currentTimeStep &&
+					currentTimeStep.getTime() === hoveredHour.getTime()
+						? 'font-bold'
+						: ''}"
 				>
 					<div class="relative">
-						{pad(hoveredHour.getUTCHours())}:{pad(hoveredHour.getUTCMinutes())}
+						{#if hoveredHour}
+							{pad(hoveredHour.getUTCHours())}:{pad(hoveredHour.getUTCMinutes())}
+						{/if}
 						<div
 							style="background-color: {dark
 								? 'rgba(15, 15, 15, 0.95)'
@@ -341,22 +371,47 @@
 						></div>
 					</div>
 				</div>
+			{:else if currentTimeStep}
+				<div
+					transition:fade={{ duration: 200 }}
+					style="left: max(4px,min(calc({currentPercentage *
+						100}% - 33px),calc(100% - 70px))); background-color: {dark
+						? 'rgba(15, 15, 15, 0.95)'
+						: 'rgba(240, 240, 240, 0.95)'}"
+					class="absolute -top-[24px] p-0.5 w-[66px] text-center rounded-t"
+				>
+					<div class="relative font-bold">
+						{#if currentTimeStep}
+							{pad(currentTimeStep!.getUTCHours())}:{pad(currentTimeStep!.getUTCMinutes())}
+						{/if}
+					</div>
+				</div>
 			{/if}
 		</div>
-		<button
+		<a
+			href="."
 			onclick={() => (modelRunSelectionOpen = !modelRunSelectionOpen)}
-			style="background-color: {dark ? 'rgba(15, 15, 15, 0.95)' : 'rgba(240, 240, 240, 0.95)'}"
+			style="background-color: {dark
+				? 'rgba(15, 15, 15, 0.8)'
+				: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px);"
 			class="{modelRunSelectionOpen
-				? '-top-11'
-				: '-top-5'} cursor-pointer right-0 duration-500 absolute flex rounded-t-xl items-center px-2 gap-1"
+				? '-top-[44px] h-[44px]'
+				: '-top-[18px] h-[18px]'} z-10 cursor-pointer right-0 absolute flex rounded-t-xl items-center px-2 gap-0.5"
 		>
 			{#if modelRunSelectionOpen && modelRun}
-				<div class="duration-500 {modelRunSelectionOpen ? 'text-lg px-1 py-2' : 'text-sm'}">
+				<div
+					transition:slide={{ axis: 'x', duration: 500 }}
+					class="{modelRunSelectionOpen
+						? 'text-lg px-1 py-2 mr-0.5'
+						: 'text-sm'}  text-nowrap overflow-hidden"
+				>
 					<small>{pad($modelRun.getUTCDate())}-{pad($modelRun.getUTCMonth() + 1)}</small>
 					{pad($modelRun.getUTCHours())}:{pad($modelRun.getUTCMinutes())}
 				</div>
 			{/if}
-			<div
+
+			<button
+				class="cursor-pointer w-[18px] h-[18px] flex items-center justify-center"
 				onclick={(e) => {
 					e.preventDefault();
 					e.stopPropagation();
@@ -397,7 +452,7 @@
 						/></svg
 					>
 				{/if}
-			</div>
+			</button>
 
 			<svg
 				xmlns="http://www.w3.org/2000/svg"
@@ -413,70 +468,37 @@
 					? 'rotate-180'
 					: ''}"><path d="m18 15-6-6-6 6" /></svg
 			>
-		</button>
-		{#if modelRunSelectionOpen}
-			<div
-				transition:slide={{ duration: 500 }}
-				style="background-color: {dark
-					? 'rgba(15, 15, 15, 0.8)'
-					: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
-				class="h-[40px] border-t relative px-4 gap-1 flex-row-reverse overflow-x-scroll items-center rounded-t-r-2xl flex"
-			>
-				{#each previousModelSteps as previousModelStep, i (i)}
-					<button
-						onclick={() => {
-							$modelRun = previousModelStep;
-							onDateChange(previousModelStep);
-						}}
-						class="px-1.5 py-0.5 border-2 flex items-center rounded gap-1 hover:bg-accent cursor-pointer {previousModelStep.getTime() ===
-						firstMetaTime.getTime()
-							? 'border-green-600'
-							: ''} {previousModelStep.getTime() === $modelRun.getTime()
-							? ''
-							: 'border-transparent'}"
-						><small
-							>{pad(previousModelStep.getUTCDate())}-{pad(
-								previousModelStep.getUTCMonth() + 1
-							)}</small
-						>
-						{pad(previousModelStep.getUTCHours())}:{pad(previousModelStep.getUTCMinutes())}</button
-					>
-				{/each}
-			</div>
-		{/if}
+		</a>
 		<div
 			style="background-color: {dark
 				? 'rgba(15, 15, 15, 0.8)'
 				: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
 			class="time-selector {modelRunSelectionOpen
-				? 'border-t'
-				: ''} relative h-[50px] px-4 overflow-x-scroll rounded-t-r-2xl py-4"
+				? 'h-[90px]'
+				: 'h-[50px]'} relative overflow-x-scroll flex"
 		>
-			<div class="absolute top-0 w-full h-[20px] z-10 cursor-pointer">
-				<!-- {#if percentage}
+			<div class="absolute top-0 left-0 w-full h-[20px] cursor-pointer">
+				{#if percentage}
 					<div
-						transition:fade={{ duration: 200 }}
-						style="left: calc({percentage * 100}% - 33px); background-color: {dark
-							? 'rgba(15, 15, 15, 0.95)'
-							: 'rgba(240, 240, 240, 0.95)'}"
-						class="absolute -top-[40px] p-1 w-[66px] text-center rounded"
-					>
-						{pad(hoveredHour.getUTCHours())}:{pad(hoveredHour.getUTCMinutes())}
-					</div>
-				{/if} -->
-				{#if currentPercentage}
-					<div
-						style="left: {currentPercentage * 100}%;"
-						class="absolute border-red-800 dark:border-red-500 border border-r-2 top-0 h-3"
+						style="left: calc({percentage * 100}% - 0.5px);"
+						class="absolute border border-r-1 top-0 h-3"
 					></div>
 				{/if}
+				<div
+					style="left: calc({currentPercentage * 100}% - 1.5px);"
+					class="absolute bg-red-700 dark:bg-red-500 w-1 top-0 h-3.25"
+				></div>
 			</div>
 
-			<div class="flex gap-2">
+			<div class="flex">
 				{#each daySteps as dayStep, i (i)}
-					<div class="relative flex gap-1 min-w-[150px]">
+					<div
+						class="relative flex h-[50px] min-w-[170px] {i !== daySteps.length - 1
+							? 'border-r-1'
+							: ''}"
+					>
 						<div
-							class="absolute flex -bottom-2 -translate-x-1/2 left-1/2 items-center justify-center text-center flex-col"
+							class="absolute flex mt-2 -translate-x-1/2 left-1/2 items-center justify-center text-center flex-col"
 						>
 							<div class="">{dayNames[dayStep.getDay()]}</div>
 							<small class="-mt-1.5"
@@ -499,11 +521,75 @@
 							{/if}
 						{/each}
 					</div>
-					{#if i !== daySteps.length - 1}
-						|
-					{/if}
+					<!-- <div class="w-0">
+						{#if }
+							|
+						{/if}
+					</div> -->
 				{/each}
 			</div>
+			{#if modelRunSelectionOpen}
+				<div
+					transition:slide={{ duration: 500 }}
+					class="absolute right-0 bottom-0 h-[40px] {modelRunLocked
+						? 'opacity-60 cursor-not-allowed'
+						: ''}"
+				>
+					<!-- <div class="fixed left-0 z-10 bg-white">Model run:</div> -->
+					<div
+						class="{modelRunLocked
+							? 'pointer-events-none'
+							: ''} h-[40px] border-t relative px-4 gap-1 flex-row-reverse overflow-x-scroll items-center flex"
+					>
+						{#if inProgressReferenceTime}
+							<button
+								onclick={async () => {
+									$modelRun = inProgressReferenceTime;
+									$metaJson = await getMetaData();
+									onDateChange(inProgressReferenceTime);
+								}}
+								class="px-1.5 py-0.5 border-2 flex items-center rounded gap-1 hover:bg-accent cursor-pointer {inProgressReferenceTime.getTime() ===
+								firstMetaTime.getTime()
+									? 'border-orange-600'
+									: ''} {inProgressReferenceTime.getTime() === $modelRun.getTime()
+									? ''
+									: 'border-transparent'}"
+								>IP <small
+									>{pad(inProgressReferenceTime.getUTCDate())}-{pad(
+										inProgressReferenceTime.getUTCMonth() + 1
+									)}</small
+								>
+								{pad(inProgressReferenceTime.getUTCHours())}:{pad(
+									inProgressReferenceTime.getUTCMinutes()
+								)}</button
+							>
+						{/if}
+						{#each previousModelSteps as previousModelStep, i (i)}
+							<button
+								onclick={async () => {
+									$modelRun = previousModelStep;
+									$metaJson = await getMetaData();
+									onDateChange(previousModelStep);
+								}}
+								class="px-1.5 py-0.5 border-2 flex items-center rounded gap-1 hover:bg-accent cursor-pointer {previousModelStep.getTime() ===
+								latestReferenceTime.getTime()
+									? 'border-green-600'
+									: ''} {previousModelStep.getTime() === firstMetaTime.getTime()
+									? ''
+									: 'border-transparent'}"
+								><small
+									>{pad(previousModelStep.getUTCDate())}-{pad(
+										previousModelStep.getUTCMonth() + 1
+									)}</small
+								>
+								{pad(previousModelStep.getUTCHours())}:{pad(
+									previousModelStep.getUTCMinutes()
+								)}</button
+							>
+						{/each}
+					</div>
+				</div>
+			{/if}
 			<!-- <div class="font-bold absolute -top-[40px] left-1/2 h-[40px] text-2xl -translate-x-1/2">
 			<div
 				style="background-color: {dark
