@@ -289,7 +289,7 @@
 	let percentage = $state(0);
 
 	let hoursHoverContainer: HTMLElement | undefined = $state();
-	let hoursHoverContainerWidth = $derived(hoursHoverContainer?.getBoundingClientRect().width);
+	let hoursHoverContainerWidth: number | undefined = $state();
 	let hoveredHour = $derived(
 		timeStepsComplete
 			? timeStepsComplete[Math.floor(timeStepsComplete.length * percentage)]
@@ -414,6 +414,7 @@
 	>
 		<div
 			bind:this={hoursHoverContainer}
+			bind:clientWidth={hoursHoverContainerWidth}
 			class="absolute {modelRunSelectionOpen
 				? 'bottom-15'
 				: 'bottom-5'} w-[calc(100%+8px)] h-8.5 -mx-1 {percentage
@@ -500,6 +501,7 @@
 					e.preventDefault();
 					e.stopPropagation();
 					modelRunLocked = !modelRunLocked;
+					toast(modelRunLocked ? 'Model run locked' : 'Model run unlocked');
 				}}
 				aria-label="Model Run Lock"
 			>
@@ -613,7 +615,7 @@
 			{#if modelRunSelectionOpen}
 				<div
 					transition:slide={{ duration: 500 }}
-					class="absolute right-0 bottom-0 h-10 {modelRunLocked
+					class="absolute right-0 w-full bottom-0 h-10 {modelRunLocked
 						? 'opacity-60 cursor-not-allowed'
 						: ''}"
 				>

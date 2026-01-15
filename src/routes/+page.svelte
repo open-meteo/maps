@@ -153,7 +153,7 @@
 		await tick(); // await the selectedDomain to be set
 		updateUrl('domain', newDomain);
 
-		// $modelRun = undefined;
+		$modelRun = undefined;
 		await getInitialMetaData();
 		$metaJson = await getMetaData();
 
