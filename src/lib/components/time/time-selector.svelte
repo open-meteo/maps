@@ -27,12 +27,22 @@
 	const resolution: ModelDt = $derived($selectedDomain.time_interval);
 
 	const previousHour = () => {
-		const date = domainStep($time, resolution, 'backward');
+		let date;
+		if (currentIndex && timeSteps) {
+			date = timeSteps[currentIndex - 1];
+		} else {
+			// find closest
+		}
 		onDateChange(date);
 	};
 
 	const nextHour = () => {
-		const date = domainStep($time, resolution, 'forward');
+		let date;
+		if (currentIndex && timeSteps) {
+			date = timeSteps[currentIndex + 1];
+		} else {
+			// find closest
+		}
 		onDateChange(date);
 	};
 
@@ -115,6 +125,13 @@
 	const timeSteps = $derived(
 		$metaJson?.valid_times.map((validTime: string) => new SvelteDate(validTime))
 	);
+
+	const closestIndex = (date: Date | SvelteDate) => {
+		const found = timeSteps?.find((tS) => tS.getTime() === date.getTime());
+		if (found) return found;
+	};
+
+	const currentIndex = $derived(timeSteps ? timeSteps.indexOf(closestIndex($time)) : 0);
 
 	const daySteps = $derived.by(() => {
 		const days = [];
@@ -327,7 +344,23 @@
 				percentage = 0;
 			});
 			hoursHoverContainer.addEventListener('click', () => {
-				const timeStep = timeStepsComplete[Math.floor(timeStepsComplete.length * percentage)];
+				let timeStep = timeStepsComplete[Math.floor(timeStepsComplete.length * percentage)];
+				console.log(timeStep, timeSteps?.indexOf(timeStep));
+				if (
+					timeSteps?.indexOf(timeStep) === -1 &&
+					timeStep.getTime() > firstMetaTime.getTime() &&
+					timeStep.getTime() < lastMetaTime.getTime()
+				) {
+					// not part of valid times but inside model run =>
+					// round to nearest time in model run
+					const difference = timeStep.getUTCHours() % modelInterval;
+					if (difference >= modelInterval / 2) {
+						timeStep.setUTCHours(timeStep.getUTCHours() + (modelInterval - difference));
+					} else {
+						timeStep.setUTCHours(timeStep.getUTCHours() - difference);
+					}
+				}
+
 				if (timeStep) onDateChange(timeStep);
 			});
 		}
@@ -559,9 +592,7 @@
 			style="background-color: {dark
 				? 'rgba(15, 15, 15, 0.8)'
 				: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
-			class="time-selector {modelRunSelectionOpen
-				? 'h-22.5'
-				: 'h-12.5'} relative overflow-x-scroll flex"
+			class="time-selector {modelRunSelectionOpen ? 'h-22.5' : 'h-12.5'} relative overflow-x-scroll"
 		>
 			<div class="absolute top-0 left-0 w-full h-5 cursor-pointer">
 				{#if percentage}
@@ -576,7 +607,7 @@
 				></div>
 			</div>
 
-			<div class="flex">
+			<div class="flex overflow-x-scroll">
 				{#each daySteps as dayStep, i (i)}
 					<div
 						class="relative flex h-12.5 min-w-42.5 {i !== daySteps.length - 1 ? 'border-r' : ''}"
