@@ -168,7 +168,7 @@
 	const timeStepsComplete = $derived.by(() => {
 		const timeStepsComplete = [];
 		for (let day of daySteps) {
-			for (let i = 0; i <= 23.9; i += timeInterval) {
+			for (let i = 0; i <= 24; i += timeInterval) {
 				const date = new SvelteDate(day);
 				date.setUTCHours(i);
 				timeStepsComplete.push(date);
@@ -283,6 +283,8 @@
 	// 			}, 700);
 	// 	}
 	// };
+	//
+	const desktop = new MediaQuery('min-width: 768px');
 
 	let percentage = $state(0);
 
@@ -299,9 +301,11 @@
 			: undefined
 	);
 	let currentPercentage = $derived(
-		currentTimeStep && timeStepsComplete
-			? timeStepsComplete.indexOf(currentTimeStep) / (timeStepsComplete.length - 1)
-			: 0
+		!desktop.current
+			? 0.5
+			: currentTimeStep && timeStepsComplete
+				? timeStepsComplete.indexOf(currentTimeStep) / (timeStepsComplete.length - 1)
+				: 0
 	);
 
 	const timeValid = (date: Date) => {
@@ -375,7 +379,20 @@
 	const onModelRunChange = async (step: Date) => {
 		$modelRun = step;
 		$metaJson = await getMetaData();
-		onDateChange($modelRun);
+
+		let timeInNewModelRun = false;
+		for (const vT of $metaJson.valid_times) {
+			const validTime = new Date(vT);
+			if (validTime.getTime() === $time.getTime()) {
+				timeInNewModelRun = true;
+			}
+		}
+		if (!timeInNewModelRun) {
+			onDateChange($modelRun);
+		} else {
+			changeOMfileURL();
+		}
+
 		if ($modelRun.getTime() !== latestReferenceTime.getTime()) {
 			updateUrl('model_run', fmtISOWithoutTimezone($modelRun));
 		} else {
@@ -383,8 +400,6 @@
 		}
 		toast.info('Model run set to: ' + fmtISOWithoutTimezone($modelRun));
 	};
-
-	const desktop = new MediaQuery('min-width: 640px');
 </script>
 
 <div
@@ -405,7 +420,7 @@
 				? 'z-20'
 				: 'z-10'} cursor-pointer duration-500"
 		>
-			{#if percentage}
+			{#if percentage && desktop.current}
 				<div
 					transition:fade={{ duration: 200 }}
 					style="left: calc({percentage * 100}% - 33px); background-color: {dark
@@ -464,8 +479,8 @@
 				? 'rgba(15, 15, 15, 0.8)'
 				: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px);"
 			class="{modelRunSelectionOpen
-				? '-top-[44px] h-[44px]'
-				: '-top-[18px] h-[18px]'} z-10 cursor-pointer right-0 absolute flex rounded-t-xl items-center px-2 gap-0.5"
+				? '-top-11 h-11'
+				: '-top-4.5 h-4.5'} z-10 cursor-pointer right-0 absolute flex rounded-t-xl items-center px-2 gap-0.5"
 		>
 			{#if modelRunSelectionOpen && $modelRun}
 				<div
@@ -654,100 +669,6 @@
 					</div>
 				</div>
 			{/if}
-			<!-- <div class="font-bold absolute -top-[40px] left-1/2 h-[40px] text-2xl -translate-x-1/2">
-			<div
-				style="background-color: {dark
-					? 'rgba(15, 15, 15, 0.8)'
-					: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
-				class="px-4 rounded-t-xl h-[40.1px] flex items-center justify-center gap-2 min-w-[105px]"
-			>
-				<div class="datetime-picker">
-					<button
-						class="flex items center cursor-pointer"
-						aria-label="Date Picker Button"
-						onclick={() => (dateTimePickerOpen = !dateTimePickerOpen)}
-					>
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							width="24"
-							height="24"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							class="lucide lucide-calendar1-icon lucide-calendar-1"
-							><path d="M11 14h1v4" /><path d="M16 2v4" /><path d="M3 10h18" /><path
-								d="M8 2v4"
-							/><rect x="3" y="4" width="18" height="18" rx="2" /></svg
-						>
-					</button>
-
-					{#if dateTimePickerOpen}
-						<div
-							class="picker-overlay absolute -top-[65px] flex p-2 rounded -left-[65px]"
-							style="background-color: {dark
-								? 'rgba(15, 15, 15, 0.8)'
-								: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
-						>
-							<div class="picker-panel">
-								<input
-									type="datetime-local"
-									bind:value={dateString}
-									onchange={(e) => {
-										const hour = $time.getUTCHours();
-										const target = e.target as HTMLInputElement;
-										const value = target?.value;
-										const newDate = new SvelteDate(value);
-										newDate.setUTCHours(hour);
-										onDateChange(newDate);
-										centerDateButton(newDate.getUTCHours(), true);
-									}}
-									class="native-picker"
-								/>
-							</div>
-						</div>
-					{/if}
-				</div>
-				<div>
-					{pad(currentDate.getUTCHours()) + ':' + pad(currentDate.getMinutes())}
-				</div>
-			</div>
-		</div> -->
-			<!-- <div class="flex flex-col">
-			<div
-				style="box-shadow: inset -50w 0 10px -50w red, inset 50w 0 10px -50vw red;"
-				bind:this={hoursContainerParent}
-				class="relative overflow-x-scroll mt-2 w-[100vw]"
-			>
-				<div class="flex cursor-grab flex-row w-[calc(200vw-64px)] pb-2">
-					<div class="w-[calc(50vw-16px)]"></div>
-					<div
-						bind:this={hoursContainer}
-						class="w-[calc(100vw-32px)] flex flex-row items-center justify-between"
-					>
-						{#each timeSteps as step (step)}
-							<button
-								class="bg-blue-500 p-1 text-white min-w-12 flex justify-center rounded {isDown
-									? 'cursor-grabbing'
-									: 'cursor-pointer'}"
-								onclick={() => {
-									let newDate = new SvelteDate($time);
-									newDate.setUTCHours(step.getUTCHours());
-									onDateChange(newDate);
-									centerDateButton(step.getUTCHours(), true);
-								}}
-							>
-								{pad(step.getUTCHours())}
-							</button>
-						{/each}
-					</div>
-
-					<div class="w-[50vw-16px]"></div>
-				</div>
-			</div>
-		</div> -->
 		</div>
 	</div>
 </div>

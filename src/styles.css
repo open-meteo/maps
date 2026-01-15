@@ -174,7 +174,7 @@ body {
 
 @media (max-width: 768px) {
 	.time-selector-open .maplibregl-ctrl-bottom-right {
-		bottom: 75px;
+		bottom: 65px;
 	}
 }
 
