@@ -168,7 +168,7 @@
 	const timeStepsComplete = $derived.by(() => {
 		const timeStepsComplete = [];
 		for (let day of daySteps) {
-			for (let i = 0; i <= 23; i += timeInterval) {
+			for (let i = 0; i <= 23.9; i += timeInterval) {
 				const date = new SvelteDate(day);
 				date.setUTCHours(i);
 				timeStepsComplete.push(date);
@@ -176,8 +176,6 @@
 		}
 		return timeStepsComplete;
 	});
-
-	$inspect(timeStepsComplete).with(console.log);
 
 	const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
