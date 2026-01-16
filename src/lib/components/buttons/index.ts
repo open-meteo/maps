@@ -8,8 +8,7 @@ import {
 	defaultPreferences,
 	helpOpen as hO,
 	preferences as p,
-	sheet,
-	url as u
+	sheet
 } from '$lib/stores/preferences';
 
 import {
@@ -20,11 +19,6 @@ import {
 	terrainHandler,
 	updateUrl
 } from '$lib';
-
-let url = get(u);
-u.subscribe((newUrl) => {
-	url = newUrl;
-});
 
 let map = get(m);
 m.subscribe((newMap) => {

@@ -22,10 +22,12 @@
 	import { map } from '$lib/stores/map';
 	import { defaultColorHash, omProtocolSettings } from '$lib/stores/om-protocol-settings';
 	import {
+		latest,
 		loading,
 		localStorageVersion,
 		metaJson,
 		modelRun,
+		preferences,
 		resetStates,
 		resolution,
 		resolutionSet,
@@ -56,6 +58,7 @@
 		checkClosestDomainInterval,
 		checkClosestModelRun,
 		checkHighDefinition,
+		getInitialMetaData,
 		getMetaData,
 		getStyle,
 		hashValue,
@@ -135,7 +138,8 @@
 			$map.addControl(new SettingsButton());
 			$map.addControl(new TimeButton());
 			$map.addControl(new HelpButton());
-			$metaJson = await getMetaData();
+
+			$metaJson = $latest;
 
 			addOmFileLayers();
 			addHillshadeSources();
@@ -149,16 +153,11 @@
 		await tick(); // await the selectedDomain to be set
 		updateUrl('domain', newDomain);
 
+		$modelRun = undefined;
+		await getInitialMetaData();
 		$metaJson = await getMetaData();
 
 		checkClosestDomainInterval();
-		// align model run with new model_interval on domain change
-		$modelRun = closestModelRun($modelRun, $selectedDomain.model_interval);
-		checkClosestModelRun(); // checks and updates time and model run to fit the current domain selection
-
-		if ($modelRun.getTime() - $time.getTime() > 0) {
-			$time = domainStep($modelRun, $selectedDomain.time_interval, 'forward');
-		}
 
 		matchVariableOrFirst();
 
@@ -175,12 +174,21 @@
 		toast('Variable set to: ' + $selectedVariable.label);
 	});
 
+	let metaDataInterval: ReturnType<typeof setInterval>;
+	onMount(() => {
+		metaDataInterval = setInterval(() => {
+			getInitialMetaData();
+		}, 60 * 1000);
+	});
+
 	onDestroy(() => {
 		if ($map) {
 			$map.remove();
 		}
 		domainSubscription(); // unsubscribe
 		variableSubscription(); // unsubscribe
+
+		clearInterval(metaDataInterval);
 	});
 </script>
 
@@ -192,7 +200,11 @@
 	<Spinner />
 {/if}
 
-<div class="map" id="#map_container" bind:this={mapContainer}></div>
+<div
+	class="map maplibregl-map {$preferences.timeSelector ? 'time-selector-open' : ''}"
+	id="#map_container"
+	bind:this={mapContainer}
+></div>
 
 <Scale
 	afterColorScaleChange={async (variable: string, colorScale: RenderableColorScale) => {

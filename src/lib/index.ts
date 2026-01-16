@@ -23,6 +23,8 @@ import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 import {
 	completeDefaultValues,
 	defaultPreferences,
+	inProgress as iP,
+	latest as l,
 	loading,
 	metaJson as mJ,
 	modelRun as mR,
@@ -90,8 +92,10 @@ export const urlParamsToPreferences = () => {
 		mR.set(new SvelteDate(Date.UTC(year, month, day, hour, minute, 0, 0)));
 	} else {
 		const modelRun = get(mR);
-		modelRun.setUTCHours(0, 0, 0, 0);
-		mR.set(modelRun);
+		if (modelRun) {
+			modelRun.setUTCHours(0, 0, 0, 0);
+			mR.set(modelRun);
+		}
 	}
 
 	const urlTime = params.get('time');
@@ -203,9 +207,11 @@ export const checkClosestDomainInterval = () => {
 	time.set(closestTime);
 };
 
-export const checkClosestModelRun = () => {
+export const checkClosestModelRun = async () => {
 	let timeStep = get(time);
 	const domain = get(selectedDomain);
+	const latest = get(l);
+	const latestReferenceTime = new Date(latest?.reference_time as string);
 
 	// other than seasonal models, data is not available longer than 7 days
 	if (domain.model_interval !== 'monthly') {
@@ -220,11 +226,11 @@ export const checkClosestModelRun = () => {
 	}
 	// check that requested time is not newer than the latest valid_times in the DomainMetaData
 	if (metaJson) {
-		const latestTimeStep = new Date(metaJson.valid_times[metaJson.valid_times.length - 1]);
-		if (timeStep.getTime() > latestTimeStep.getTime()) {
+		const metaTimeStep = new Date(metaJson.valid_times[metaJson.valid_times.length - 1]);
+		if (timeStep.getTime() > metaTimeStep.getTime()) {
 			toast.warning('Date selected too new, using latest available time');
-			time.set(latestTimeStep);
-			timeStep = latestTimeStep;
+			time.set(metaTimeStep);
+			timeStep = metaTimeStep;
 		}
 	}
 
@@ -233,35 +239,42 @@ export const checkClosestModelRun = () => {
 
 	let setToModelRun = new SvelteDate(modelRun);
 
-	const latestReferenceTime = metaJson?.reference_time
+	const metaReferenceTime = metaJson?.reference_time
 		? new Date(metaJson.reference_time)
 		: undefined;
 
-	if (latestReferenceTime && nearestModelRun.getTime() > latestReferenceTime.getTime()) {
-		setToModelRun = new SvelteDate(latestReferenceTime);
-	} else if (timeStep.getTime() < modelRun.getTime()) {
-		setToModelRun = new SvelteDate(nearestModelRun);
-	} else {
-		if (latestReferenceTime) {
-			if (latestReferenceTime.getTime() === modelRun.getTime()) {
-				updateUrl('model_run', undefined);
-			} else if (
-				timeStep.getTime() > latestReferenceTime.getTime() &&
-				latestReferenceTime.getTime() > modelRun.getTime()
-			) {
-				setToModelRun = new SvelteDate(latestReferenceTime);
-			} else if (timeStep.getTime() < latestReferenceTime.getTime() - 24 * 60 * 60 * 1000) {
-				// Atleast yesterday, always update to nearest modelRun
-				if (modelRun.getTime() < nearestModelRun.getTime()) {
-					setToModelRun = new SvelteDate(nearestModelRun);
+	if (modelRun) {
+		if (metaReferenceTime && nearestModelRun.getTime() > metaReferenceTime.getTime()) {
+			setToModelRun = new SvelteDate(metaReferenceTime);
+		} else if (timeStep.getTime() < modelRun.getTime()) {
+			setToModelRun = new SvelteDate(nearestModelRun);
+		} else {
+			if (metaReferenceTime) {
+				if (metaReferenceTime.getTime() === modelRun.getTime()) {
+					updateUrl('model_run', undefined);
+				} else if (
+					timeStep.getTime() > metaReferenceTime.getTime() &&
+					metaReferenceTime.getTime() > modelRun.getTime()
+				) {
+					setToModelRun = new SvelteDate(metaReferenceTime);
+				} else if (timeStep.getTime() < metaReferenceTime.getTime() - 24 * 60 * 60 * 1000) {
+					// Atleast yesterday, always update to nearest modelRun
+					if (modelRun.getTime() < nearestModelRun.getTime()) {
+						setToModelRun = new SvelteDate(nearestModelRun);
+					}
 				}
 			}
 		}
 	}
 
-	if (setToModelRun.getTime() !== modelRun.getTime()) {
+	if (modelRun && setToModelRun.getTime() !== modelRun.getTime()) {
 		mR.set(setToModelRun);
-		updateUrl('model_run', fmtISOWithoutTimezone(setToModelRun));
+		mJ.set(await getMetaData());
+		if (modelRun.getTime() !== latestReferenceTime.getTime()) {
+			updateUrl('model_run', fmtISOWithoutTimezone(modelRun));
+		} else {
+			updateUrl('model_run', undefined);
+		}
 		toast.info('Model run set to: ' + fmtISOWithoutTimezone(setToModelRun));
 	} else {
 		updateUrl();
@@ -379,6 +392,8 @@ export const addOmFileLayers = () => {
 	if (!map) return;
 	// when (re)-adding the om-file layers, we need to reset the vectorRequests to fix set the opacity correctly on the first request
 	vectorRequests = 0;
+
+	checkClosestModelRun();
 
 	omUrl = getOMUrl();
 	map.addSource('omRasterSource', {
@@ -837,7 +852,7 @@ export const getOMUrl = () => {
 
 	let url = `${uri}/data_spatial/${domain}`;
 
-	const modelRun = get(mR);
+	const modelRun = get(mR) as Date;
 	const selectedTime = get(time);
 	url += `/${fmtModelRun(modelRun)}/${fmtSelectedTime(selectedTime)}.om`;
 
@@ -930,21 +945,73 @@ export const updateUrl = async (
 	}
 
 	await tick();
-	if (map && map._hash && map.getCenter()) {
+	try {
 		pushState(url + map._hash.getHashString(), {});
-	} else {
+	} catch {
 		pushState(url, {});
 	}
 };
 
-export const getMetaData = async (inProgress = false): Promise<DomainMetaDataJson> => {
+export const getInitialMetaData = async () => {
 	const domain = get(selectedDomain);
+
 	const uri =
 		domain && domain.value.startsWith('dwd_icon')
 			? `https://s3.servert.ch`
 			: `https://map-tiles.open-meteo.com`;
 
-	const metaJsonUrl = `${uri}/data_spatial/${domain.value}/${inProgress ? 'in-progress' : 'latest'}.json`;
+	const metaJsonResults = await Promise.all([
+		fetch(`${uri}/data_spatial/${domain.value}/latest.json`),
+		fetch(`${uri}/data_spatial/${domain.value}/in-progress.json`)
+	]);
+
+	for (const metaResult of metaJsonResults) {
+		if (!metaResult.ok) {
+			loading.set(false);
+			throw new Error(`HTTP ${metaResult.status}`);
+		}
+		if (metaResult.url.includes('latest.json')) {
+			l.set(await metaResult.json());
+		}
+		if (metaResult.url.includes('in-progress.json')) {
+			iP.set(await metaResult.json());
+		}
+	}
+};
+
+export const getMetaData = async (): Promise<DomainMetaDataJson> => {
+	const domain = get(selectedDomain);
+	let modelRun = get(mR);
+
+	const latest = get(l);
+	const latestReferenceTime = latest?.reference_time ? new Date(latest?.reference_time) : undefined;
+	if (modelRun === undefined) {
+		mR.set(latestReferenceTime);
+		modelRun = get(mR) as Date;
+	}
+	if (latestReferenceTime) {
+		if (modelRun.getTime() === latestReferenceTime?.getTime()) {
+			return latest as DomainMetaDataJson;
+		}
+	}
+
+	const inProgress = get(iP);
+	const inProgressReferenceTime = inProgress?.reference_time
+		? new Date(inProgress?.reference_time)
+		: undefined;
+	if (inProgressReferenceTime) {
+		if (modelRun && modelRun.getTime() === inProgressReferenceTime?.getTime()) {
+			return inProgress as DomainMetaDataJson;
+		}
+	}
+
+	const uri =
+		domain && domain.value.startsWith('dwd_icon')
+			? `https://s3.servert.ch`
+			: `https://map-tiles.open-meteo.com`;
+
+	const metaJsonUrl = `${uri}/data_spatial/${domain.value}/${fmtModelRun(modelRun as Date)}/meta.json`;
+
 	const metaJsonResult = await fetch(metaJsonUrl);
 	if (!metaJsonResult.ok) {
 		loading.set(false);
@@ -976,4 +1043,33 @@ export const matchVariableOrFirst = () => {
 	if (matchedVariable) {
 		v.set(matchedVariable);
 	}
+};
+
+export const throttle = <T extends unknown[]>(callback: (...args: T) => void, delay: number) => {
+	let waiting = false;
+
+	return (...args: T) => {
+		if (waiting) {
+			return;
+		}
+
+		callback(...args);
+		waiting = true;
+
+		setTimeout(() => {
+			waiting = false;
+		}, delay);
+	};
+};
+
+export const debounce = <T extends unknown[]>(callback: (...args: T) => void, delay: number) => {
+	let timeoutTimer: ReturnType<typeof setTimeout>;
+
+	return (...args: T) => {
+		clearTimeout(timeoutTimer);
+
+		timeoutTimer = setTimeout(() => {
+			callback(...args);
+		}, delay);
+	};
 };
