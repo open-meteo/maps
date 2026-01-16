@@ -17,12 +17,12 @@
 		variableSelectionOpen
 	} from '$lib/stores/variables';
 
-	import { changeOMfileURL, fmtISOWithoutTimezone, getMetaData, throttle, updateUrl } from '$lib';
+	import { changeOMfileURL, fmtISOWithoutTimezone, getMetaData, updateUrl } from '$lib';
 
 	import type { ModelDt } from '@openmeteo/mapbox-layer';
 
 	let disabled = $derived($loading);
-	let currentDate = $derived($time);
+	// let currentDate = $derived($time);
 
 	const resolution: ModelDt = $derived($selectedDomain.time_interval);
 
@@ -345,20 +345,21 @@
 			});
 			hoursHoverContainer.addEventListener('click', () => {
 				let timeStep = timeStepsComplete[Math.floor(timeStepsComplete.length * percentage)];
-				console.log(timeStep, timeSteps?.indexOf(timeStep));
 				if (
 					timeSteps?.indexOf(timeStep) === -1 &&
 					timeStep.getTime() > firstMetaTime.getTime() &&
 					timeStep.getTime() < lastMetaTime.getTime()
 				) {
+					const newTimeStep = new SvelteDate(timeStep);
 					// not part of valid times but inside model run =>
 					// round to nearest time in model run
 					const difference = timeStep.getUTCHours() % modelInterval;
 					if (difference >= modelInterval / 2) {
-						timeStep.setUTCHours(timeStep.getUTCHours() + (modelInterval - difference));
+						newTimeStep.setUTCHours(timeStep.getUTCHours() + (modelInterval - difference));
 					} else {
-						timeStep.setUTCHours(timeStep.getUTCHours() - difference);
+						newTimeStep.setUTCHours(timeStep.getUTCHours() - difference);
 					}
+					timeStep = newTimeStep;
 				}
 
 				if (timeStep) onDateChange(timeStep);
@@ -450,9 +451,7 @@
 			bind:clientWidth={hoursHoverContainerWidth}
 			class="absolute {modelRunSelectionOpen
 				? 'bottom-15'
-				: 'bottom-5'} w-[calc(100%+8px)] h-8.5 -mx-1 {percentage
-				? 'z-20'
-				: 'z-10'} cursor-pointer duration-500"
+				: 'bottom-5'} w-full h-8.5 -mx-1 {percentage ? 'z-20' : 'z-10'} cursor-pointer duration-500"
 		>
 			{#if percentage && desktop.current}
 				<div
@@ -620,27 +619,14 @@
 								>{pad(dayStep.getUTCDate())}-{pad(dayStep.getUTCMonth() + 1)}</small
 							>
 						</div>
-						{#each timeSteps as timeStep, i (i)}
-							{#if timeStep.getTime() >= dayStep.getTime() && timeStep.getTime() < dayStep.getTime() + millisecondsPerDay}
-								<!-- <Button
-									class="p-0 m-0 border-none !h-[unset] hover:bg-transparent bg-transparent text-foreground cursor-pointer {timeStep.getTime() ===
-									$time.getTime()
-										? 'font-bold'
-										: ''}"
-									onclick={() => {
-										let newDate = new SvelteDate(timeStep);
-										onDateChange(newDate);
-										centerDateButton(newDate.getUTCHours(), true);
-									}}>{pad(timeStep.getUTCHours())}</Button
-								> -->
-							{/if}
-						{/each}
+						<div class="flex pointer-events-none {i === 0 ? 'justify-self-end ml-auto' : ''}">
+							{#each timeSteps as timeStep, j (j)}
+								{#if timeStep.getTime() >= dayStep.getTime() && timeStep.getTime() < dayStep.getTime() + millisecondsPerDay}
+									<div class="w-[7.07px] h-1.25 {j % 3 === 0 ? 'h-2.5' : ''} border-l"></div>
+								{/if}
+							{/each}
+						</div>
 					</div>
-					<!-- <div class="w-0">
-						{#if }
-							|
-						{/if}
-					</div> -->
 				{/each}
 			</div>
 			{#if modelRunSelectionOpen}
