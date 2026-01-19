@@ -543,11 +543,11 @@
 <div
 	class="absolute bottom-0 min-w-full md:min-w-[unset] md:max-w-[75vw] -translate-x-1/2 left-1/2 {disabled
 		? 'text-foreground/50 cursor-not-allowed'
-		: ''}"
+		: ''} {$preferences.timeSelector ? '' : ''}"
 >
 	<div
 		class="relative duration-750 {disabled ? 'pointer-events-none' : ''} {$preferences.timeSelector
-			? 'opacity-100 bottom-0'
+			? 'opacity-100 bottom-0 '
 			: 'pointer-events-none opacity-0 -bottom-22.5'}"
 	>
 		<!-- Hover container -->
@@ -777,7 +777,7 @@
 								onclick={() => {
 									onModelRunChange(inProgressReferenceTime);
 								}}
-								class="px-1.5 py-0.5 border-2 flex items-center rounded gap-1 hover:bg-accent cursor-pointer {inProgressReferenceTime.getTime() ===
+								class="px-1.5 py-0.5 border-2 flex items-center text-nowrap rounded gap-1 hover:bg-accent cursor-pointer {inProgressReferenceTime.getTime() ===
 								firstMetaTime.getTime()
 									? 'border-orange-500 dark:border-orange-300'
 									: ''} {inProgressReferenceTime.getTime() === $modelRun.getTime()
@@ -798,7 +798,7 @@
 								onclick={() => {
 									onModelRunChange(previousModelStep);
 								}}
-								class="px-1.5 py-0.5 border-2 flex items-center rounded gap-1 hover:bg-accent cursor-pointer {previousModelStep.getTime() ===
+								class="px-1.5 py-0.5 border-2 flex items-center text-nowrap rounded gap-1 hover:bg-accent cursor-pointer {previousModelStep.getTime() ===
 									latestReferenceTime.getTime() &&
 								previousModelStep.getTime() === firstMetaTime.getTime()
 									? 'border-green-700 dark:border-green-500'
