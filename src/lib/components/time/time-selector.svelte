@@ -45,8 +45,6 @@
 		let mI = $selectedDomain.model_interval;
 
 		switch (mI) {
-			case '15':
-				return 1;
 			case 'hourly':
 				return 1;
 			case '3_hourly':
@@ -64,15 +62,17 @@
 	let dayWidth = $derived(timeInterval === 0.25 ? 340 : 170);
 
 	const previousHour = () => {
-		let date;
+		let date = new SvelteDate($time);
 		if (currentIndex && timeSteps) {
 			date = timeSteps[currentIndex - 1];
-		} else {
-			// find closest
-		}
-		onDateChange(date);
-		if (currentPercentage < 0.1) {
-			dayContainer?.scrollTo({ left: dayContainerScrollLeft - dayWidth / 25, behavior: 'smooth' });
+
+			onDateChange(date);
+			if (currentPercentage < 0.1) {
+				dayContainer?.scrollTo({
+					left: dayContainerScrollLeft - dayWidth / 25,
+					behavior: 'smooth'
+				});
+			}
 		}
 	};
 
@@ -81,8 +81,8 @@
 			toast.warning('Model run locked');
 			return;
 		}
-		const currentIndex = previousModelSteps.findIndex(
-			(pMS) => $modelRun.getTime() === pMS.getTime()
+		const currentIndex = previousModelSteps.findIndex((pMS) =>
+			$modelRun ? $modelRun.getTime() === pMS.getTime() : false
 		);
 		if (currentIndex !== -1) {
 			onModelRunChange(previousModelSteps[currentIndex + 1]);
@@ -93,13 +93,14 @@
 		let date = new SvelteDate($time);
 		if (currentIndex && timeSteps) {
 			date = timeSteps[currentIndex + 1];
-		} else {
-			// find closest
-		}
 
-		onDateChange(date);
-		if (currentPercentage > 0.82) {
-			dayContainer?.scrollTo({ left: dayContainerScrollLeft + dayWidth / 25, behavior: 'smooth' });
+			onDateChange(date);
+			if (currentPercentage > 0.82) {
+				dayContainer?.scrollTo({
+					left: dayContainerScrollLeft + dayWidth / 25,
+					behavior: 'smooth'
+				});
+			}
 		}
 	};
 
@@ -108,8 +109,8 @@
 			toast.warning('Model run locked');
 			return;
 		}
-		const currentIndex = previousModelSteps.findIndex(
-			(pMS) => $modelRun.getTime() === pMS.getTime()
+		const currentIndex = previousModelSteps.findIndex((pMS) =>
+			$modelRun ? $modelRun.getTime() === pMS.getTime() : false
 		);
 		if (currentIndex !== -1) {
 			if (currentIndex === 0) {
