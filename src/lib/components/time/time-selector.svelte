@@ -614,7 +614,7 @@
 		</div>
 		<!-- Model Run Toggle Button -->
 		<a
-			href="#id"
+			href="#"
 			onclick={() => (modelRunSelectionOpen = !modelRunSelectionOpen)}
 			style="background-color: {dark
 				? 'rgba(15, 15, 15, 0.8)'
