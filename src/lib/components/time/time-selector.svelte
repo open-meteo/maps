@@ -245,7 +245,7 @@
 		for (let day of daySteps) {
 			for (let i = 0; i <= 23; i++) {
 				if (timeInterval === 0.25) {
-					for (let j = 0; j <= 60; j += 15) {
+					for (let j = 0; j < 60; j += 15) {
 						const date = new SvelteDate(day);
 						date.setUTCHours(i);
 						date.setUTCMinutes(j);
@@ -737,13 +737,18 @@
 								{#each timeStepsComplete as timeStep, j (j)}
 									{#if timeStep.getTime() >= dayStep.getTime() && timeStep.getTime() < dayStep.getTime() + millisecondsPerDay}
 										<div
-											class="w-[calc({dayWidth}px/24)] h-1.25 {j % 12 === 0 && j !== 0
+											style="width: calc({170}px/{timeInterval === 0.25 ? 72 : 24});"
+											class="h-1.25 {timeInterval !== 0.25 && j % 12 === 0 && j !== 0
 												? 'h-3.25'
-												: ''} {j % 3 === 0 ? 'h-2.5' : ''} {timeInterval !== 0.25 &&
-											j % 24 === 0 &&
-											j !== 0
+												: ''} {timeInterval !== 0.25 && j % 3 === 0
+												? 'h-2.5'
+												: ''} {timeInterval !== 0.25 && j % 24 === 0 && j !== 0
 												? 'h-6'
-												: ''}  border-l-2
+												: ''} {timeInterval === 0.25 && j % 4 === 0
+												? 'h-2.5'
+												: ''} {timeInterval === 0.25 && j % 16 === 0 && j !== 0
+												? 'h-3.25'
+												: ''} border-l-2
 												{!timeSteps?.find((tS) => timeStep.getTime() === tS.getTime()) ? 'border-foreground/20' : ''}"
 										></div>
 									{/if}
