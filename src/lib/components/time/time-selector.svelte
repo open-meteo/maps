@@ -1,9 +1,8 @@
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
+	import { onDestroy, onMount, tick } from 'svelte';
 	import { MediaQuery, SvelteDate } from 'svelte/reactivity';
 	import { fade, slide } from 'svelte/transition';
 
-	import { domainStep, pad } from '@openmeteo/mapbox-layer';
 	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
@@ -17,14 +16,52 @@
 		variableSelectionOpen
 	} from '$lib/stores/variables';
 
-	import { changeOMfileURL, fmtISOWithoutTimezone, getMetaData, updateUrl } from '$lib';
+	import { changeOMfileURL, fmtISOWithoutTimezone, getMetaData, pad, updateUrl } from '$lib';
 
-	import type { ModelDt } from '@openmeteo/mapbox-layer';
-
+	const dark = $derived(mode.current === 'dark');
 	let disabled = $derived($loading);
-	// let currentDate = $derived($time);
 
-	const resolution: ModelDt = $derived($selectedDomain.time_interval);
+	let timeInterval = $derived.by(() => {
+		let tI = $selectedDomain.time_interval;
+
+		switch (tI) {
+			case '15_minute':
+				return 0.25;
+			case 'hourly':
+				return 1;
+			case '3_hourly':
+				return 3;
+			case '6_hourly':
+				return 6;
+			case '12_hourly':
+				return 12;
+			case 'daily':
+				return 24;
+		}
+		return 1;
+	});
+
+	let modelInterval = $derived.by(() => {
+		let mI = $selectedDomain.model_interval;
+
+		switch (mI) {
+			case '15':
+				return 1;
+			case 'hourly':
+				return 1;
+			case '3_hourly':
+				return 3;
+			case '6_hourly':
+				return 6;
+			case '12_hourly':
+				return 12;
+			case 'daily':
+				return 24;
+		}
+		return 1;
+	});
+
+	let dayWidth = $derived(timeInterval === 0.25 ? 340 : 170);
 
 	const previousHour = () => {
 		let date;
@@ -34,32 +71,75 @@
 			// find closest
 		}
 		onDateChange(date);
+		if (currentPercentage < 0.1) {
+			dayContainer?.scrollTo({ left: dayContainerScrollLeft - dayWidth / 25, behavior: 'smooth' });
+		}
+	};
+
+	const previousModel = () => {
+		if (modelRunLocked) {
+			toast.warning('Model run locked');
+			return;
+		}
+		const currentIndex = previousModelSteps.findIndex(
+			(pMS) => $modelRun.getTime() === pMS.getTime()
+		);
+		if (currentIndex !== -1) {
+			onModelRunChange(previousModelSteps[currentIndex + 1]);
+		}
 	};
 
 	const nextHour = () => {
-		let date;
+		let date = new SvelteDate($time);
 		if (currentIndex && timeSteps) {
 			date = timeSteps[currentIndex + 1];
 		} else {
 			// find closest
 		}
+
 		onDateChange(date);
+		if (currentPercentage > 0.82) {
+			dayContainer?.scrollTo({ left: dayContainerScrollLeft + dayWidth / 25, behavior: 'smooth' });
+		}
+	};
+
+	const nextModel = () => {
+		if (modelRunLocked) {
+			toast.warning('Model run locked');
+			return;
+		}
+		const currentIndex = previousModelSteps.findIndex(
+			(pMS) => $modelRun.getTime() === pMS.getTime()
+		);
+		if (currentIndex !== -1) {
+			if (currentIndex === 0) {
+				toast.warning('Already on latest model');
+			} else {
+				onModelRunChange(previousModelSteps[currentIndex - 1]);
+			}
+		}
 	};
 
 	const previousDay = () => {
-		const prevDay = new SvelteDate($time);
-		prevDay.setUTCHours(prevDay.getUTCHours() - 24);
-		const date = domainStep(prevDay, resolution, 'backward');
+		let date = new SvelteDate($time);
+		date.setUTCHours(date.getUTCHours() - 24);
+		const timeStep = findTimeStep(date);
+		if (timeStep) date = timeStep;
 		onDateChange(date);
-		$time = prevDay;
+		if (currentPercentage < 0.25) {
+			dayContainer?.scrollTo({ left: dayContainerScrollLeft - dayWidth, behavior: 'smooth' });
+		}
 	};
 
 	const nextDay = () => {
-		const nextDay = new SvelteDate($time);
-		nextDay.setUTCHours(nextDay.getUTCHours() + 24);
-		const date = domainStep(nextDay, resolution, 'forward');
+		let date = new SvelteDate($time);
+		date.setUTCHours(date.getUTCHours() + 24);
+		const timeStep = findTimeStep(date);
+		if (timeStep) date = timeStep;
 		onDateChange(date);
-		$time = nextDay;
+		if (currentPercentage > 0.75) {
+			dayContainer?.scrollTo({ left: dayContainerScrollLeft + dayWidth, behavior: 'smooth' });
+		}
 	};
 
 	const onDateChange = (date: Date, callUpdateUrl = true) => {
@@ -75,13 +155,16 @@
 		changeOMfileURL();
 	};
 
+	let ctrl = $state(false);
 	const keydownEvent = (event: KeyboardEvent) => {
+		if (event.keyCode == 17 || event.keyCode == 91) ctrl = true;
+
 		const canNavigate = !($domainSelectionOpen || $variableSelectionOpen);
 		if (!canNavigate) return;
 
 		const actions: Record<string, () => void> = {
-			ArrowLeft: previousHour,
-			ArrowRight: nextHour,
+			ArrowLeft: ctrl ? previousModel : previousHour,
+			ArrowRight: ctrl ? nextModel : nextHour,
 			ArrowDown: previousDay,
 			ArrowUp: nextDay
 		};
@@ -96,43 +179,44 @@
 		}
 	};
 
+	const keyupEvent = (event: KeyboardEvent) => {
+		if (event.keyCode == 17 || event.keyCode == 91) ctrl = false;
+	};
+
 	onMount(() => {
 		if (browser) {
 			window.addEventListener('keydown', keydownEvent);
+			window.addEventListener('keyup', keyupEvent);
 		}
 	});
 
 	onDestroy(() => {
 		if (browser) {
 			window.removeEventListener('keydown', keydownEvent);
+			window.removeEventListener('keyup', keyupEvent);
 		}
 	});
 
-	const dark = $derived(mode.current === 'dark');
-
-	const latestReferenceTime = $derived(new Date($latest?.reference_time as string));
+	const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+	const millisecondsPerDay = 24 * 60 * 60 * 1000;
 
 	const firstMetaTime = $derived(new Date($metaJson?.valid_times[0] as string));
 	const lastMetaTime = $derived(
 		new Date($metaJson?.valid_times[$metaJson?.valid_times.length - 1] as string)
 	);
-	// const daysBetween = (startDate: Date, endDate: Date) => {
-	//	return (endDate.getTime() - startDate.getTime()) / millisecondsPerDay;
-	// };
-
-	const millisecondsPerDay = 24 * 60 * 60 * 1000;
+	const latestReferenceTime = $derived(new Date($latest?.reference_time as string));
 
 	const timeSteps = $derived(
 		$metaJson?.valid_times.map((validTime: string) => new SvelteDate(validTime))
 	);
 
-	const closestIndex = (date: Date | SvelteDate) => {
-		const found = timeSteps?.find((tS) => tS.getTime() === date.getTime());
-		if (found) return found;
-		return false;
+	const findTimeStep = (date: Date | SvelteDate) => {
+		return timeSteps?.findLast((tS) => tS.getTime() <= date.getTime());
 	};
 
-	const currentIndex = $derived(timeSteps ? timeSteps.indexOf(closestIndex($time)) : 0);
+	const currentIndex = $derived(
+		timeSteps ? timeSteps.findLastIndex((tS) => tS.getTime() <= $time.getTime()) : 0
+	);
 
 	const daySteps = $derived.by(() => {
 		const days = [];
@@ -155,47 +239,28 @@
 		return days;
 	});
 
-	// let timeInterval = $derived.by(() => {
-	// 	let tI = $selectedDomain.time_interval;
-
-	// 	switch (tI) {
-	// 		case '15_minute':
-	// 			return 1;
-	// 		case 'hourly':
-	// 			return 1;
-	// 		case '3_hourly':
-	// 			return 1;
-	// 		case '6_hourly':
-	// 			return 1;
-
-	// 		case '12_hourly':
-	// 			return 1;
-
-	// 		case 'daily':
-	// 			return 1;
-
-	// 		case 'weekly_on_monday':
-	// 			return 1;
-
-	// 		case 'monthly':
-	// 			return 1;
-	// 	}
-	// 	return 1;
-	// });
-
 	const timeStepsComplete = $derived.by(() => {
 		const timeStepsComplete = [];
 		for (let day of daySteps) {
 			for (let i = 0; i <= 23; i++) {
-				const date = new SvelteDate(day);
-				date.setUTCHours(i);
-				timeStepsComplete.push(date);
+				if (timeInterval === 0.25) {
+					for (let j = 0; j <= 60; j += 15) {
+						const date = new SvelteDate(day);
+						date.setUTCHours(i);
+						date.setUTCMinutes(j);
+						timeStepsComplete.push(date);
+					}
+				} else {
+					const date = new SvelteDate(day);
+					date.setUTCHours(i);
+					timeStepsComplete.push(date);
+				}
 			}
 		}
 		return timeStepsComplete;
 	});
 
-	const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+	// $inspect(timeStepsComplete).with(console.log);
 
 	// let hoursContainer: HTMLElement | undefined = $state();
 	// let hoursContainerParent: HTMLElement | undefined = $state();
@@ -309,17 +374,21 @@
 	let dayContainer: HTMLElement | undefined = $state();
 	let dayContainerScrollLeft: number = $state(0);
 	let dayContainerScrollWidth: number = $state(0);
-	let dayContainerScrollLeftMax: number = $state(0);
 
 	let hoursHoverContainer: HTMLElement | undefined = $state();
 	let hoursHoverContainerWidth: number = $state(0);
 
 	let percentageVisible = $derived(hoursHoverContainerWidth / dayContainerScrollWidth);
-	let percentageScrollLeft = $derived(dayContainerScrollLeft / dayContainerScrollLeftMax);
 
 	let hoveredHour = $derived(
 		timeStepsComplete
-			? timeStepsComplete[Math.floor(timeStepsComplete.length * percentage * percentageVisible)]
+			? timeStepsComplete[
+					Math.round(
+						(timeStepsComplete.length *
+							(percentage * hoursHoverContainerWidth + dayContainerScrollLeft)) /
+							dayContainerScrollWidth
+					)
+				]
 			: firstMetaTime
 	);
 
@@ -366,7 +435,13 @@
 			hoursHoverContainer.addEventListener('click', () => {
 				let validTime = false;
 				let timeStep =
-					timeStepsComplete[Math.floor(timeStepsComplete.length * percentage * percentageVisible)];
+					timeStepsComplete[
+						Math.round(
+							(timeStepsComplete.length *
+								(percentage * hoursHoverContainerWidth + dayContainerScrollLeft)) /
+								dayContainerScrollWidth
+						)
+					];
 
 				if (timeSteps)
 					for (let tS of timeSteps) {
@@ -380,16 +455,8 @@
 					timeStep.getTime() > firstMetaTime.getTime() &&
 					timeStep.getTime() < lastMetaTime.getTime()
 				) {
-					const newTimeStep = new SvelteDate(timeStep);
-					// not part of valid times but inside model run =>
-					// round to nearest time in model run
-					const difference = timeStep.getUTCHours() % modelInterval;
-					if (difference >= modelInterval / 2) {
-						newTimeStep.setUTCHours(timeStep.getUTCHours() + (modelInterval - difference));
-					} else {
-						newTimeStep.setUTCHours(timeStep.getUTCHours() - difference);
-					}
-					timeStep = newTimeStep;
+					const newTimeStep = findTimeStep(timeStep);
+					if (newTimeStep) timeStep = newTimeStep;
 				}
 
 				if (timeStep) onDateChange(timeStep);
@@ -400,7 +467,6 @@
 			if (dayContainer) {
 				dayContainerScrollLeft = dayContainer.scrollLeft;
 				dayContainerScrollWidth = dayContainer.scrollWidth;
-				dayContainerScrollLeftMax = dayContainer.scrollLeftMax;
 			}
 		});
 
@@ -417,24 +483,6 @@
 
 	let modelRunLocked = $state(false);
 	let modelRunSelectionOpen = $state(false);
-
-	let modelInterval = $derived.by(() => {
-		let mI = $selectedDomain.model_interval;
-
-		switch (mI) {
-			case 'hourly':
-				return 1;
-			case '3_hourly':
-				return 3;
-			case '6_hourly':
-				return 6;
-			case '12_hourly':
-				return 12;
-			case 'daily':
-				return 24;
-		}
-		return 1;
-	});
 
 	let previousModelSteps = $derived.by(() => {
 		const previousModels = [];
@@ -459,6 +507,7 @@
 	);
 
 	const onModelRunChange = async (step: Date) => {
+		$loading = true;
 		$modelRun = step;
 		$metaJson = await getMetaData();
 
@@ -481,6 +530,12 @@
 			updateUrl('model_run', undefined);
 		}
 		toast.info('Model run set to: ' + fmtISOWithoutTimezone($modelRun));
+
+		await tick();
+		if (dayContainer) {
+			dayContainerScrollLeft = dayContainer.scrollLeft;
+			dayContainerScrollWidth = dayContainer.scrollWidth;
+		}
 	};
 </script>
 
@@ -498,9 +553,9 @@
 		<div
 			bind:this={hoursHoverContainer}
 			bind:clientWidth={hoursHoverContainerWidth}
-			class="absolute {modelRunSelectionOpen ? 'bottom-15' : 'bottom-5'} w-full h-8.5 {percentage
-				? 'z-20'
-				: 'z-10'} cursor-pointer duration-500"
+			class="absolute mx-1 {modelRunSelectionOpen
+				? 'bottom-15'
+				: 'bottom-5'} w-full h-8.5 {percentage ? 'z-20' : 'z-10'} cursor-pointer duration-500"
 		>
 			<!-- Hover Tooltip -->
 			{#if percentage && desktop.current}
@@ -571,7 +626,7 @@
 				<div
 					transition:slide={{ axis: 'x', duration: 500 }}
 					class="{modelRunSelectionOpen
-						? 'text-lg px-1 py-2 mr-0.5'
+						? 'text-normal px-1 py-2 mr-0.5'
 						: 'text-sm'}  text-nowrap overflow-hidden"
 				>
 					<small>{pad($modelRun.getUTCDate())}-{pad($modelRun.getUTCMonth() + 1)}</small>
@@ -645,7 +700,7 @@
 				: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
 			class="time-selector {modelRunSelectionOpen ? 'h-22.5' : 'h-12.5'} relative"
 		>
-			<div class="absolute top-0 left-0 w-full h-5 cursor-pointer">
+			<div class="mx-1 absolute top-0 left-0 w-full h-5 cursor-pointer">
 				<!-- Hover Cursor -->
 				{#if percentage}
 					<div
@@ -661,34 +716,43 @@
 				></div>
 			</div>
 
-			<div bind:this={dayContainer} class="flex overflow-x-scroll">
-				{#each daySteps as dayStep, i (i)}
-					<div class="relative flex h-12.5 min-w-42.5">
-						<!-- Day Names -->
-						<div
-							class="absolute flex mt-2.75 -translate-x-1/2 left-1/2 items-center justify-center text-center flex-col"
-						>
-							<div class="">{dayNames[dayStep.getDay()]}</div>
-							<small class="-mt-1.5"
-								>{pad(dayStep.getUTCDate())}-{pad(dayStep.getUTCMonth() + 1)}</small
+			<div bind:this={dayContainer} class="flex overflow-x-scroll mx-1">
+				{#if !$metaJson}
+					<div class="min-w-75"></div>
+				{:else}
+					{#each daySteps as dayStep, i (i)}
+						<div class="relative flex h-12.5 min-w-42.5">
+							<!-- Day Names -->
+							<div
+								class="absolute flex mt-3.25 -translate-x-1/2 left-1/2 items-center justify-center text-center flex-col"
 							>
+								<div class="">{dayNames[dayStep.getDay()]}</div>
+								<small class="-mt-2"
+									>{pad(dayStep.getUTCDate())}-{pad(dayStep.getUTCMonth() + 1)}</small
+								>
+							</div>
+							<!-- Hour / 15 Minutes Lines -->
+							<div class="flex mt-1 ml-0 pointer-events-none {i === 0 ? 'justify-self-end' : ''}">
+								{#each timeStepsComplete as timeStep, j (j)}
+									{#if timeStep.getTime() >= dayStep.getTime() && timeStep.getTime() < dayStep.getTime() + millisecondsPerDay}
+										<div
+											class="w-[calc({dayWidth}px/24)] h-1.25 {j % 12 === 0 && j !== 0
+												? 'h-3.25'
+												: ''} {j % 3 === 0 ? 'h-2.5' : ''} {timeInterval !== 0.25 &&
+											j % 24 === 0 &&
+											j !== 0
+												? 'h-6'
+												: ''}  border-l-2
+												{!timeSteps?.find((tS) => timeStep.getTime() === tS.getTime()) ? 'border-foreground/20' : ''}"
+										></div>
+									{/if}
+								{/each}
+							</div>
 						</div>
-						<!-- Hour Lines -->
-						<div class="flex mt-1 pointer-events-none {i === 0 ? 'justify-self-end ml-auto' : ''}">
-							{#each timeStepsComplete as timeStep, j (j)}
-								{#if timeStep.getTime() >= dayStep.getTime() && timeStep.getTime() < dayStep.getTime() + millisecondsPerDay}
-									<div
-										class="w-[7.07px] h-1.25 {j % 3 === 0 ? 'h-2.5' : ''} {j % 24 === 0 && j !== 0
-											? 'h-6'
-											: ''}  border-l-2
-											{!closestIndex(timeStep) ? 'border-foreground/20' : ''}"
-									></div>
-								{/if}
-							{/each}
-						</div>
-					</div>
-				{/each}
+					{/each}
+				{/if}
 			</div>
+
 			{#if modelRunSelectionOpen}
 				<!-- Model Run Selection -->
 				<div

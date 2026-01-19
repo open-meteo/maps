@@ -5,9 +5,7 @@
 	import {
 		GridFactory,
 		type RenderableColorScale,
-		closestModelRun,
 		domainOptions,
-		domainStep,
 		omProtocol,
 		updateCurrentBounds
 	} from '@openmeteo/mapbox-layer';
@@ -31,7 +29,6 @@
 		resetStates,
 		resolution,
 		resolutionSet,
-		time,
 		url
 	} from '$lib/stores/preferences';
 	import { domain, selectedDomain, selectedVariable, variable } from '$lib/stores/variables';
@@ -56,7 +53,6 @@
 		addPopup,
 		changeOMfileURL,
 		checkClosestDomainInterval,
-		checkClosestModelRun,
 		checkHighDefinition,
 		getInitialMetaData,
 		getMetaData,
@@ -139,6 +135,7 @@
 			$map.addControl(new TimeButton());
 			$map.addControl(new HelpButton());
 
+			if (getInitialMetaDataPromise) await getInitialMetaDataPromise;
 			$metaJson = $latest;
 
 			addOmFileLayers();
@@ -149,12 +146,14 @@
 		});
 	});
 
+	let getInitialMetaDataPromise: Promise<void> | undefined;
 	const domainSubscription = domain.subscribe(async (newDomain) => {
 		await tick(); // await the selectedDomain to be set
 		updateUrl('domain', newDomain);
 
 		$modelRun = undefined;
-		await getInitialMetaData();
+		getInitialMetaDataPromise = getInitialMetaData();
+		await getInitialMetaDataPromise;
 		$metaJson = await getMetaData();
 
 		checkClosestDomainInterval();
