@@ -129,6 +129,7 @@
 	const closestIndex = (date: Date | SvelteDate) => {
 		const found = timeSteps?.find((tS) => tS.getTime() === date.getTime());
 		if (found) return found;
+		return false;
 	};
 
 	const currentIndex = $derived(timeSteps ? timeSteps.indexOf(closestIndex($time)) : 0);
@@ -154,38 +155,38 @@
 		return days;
 	});
 
-	let timeInterval = $derived.by(() => {
-		let tI = $selectedDomain.time_interval;
+	// let timeInterval = $derived.by(() => {
+	// 	let tI = $selectedDomain.time_interval;
 
-		switch (tI) {
-			case '15_minute':
-				return 1;
-			case 'hourly':
-				return 1;
-			case '3_hourly':
-				return 1;
-			case '6_hourly':
-				return 1;
+	// 	switch (tI) {
+	// 		case '15_minute':
+	// 			return 1;
+	// 		case 'hourly':
+	// 			return 1;
+	// 		case '3_hourly':
+	// 			return 1;
+	// 		case '6_hourly':
+	// 			return 1;
 
-			case '12_hourly':
-				return 1;
+	// 		case '12_hourly':
+	// 			return 1;
 
-			case 'daily':
-				return 1;
+	// 		case 'daily':
+	// 			return 1;
 
-			case 'weekly_on_monday':
-				return 1;
+	// 		case 'weekly_on_monday':
+	// 			return 1;
 
-			case 'monthly':
-				return 1;
-		}
-		return 1;
-	});
+	// 		case 'monthly':
+	// 			return 1;
+	// 	}
+	// 	return 1;
+	// });
 
 	const timeStepsComplete = $derived.by(() => {
 		const timeStepsComplete = [];
 		for (let day of daySteps) {
-			for (let i = 0; i <= 24; i += timeInterval) {
+			for (let i = 0; i <= 23; i++) {
 				const date = new SvelteDate(day);
 				date.setUTCHours(i);
 				timeStepsComplete.push(date);
@@ -305,23 +306,42 @@
 
 	let percentage = $state(0);
 
+	let dayContainer: HTMLElement | undefined = $state();
+	let dayContainerScrollLeft: number = $state(0);
+	let dayContainerScrollWidth: number = $state(0);
+	let dayContainerScrollLeftMax: number = $state(0);
+
 	let hoursHoverContainer: HTMLElement | undefined = $state();
-	let hoursHoverContainerWidth: number | undefined = $state();
+	let hoursHoverContainerWidth: number = $state(0);
+
+	let percentageVisible = $derived(hoursHoverContainerWidth / dayContainerScrollWidth);
+	let percentageScrollLeft = $derived(dayContainerScrollLeft / dayContainerScrollLeftMax);
+
 	let hoveredHour = $derived(
 		timeStepsComplete
-			? timeStepsComplete[Math.floor(timeStepsComplete.length * percentage)]
+			? timeStepsComplete[Math.floor(timeStepsComplete.length * percentage * percentageVisible)]
 			: firstMetaTime
 	);
+
 	let currentTimeStep = $derived(
 		timeStepsComplete
 			? timeStepsComplete.find((tS: Date) => tS.getTime() === $time.getTime())
 			: undefined
 	);
+
 	let currentPercentage = $derived(
 		!desktop.current
 			? 0.5
 			: currentTimeStep && timeStepsComplete
-				? timeStepsComplete.indexOf(currentTimeStep) / (timeStepsComplete.length - 1)
+				? Math.min(
+						Math.max(
+							timeStepsComplete.indexOf(currentTimeStep) /
+								timeStepsComplete.length /
+								percentageVisible,
+							0
+						),
+						100
+					)
 				: 0
 	);
 
@@ -344,9 +364,19 @@
 				percentage = 0;
 			});
 			hoursHoverContainer.addEventListener('click', () => {
-				let timeStep = timeStepsComplete[Math.floor(timeStepsComplete.length * percentage)];
+				let validTime = false;
+				let timeStep =
+					timeStepsComplete[Math.floor(timeStepsComplete.length * percentage * percentageVisible)];
+
+				if (timeSteps)
+					for (let tS of timeSteps) {
+						if (tS.getTime() === timeStep.getTime()) {
+							validTime = true;
+						}
+					}
+
 				if (
-					timeSteps?.indexOf(timeStep) === -1 &&
+					!validTime &&
 					timeStep.getTime() > firstMetaTime.getTime() &&
 					timeStep.getTime() < lastMetaTime.getTime()
 				) {
@@ -363,6 +393,24 @@
 				}
 
 				if (timeStep) onDateChange(timeStep);
+			});
+		}
+
+		const resizeObserver = new ResizeObserver(() => {
+			if (dayContainer) {
+				dayContainerScrollLeft = dayContainer.scrollLeft;
+				dayContainerScrollWidth = dayContainer.scrollWidth;
+				dayContainerScrollLeftMax = dayContainer.scrollLeftMax;
+			}
+		});
+
+		if (dayContainer) {
+			dayContainerScrollWidth = dayContainer.scrollWidth;
+			resizeObserver.observe(dayContainer);
+			dayContainer.addEventListener('scroll', () => {
+				if (dayContainer) {
+					dayContainerScrollLeft = dayContainer.scrollLeft;
+				}
 			});
 		}
 	});
@@ -446,13 +494,15 @@
 			? 'opacity-100 bottom-0'
 			: 'pointer-events-none opacity-0 -bottom-22.5'}"
 	>
+		<!-- Hover container -->
 		<div
 			bind:this={hoursHoverContainer}
 			bind:clientWidth={hoursHoverContainerWidth}
-			class="absolute {modelRunSelectionOpen
-				? 'bottom-15'
-				: 'bottom-5'} w-full h-8.5 -mx-1 {percentage ? 'z-20' : 'z-10'} cursor-pointer duration-500"
+			class="absolute {modelRunSelectionOpen ? 'bottom-15' : 'bottom-5'} w-full h-8.5 {percentage
+				? 'z-20'
+				: 'z-10'} cursor-pointer duration-500"
 		>
+			<!-- Hover Tooltip -->
 			{#if percentage && desktop.current}
 				<div
 					transition:fade={{ duration: 200 }}
@@ -478,15 +528,16 @@
 					</div>
 				</div>
 			{:else if currentTimeStep}
+				<!-- Current Tooltip -->
 				<div
 					transition:fade={{ duration: 200 }}
-					style="left: max(4px,min(calc({currentPercentage *
-						100}% - 33px),calc(100% - 70px))); background-color: {dark
+					style="left: max(0px,min(calc({currentPercentage *
+						100}% - 33px - {dayContainerScrollLeft}px),calc(100% - 66px))); background-color: {dark
 						? 'rgba(15, 15, 15, 0.95)'
 						: 'rgba(240, 240, 240, 0.95)'}"
 					class="absolute {disabled
 						? '-top-8 rounded'
-						: '-top-6 rounded-t'} duration-200 p-0.5 w-16.5 text-center"
+						: '-top-6 rounded-t'}  p-0.5 w-16.5 text-center"
 				>
 					<div class="relative font-bold text-foreground">
 						{#if currentTimeStep}
@@ -505,6 +556,7 @@
 				</div>
 			{/if}
 		</div>
+		<!-- Model Run Toggle Button -->
 		<a
 			href="."
 			onclick={() => (modelRunSelectionOpen = !modelRunSelectionOpen)}
@@ -591,38 +643,46 @@
 			style="background-color: {dark
 				? 'rgba(15, 15, 15, 0.8)'
 				: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
-			class="time-selector {modelRunSelectionOpen ? 'h-22.5' : 'h-12.5'} relative overflow-x-scroll"
+			class="time-selector {modelRunSelectionOpen ? 'h-22.5' : 'h-12.5'} relative"
 		>
 			<div class="absolute top-0 left-0 w-full h-5 cursor-pointer">
+				<!-- Hover Cursor -->
 				{#if percentage}
 					<div
 						style="left: calc({percentage * 100}% - 0.5px);"
 						class="absolute border border-r top-0 h-3"
 					></div>
 				{/if}
+				<!-- Current Cursor -->
 				<div
-					style="left: calc({currentPercentage * 100}% - 1.5px);"
-					class="absolute bg-red-700 dark:bg-red-500 w-1 top-0 h-3.25"
+					style="left: max(0px,min(calc({currentPercentage *
+						100}% - 1px -  {dayContainerScrollLeft}px),100%));"
+					class="absolute bg-red-700 dark:bg-red-500 z-20 w-1 top-0 h-3.5"
 				></div>
 			</div>
 
-			<div class="flex overflow-x-scroll">
+			<div bind:this={dayContainer} class="flex overflow-x-scroll">
 				{#each daySteps as dayStep, i (i)}
-					<div
-						class="relative flex h-12.5 min-w-42.5 {i !== daySteps.length - 1 ? 'border-r' : ''}"
-					>
+					<div class="relative flex h-12.5 min-w-42.5">
+						<!-- Day Names -->
 						<div
-							class="absolute flex mt-2 -translate-x-1/2 left-1/2 items-center justify-center text-center flex-col"
+							class="absolute flex mt-2.75 -translate-x-1/2 left-1/2 items-center justify-center text-center flex-col"
 						>
 							<div class="">{dayNames[dayStep.getDay()]}</div>
 							<small class="-mt-1.5"
 								>{pad(dayStep.getUTCDate())}-{pad(dayStep.getUTCMonth() + 1)}</small
 							>
 						</div>
-						<div class="flex pointer-events-none {i === 0 ? 'justify-self-end ml-auto' : ''}">
-							{#each timeSteps as timeStep, j (j)}
+						<!-- Hour Lines -->
+						<div class="flex mt-1 pointer-events-none {i === 0 ? 'justify-self-end ml-auto' : ''}">
+							{#each timeStepsComplete as timeStep, j (j)}
 								{#if timeStep.getTime() >= dayStep.getTime() && timeStep.getTime() < dayStep.getTime() + millisecondsPerDay}
-									<div class="w-[7.07px] h-1.25 {j % 3 === 0 ? 'h-2.5' : ''} border-l"></div>
+									<div
+										class="w-[7.07px] h-1.25 {j % 3 === 0 ? 'h-2.5' : ''} {j % 24 === 0 && j !== 0
+											? 'h-6'
+											: ''}  border-l-2
+											{!closestIndex(timeStep) ? 'border-foreground/20' : ''}"
+									></div>
 								{/if}
 							{/each}
 						</div>
@@ -630,13 +690,13 @@
 				{/each}
 			</div>
 			{#if modelRunSelectionOpen}
+				<!-- Model Run Selection -->
 				<div
 					transition:slide={{ duration: 500 }}
 					class="absolute right-0 w-full bottom-0 h-10 {modelRunLocked
 						? 'opacity-60 cursor-not-allowed'
 						: ''}"
 				>
-					<!-- <div class="fixed left-0 z-10 bg-white">Model run:</div> -->
 					<div
 						class="{modelRunLocked
 							? 'pointer-events-none'
