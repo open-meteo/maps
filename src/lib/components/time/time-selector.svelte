@@ -600,7 +600,7 @@
 </script>
 
 <div
-	class="absolute bottom-0 w-full md:max-w-[75vw] -translate-x-1/2 left-1/2 {disabled
+	class="absolute bottom-0 w-full md:w-[unset] md:max-w-[75vw] -translate-x-1/2 left-1/2 {disabled
 		? 'text-foreground/50 cursor-not-allowed'
 		: ''} {$preferences.timeSelector ? '' : ''}"
 >
@@ -846,7 +846,7 @@
 											millisecondsPerDay)}px; width: calc({dayWidth}px/{timeInterval === 0.25
 										? 72
 										: 24});"
-									class="absolute h-4.5 border-orange-500 z-20 border-l-3 border-dotted"
+									class="absolute h-4.5 border-orange-500 z-20 border-l"
 								></div>
 							{/if}
 
