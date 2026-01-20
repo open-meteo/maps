@@ -255,7 +255,7 @@
 			dayContainerScrollLeft = dayContainer.scrollLeft;
 			dayContainerScrollWidth = dayContainer.scrollWidth;
 		}
-		centerDateButton($time);
+		centerDateButton($time, false);
 	});
 
 	const daySteps = $derived.by(() => {
@@ -465,9 +465,7 @@
 								(dayContainerScrollWidth - viewWidth)
 						)
 					];
-				if ($time.getTime() !== timeStep.getTime()) {
-					currentDate = new SvelteDate(timeStep);
-				}
+				currentDate = new SvelteDate(timeStep);
 			}
 		};
 
@@ -590,7 +588,6 @@
 			dayContainerScrollLeft = dayContainer.scrollLeft;
 			dayContainerScrollWidth = dayContainer.scrollWidth;
 		}
-		centerDateButton($time);
 	};
 </script>
 
@@ -646,16 +643,20 @@
 						: 0}px),calc(100% - 70px))); background-color: {dark
 						? 'rgba(15, 15, 15, 0.95)'
 						: 'rgba(240, 240, 240, 0.95)'}"
-					class="absolute {disabled
-						? '-top-8 rounded'
-						: '-top-6 rounded-t'}  p-0.5 w-16.5 text-center"
+					class="absolute {disabled ? '-top-8 rounded' : '-top-6 rounded-t'} {!desktop.current
+						? '!rounded-none'
+						: ''} p-0.5 w-16.5 text-center"
 				>
-					<div class="relative font-bold text-foreground">
+					<div class="relative text-foreground">
 						{#if currentTimeStep}
 							{#if desktop.current}
-								{pad(currentTimeStep!.getUTCHours())}:{pad(currentTimeStep!.getUTCMinutes())}
+								<div class="font-bold">
+									{pad(currentTimeStep!.getUTCHours())}:{pad(currentTimeStep!.getUTCMinutes())}
+								</div>
 							{:else}
-								{pad(currentDate.getUTCHours())}:{pad(currentDate.getUTCMinutes())}
+								<div class={$time.getTime() === currentDate.getTime() ? 'font-bold' : ''}>
+									{pad(currentDate.getUTCHours())}:{pad(currentDate.getUTCMinutes())}
+								</div>
 							{/if}
 						{/if}
 						{#if disabled}
@@ -756,9 +757,11 @@
 		</a>
 		<button
 			style="background-color: {dark ? 'rgba(15, 15, 15, 0.8)' : 'rgba(240, 240, 240, 0.85)'};"
-			class="absolute -left-7 h-12.5 w-7 {desktop.current ? '' : 'hidden'} {disabled
+			class="absolute {desktop.current
+				? '-left-7 h-12.5 w-7 rounded-e-xl'
+				: 'left-[calc(50%-57px)] -top-7 h-7 rounded-tl-lg'} {disabled
 				? 'cursor-not-allowed'
-				: 'cursor-pointer'} rounded-s-xl"
+				: 'cursor-pointer'} "
 			onclick={previousHour}
 			aria-label="Previous Hour"
 		>
@@ -777,11 +780,13 @@
 		</button>
 		<button
 			style="background-color: {dark ? 'rgba(15, 15, 15, 0.8)' : 'rgba(240, 240, 240, 0.85)'};"
-			class="absolute -right-7 h-12.5 w-7 {desktop.current ? '' : 'hidden'} {disabled
+			class="absolute {desktop.current
+				? '-right-7 h-12.5 w-7 rounded-e-xl'
+				: 'right-[calc(50%-57px)] -top-7 h-7 rounded-tr-lg'} {disabled
 				? 'cursor-not-allowed'
-				: 'cursor-pointer'} rounded-e-xl"
+				: 'cursor-pointer'} "
 			onclick={nextHour}
-			aria-label="Previous Hour"
+			aria-label="Next Hour"
 		>
 			<svg
 				xmlns="http://www.w3.org/2000/svg"
@@ -803,11 +808,7 @@
 				: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
 			class="time-selector md:px-0 {modelRunSelectionOpen ? 'h-22.5' : 'h-12.5'} relative"
 		>
-			<div
-				class="md:mx-1 absolute {!desktop.current
-					? 'hidden'
-					: ''} z-10 top-0 left-0 w-full h-5 cursor-pointer"
-			>
+			<div class="md:mx-1 absolute z-10 top-0 left-0 w-full h-5 cursor-pointer">
 				<!-- Hover Cursor -->
 				{#if percentage}
 					<div
@@ -817,8 +818,9 @@
 				{/if}
 				<!-- Current Cursor -->
 				<div
-					style="left: max(-4px,min(calc({currentPercentage *
-						100}% - 1px -  {dayContainerScrollLeft}px),calc(100% - 8px)));"
+					style="left: max(-4px,min(calc({currentPercentage * 100}% - 1px -  {desktop.current
+						? dayContainerScrollLeft
+						: 0}px),calc(100% - 8px)));"
 					class="absolute bg-red-700 dark:bg-red-500 z-20 w-1 top-0 h-3.5"
 				></div>
 			</div>

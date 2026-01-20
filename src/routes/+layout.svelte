@@ -14,7 +14,12 @@
 </script>
 
 <!-- make reactive to time-selector, was causing troubles before offset={flag ? { bottom: '85px', right: '10px' } : { bottom: '10px', right: '10px' }} -->
-<Toaster closeButton={true} richColors={true} offset={{ bottom: '85px', right: '10px' }} />
+<Toaster
+	closeButton={true}
+	richColors={true}
+	offset={{ bottom: '85px', right: '10px' }}
+	mobileOffset={{ bottom: '85px' }}
+/>
 
 {@render children()}
 <ModeWatcher />
