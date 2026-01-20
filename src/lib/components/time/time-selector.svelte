@@ -29,7 +29,7 @@
 
 	let now = new SvelteDate();
 	let disabled = $derived($loading);
-	let currentDate = new SvelteDate($time);
+	let currentDate = $state(new Date($time));
 	const dark = $derived(mode.current === 'dark');
 
 	let timeInterval = $derived.by(() => {
@@ -78,14 +78,14 @@
 			date = timeSteps[currentIndex - 1];
 
 			onDateChange(date);
-			// if (desktop.current && currentPercentage < 0.1) {
-			// 	dayContainer?.scrollTo({
-			// 		left: dayContainerScrollLeft - dayWidth / 25,
-			// 		behavior: 'smooth'
-			// 	});
-			// } else {
-			// 	centerDateButton(date);
-			// }
+			if (desktop.current && currentPercentage < 0.1) {
+				dayContainer?.scrollTo({
+					left: dayContainerScrollLeft - dayWidth / 25,
+					behavior: 'smooth'
+				});
+			} else {
+				centerDateButton(date);
+			}
 		} else {
 			if (currentIndex - 1 < 0) {
 				let date = new SvelteDate($time);
@@ -114,14 +114,14 @@
 			date = timeSteps[currentIndex + 1];
 
 			onDateChange(date);
-			// if (desktop.current && currentPercentage > 0.82) {
-			// 	dayContainer?.scrollTo({
-			// 		left: dayContainerScrollLeft + dayWidth / 25,
-			// 		behavior: 'smooth'
-			// 	});
-			// } else {
-			// 	centerDateButton(date);
-			// }
+			if (desktop.current && currentPercentage > 0.82) {
+				dayContainer?.scrollTo({
+					left: dayContainerScrollLeft + dayWidth / 25,
+					behavior: 'smooth'
+				});
+			} else {
+				centerDateButton(date);
+			}
 		} else {
 			if (timeSteps && currentIndex + 1 > timeSteps.length - 1) {
 				toast.warning('Already on latest timestep');
@@ -152,11 +152,11 @@
 		const timeStep = findTimeStep(date);
 		if (timeStep) date = timeStep;
 		onDateChange(date);
-		// if (desktop.current && currentPercentage < 0.25) {
-		// 	dayContainer?.scrollTo({ left: dayContainerScrollLeft - dayWidth, behavior: 'smooth' });
-		// } else {
-		// 	centerDateButton(date);
-		// }
+		if (desktop.current && currentPercentage < 0.25) {
+			dayContainer?.scrollTo({ left: dayContainerScrollLeft - dayWidth, behavior: 'smooth' });
+		} else {
+			centerDateButton(date);
+		}
 	};
 
 	const nextDay = () => {
@@ -165,11 +165,11 @@
 		const timeStep = findTimeStep(date);
 		if (timeStep) date = timeStep;
 		onDateChange(date);
-		// if (desktop.current && currentPercentage > 0.75) {
-		// 	dayContainer?.scrollTo({ left: dayContainerScrollLeft + dayWidth, behavior: 'smooth' });
-		// } else {
-		// 	centerDateButton(date);
-		// }
+		if (desktop.current && currentPercentage > 0.75) {
+			dayContainer?.scrollTo({ left: dayContainerScrollLeft + dayWidth, behavior: 'smooth' });
+		} else {
+			centerDateButton(date);
+		}
 	};
 
 	const onDateChange = async (date: Date, callUpdateUrl = true) => {
@@ -178,24 +178,10 @@
 				toast.warning("Model run locked, can't go before first time");
 				return;
 			}
-		} else {
-			// const closest = closestModelRun(date, $selectedDomain.model_interval);
-			// console.log(closest);
-			// if (
-			// 	date.getTime() >= closest.getTime() &&
-			// 	closest.getTime() <= latestReferenceTime.getTime() &&
-			// 	closest.getTime() !== $modelRun?.getTime()
-			// ) {
-			// 	$time = new SvelteDate(date);
-			// 	await onModelRunChange(closest);
-			// 	return;
-			// }
-			// if ($modelRun && $modelRun.getTime() < latestReferenceTime.getTime()) {
-			// 	checkClosestModelRun();
-			// }
 		}
 
 		$time = new SvelteDate(date);
+		currentDate = date;
 		if (callUpdateUrl) updateUrl('time', fmtISOWithoutTimezone($time));
 		changeOMfileURL();
 	};
@@ -269,6 +255,7 @@
 			dayContainerScrollLeft = dayContainer.scrollLeft;
 			dayContainerScrollWidth = dayContainer.scrollWidth;
 		}
+		centerDateButton($time);
 	});
 
 	const daySteps = $derived.by(() => {
@@ -331,10 +318,14 @@
 	// 	}
 	// });
 
-	const centerDateButton = (hour: number, smooth = false) => {
+	const centerDateButton = (date: Date, smooth = false) => {
 		if (dayContainer) {
-			const left = 1000;
-			dayContainer.scrollTo({ left: left, behavior: smooth ? 'smooth' : 'instant' });
+			const index = timeStepsComplete.findIndex((tSC) => tSC.getTime() === date.getTime());
+			if (index) {
+				const hourWidth = dayWidth / 24;
+				const left = hourWidth * index;
+				dayContainer.scrollTo({ left: left, behavior: smooth ? 'smooth' : 'instant' });
+			}
 		}
 	};
 
@@ -470,9 +461,8 @@
 				let timeStep =
 					timeStepsComplete[
 						Math.round(
-							(timeStepsComplete.length *
-								(percentage * hoursHoverContainerWidth + dayContainerScrollLeft)) /
-								(dayContainerScrollWidth - viewWidth / 2)
+							(timeStepsComplete.length * (percentage * hoursHoverContainerWidth)) /
+								(dayContainerScrollWidth - viewWidth)
 						)
 					];
 				if ($time.getTime() !== timeStep.getTime()) {
@@ -484,7 +474,10 @@
 		const onScrollEndEvent = () => {
 			if (!desktop.current) {
 				if (!isDown) {
+					let timeStep = findTimeStep(currentDate);
+					if (timeStep) currentDate = timeStep;
 					onDateChange(currentDate);
+					centerDateButton(currentDate);
 				}
 			}
 		};
@@ -498,7 +491,8 @@
 					dayContainerScrollLeft = dayContainer.scrollLeft;
 				}
 				if (!desktop.current) {
-					throttle(() => onScrollEvent(e), 150);
+					// throttle(() => onScrollEvent(e), 150);
+					onScrollEvent(e);
 				}
 			});
 			dayContainer.addEventListener('scrollend', throttle(onScrollEndEvent, 150));
@@ -531,9 +525,9 @@
 				dayContainer.scrollLeft = scrollLeft - walkX;
 				dayContainer.scrollTop = scrollTop - walkY;
 			});
-			dayContainer.addEventListener('click', () => {
-				console.log('clicked');
-			});
+			// dayContainer.addEventListener('click', () => {
+			// 	console.log('clicked');
+			// });
 		}
 	});
 
@@ -596,6 +590,7 @@
 			dayContainerScrollLeft = dayContainer.scrollLeft;
 			dayContainerScrollWidth = dayContainer.scrollWidth;
 		}
+		centerDateButton($time);
 	};
 </script>
 
@@ -657,7 +652,11 @@
 				>
 					<div class="relative font-bold text-foreground">
 						{#if currentTimeStep}
-							{pad(currentTimeStep!.getUTCHours())}:{pad(currentTimeStep!.getUTCMinutes())}
+							{#if desktop.current}
+								{pad(currentTimeStep!.getUTCHours())}:{pad(currentTimeStep!.getUTCMinutes())}
+							{:else}
+								{pad(currentDate.getUTCHours())}:{pad(currentDate.getUTCMinutes())}
+							{/if}
 						{/if}
 						{#if disabled}
 							<div
