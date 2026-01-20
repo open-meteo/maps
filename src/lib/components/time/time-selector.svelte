@@ -16,11 +16,19 @@
 		variableSelectionOpen
 	} from '$lib/stores/variables';
 
-	import { changeOMfileURL, fmtISOWithoutTimezone, getMetaData, pad, updateUrl } from '$lib';
+	import {
+		changeOMfileURL,
+		fmtISOWithoutTimezone,
+		getMetaData,
+		pad,
+		throttle,
+		updateUrl
+	} from '$lib';
 
 	let now = new SvelteDate();
-	const dark = $derived(mode.current === 'dark');
 	let disabled = $derived($loading);
+	let currentDate = new SvelteDate($time);
+	const dark = $derived(mode.current === 'dark');
 
 	let timeInterval = $derived.by(() => {
 		let tI = $selectedDomain.time_interval;
@@ -68,11 +76,13 @@
 			date = timeSteps[currentIndex - 1];
 
 			onDateChange(date);
-			if (currentPercentage < 0.1) {
+			if (desktop.current && currentPercentage < 0.1) {
 				dayContainer?.scrollTo({
 					left: dayContainerScrollLeft - dayWidth / 25,
 					behavior: 'smooth'
 				});
+			} else {
+				centerDateButton(date);
 			}
 		}
 	};
@@ -96,11 +106,13 @@
 			date = timeSteps[currentIndex + 1];
 
 			onDateChange(date);
-			if (currentPercentage > 0.82) {
+			if (desktop.current && currentPercentage > 0.82) {
 				dayContainer?.scrollTo({
 					left: dayContainerScrollLeft + dayWidth / 25,
 					behavior: 'smooth'
 				});
+			} else {
+				centerDateButton(date);
 			}
 		}
 	};
@@ -128,8 +140,10 @@
 		const timeStep = findTimeStep(date);
 		if (timeStep) date = timeStep;
 		onDateChange(date);
-		if (currentPercentage < 0.25) {
+		if (desktop.current && currentPercentage < 0.25) {
 			dayContainer?.scrollTo({ left: dayContainerScrollLeft - dayWidth, behavior: 'smooth' });
+		} else {
+			centerDateButton(date);
 		}
 	};
 
@@ -139,8 +153,10 @@
 		const timeStep = findTimeStep(date);
 		if (timeStep) date = timeStep;
 		onDateChange(date);
-		if (currentPercentage > 0.75) {
+		if (desktop.current && currentPercentage > 0.75) {
 			dayContainer?.scrollTo({ left: dayContainerScrollLeft + dayWidth, behavior: 'smooth' });
+		} else {
+			centerDateButton(date);
 		}
 	};
 
@@ -264,116 +280,35 @@
 
 	// $inspect(timeStepsComplete).with(console.log);
 
-	// let hoursContainer: HTMLElement | undefined = $state();
-	// let hoursContainerParent: HTMLElement | undefined = $state();
+	let isDown = $state(false);
+	let startX = $state(0);
+	let startY = $state(0);
+	let scrollLeft = $state(0);
+	let scrollTop = $state(0);
 
-	// let movingToNextHour = $state(false);
-	// let movingToNextHourTimeout: ReturnType<typeof setTimeout> | undefined = $state(undefined);
-
-	// const onScrollEvent = (e: Event) => {
-	// 	if (!movingToNextHour) {
-	// 		let changed = false;
-
-	// 		const target = e.target as Element;
-	// 		const width = target.getBoundingClientRect().width;
-	// 		const left = target.scrollLeft;
-	// 		const percentage = left / width;
-
-	// 		if (left === 0) {
-	// 			currentDate.setUTCHours(0);
-	// 			changed = true;
-	// 		}
-	// 		if (percentage && timeInterval) {
-	// 			const hour = Math.floor(percentage * (25 / timeInterval)) * timeInterval;
-	// 			if ($time.getUTCHours() !== hour) {
-	// 				currentDate.setUTCHours(hour);
-	// 				changed = true;
-	// 			}
-	// 		}
-	// 		if ($selectedDomain.value.startsWith('dwd_icon') && changed) {
-	// 			onDateChange(currentDate, false);
-	// 		}
+	// onMount(() => {
+	// 	if (hoursContainer) {
+	// 		hoursContainer.scrollIntoView({
+	// 			behavior: 'instant',
+	// 			block: 'center',
+	// 			inline: 'center'
+	// 		});
 	// 	}
-	// };
+	// });
 
-	// const onScrollEndEvent = () => {
-	// 	if (!isDown) {
-	// 		if (!movingToNextHour && !$selectedDomain.value.startsWith('dwd_icon')) {
-	// 			onDateChange(currentDate);
-	// 		}
-	// 		if ($selectedDomain.value.startsWith('dwd_icon')) {
-	// 			updateUrl('time', fmtISOWithoutTimezone($time));
-	// 		}
-	// 	}
-	// };
+	const centerDateButton = (hour: number, smooth = false) => {
+		if (dayContainer) {
+			const left = 1000;
+			dayContainer.scrollTo({ left: left, behavior: smooth ? 'smooth' : 'instant' });
+		}
+	};
 
-	// let isDown = $state(false);
-	// let startX = $state(0);
-	// let startY = $state(0);
-	// let scrollLeft = $state(0);
-	// let scrollTop = $state(0);
-
-	onMount(() => {
-		// if (hoursContainer && hoursContainerParent) {
-		// 	hoursContainer.scrollIntoView({
-		// 		behavior: 'instant',
-		// 		block: 'center',
-		// 		inline: 'center'
-		// 	});
-		// 	hoursContainerParent.addEventListener('scroll', throttle(onScrollEvent, 150));
-		// 	hoursContainerParent.addEventListener('scrollend', throttle(onScrollEndEvent, 150));
-		// 	hoursContainerParent.addEventListener('mousedown', (e) => {
-		// 		if (!hoursContainerParent) return;
-		// 		isDown = true;
-		// 		startX = e.pageX - hoursContainerParent.offsetLeft;
-		// 		startY = e.pageY - hoursContainerParent.offsetTop;
-		// 		scrollLeft = hoursContainerParent.scrollLeft;
-		// 		scrollTop = hoursContainerParent.scrollTop;
-		// 		if (hoursContainer) hoursContainer.style.cursor = 'grabbing';
-		// 	});
-		// 	// hoursContainerParent.addEventListener('mouseleave', () => {
-		// 	// 	isDown = false;
-		// 	// 	if (hoursContainer) hoursContainer.style.cursor = 'grab';
-		// 	// });
-		// 	hoursContainerParent.addEventListener('mouseup', () => {
-		// 		isDown = false;
-		// 		if (hoursContainer) hoursContainer.style.cursor = 'grab';
-		// 		onScrollEndEvent();
-		// 	});
-		// 	hoursContainerParent.addEventListener('mousemove', (e) => {
-		// 		if (!isDown || !hoursContainerParent) return;
-		// 		e.preventDefault();
-		// 		const x = e.pageX - hoursContainerParent.offsetLeft;
-		// 		const y = e.pageY - hoursContainerParent.offsetTop;
-		// 		const walkX = (x - startX) * 1; // Change this number to adjust the scroll speed
-		// 		const walkY = (y - startY) * 1; // Change this number to adjust the scroll speed
-		// 		hoursContainerParent.scrollLeft = scrollLeft - walkX;
-		// 		hoursContainerParent.scrollTop = scrollTop - walkY;
-		// 	});
-		// }
-	});
-
-	// const centerDateButton = (hour: number, smooth = false) => {
-	// 	if (hoursContainer && hoursContainerParent) {
-	// 		if (smooth) {
-	// 			movingToNextHour = true;
-	// 			if (movingToNextHourTimeout) clearTimeout(movingToNextHourTimeout);
-	// 		}
-	// 		const width = hoursContainer.getBoundingClientRect().width;
-	// 		const left = 8 + width * (hour / 23.5);
-	// 		hoursContainerParent.scrollTo({ left: left, behavior: smooth ? 'smooth' : 'instant' });
-	// 		if (smooth)
-	// 			movingToNextHourTimeout = setTimeout(() => {
-	// 				movingToNextHour = false;
-	// 			}, 700);
-	// 	}
-	// };
-	//
 	const desktop = new MediaQuery('min-width: 768px');
 
 	let percentage = $state(0);
 
 	let dayContainer: HTMLElement | undefined = $state();
+	let viewWidth = $state(0);
 	let dayContainerScrollLeft: number = $state(0);
 	let dayContainerScrollWidth: number = $state(0);
 
@@ -441,50 +376,137 @@
 				percentage = 0;
 			});
 			hoursHoverContainer.addEventListener('click', () => {
-				let validTime = false;
-				let timeStep =
-					timeStepsComplete[
-						Math.round(
-							(timeStepsComplete.length *
-								(percentage * hoursHoverContainerWidth + dayContainerScrollLeft)) /
-								dayContainerScrollWidth
-						)
-					];
+				if (desktop.current) {
+					let validTime = false;
+					let timeStep =
+						timeStepsComplete[
+							Math.round(
+								(timeStepsComplete.length *
+									(percentage * hoursHoverContainerWidth + dayContainerScrollLeft)) /
+									dayContainerScrollWidth
+							)
+						];
 
-				if (timeSteps)
-					for (let tS of timeSteps) {
-						if (tS.getTime() === timeStep.getTime()) {
-							validTime = true;
+					if (timeSteps)
+						for (let tS of timeSteps) {
+							if (tS.getTime() === timeStep.getTime()) {
+								validTime = true;
+							}
 						}
+
+					if (
+						!validTime &&
+						timeStep.getTime() > firstMetaTime.getTime() &&
+						timeStep.getTime() < lastMetaTime.getTime()
+					) {
+						const newTimeStep = findTimeStep(timeStep);
+						if (newTimeStep) timeStep = newTimeStep;
 					}
 
-				if (
-					!validTime &&
-					timeStep.getTime() > firstMetaTime.getTime() &&
-					timeStep.getTime() < lastMetaTime.getTime()
-				) {
-					const newTimeStep = findTimeStep(timeStep);
-					if (newTimeStep) timeStep = newTimeStep;
+					if (timeStep) onDateChange(timeStep);
 				}
-
-				if (timeStep) onDateChange(timeStep);
 			});
 		}
+
+		window.addEventListener('resize', () => {
+			viewWidth = window.innerWidth;
+			console.log(dayContainerScrollWidth, viewWidth);
+		});
 
 		const resizeObserver = new ResizeObserver(() => {
 			if (dayContainer) {
 				dayContainerScrollLeft = dayContainer.scrollLeft;
 				dayContainerScrollWidth = dayContainer.scrollWidth;
+				if (!desktop.current) {
+					centerDateButton(currentDate);
+				}
+				console.log(dayContainerScrollWidth, viewWidth);
 			}
 		});
 
+		const onScrollEndEvent = () => {
+			if (!desktop.current) {
+				if (!isDown) {
+					onDateChange(currentDate);
+				}
+			}
+		};
+
 		if (dayContainer) {
 			dayContainerScrollWidth = dayContainer.scrollWidth;
+			viewWidth = window.innerWidth;
 			resizeObserver.observe(dayContainer);
-			dayContainer.addEventListener('scroll', () => {
-				if (dayContainer) {
-					dayContainerScrollLeft = dayContainer.scrollLeft;
-				}
+			dayContainer.addEventListener(
+				'scroll',
+				throttle(
+					(e) => {
+						if (dayContainer) {
+							dayContainerScrollLeft = dayContainer.scrollLeft;
+						}
+						if (!desktop.current) {
+							dayContainerScrollLeft = 0;
+
+							const target = e.target as Element;
+							const width = target.getBoundingClientRect().width;
+							const left = target.scrollLeft;
+							const percentage = left / width;
+
+							if (left === 0) {
+								currentDate.setUTCHours(0);
+							}
+							if (percentage) {
+								let timeStep =
+									timeStepsComplete[
+										Math.round(
+											(timeStepsComplete.length *
+												(percentage * hoursHoverContainerWidth + dayContainerScrollLeft)) /
+												(dayContainerScrollWidth - viewWidth / 2)
+										)
+									];
+								if ($time.getTime() !== timeStep.getTime()) {
+									currentDate = new SvelteDate(timeStep);
+								}
+							}
+						}
+					},
+					desktop.current ? 0 : 150
+				)
+			);
+			dayContainer.addEventListener(
+				'scrollend',
+				throttle(onScrollEndEvent, desktop.current ? 0 : 150)
+			);
+
+			dayContainer.addEventListener('mousedown', (e) => {
+				if (!dayContainer) return;
+				isDown = true;
+				startX = e.pageX - dayContainer.offsetLeft;
+				startY = e.pageY - dayContainer.offsetTop;
+				scrollLeft = dayContainer.scrollLeft;
+				scrollTop = dayContainer.scrollTop;
+				if (dayContainer) dayContainer.style.cursor = 'grabbing';
+			});
+			// dayContainerParent.addEventListener('mouseleave', () => {
+			// 	isDown = false;
+			// 	if (dayContainer) dayContainer.style.cursor = 'grab';
+			// });
+			dayContainer.addEventListener('mouseup', () => {
+				isDown = false;
+				if (dayContainer) dayContainer.style.cursor = 'grab';
+				onScrollEndEvent();
+			});
+			dayContainer.addEventListener('mousemove', (e) => {
+				if (!isDown || !dayContainer) return;
+				e.preventDefault();
+				const x = e.pageX - dayContainer.offsetLeft;
+				const y = e.pageY - dayContainer.offsetTop;
+				const walkX = (x - startX) * 1; // Change this number to adjust the scroll speed
+				const walkY = (y - startY) * 1; // Change this number to adjust the scroll speed
+				dayContainer.scrollLeft = scrollLeft - walkX;
+				dayContainer.scrollTop = scrollTop - walkY;
+			});
+			dayContainer.addEventListener('click', () => {
+				console.log('clicked');
 			});
 		}
 	});
@@ -552,7 +574,7 @@
 </script>
 
 <div
-	class="absolute bottom-0 min-w-full md:min-w-[unset] md:max-w-[75vw] -translate-x-1/2 left-1/2 {disabled
+	class="absolute bottom-0 w-full md:max-w-[75vw] -translate-x-1/2 left-1/2 {disabled
 		? 'text-foreground/50 cursor-not-allowed'
 		: ''} {$preferences.timeSelector ? '' : ''}"
 >
@@ -565,7 +587,7 @@
 		<div
 			bind:this={hoursHoverContainer}
 			bind:clientWidth={hoursHoverContainerWidth}
-			class="absolute mx-1 {modelRunSelectionOpen
+			class="absolute {!desktop.current ? 'pointer-events-none' : ''} md:mx-1 {modelRunSelectionOpen
 				? 'bottom-15'
 				: 'bottom-5'} w-full h-8.5 {percentage ? 'z-20' : 'z-10'} cursor-pointer duration-500"
 		>
@@ -598,8 +620,8 @@
 				<!-- Current Tooltip -->
 				<div
 					transition:fade={{ duration: 200 }}
-					style="left: max(0px,min(calc({currentPercentage *
-						100}% - 33px - {dayContainerScrollLeft}px),calc(100% - 66px))); background-color: {dark
+					style="left: max(-4px,min(calc({currentPercentage *
+						100}% - 33px - {dayContainerScrollLeft}px),calc(100% - 70px))); background-color: {dark
 						? 'rgba(15, 15, 15, 0.95)'
 						: 'rgba(240, 240, 240, 0.95)'}"
 					class="absolute {disabled
@@ -710,9 +732,13 @@
 			style="background-color: {dark
 				? 'rgba(15, 15, 15, 0.8)'
 				: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
-			class="time-selector {modelRunSelectionOpen ? 'h-22.5' : 'h-12.5'} relative"
+			class="time-selector md:px-0 {modelRunSelectionOpen ? 'h-22.5' : 'h-12.5'} relative"
 		>
-			<div class="mx-1 absolute top-0 left-0 w-full h-5 cursor-pointer">
+			<div
+				class="md:mx-1 absolute {!desktop.current
+					? 'hidden'
+					: ''} z-10 top-0 left-0 w-full h-5 cursor-pointer"
+			>
 				<!-- Hover Cursor -->
 				{#if percentage}
 					<div
@@ -722,18 +748,18 @@
 				{/if}
 				<!-- Current Cursor -->
 				<div
-					style="left: max(0px,min(calc({currentPercentage *
-						100}% - 1px -  {dayContainerScrollLeft}px),100%));"
+					style="left: max(-4px,min(calc({currentPercentage *
+						100}% - 1px -  {dayContainerScrollLeft}px),calc(100% - 8px)));"
 					class="absolute bg-red-700 dark:bg-red-500 z-20 w-1 top-0 h-3.5"
 				></div>
 			</div>
 
-			<div bind:this={dayContainer} class="flex overflow-x-scroll mx-1">
+			<div bind:this={dayContainer} class="flex overflow-x-scroll md:mx-1 px-[50vw] md:px-0">
 				{#if !$metaJson}
 					<div class="min-w-75"></div>
 				{:else}
 					{#each daySteps as dayStep, i (i)}
-						<div class="relative flex h-12.5 min-w-42.5">
+						<div class="relative flex h-12.5 min-w-42.5 {!desktop.current ? 'select-none' : ''}">
 							<!-- Day Names -->
 							<div
 								class="absolute flex mt-3.25 -translate-x-1/2 left-1/2 items-center justify-center text-center flex-col"
