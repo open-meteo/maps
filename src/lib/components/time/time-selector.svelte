@@ -19,6 +19,7 @@
 
 	import {
 		changeOMfileURL,
+		checkClosestModelRun,
 		fmtISOWithoutTimezone,
 		getMetaData,
 		pad,
@@ -178,17 +179,20 @@
 				return;
 			}
 		} else {
-			const closest = closestModelRun(date, $selectedDomain.model_interval);
-			console.log(closest);
-			if (
-				date.getTime() >= closest.getTime() &&
-				closest.getTime() <= latestReferenceTime.getTime() &&
-				closest.getTime() != $modelRun?.getTime()
-			) {
-				$time = new SvelteDate(date);
-				await onModelRunChange(closest);
-				return;
-			}
+			// const closest = closestModelRun(date, $selectedDomain.model_interval);
+			// console.log(closest);
+			// if (
+			// 	date.getTime() >= closest.getTime() &&
+			// 	closest.getTime() <= latestReferenceTime.getTime() &&
+			// 	closest.getTime() !== $modelRun?.getTime()
+			// ) {
+			// 	$time = new SvelteDate(date);
+			// 	await onModelRunChange(closest);
+			// 	return;
+			// }
+			// if ($modelRun && $modelRun.getTime() < latestReferenceTime.getTime()) {
+			// 	checkClosestModelRun();
+			// }
 		}
 
 		$time = new SvelteDate(date);
@@ -258,6 +262,14 @@
 	const currentIndex = $derived(
 		timeSteps ? timeSteps.findLastIndex((tS) => tS.getTime() <= $time.getTime()) : 0
 	);
+
+	metaJson.subscribe(async () => {
+		await tick();
+		if (dayContainer) {
+			dayContainerScrollLeft = dayContainer.scrollLeft;
+			dayContainerScrollWidth = dayContainer.scrollWidth;
+		}
+	});
 
 	const daySteps = $derived.by(() => {
 		const days = [];
@@ -743,6 +755,49 @@
 					: ''}"><path d="m18 15-6-6-6 6" /></svg
 			>
 		</a>
+		<button
+			style="background-color: {dark ? 'rgba(15, 15, 15, 0.8)' : 'rgba(240, 240, 240, 0.85)'};"
+			class="absolute -left-7 h-12.5 w-7 {desktop.current ? '' : 'hidden'} {disabled
+				? 'cursor-not-allowed'
+				: 'cursor-pointer'} rounded-s-xl"
+			onclick={previousHour}
+			aria-label="Previous Hour"
+		>
+			<svg
+				xmlns="http://www.w3.org/2000/svg"
+				width="24"
+				height="24"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				class="lucide lucide-chevron-left-icon lucide-chevron-left"><path d="m15 18-6-6 6-6" /></svg
+			>
+		</button>
+		<button
+			style="background-color: {dark ? 'rgba(15, 15, 15, 0.8)' : 'rgba(240, 240, 240, 0.85)'};"
+			class="absolute -right-7 h-12.5 w-7 {desktop.current ? '' : 'hidden'} {disabled
+				? 'cursor-not-allowed'
+				: 'cursor-pointer'} rounded-e-xl"
+			onclick={nextHour}
+			aria-label="Previous Hour"
+		>
+			<svg
+				xmlns="http://www.w3.org/2000/svg"
+				width="24"
+				height="24"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				class="lucide lucide-chevron-right-icon lucide-chevron-right"
+				><path d="m9 18 6-6-6-6" /></svg
+			>
+		</button>
 		<div
 			style="background-color: {dark
 				? 'rgba(15, 15, 15, 0.8)'

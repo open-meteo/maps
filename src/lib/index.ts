@@ -224,7 +224,7 @@ export const checkClosestModelRun = async () => {
 			timeStep = nowTimeStep;
 		}
 	}
-	// check that requested time is not newer than the latest valid_times in the DomainMetaData
+	// check that requested time is not newer than the last valid_time in the DomainMetaData
 	if (metaJson) {
 		const metaTimeStep = new Date(metaJson.valid_times[metaJson.valid_times.length - 1]);
 		if (timeStep.getTime() > metaTimeStep.getTime()) {
@@ -243,25 +243,28 @@ export const checkClosestModelRun = async () => {
 		? new Date(metaJson.reference_time)
 		: undefined;
 
-	if (modelRun) {
-		if (metaReferenceTime && nearestModelRun.getTime() > metaReferenceTime.getTime()) {
-			setToModelRun = new SvelteDate(metaReferenceTime);
-		} else if (timeStep.getTime() < modelRun.getTime()) {
-			setToModelRun = new SvelteDate(nearestModelRun);
-		} else {
-			if (metaReferenceTime) {
-				if (metaReferenceTime.getTime() === modelRun.getTime()) {
-					updateUrl('model_run', undefined);
-				} else if (
-					timeStep.getTime() > metaReferenceTime.getTime() &&
-					metaReferenceTime.getTime() > modelRun.getTime()
-				) {
-					setToModelRun = new SvelteDate(metaReferenceTime);
-				} else if (timeStep.getTime() < metaReferenceTime.getTime() - 24 * 60 * 60 * 1000) {
-					// Atleast yesterday, always update to nearest modelRun
-					if (modelRun.getTime() < nearestModelRun.getTime()) {
-						setToModelRun = new SvelteDate(nearestModelRun);
-					}
+	if (
+		metaReferenceTime &&
+		nearestModelRun.getTime() > metaReferenceTime.getTime() &&
+		nearestModelRun.getTime() <= latestReferenceTime.getTime()
+	) {
+		setToModelRun = new SvelteDate(nearestModelRun);
+	} else if (modelRun && timeStep.getTime() < modelRun.getTime()) {
+		setToModelRun = new SvelteDate(nearestModelRun);
+	} else {
+		if (metaReferenceTime) {
+			if (modelRun && latestReferenceTime.getTime() === modelRun.getTime()) {
+				updateUrl('model_run', undefined);
+			} else if (
+				modelRun &&
+				timeStep.getTime() > metaReferenceTime.getTime() &&
+				metaReferenceTime.getTime() > modelRun.getTime()
+			) {
+				setToModelRun = new SvelteDate(metaReferenceTime);
+			} else if (timeStep.getTime() < metaReferenceTime.getTime() - 24 * 60 * 60 * 1000) {
+				// Atleast yesterday, always update to nearest modelRun
+				if (modelRun && modelRun.getTime() < nearestModelRun.getTime()) {
+					setToModelRun = new SvelteDate(nearestModelRun);
 				}
 			}
 		}
