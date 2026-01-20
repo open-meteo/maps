@@ -18,6 +18,7 @@
 
 	import { changeOMfileURL, fmtISOWithoutTimezone, getMetaData, pad, updateUrl } from '$lib';
 
+	let now = new SvelteDate();
 	const dark = $derived(mode.current === 'dark');
 	let disabled = $derived($loading);
 
@@ -425,7 +426,13 @@
 		return false;
 	};
 
+	let updateNowInterval: ReturnType<typeof setTimeout> | undefined;
 	onMount(() => {
+		if (updateNowInterval) clearInterval(updateNowInterval);
+		updateNowInterval = setInterval(() => {
+			now = new SvelteDate();
+		}, 60 * 1000);
+
 		if (hoursHoverContainer) {
 			hoursHoverContainer.addEventListener('mousemove', (e) => {
 				if (hoursHoverContainerWidth) percentage = e.layerX / hoursHoverContainerWidth;
@@ -480,6 +487,10 @@
 				}
 			});
 		}
+	});
+
+	onDestroy(() => {
+		clearInterval(updateNowInterval);
 	});
 
 	let modelRunLocked = $state(false);
@@ -732,12 +743,23 @@
 									>{pad(dayStep.getUTCDate())}-{pad(dayStep.getUTCMonth() + 1)}</small
 								>
 							</div>
+							{#if dayStep.getDate() === now.getDate()}
+								<div
+									style="left: {dayWidth *
+										((now.getTime() - dayStep.getTime()) /
+											millisecondsPerDay)}px; width: calc({dayWidth}px/{timeInterval === 0.25
+										? 72
+										: 24});"
+									class="absolute h-4.5 border-orange-500 z-20 border-l-3 border-dotted"
+								></div>
+							{/if}
+
 							<!-- Hour / 15 Minutes Lines -->
 							<div class="flex mt-1 ml-0 pointer-events-none {i === 0 ? 'justify-self-end' : ''}">
 								{#each timeStepsComplete as timeStep, j (j)}
 									{#if timeStep.getTime() >= dayStep.getTime() && timeStep.getTime() < dayStep.getTime() + millisecondsPerDay}
 										<div
-											style="width: calc({170}px/{timeInterval === 0.25 ? 72 : 24});"
+											style="width: calc({dayWidth}px/{timeInterval === 0.25 ? 96 : 24});"
 											class="h-1.25 {timeInterval !== 0.25 && j % 12 === 0 && j !== 0
 												? 'h-3.25'
 												: ''} {timeInterval !== 0.25 && j % 3 === 0

@@ -89,6 +89,10 @@
 							<Kbd.Root>ctrl</Kbd.Root> +
 							<Kbd.Root>p</Kbd.Root> In Progress Model run
 						</div>
+						<div class="flex items-center gap-2">
+							<Kbd.Root>ctrl</Kbd.Root> +
+							<Kbd.Root>n</Kbd.Root> Jump to current time
+						</div>
 					</div>
 				</div>
 
