@@ -808,7 +808,11 @@
 				: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
 			class="time-selector md:px-0 {modelRunSelectionOpen ? 'h-22.5' : 'h-12.5'} relative"
 		>
-			<div class="md:mx-1 absolute z-10 top-0 left-0 w-full h-5 cursor-pointer">
+			<div
+				class="md:mx-1 absolute {!desktop.current
+					? 'pointer-events-none'
+					: ''} z-10 top-0 left-0 w-full h-5 cursor-pointer"
+			>
 				<!-- Hover Cursor -->
 				{#if percentage}
 					<div
