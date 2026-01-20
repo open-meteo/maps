@@ -3,6 +3,7 @@
 	import { MediaQuery, SvelteDate } from 'svelte/reactivity';
 	import { fade, slide } from 'svelte/transition';
 
+	import { closestModelRun } from '@openmeteo/mapbox-layer';
 	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
@@ -72,17 +73,23 @@
 
 	const previousHour = () => {
 		let date = new SvelteDate($time);
-		if (currentIndex && timeSteps) {
+		if (timeSteps && currentIndex - 1 >= 0) {
 			date = timeSteps[currentIndex - 1];
 
 			onDateChange(date);
-			if (desktop.current && currentPercentage < 0.1) {
-				dayContainer?.scrollTo({
-					left: dayContainerScrollLeft - dayWidth / 25,
-					behavior: 'smooth'
-				});
-			} else {
-				centerDateButton(date);
+			// if (desktop.current && currentPercentage < 0.1) {
+			// 	dayContainer?.scrollTo({
+			// 		left: dayContainerScrollLeft - dayWidth / 25,
+			// 		behavior: 'smooth'
+			// 	});
+			// } else {
+			// 	centerDateButton(date);
+			// }
+		} else {
+			if (currentIndex - 1 < 0) {
+				let date = new SvelteDate($time);
+				date.setUTCHours(date.getUTCHours() - 1);
+				onDateChange(date);
 			}
 		}
 	};
@@ -102,17 +109,21 @@
 
 	const nextHour = () => {
 		let date = new SvelteDate($time);
-		if (currentIndex && timeSteps) {
+		if (timeSteps && currentIndex + 1 <= timeSteps.length - 1) {
 			date = timeSteps[currentIndex + 1];
 
 			onDateChange(date);
-			if (desktop.current && currentPercentage > 0.82) {
-				dayContainer?.scrollTo({
-					left: dayContainerScrollLeft + dayWidth / 25,
-					behavior: 'smooth'
-				});
-			} else {
-				centerDateButton(date);
+			// if (desktop.current && currentPercentage > 0.82) {
+			// 	dayContainer?.scrollTo({
+			// 		left: dayContainerScrollLeft + dayWidth / 25,
+			// 		behavior: 'smooth'
+			// 	});
+			// } else {
+			// 	centerDateButton(date);
+			// }
+		} else {
+			if (timeSteps && currentIndex + 1 > timeSteps.length - 1) {
+				toast.warning('Already on latest timestep');
 			}
 		}
 	};
@@ -140,11 +151,11 @@
 		const timeStep = findTimeStep(date);
 		if (timeStep) date = timeStep;
 		onDateChange(date);
-		if (desktop.current && currentPercentage < 0.25) {
-			dayContainer?.scrollTo({ left: dayContainerScrollLeft - dayWidth, behavior: 'smooth' });
-		} else {
-			centerDateButton(date);
-		}
+		// if (desktop.current && currentPercentage < 0.25) {
+		// 	dayContainer?.scrollTo({ left: dayContainerScrollLeft - dayWidth, behavior: 'smooth' });
+		// } else {
+		// 	centerDateButton(date);
+		// }
 	};
 
 	const nextDay = () => {
@@ -153,17 +164,29 @@
 		const timeStep = findTimeStep(date);
 		if (timeStep) date = timeStep;
 		onDateChange(date);
-		if (desktop.current && currentPercentage > 0.75) {
-			dayContainer?.scrollTo({ left: dayContainerScrollLeft + dayWidth, behavior: 'smooth' });
-		} else {
-			centerDateButton(date);
-		}
+		// if (desktop.current && currentPercentage > 0.75) {
+		// 	dayContainer?.scrollTo({ left: dayContainerScrollLeft + dayWidth, behavior: 'smooth' });
+		// } else {
+		// 	centerDateButton(date);
+		// }
 	};
 
-	const onDateChange = (date: Date, callUpdateUrl = true) => {
+	const onDateChange = async (date: Date, callUpdateUrl = true) => {
 		if (modelRunLocked) {
 			if (date.getTime() < firstMetaTime.getTime()) {
 				toast.warning("Model run locked, can't go before first time");
+				return;
+			}
+		} else {
+			const closest = closestModelRun(date, $selectedDomain.model_interval);
+			console.log(closest);
+			if (
+				date.getTime() >= closest.getTime() &&
+				closest.getTime() <= latestReferenceTime.getTime() &&
+				closest.getTime() != $modelRun?.getTime()
+			) {
+				$time = new SvelteDate(date);
+				await onModelRunChange(closest);
 				return;
 			}
 		}
@@ -410,7 +433,6 @@
 
 		window.addEventListener('resize', () => {
 			viewWidth = window.innerWidth;
-			console.log(dayContainerScrollWidth, viewWidth);
 		});
 
 		const resizeObserver = new ResizeObserver(() => {
@@ -420,9 +442,32 @@
 				if (!desktop.current) {
 					centerDateButton(currentDate);
 				}
-				console.log(dayContainerScrollWidth, viewWidth);
 			}
 		});
+
+		const onScrollEvent = (e) => {
+			const target = e.target as Element;
+			const width = target.getBoundingClientRect().width;
+			const left = target.scrollLeft;
+			const percentage = left / width;
+
+			if (left === 0) {
+				currentDate.setUTCHours(0);
+			}
+			if (percentage) {
+				let timeStep =
+					timeStepsComplete[
+						Math.round(
+							(timeStepsComplete.length *
+								(percentage * hoursHoverContainerWidth + dayContainerScrollLeft)) /
+								(dayContainerScrollWidth - viewWidth / 2)
+						)
+					];
+				if ($time.getTime() !== timeStep.getTime()) {
+					currentDate = new SvelteDate(timeStep);
+				}
+			}
+		};
 
 		const onScrollEndEvent = () => {
 			if (!desktop.current) {
@@ -436,46 +481,15 @@
 			dayContainerScrollWidth = dayContainer.scrollWidth;
 			viewWidth = window.innerWidth;
 			resizeObserver.observe(dayContainer);
-			dayContainer.addEventListener(
-				'scroll',
-				throttle(
-					(e) => {
-						if (dayContainer) {
-							dayContainerScrollLeft = dayContainer.scrollLeft;
-						}
-						if (!desktop.current) {
-							dayContainerScrollLeft = 0;
-
-							const target = e.target as Element;
-							const width = target.getBoundingClientRect().width;
-							const left = target.scrollLeft;
-							const percentage = left / width;
-
-							if (left === 0) {
-								currentDate.setUTCHours(0);
-							}
-							if (percentage) {
-								let timeStep =
-									timeStepsComplete[
-										Math.round(
-											(timeStepsComplete.length *
-												(percentage * hoursHoverContainerWidth + dayContainerScrollLeft)) /
-												(dayContainerScrollWidth - viewWidth / 2)
-										)
-									];
-								if ($time.getTime() !== timeStep.getTime()) {
-									currentDate = new SvelteDate(timeStep);
-								}
-							}
-						}
-					},
-					desktop.current ? 0 : 150
-				)
-			);
-			dayContainer.addEventListener(
-				'scrollend',
-				throttle(onScrollEndEvent, desktop.current ? 0 : 150)
-			);
+			dayContainer.addEventListener('scroll', (e) => {
+				if (dayContainer) {
+					dayContainerScrollLeft = dayContainer.scrollLeft;
+				}
+				if (!desktop.current) {
+					throttle(() => onScrollEvent(e), 150);
+				}
+			});
+			dayContainer.addEventListener('scrollend', throttle(onScrollEndEvent, 150));
 
 			dayContainer.addEventListener('mousedown', (e) => {
 				if (!dayContainer) return;
@@ -620,8 +634,9 @@
 				<!-- Current Tooltip -->
 				<div
 					transition:fade={{ duration: 200 }}
-					style="left: max(-4px,min(calc({currentPercentage *
-						100}% - 33px - {dayContainerScrollLeft}px),calc(100% - 70px))); background-color: {dark
+					style="left: max(-4px,min(calc({currentPercentage * 100}% - 33px - {desktop.current
+						? dayContainerScrollLeft
+						: 0}px),calc(100% - 70px))); background-color: {dark
 						? 'rgba(15, 15, 15, 0.95)'
 						: 'rgba(240, 240, 240, 0.95)'}"
 					class="absolute {disabled
