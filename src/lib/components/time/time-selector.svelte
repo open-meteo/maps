@@ -25,7 +25,7 @@
 		updateUrl
 	} from '$lib';
 
-	let now = new SvelteDate();
+	let now = $state(new Date());
 	let disabled = $derived($loading);
 	let currentDate = $state(new Date($time));
 	const dark = $derived(mode.current === 'dark');
@@ -184,6 +184,69 @@
 		changeOMfileURL();
 	};
 
+	const onModelRunChange = async (step: Date) => {
+		$loading = true;
+		$modelRun = step;
+		$metaJson = await getMetaData();
+
+		let timeInNewModelRun = false;
+		for (const vT of $metaJson.valid_times) {
+			const validTime = new Date(vT);
+			if (validTime.getTime() === $time.getTime()) {
+				timeInNewModelRun = true;
+			}
+		}
+		if (!timeInNewModelRun) {
+			onDateChange($modelRun);
+		} else {
+			changeOMfileURL();
+		}
+
+		if ($modelRun.getTime() !== latestReferenceTime.getTime()) {
+			updateUrl('model_run', fmtISOWithoutTimezone($modelRun));
+		} else {
+			updateUrl('model_run', undefined);
+		}
+		toast.info('Model run set to: ' + fmtISOWithoutTimezone($modelRun));
+
+		await tick();
+		if (dayContainer) {
+			dayContainerScrollLeft = dayContainer.scrollLeft;
+			dayContainerScrollWidth = dayContainer.scrollWidth;
+		}
+	};
+
+	const jumpToCurrentTime = () => {
+		let date = new SvelteDate(now);
+		date.setUTCHours(date.getUTCHours() + 1);
+		const timeStep = findTimeStep(date);
+		if (timeStep) date = timeStep;
+
+		onDateChange(date);
+		if (desktop.current && currentPercentage < 0.25) {
+			dayContainer?.scrollTo({ left: dayContainerScrollLeft - dayWidth, behavior: 'smooth' });
+		} else {
+			centerDateButton(date);
+		}
+	};
+
+	const toggleModelRunLock = () => {
+		modelRunLocked = !modelRunLocked;
+		toast(modelRunLocked ? 'Model run locked' : 'Model run unlocked');
+	};
+
+	const setInProgressModel = (event: Event) => {
+		console.log($inProgress);
+		// prevent printing dialog, which is useless on a map anyway
+		event.preventDefault();
+		if (event.stopImmediatePropagation) {
+			event.stopImmediatePropagation();
+		} else {
+			event.stopPropagation();
+		}
+		return;
+	};
+
 	let ctrl = $state(false);
 	const keydownEvent = (event: KeyboardEvent) => {
 		if (event.keyCode == 17 || event.keyCode == 91) ctrl = true;
@@ -191,11 +254,17 @@
 		const canNavigate = !($domainSelectionOpen || $variableSelectionOpen);
 		if (!canNavigate) return;
 
+		console.log(event.key);
+
 		const actions: Record<string, () => void> = {
 			ArrowLeft: ctrl ? previousModel : previousHour,
 			ArrowRight: ctrl ? nextModel : nextHour,
 			ArrowDown: previousDay,
-			ArrowUp: nextDay
+			ArrowUp: nextDay,
+			m: ctrl ? toggleModelRunLock : () => {},
+			p: ctrl ? () => setInProgressModel(event) : () => {},
+			n: ctrl ? () => {} : () => {},
+			c: ctrl ? () => {} : jumpToCurrentTime
 		};
 
 		const action = actions[event.key];
@@ -379,7 +448,7 @@
 	onMount(() => {
 		if (updateNowInterval) clearInterval(updateNowInterval);
 		updateNowInterval = setInterval(() => {
-			now = new SvelteDate();
+			now = new Date();
 		}, 60 * 1000);
 
 		if (hoursHoverContainer) {
@@ -424,6 +493,13 @@
 
 		window.addEventListener('resize', () => {
 			viewWidth = window.innerWidth;
+			if (dayContainer) {
+				dayContainerScrollLeft = dayContainer.scrollLeft;
+				dayContainerScrollWidth = dayContainer.scrollWidth;
+				if (!desktop.current) {
+					centerDateButton(currentDate);
+				}
+			}
 		});
 
 		const resizeObserver = new ResizeObserver(() => {
@@ -545,38 +621,6 @@
 			? new Date($inProgress?.reference_time)
 			: undefined
 	);
-
-	const onModelRunChange = async (step: Date) => {
-		$loading = true;
-		$modelRun = step;
-		$metaJson = await getMetaData();
-
-		let timeInNewModelRun = false;
-		for (const vT of $metaJson.valid_times) {
-			const validTime = new Date(vT);
-			if (validTime.getTime() === $time.getTime()) {
-				timeInNewModelRun = true;
-			}
-		}
-		if (!timeInNewModelRun) {
-			onDateChange($modelRun);
-		} else {
-			changeOMfileURL();
-		}
-
-		if ($modelRun.getTime() !== latestReferenceTime.getTime()) {
-			updateUrl('model_run', fmtISOWithoutTimezone($modelRun));
-		} else {
-			updateUrl('model_run', undefined);
-		}
-		toast.info('Model run set to: ' + fmtISOWithoutTimezone($modelRun));
-
-		await tick();
-		if (dayContainer) {
-			dayContainerScrollLeft = dayContainer.scrollLeft;
-			dayContainerScrollWidth = dayContainer.scrollWidth;
-		}
-	};
 </script>
 
 <div
@@ -629,12 +673,12 @@
 					style="left: max(-4px,min(calc({currentPercentage * 100}% - 33px - {desktop.current
 						? dayContainerScrollLeft
 						: 0}px),calc(100% - 70px))); background-color: {dark
-						? 'rgba(15, 15, 15, 0.95)'
-						: 'rgba(240, 240, 240, 0.95)'}"
+						? 'rgba(15, 15, 15, 0.8)'
+						: 'rgba(240, 240, 240, 0.85)'}"
 					class="absolute {disabled && desktop.current
 						? '-top-8 rounded'
 						: '-top-6 rounded-t'} {!desktop.current
-						? '!rounded-none'
+						? 'rounded-none!'
 						: ''} p-0.5 w-16.5 text-center"
 				>
 					<div class="relative duration-500 {!disabled ? 'text-foreground' : ''}">
@@ -653,12 +697,28 @@
 							<div
 								transition:fade={{ duration: 200 }}
 								style="background-color: {dark
-									? 'rgba(15, 15, 15, 0.95)'
-									: 'rgba(240, 240, 240, 0.95)'}"
+									? 'rgba(15, 15, 15, 0.8)'
+									: 'rgba(240, 240, 240, 0.85)'}"
 								class="-z-10 absolute -bottom-2 w-3 h-3 bg-white rotate-45 -translate-x-1/2 left-1/2"
 							></div>
 						{/if}
 					</div>
+				</div>
+			{:else if !desktop.current}
+				<div
+					transition:fade={{ duration: 200 }}
+					style="left: max(-4px,min(calc({currentPercentage * 100}% - 33px - {desktop.current
+						? dayContainerScrollLeft
+						: 0}px),calc(100% - 70px))); background-color: {dark
+						? 'rgba(15, 15, 15, 0.8)'
+						: 'rgba(240, 240, 240, 0.85)'}"
+					class="absolute {disabled && desktop.current
+						? '-top-8 rounded'
+						: '-top-6 rounded-t'} {!desktop.current
+						? 'rounded-none!'
+						: ''} p-0.5 w-16.5 text-center"
+				>
+					<div class="relative duration-500 text-foreground text-bold">12:00</div>
 				</div>
 			{/if}
 		</div>
@@ -690,8 +750,7 @@
 				onclick={(e) => {
 					e.preventDefault();
 					e.stopPropagation();
-					modelRunLocked = !modelRunLocked;
-					toast(modelRunLocked ? 'Model run locked' : 'Model run unlocked');
+					toggleModelRunLock();
 				}}
 				aria-label="Model Run Lock"
 			>

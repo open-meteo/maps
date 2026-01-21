@@ -73,6 +73,9 @@
 						<div class="flex items-center gap-2">
 							<Kbd.Root>→</Kbd.Root> Next Hour
 						</div>
+						<div class="flex items-center gap-2">
+							<Kbd.Root>c</Kbd.Root> Jump to Current Time
+						</div>
 						<div class="mt-3 flex items-center gap-2">
 							<Kbd.Root>ctrl</Kbd.Root> +
 							<Kbd.Root>←</Kbd.Root> Previous Model run
@@ -83,15 +86,11 @@
 						</div>
 						<div class="flex items-center gap-2">
 							<Kbd.Root>ctrl</Kbd.Root> +
-							<Kbd.Root>l</Kbd.Root> Latest Model run
+							<Kbd.Root>m</Kbd.Root> Lock Model run
 						</div>
 						<div class="flex items-center gap-2">
 							<Kbd.Root>ctrl</Kbd.Root> +
 							<Kbd.Root>p</Kbd.Root> In Progress Model run
-						</div>
-						<div class="flex items-center gap-2">
-							<Kbd.Root>ctrl</Kbd.Root> +
-							<Kbd.Root>n</Kbd.Root> Jump to current time
 						</div>
 					</div>
 				</div>

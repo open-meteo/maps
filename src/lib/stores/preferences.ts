@@ -3,6 +3,8 @@ import { type Writable, writable } from 'svelte/store';
 import { setMode } from 'mode-watcher';
 import { type Persisted, persisted } from 'svelte-persisted-store';
 
+import { getInitialMetaData, getMetaData } from '$lib';
+
 import { customColorScales } from './om-protocol-settings';
 import {
 	defaultDomain,
@@ -57,7 +59,15 @@ export const localStorageVersion: Persisted<string | undefined> = persisted(
 
 export const helpOpen = writable(false);
 
-export const resetStates = () => {
+export const metaJson: Writable<DomainMetaDataJson | undefined> = writable(undefined);
+
+export const resetStates = async () => {
+	latest.set(undefined);
+	inProgress.set(undefined);
+	modelRun.set(undefined);
+	await getInitialMetaData();
+	metaJson.set(await getMetaData());
+
 	preferences.set(defaultPreferences);
 	vectorOptions.set(defaultVectorOptions);
 
@@ -65,13 +75,9 @@ export const resetStates = () => {
 	loading.set(false);
 
 	time.set(new Date(now));
-	modelRun.set(new Date());
 
 	domain.set('dwd_icon');
 	variable.set('temperature_2m');
-
-	latest.set(undefined);
-	inProgress.set(undefined);
 
 	domainSelectionOpen.set(false);
 	variableSelectionOpen.set(false);
@@ -85,10 +91,10 @@ export const resetStates = () => {
 
 	customColorScales.set({});
 
+	helpOpen.set(false);
+
 	setMode('system');
 };
-
-export const metaJson: Writable<DomainMetaDataJson | undefined> = writable(undefined);
 
 // used to check against url search parameters
 export const completeDefaultValues: { [key: string]: boolean | string | number } = {
