@@ -306,16 +306,6 @@
 	let scrollLeft = $state(0);
 	let scrollTop = $state(0);
 
-	// onMount(() => {
-	// 	if (hoursContainer) {
-	// 		hoursContainer.scrollIntoView({
-	// 			behavior: 'instant',
-	// 			block: 'center',
-	// 			inline: 'center'
-	// 		});
-	// 	}
-	// });
-
 	const centerDateButton = (date: Date, smooth = false) => {
 		if (dayContainer) {
 			const index = timeStepsComplete.findIndex((tSC) => tSC.getTime() === date.getTime());
@@ -641,11 +631,13 @@
 						: 0}px),calc(100% - 70px))); background-color: {dark
 						? 'rgba(15, 15, 15, 0.95)'
 						: 'rgba(240, 240, 240, 0.95)'}"
-					class="absolute {disabled ? '-top-8 rounded' : '-top-6 rounded-t'} {!desktop.current
+					class="absolute {disabled && desktop.current
+						? '-top-8 rounded'
+						: '-top-6 rounded-t'} {!desktop.current
 						? '!rounded-none'
 						: ''} p-0.5 w-16.5 text-center"
 				>
-					<div class="relative text-foreground">
+					<div class="relative duration-500 {!disabled ? 'text-foreground' : ''}">
 						{#if currentTimeStep}
 							{#if desktop.current}
 								<div class="font-bold">
@@ -657,7 +649,7 @@
 								</div>
 							{/if}
 						{/if}
-						{#if disabled}
+						{#if disabled && desktop.current}
 							<div
 								transition:fade={{ duration: 200 }}
 								style="background-color: {dark
@@ -849,7 +841,7 @@
 											millisecondsPerDay)}px; width: calc({dayWidth}px/{timeInterval === 0.25
 										? 72
 										: 24});"
-									class="absolute h-4.5 border-orange-500 z-20 border-l"
+									class="absolute h-4.5 border-orange-500 z-20 border-l-2"
 								></div>
 							{/if}
 
