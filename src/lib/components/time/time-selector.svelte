@@ -3,7 +3,6 @@
 	import { MediaQuery, SvelteDate } from 'svelte/reactivity';
 	import { fade, slide } from 'svelte/transition';
 
-	import { closestModelRun } from '@openmeteo/mapbox-layer';
 	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
@@ -19,7 +18,6 @@
 
 	import {
 		changeOMfileURL,
-		checkClosestModelRun,
 		fmtISOWithoutTimezone,
 		getMetaData,
 		pad,
@@ -758,7 +756,7 @@
 		<button
 			style="background-color: {dark ? 'rgba(15, 15, 15, 0.8)' : 'rgba(240, 240, 240, 0.85)'};"
 			class="absolute {desktop.current
-				? '-left-7 h-12.5 w-7 rounded-e-xl'
+				? '-left-7 h-12.5 w-7 rounded-s-xl'
 				: 'left-[calc(50%-57px)] -top-7 h-7 rounded-tl-lg'} {disabled
 				? 'cursor-not-allowed'
 				: 'cursor-pointer'} "
