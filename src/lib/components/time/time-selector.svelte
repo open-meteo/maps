@@ -149,7 +149,7 @@
 		let date = new SvelteDate($time);
 		date.setUTCHours(date.getUTCHours() - 24);
 		const timeStep = findTimeStep(date, timeSteps);
-		if (timeStep) date = timeStep;
+		if (timeStep) date = new SvelteDate(timeStep);
 		onDateChange(date);
 		if (desktop.current && currentPercentage < 0.25) {
 			dayContainer?.scrollTo({ left: dayContainerScrollLeft - dayWidth, behavior: 'smooth' });
@@ -162,7 +162,7 @@
 		let date = new SvelteDate($time);
 		date.setUTCHours(date.getUTCHours() + 24);
 		const timeStep = findTimeStep(date, timeSteps);
-		if (timeStep) date = timeStep;
+		if (timeStep) date = new SvelteDate(timeStep);
 		onDateChange(date);
 		if (desktop.current && currentPercentage > 0.75) {
 			dayContainer?.scrollTo({ left: dayContainerScrollLeft + dayWidth, behavior: 'smooth' });
@@ -221,7 +221,7 @@
 		let date = new SvelteDate(now);
 		date.setUTCHours(date.getUTCHours() + 1);
 		const timeStep = findTimeStep(date, timeSteps);
-		if (timeStep) date = timeStep;
+		if (timeStep) date = new SvelteDate(timeStep);
 
 		onDateChange(date);
 		if (desktop.current && currentPercentage < 0.25) {
@@ -482,7 +482,7 @@
 						timeStep.getTime() < lastMetaTime.getTime()
 					) {
 						const foundTimeStep = findTimeStep(timeStep, timeSteps);
-						if (foundTimeStep) timeStep = foundTimeStep;
+						if (foundTimeStep) timeStep = new SvelteDate(foundTimeStep);
 					}
 					if (timeStep) {
 						currentDate = timeStep;
@@ -517,7 +517,7 @@
 			}
 		});
 
-		const onScrollEvent = (e) => {
+		const onScrollEvent = (e: Event) => {
 			const target = e.target as Element;
 			const width = target.getBoundingClientRect().width;
 			const left = target.scrollLeft;
@@ -729,15 +729,20 @@
 			{/if}
 		</div>
 		<!-- Model Run Toggle Button -->
-		<a
-			href="#"
+		<div
+			role="button"
+			tabindex="0"
 			onclick={() => (modelRunSelectionOpen = !modelRunSelectionOpen)}
+			onkeydown={(e) =>
+				(e.key === 'Enter' || e.key === ' ') && (modelRunSelectionOpen = !modelRunSelectionOpen)}
 			style="background-color: {dark
 				? 'rgba(15, 15, 15, 0.8)'
 				: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px);"
 			class="{modelRunSelectionOpen
 				? '-top-11 h-11'
 				: '-top-4.5 h-4.5'} z-10 cursor-pointer right-0 absolute flex rounded-t-xl items-center px-2 gap-0.5"
+			aria-expanded={modelRunSelectionOpen}
+			aria-label="Toggle model run selection"
 		>
 			{#if modelRunSelectionOpen && $modelRun}
 				<div
@@ -809,7 +814,7 @@
 					? 'rotate-180'
 					: ''}"><path d="m18 15-6-6-6 6" /></svg
 			>
-		</a>
+		</div>
 		<button
 			style="background-color: {dark ? 'rgba(15, 15, 15, 0.8)' : 'rgba(240, 240, 240, 0.85)'};"
 			class="absolute {desktop.current
