@@ -165,9 +165,9 @@
 </script>
 
 <div
-	class="absolute top-[10px] flex max-h-[300px] gap-2.5 duration-300 {variableSelectionExtended
+	class="absolute top-2.5 flex max-h-75 gap-2.5 z-30 duration-300 {variableSelectionExtended
 		? 'left-2.5'
-		: '-left-[182px]'} "
+		: '-left-45.5'} "
 >
 	{#if $loading || !$metaJson}
 		<VariableSelectionEmpty />
@@ -244,8 +244,8 @@
 										{#if value.startsWith(group)}
 											<Command.Item
 												{value}
-												class="hover:!bg-primary/25 cursor-pointer {$selectedDomain.value === value
-													? '!bg-primary/15'
+												class="hover:bg-primary/25! cursor-pointer {$selectedDomain.value === value
+													? 'bg-primary/15!'
 													: ''}"
 												onSelect={() => {
 													$loading = true;
@@ -281,7 +281,7 @@
 					<Button
 						variant="outline"
 						style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
-						class="bg-background/90 dark:bg-background/70 hover:!bg-background h-7.25 w-[180px] cursor-pointer justify-between rounded-[4px] border-none !p-1.5"
+						class="bg-background/90 dark:bg-background/70 hover:bg-background! h-7.25 w-[180px] cursor-pointer justify-between rounded-[4px] border-none !p-1.5"
 						role="combobox"
 						aria-expanded={variableSelectionOpen}
 					>

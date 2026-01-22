@@ -18,6 +18,7 @@
 
 	import {
 		changeOMfileURL,
+		findTimeStep,
 		fmtISOWithoutTimezone,
 		getMetaData,
 		pad,
@@ -147,7 +148,7 @@
 	const previousDay = () => {
 		let date = new SvelteDate($time);
 		date.setUTCHours(date.getUTCHours() - 24);
-		const timeStep = findTimeStep(date);
+		const timeStep = findTimeStep(date, timeSteps);
 		if (timeStep) date = timeStep;
 		onDateChange(date);
 		if (desktop.current && currentPercentage < 0.25) {
@@ -160,7 +161,7 @@
 	const nextDay = () => {
 		let date = new SvelteDate($time);
 		date.setUTCHours(date.getUTCHours() + 24);
-		const timeStep = findTimeStep(date);
+		const timeStep = findTimeStep(date, timeSteps);
 		if (timeStep) date = timeStep;
 		onDateChange(date);
 		if (desktop.current && currentPercentage > 0.75) {
@@ -219,7 +220,7 @@
 	const jumpToCurrentTime = () => {
 		let date = new SvelteDate(now);
 		date.setUTCHours(date.getUTCHours() + 1);
-		const timeStep = findTimeStep(date);
+		const timeStep = findTimeStep(date, timeSteps);
 		if (timeStep) date = timeStep;
 
 		onDateChange(date);
@@ -232,7 +233,7 @@
 
 	const toggleModelRunLock = () => {
 		modelRunLocked = !modelRunLocked;
-		toast(modelRunLocked ? 'Model run locked' : 'Model run unlocked');
+		toast.info(modelRunLocked ? 'Model run locked' : 'Model run unlocked');
 	};
 
 	const setInProgressModel = (event: Event) => {
@@ -261,7 +262,7 @@
 			ArrowRight: ctrl ? nextModel : nextHour,
 			ArrowDown: previousDay,
 			ArrowUp: nextDay,
-			m: ctrl ? toggleModelRunLock : () => {},
+			m: ctrl ? () => {} : toggleModelRunLock,
 			p: ctrl ? () => setInProgressModel(event) : () => {},
 			n: ctrl ? () => {} : () => {},
 			c: ctrl ? () => {} : jumpToCurrentTime
@@ -307,10 +308,6 @@
 	const timeSteps = $derived(
 		$metaJson?.valid_times.map((validTime: string) => new SvelteDate(validTime))
 	);
-
-	const findTimeStep = (date: Date | SvelteDate) => {
-		return timeSteps?.findLast((tS) => tS.getTime() <= date.getTime());
-	};
 
 	const currentIndex = $derived(
 		timeSteps ? timeSteps.findLastIndex((tS) => tS.getTime() <= $time.getTime()) : 0
@@ -444,7 +441,9 @@
 		return false;
 	};
 
+	let resizeTimeout: ReturnType<typeof setTimeout> | undefined;
 	let updateNowInterval: ReturnType<typeof setTimeout> | undefined;
+
 	onMount(() => {
 		if (updateNowInterval) clearInterval(updateNowInterval);
 		updateNowInterval = setInterval(() => {
@@ -482,11 +481,13 @@
 						timeStep.getTime() > firstMetaTime.getTime() &&
 						timeStep.getTime() < lastMetaTime.getTime()
 					) {
-						const newTimeStep = findTimeStep(timeStep);
-						if (newTimeStep) timeStep = newTimeStep;
+						const foundTimeStep = findTimeStep(timeStep, timeSteps);
+						if (foundTimeStep) timeStep = foundTimeStep;
 					}
-
-					if (timeStep) onDateChange(timeStep);
+					if (timeStep) {
+						currentDate = timeStep;
+						onDateChange(timeStep);
+					}
 				}
 			});
 		}
@@ -496,10 +497,14 @@
 			if (dayContainer) {
 				dayContainerScrollLeft = dayContainer.scrollLeft;
 				dayContainerScrollWidth = dayContainer.scrollWidth;
-				if (!desktop.current) {
+			}
+
+			clearTimeout(resizeTimeout);
+			resizeTimeout = setTimeout(() => {
+				if (dayContainer && !desktop.current) {
 					centerDateButton(currentDate);
 				}
-			}
+			}, 100);
 		});
 
 		const resizeObserver = new ResizeObserver(() => {
@@ -536,7 +541,7 @@
 		const onScrollEndEvent = () => {
 			if (!desktop.current) {
 				if (!isDown) {
-					let timeStep = findTimeStep(currentDate);
+					let timeStep = findTimeStep(currentDate, timeSteps);
 					if (timeStep) currentDate = timeStep;
 					onDateChange(currentDate);
 					centerDateButton(currentDate);
@@ -595,6 +600,7 @@
 
 	onDestroy(() => {
 		clearInterval(updateNowInterval);
+		if (resizeTimeout) clearTimeout(resizeTimeout);
 	});
 
 	let modelRunLocked = $state(false);
