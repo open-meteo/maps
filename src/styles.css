@@ -22,6 +22,7 @@
 	--card-foreground: oklch(0.129 0.042 264.695);
 	--popover: oklch(1 0 0);
 	--popover-foreground: oklch(0.129 0.042 264.695);
+	--glass: rgba(240, 240, 240, 0.85);
 	--primary: oklch(0.208 0.042 265.755);
 	--primary-foreground: oklch(0.984 0.003 247.858);
 	--secondary: oklch(0.968 0.007 247.896);
@@ -56,6 +57,7 @@
 	--card-foreground: oklch(0.984 0.003 247.858);
 	--popover: oklch(0.208 0.042 265.755);
 	--popover-foreground: oklch(0.984 0.003 247.858);
+	--glass: rgba(15, 15, 15, 0.8);
 	--primary: oklch(0.929 0.013 255.508);
 	--primary-foreground: oklch(0.208 0.042 265.755);
 	--secondary: oklch(0.279 0.041 260.031);
@@ -103,6 +105,7 @@
 	--color-accent: var(--accent);
 	--color-accent-foreground: var(--accent-foreground);
 	--color-destructive: var(--destructive);
+	--color-glass: var(--glass);
 	--color-border: var(--border);
 	--color-input: var(--input);
 	--color-ring: var(--ring);
@@ -250,12 +253,15 @@ body {
 .maplibregl-popup-anchor-top .maplibregl-popup-tip {
 	border-bottom-color: rgba(100, 100, 100, 1);
 }
+
 .maplibregl-popup-anchor-right .maplibregl-popup-tip {
 	border-left-color: rgba(100, 100, 100, 1);
 }
+
 .maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
 	border-top-color: rgba(100, 100, 100, 1);
 }
+
 .maplibregl-popup-anchor-left .maplibregl-popup-tip {
 	border-right-color: rgba(100, 100, 100, 1);
 }

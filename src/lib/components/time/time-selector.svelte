@@ -16,6 +16,8 @@
 		variableSelectionOpen
 	} from '$lib/stores/variables';
 
+	import * as Select from '$lib/components/ui/select';
+
 	import {
 		changeOMfileURL,
 		findTimeStep,
@@ -604,7 +606,6 @@
 	});
 
 	let modelRunLocked = $state(false);
-	let modelRunSelectionOpen = $state(false);
 
 	let previousModelSteps = $derived.by(() => {
 		const previousModels = [];
@@ -643,18 +644,18 @@
 		<div
 			bind:this={hoursHoverContainer}
 			bind:clientWidth={hoursHoverContainerWidth}
-			class="absolute {!desktop.current ? 'pointer-events-none' : ''} md:mx-1 {modelRunSelectionOpen
-				? 'bottom-15'
-				: 'bottom-5'} w-full h-8.5 {percentage ? 'z-20' : 'z-10'} cursor-pointer duration-500"
+			class="absolute {!desktop.current
+				? 'pointer-events-none'
+				: ''} md:mx-1 bottom-5 w-full h-8.5 {percentage
+				? 'z-20'
+				: 'z-10'} cursor-pointer duration-500"
 		>
 			<!-- Hover Tooltip -->
 			{#if percentage && desktop.current}
 				<div
 					transition:fade={{ duration: 200 }}
-					style="left: calc({percentage * 100}% - 33px); background-color: {dark
-						? 'rgba(15, 15, 15, 0.95)'
-						: 'rgba(240, 240, 240, 0.95)'}"
-					class="absolute z-20 -top-8 p-0.5 w-16.5 text-center rounded {hoveredHour &&
+					style="left: calc({percentage * 100}% - 33px);"
+					class="absolute z-20 -top-8 p-0.5 w-16.5 text-center rounded bg-glass/95 {hoveredHour &&
 					currentTimeStep &&
 					currentTimeStep.getTime() === hoveredHour.getTime()
 						? 'font-bold'
@@ -665,10 +666,7 @@
 							{pad(hoveredHour.getUTCHours())}:{pad(hoveredHour.getUTCMinutes())}
 						{/if}
 						<div
-							style="background-color: {dark
-								? 'rgba(15, 15, 15, 0.95)'
-								: 'rgba(240, 240, 240, 0.95)'}"
-							class="-z-10 absolute -bottom-2 w-3 h-3 bg-white rotate-45 -translate-x-1/2 left-1/2"
+							class="-z-10 absolute -bottom-2 w-3 h-3 bg-glass/95 rotate-45 -translate-x-1/2 left-1/2"
 						></div>
 					</div>
 				</div>
@@ -678,10 +676,8 @@
 					transition:fade={{ duration: 200 }}
 					style="left: max(-4px,min(calc({currentPercentage * 100}% - 33px - {desktop.current
 						? dayContainerScrollLeft
-						: 0}px),calc(100% - 70px))); background-color: {dark
-						? 'rgba(15, 15, 15, 0.8)'
-						: 'rgba(240, 240, 240, 0.85)'}"
-					class="absolute {disabled && desktop.current
+						: 0}px),calc(100% - 70px)));"
+					class="absolute bg-glass {disabled && desktop.current
 						? '-top-8 rounded'
 						: '-top-6 rounded-t'} {!desktop.current
 						? 'rounded-none!'
@@ -702,10 +698,7 @@
 						{#if disabled && desktop.current}
 							<div
 								transition:fade={{ duration: 200 }}
-								style="background-color: {dark
-									? 'rgba(15, 15, 15, 0.8)'
-									: 'rgba(240, 240, 240, 0.85)'}"
-								class="-z-10 absolute -bottom-2 w-3 h-3 bg-white rotate-45 -translate-x-1/2 left-1/2"
+								class="-z-10 absolute -bottom-2 w-3 h-3 bg-glass rotate-45 -translate-x-1/2 left-1/2"
 							></div>
 						{/if}
 					</div>
@@ -715,10 +708,8 @@
 					transition:fade={{ duration: 200 }}
 					style="left: max(-4px,min(calc({currentPercentage * 100}% - 33px - {desktop.current
 						? dayContainerScrollLeft
-						: 0}px),calc(100% - 70px))); background-color: {dark
-						? 'rgba(15, 15, 15, 0.8)'
-						: 'rgba(240, 240, 240, 0.85)'}"
-					class="absolute {disabled && desktop.current
+						: 0}px),calc(100% - 70px)));"
+					class="absolute bg-glass {disabled && desktop.current
 						? '-top-8 rounded'
 						: '-top-6 rounded-t'} {!desktop.current
 						? 'rounded-none!'
@@ -728,36 +719,87 @@
 				</div>
 			{/if}
 		</div>
-		<!-- Model Run Toggle Button -->
+		<!-- Model Run Selection Dropdown -->
 		<div
-			role="button"
-			tabindex="0"
-			onclick={() => (modelRunSelectionOpen = !modelRunSelectionOpen)}
-			onkeydown={(e) =>
-				(e.key === 'Enter' || e.key === ' ') && (modelRunSelectionOpen = !modelRunSelectionOpen)}
-			style="background-color: {dark
-				? 'rgba(15, 15, 15, 0.8)'
-				: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px);"
-			class="{modelRunSelectionOpen
-				? '-top-11 h-11'
-				: '-top-4.5 h-4.5'} z-10 cursor-pointer right-0 absolute flex rounded-t-xl items-center px-2 gap-0.5"
-			aria-expanded={modelRunSelectionOpen}
-			aria-label="Toggle model run selection"
+			class="-top-4.5 h-4.5 z-10 right-0 absolute flex rounded-t-xl items-center px-2 gap-0.5 bg-glass backdrop-blur-sm"
 		>
-			{#if modelRunSelectionOpen && $modelRun}
-				<div
-					transition:slide={{ axis: 'x', duration: 500 }}
-					class="{modelRunSelectionOpen
-						? 'text-normal px-1 py-2 mr-0.5'
-						: 'text-sm'}  text-nowrap overflow-hidden"
+			<Select.Root
+				type="single"
+				value={$modelRun ? $modelRun.getTime().toString() : ''}
+				onValueChange={(v) => {
+					if (v) {
+						const timestamp = parseInt(v);
+						const selectedDate = new Date(timestamp);
+						onModelRunChange(selectedDate);
+					}
+				}}
+				disabled={modelRunLocked}
+			>
+				<Select.Trigger
+					class="!h-4.5  text-xs pl-1.5 pr-0.75 py-0 gap-1 border-none bg-transparent shadow-none hover:bg-accent/50 focus-visible:ring-0 focus-visible:ring-offset-0 {modelRunLocked
+						? 'opacity-60 cursor-not-allowed'
+						: 'cursor-pointer'}"
+					aria-label="Select model run"
 				>
-					<small>{pad($modelRun.getUTCDate())}-{pad($modelRun.getUTCMonth() + 1)}</small>
-					{pad($modelRun.getUTCHours())}:{pad($modelRun.getUTCMinutes())}
-				</div>
-			{/if}
+					{#if $modelRun}
+						{pad($modelRun.getUTCDate())}-{pad($modelRun.getUTCMonth() + 1)}
+						{pad($modelRun.getUTCHours())}:{pad($modelRun.getUTCMinutes())}
+					{:else}
+						Select model run
+					{/if}
+				</Select.Trigger>
+				<Select.Content
+					class="left-5 border-none max-h-60 bg-glass/95 backdrop-blur-sm"
+					sideOffset={8}
+					align="end"
+				>
+					{#if inProgressReferenceTime && $modelRun}
+						<Select.Item
+							value={inProgressReferenceTime.getTime().toString()}
+							label="IP {pad(inProgressReferenceTime.getUTCDate())}-{pad(
+								inProgressReferenceTime.getUTCMonth() + 1
+							)} {pad(inProgressReferenceTime.getUTCHours())}:{pad(
+								inProgressReferenceTime.getUTCMinutes()
+							)}"
+							class="cursor-pointer {inProgressReferenceTime.getTime() === firstMetaTime.getTime()
+								? 'text-orange-600 dark:text-orange-400 font-semibold'
+								: ''}"
+						>
+							IP <small
+								>{pad(inProgressReferenceTime.getUTCDate())}-{pad(
+									inProgressReferenceTime.getUTCMonth() + 1
+								)}</small
+							>
+							{pad(inProgressReferenceTime.getUTCHours())}:{pad(
+								inProgressReferenceTime.getUTCMinutes()
+							)}
+						</Select.Item>
+					{/if}
+					{#each previousModelSteps as previousModelStep, i (i)}
+						<Select.Item
+							value={previousModelStep.getTime().toString()}
+							label="{pad(previousModelStep.getUTCDate())}-{pad(
+								previousModelStep.getUTCMonth() + 1
+							)} {pad(previousModelStep.getUTCHours())}:{pad(previousModelStep.getUTCMinutes())}"
+							class="cursor-pointer {previousModelStep.getTime() ===
+								latestReferenceTime.getTime() &&
+							previousModelStep.getTime() === firstMetaTime.getTime()
+								? 'text-green-700 dark:text-green-500 font-semibold'
+								: ''}"
+						>
+							<small
+								>{pad(previousModelStep.getUTCDate())}-{pad(
+									previousModelStep.getUTCMonth() + 1
+								)}</small
+							>
+							{pad(previousModelStep.getUTCHours())}:{pad(previousModelStep.getUTCMinutes())}
+						</Select.Item>
+					{/each}
+				</Select.Content>
+			</Select.Root>
 
 			<button
-				class="cursor-pointer w-4.5 h-4.5 flex items-center justify-center"
+				class="cursor-pointer w-3.5 -ml-0.5 h-4.5 pr-0.5 flex items-center justify-center"
 				onclick={(e) => {
 					e.preventDefault();
 					e.stopPropagation();
@@ -799,25 +841,9 @@
 					>
 				{/if}
 			</button>
-
-			<svg
-				xmlns="http://www.w3.org/2000/svg"
-				width="18"
-				height="18"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				class="lucide lucide-chevron-up-icon lucide-chevron-up duration-500 {modelRunSelectionOpen
-					? 'rotate-180'
-					: ''}"><path d="m18 15-6-6-6 6" /></svg
-			>
 		</div>
 		<button
-			style="background-color: {dark ? 'rgba(15, 15, 15, 0.8)' : 'rgba(240, 240, 240, 0.85)'};"
-			class="absolute {desktop.current
+			class="absolute bg-glass {desktop.current
 				? '-left-7 h-12.5 w-7 rounded-s-xl'
 				: 'left-[calc(50%-57px)] -top-7 h-7 rounded-tl-lg'} {disabled
 				? 'cursor-not-allowed'
@@ -839,8 +865,7 @@
 			>
 		</button>
 		<button
-			style="background-color: {dark ? 'rgba(15, 15, 15, 0.8)' : 'rgba(240, 240, 240, 0.85)'};"
-			class="absolute {desktop.current
+			class="absolute bg-glass {desktop.current
 				? '-right-7 h-12.5 w-7 rounded-e-xl'
 				: 'right-[calc(50%-57px)] -top-7 h-7 rounded-tr-lg'} {disabled
 				? 'cursor-not-allowed'
@@ -862,12 +887,7 @@
 				><path d="m9 18 6-6-6-6" /></svg
 			>
 		</button>
-		<div
-			style="background-color: {dark
-				? 'rgba(15, 15, 15, 0.8)'
-				: 'rgba(240, 240, 240, 0.85)'}; backdrop-filter: blur(4px); transition-duration: 500ms;"
-			class="time-selector md:px-0 {modelRunSelectionOpen ? 'h-22.5' : 'h-12.5'} relative"
-		>
+		<div class="time-selector md:px-0 h-12.5 relative bg-glass backdrop-blur-sm duration-500">
 			<div
 				class="md:mx-1 absolute {!desktop.current
 					? 'pointer-events-none'
@@ -941,66 +961,6 @@
 					{/each}
 				{/if}
 			</div>
-
-			{#if modelRunSelectionOpen}
-				<!-- Model Run Selection -->
-				<div
-					transition:slide={{ duration: 500 }}
-					class="absolute right-0 w-full bottom-0 h-10 {modelRunLocked
-						? 'opacity-60 cursor-not-allowed'
-						: ''}"
-				>
-					<div
-						class="{modelRunLocked
-							? 'pointer-events-none'
-							: ''} h-10 border-t relative px-4 gap-1 flex-row-reverse overflow-x-scroll items-center flex"
-					>
-						{#if inProgressReferenceTime && $modelRun}
-							<button
-								onclick={() => {
-									onModelRunChange(inProgressReferenceTime);
-								}}
-								class="px-1.5 py-0.5 border-2 flex items-center text-nowrap rounded gap-1 hover:bg-accent cursor-pointer {inProgressReferenceTime.getTime() ===
-								firstMetaTime.getTime()
-									? 'border-orange-500 dark:border-orange-300'
-									: ''} {inProgressReferenceTime.getTime() === $modelRun.getTime()
-									? ''
-									: 'border-transparent'}"
-								>IP <small
-									>{pad(inProgressReferenceTime.getUTCDate())}-{pad(
-										inProgressReferenceTime.getUTCMonth() + 1
-									)}</small
-								>
-								{pad(inProgressReferenceTime.getUTCHours())}:{pad(
-									inProgressReferenceTime.getUTCMinutes()
-								)}</button
-							>
-						{/if}
-						{#each previousModelSteps as previousModelStep, i (i)}
-							<button
-								onclick={() => {
-									onModelRunChange(previousModelStep);
-								}}
-								class="px-1.5 py-0.5 border-2 flex items-center text-nowrap rounded gap-1 hover:bg-accent cursor-pointer {previousModelStep.getTime() ===
-									latestReferenceTime.getTime() &&
-								previousModelStep.getTime() === firstMetaTime.getTime()
-									? 'border-green-700 dark:border-green-500'
-									: ''} {previousModelStep.getTime() === firstMetaTime.getTime()
-									? ''
-									: 'border-transparent'}"
-								><small
-									>{pad(previousModelStep.getUTCDate())}-{pad(
-										previousModelStep.getUTCMonth() + 1
-									)}</small
-								>
-								{pad(previousModelStep.getUTCHours())}:{pad(
-									previousModelStep.getUTCMinutes()
-								)}</button
-							>
-						{/each}
-					</div>
-				</div>
-			{/if}
 		</div>
 	</div>
 </div>
