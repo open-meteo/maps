@@ -18,8 +18,6 @@ import { toast } from 'svelte-sonner';
 import { browser } from '$app/environment';
 import { pushState } from '$app/navigation';
 
-export { findTimeStep, findTimeStepIndex } from '$lib/time-utils';
-
 import { map as m } from '$lib/stores/map';
 import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 import {
@@ -41,6 +39,8 @@ import { domain as d, selectedDomain, variable as v } from '$lib/stores/variable
 import { vectorOptions as vO } from '$lib/stores/vector';
 
 import type { Domain, DomainMetaDataJson } from '@openmeteo/mapbox-layer';
+
+export { findTimeStep, findTimeStepIndex } from '$lib/time-utils';
 
 let url = get(u);
 u.subscribe((newUrl) => {

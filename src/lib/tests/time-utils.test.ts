@@ -1,5 +1,7 @@
-import { describe, it, expect } from 'vitest';
 import { SvelteDate } from 'svelte/reactivity';
+
+import { describe, expect, it } from 'vitest';
+
 import { findTimeStep, findTimeStepIndex } from '$lib/time-utils';
 
 describe('findTimeStep', () => {
