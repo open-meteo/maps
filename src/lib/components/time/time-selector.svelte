@@ -82,7 +82,7 @@
 
 			onDateChange(date);
 
-			centerDateButton(date, true, 'backward', (ts - date.getTime()) / (60 * 60 * 1000));
+			centerDateButton(date, true, 'backward');
 		} else {
 			// jump to next model run if available
 			if (currentIndex - 1 < 0) {
@@ -172,7 +172,7 @@
 		if (timeStep) date = new SvelteDate(timeStep);
 		onDateChange(date);
 
-		centerDateButton(date, true, 'forward', (date.getTime() - ts) / (60 * 60 * 1000));
+		centerDateButton(date, true, 'forward');
 	};
 
 	const onDateChange = async (date: Date, callUpdateUrl = true) => {
@@ -253,7 +253,11 @@
 
 	const setModelRun = (event: Event, type: string = 'latest') => {
 		if (type === 'latest') {
-			onModelRunChange(latestReferenceTime);
+			if ($modelRun && $modelRun.getTime() === latestReferenceTime.getTime()) {
+				toast.warning('Already on latest model run');
+			} else {
+				onModelRunChange(latestReferenceTime);
+			}
 		} else if (type === 'in-progress') {
 			const inProgressReferenceTime = new Date($inProgress?.reference_time as string);
 			if (inProgressReferenceTime.getTime() === latestReferenceTime.getTime()) {
@@ -376,21 +380,34 @@
 	let startY = $state(0);
 	let scrollLeft = $state(0);
 	let scrollTop = $state(0);
+	let isScrolling = $state(false);
 
 	const centerDateButton = (
 		date: Date,
 		smooth = false,
-		direction: 'forward' | 'backward' = 'forward',
-		diff = 1
+		direction: 'forward' | 'backward' | 'unknown' = 'unknown'
 	) => {
 		if (dayContainer) {
 			const index = timeStepsComplete.findIndex((tSC) => tSC.getTime() === date.getTime());
 			if (index !== -1) {
 				if (desktop.current) {
 					if (dayContainerScrollWidth > hoursHoverContainerWidth - 8) {
-						let scrollTo = false;
+						console.log(
+							'leftpx',
+							dayContainerScrollLeft,
+							'\ncurrentPercentage',
+							currentPercentage,
+							'\npercentVisible',
+							percentageVisible,
+							'\ncurr',
+							currentPercentageVisible,
+							'\nleft',
+							dayContainerScrollPercentage
+						);
 						if (direction === 'forward' && currentPercentageVisible > 0.66) {
-							scrollTo = true;
+							// isScrolling = true;
+							// const left =
+							// dayContainer.scrollTo({ left: left, behavior: smooth ? 'smooth' : 'instant' });
 						}
 
 						if (
@@ -398,19 +415,18 @@
 							currentPercentageVisible < 0.33 &&
 							dayContainerScrollPercentage > 0
 						) {
-							scrollTo = true;
+							// isScrolling = true;
+							// dayContainer.scrollTo({ left: left, behavior: smooth ? 'smooth' : 'instant' });
 						}
-						if (scrollTo) {
-							const hourWidth = dayWidth / 24;
-							const left =
-								dayContainerScrollLeft +
-								(direction === 'forward' ? hourWidth * diff : -hourWidth * diff);
-							dayContainer.scrollTo({ left: left, behavior: smooth ? 'smooth' : 'instant' });
+						if (direction === 'unknown') {
+							// isScrolling = true;
+							// dayContainer.scrollTo({ left: left, behavior: smooth ? 'smooth' : 'instant' });
 						}
 					}
 				} else {
 					const hourWidth = dayWidth / 24;
 					const left = hourWidth * index;
+					isScrolling = true;
 					dayContainer.scrollTo({ left: left, behavior: smooth ? 'smooth' : 'instant' });
 				}
 			}
@@ -466,7 +482,7 @@
 	);
 
 	let dayContainerScrollPercentage = $derived(
-		dayContainerScrollLeft / (dayContainerScrollWidth - hoursHoverContainerWidth)
+		dayContainerScrollLeft / (dayContainerScrollWidth - (hoursHoverContainerWidth - 8))
 	);
 	let currentPercentageVisible = $derived(currentPercentage - dayContainerScrollPercentage);
 
@@ -550,6 +566,8 @@
 		});
 
 		const onScrollEvent = (e: Event) => {
+			if (isScrolling) return;
+
 			const target = e.target as Element;
 			const width = target.getBoundingClientRect().width;
 			const left = target.scrollLeft;
@@ -571,6 +589,9 @@
 		};
 
 		const onScrollEndEvent = () => {
+			// Clear isScrolling flag when scrolling ends
+			isScrolling = false;
+
 			if (!desktop.current) {
 				if (!isDown) {
 					let timeStep = findTimeStep(currentDate, timeSteps);
@@ -657,14 +678,14 @@
 </script>
 
 <div
-	class="absolute bottom-0 w-full md:w-[unset] md:max-w-[75vw] -translate-x-1/2 left-1/2 {disabled
+	class="fixed bottom-0 w-full md:w-[unset] md:max-w-[75vw] -translate-x-1/2 left-1/2 z-40 {disabled
 		? 'text-foreground/50 cursor-not-allowed'
-		: ''} {$preferences.timeSelector ? '' : ''}"
+		: ''} {$preferences.timeSelector ? '' : 'pointer-events-none'}"
 >
 	<div
-		class="relative duration-750 {disabled ? 'pointer-events-none' : ''} {$preferences.timeSelector
-			? 'opacity-100 bottom-0 '
-			: 'pointer-events-none opacity-0 -bottom-22.5'}"
+		class="duration-500 {disabled ? 'pointer-events-none' : ''} {$preferences.timeSelector
+			? 'opacity-100 translate-y-0'
+			: 'pointer-events-none opacity-0 translate-y-15'}"
 	>
 		<!-- Hover container -->
 		<div
@@ -679,7 +700,7 @@
 				<div
 					transition:fade={{ duration: 200 }}
 					style="left: calc({percentage * 100}% - 33px);"
-					class="absolute -top-8 p-0.5 w-16.5 text-center rounded bg-glass/95 {hoveredHour &&
+					class="absolute -top-8 p-0.5 w-16.5 text-center rounded bg-glass {hoveredHour &&
 					currentTimeStep &&
 					currentTimeStep.getTime() === hoveredHour.getTime()
 						? 'font-bold'
@@ -690,7 +711,8 @@
 							{formatLocalTime(hoveredHour)}
 						{/if}
 						<div
-							class="-z-10 absolute -bottom-2 w-3 h-3 bg-glass/95 rotate-45 -translate-x-1/2 left-1/2"
+							class="-z-10 absolute -bottom-2 w-3 h-3 bg-glass backdrop-blur-sm rotate-45 -translate-x-1/2 left-1/2"
+							style="clip-path: polygon(0% 100%, 100% 100%, 100% 0%);"
 						></div>
 					</div>
 				</div>
@@ -701,7 +723,7 @@
 					style="left: max(-33px,min(calc({currentPercentage * 100}% - 33px - {desktop.current
 						? dayContainerScrollLeft
 						: 0}px),calc(100% - 42px)));"
-					class="absolute bg-glass rounded {disabled && desktop.current
+					class="absolute bg-glass backdrop-blur-sm rounded {disabled && desktop.current
 						? '-top-8'
 						: '-top-6'} {!desktop.current ? 'rounded-none!' : ''} p-0.5 w-16.5 text-center"
 				>
@@ -721,6 +743,7 @@
 							<div
 								transition:fade={{ duration: 200 }}
 								class="-z-10 absolute -bottom-2 w-3 h-3 bg-glass rotate-45 -translate-x-1/2 left-1/2"
+								style="clip-path: polygon(0% 100%, 100% 100%, 100% 0%);"
 							></div>
 						{/if}
 					</div>
@@ -729,7 +752,7 @@
 				<!-- Loading skeleton tooltip -->
 				<div
 					transition:fade={{ duration: 200 }}
-					class="absolute bg-glass -top-6 rounded-none! p-0.5 w-16.5 text-center"
+					class="absolute bg-glass backdrop-blur-sm -top-6 rounded-none! p-0.5 w-16.5 text-center"
 					style="left: max(-4px, calc(50% - 33px), calc(100% - 70px));"
 				>
 					<div class="h-4 bg-foreground/10 rounded animate-pulse"></div>
@@ -786,7 +809,7 @@
 					{/if}
 				</Select.Trigger>
 				<Select.Content
-					class="left-5 border-none max-h-60 bg-glass/95 backdrop-blur-sm"
+					class="left-5 border-none max-h-60 bg-glass backdrop-blur-sm"
 					sideOffset={8}
 					align="end"
 				>
@@ -868,7 +891,7 @@
 			</button>
 		</div>
 		<button
-			class="absolute bg-glass z-50 {desktop.current
+			class="absolute bg-glass backdrop-blur-sm z-50 {desktop.current
 				? '-left-7 h-12.5 w-7 rounded-s-xl'
 				: 'left-[calc(50%-57px)] -top-7 h-7 rounded-tl-lg'} {disabled
 				? 'cursor-not-allowed'
@@ -890,7 +913,7 @@
 			>
 		</button>
 		<button
-			class="absolute bg-glass z-50 {desktop.current
+			class="absolute bg-glass backdrop-blur-sm z-50 {desktop.current
 				? '-right-7 h-12.5 w-7 rounded-e-xl'
 				: 'right-[calc(50%-57px)] -top-7 h-7 rounded-tr-lg'} {disabled
 				? 'cursor-not-allowed'
