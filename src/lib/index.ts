@@ -38,6 +38,8 @@ import {
 import { domain as d, selectedDomain, variable as v } from '$lib/stores/variables';
 import { vectorOptions as vO } from '$lib/stores/vector';
 
+import { formatISOWithoutTimezone } from './time-format';
+
 import type { Domain, DomainMetaDataJson } from '@openmeteo/mapbox-layer';
 
 export { findTimeStep, findTimeStepIndex } from '$lib/time-utils';
@@ -198,14 +200,11 @@ export const urlParamsToPreferences = () => {
 	p.set(preferences);
 };
 
-/** "YYYY-MM-DDTHHMM" */
-export const fmtISOWithoutTimezone = (d: Date) => d.toISOString().replace(/[:Z]/g, '').slice(0, 15);
-
 export const checkClosestDomainInterval = () => {
 	const t = get(time);
 	const domain = get(selectedDomain);
 	const closestTime = domainStep(t, domain.time_interval, 'floor');
-	updateUrl('time', fmtISOWithoutTimezone(closestTime));
+	updateUrl('time', formatISOWithoutTimezone(closestTime));
 	time.set(closestTime);
 };
 
@@ -214,6 +213,7 @@ export const checkClosestModelRun = async () => {
 	const domain = get(selectedDomain);
 	const latest = get(l);
 	const latestReferenceTime = new Date(latest?.reference_time as string);
+	const metaReferenceTime = new Date(metaJson?.reference_time as string);
 
 	// other than seasonal models, data is not available longer than 7 days
 	if (domain.model_interval !== 'monthly') {
@@ -226,13 +226,19 @@ export const checkClosestModelRun = async () => {
 			timeStep = nowTimeStep;
 		}
 	}
+
 	// check that requested time is not newer than the last valid_time in the DomainMetaData
 	if (metaJson) {
 		const metaTimeStep = new Date(metaJson.valid_times[metaJson.valid_times.length - 1]);
+
 		if (timeStep.getTime() > metaTimeStep.getTime()) {
-			toast.warning('Date selected too new, using latest available time');
-			time.set(metaTimeStep);
-			timeStep = metaTimeStep;
+			if (metaReferenceTime.getTime() >= latestReferenceTime.getTime()) {
+				toast.warning('Date selected too new, using latest available time');
+				time.set(metaTimeStep);
+				timeStep = metaTimeStep;
+			} //else {
+			// 	// set to new model run
+			// }
 		}
 	}
 
@@ -241,12 +247,7 @@ export const checkClosestModelRun = async () => {
 
 	let setToModelRun = new SvelteDate(modelRun);
 
-	const metaReferenceTime = metaJson?.reference_time
-		? new Date(metaJson.reference_time)
-		: undefined;
-
 	if (
-		metaReferenceTime &&
 		nearestModelRun.getTime() > metaReferenceTime.getTime() &&
 		nearestModelRun.getTime() <= latestReferenceTime.getTime()
 	) {
@@ -254,20 +255,17 @@ export const checkClosestModelRun = async () => {
 	} else if (modelRun && timeStep.getTime() < modelRun.getTime()) {
 		setToModelRun = new SvelteDate(nearestModelRun);
 	} else {
-		if (metaReferenceTime) {
-			if (modelRun && latestReferenceTime.getTime() === modelRun.getTime()) {
-				updateUrl('model_run', undefined);
-			} else if (
-				modelRun &&
-				timeStep.getTime() > metaReferenceTime.getTime() &&
-				metaReferenceTime.getTime() > modelRun.getTime()
-			) {
-				setToModelRun = new SvelteDate(metaReferenceTime);
-			} else if (timeStep.getTime() < metaReferenceTime.getTime() - 24 * 60 * 60 * 1000) {
-				// Atleast yesterday, always update to nearest modelRun
-				if (modelRun && modelRun.getTime() < nearestModelRun.getTime()) {
-					setToModelRun = new SvelteDate(nearestModelRun);
-				}
+		if (modelRun && latestReferenceTime.getTime() === modelRun.getTime()) {
+			updateUrl('model_run', undefined);
+		} else if (
+			modelRun &&
+			timeStep.getTime() > metaReferenceTime.getTime() &&
+			metaReferenceTime.getTime() > modelRun.getTime()
+		) {
+			setToModelRun = new SvelteDate(metaReferenceTime);
+		} else if (timeStep.getTime() < metaReferenceTime.getTime()) {
+			if (modelRun && modelRun.getTime() < nearestModelRun.getTime()) {
+				setToModelRun = new SvelteDate(nearestModelRun);
 			}
 		}
 	}
@@ -276,11 +274,11 @@ export const checkClosestModelRun = async () => {
 		mR.set(setToModelRun);
 		mJ.set(await getMetaData());
 		if (modelRun.getTime() !== latestReferenceTime.getTime()) {
-			updateUrl('model_run', fmtISOWithoutTimezone(modelRun));
+			updateUrl('model_run', formatISOWithoutTimezone(modelRun));
 		} else {
 			updateUrl('model_run', undefined);
 		}
-		toast.info('Model run set to: ' + fmtISOWithoutTimezone(setToModelRun));
+		toast.info('Model run set to: ' + formatISOWithoutTimezone(setToModelRun));
 	} else {
 		updateUrl();
 	}

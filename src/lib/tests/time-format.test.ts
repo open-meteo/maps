@@ -3,6 +3,7 @@ import { SvelteDate } from 'svelte/reactivity';
 import { describe, expect, it } from 'vitest';
 
 import {
+    formatISOWithoutTimezone,
     formatLocalDate,
     formatLocalDateTime,
     formatLocalTime,
@@ -262,5 +263,43 @@ describe('isValidTimeStep', () => {
         const date = new SvelteDate('2026-01-23T11:00:00Z');
 
         expect(isValidTimeStep(date, timeSteps)).toBe(true);
+    });
+});
+
+describe('formatISOWithoutTimezone', () => {
+    it('should format date to ISO format without timezone', () => {
+        const date = new Date('2026-01-23T14:30:00Z');
+        const result = formatISOWithoutTimezone(date);
+        expect(result).toBe('2026-01-23T1430');
+    });
+
+    it('should remove colons and timezone indicator', () => {
+        const date = new Date('2026-01-23T09:05:15Z');
+        const result = formatISOWithoutTimezone(date);
+        expect(result).toBe('2026-01-23T0905');
+    });
+
+    it('should handle midnight UTC', () => {
+        const date = new Date('2026-01-23T00:00:00Z');
+        const result = formatISOWithoutTimezone(date);
+        expect(result).toBe('2026-01-23T0000');
+    });
+
+    it('should handle end of day', () => {
+        const date = new Date('2026-01-23T23:59:59Z');
+        const result = formatISOWithoutTimezone(date);
+        expect(result).toBe('2026-01-23T2359');
+    });
+
+    it('should pad single digit hours and minutes', () => {
+        const date = new Date('2026-12-31T01:05:30Z');
+        const result = formatISOWithoutTimezone(date);
+        expect(result).toBe('2026-12-31T0105');
+    });
+
+    it('should return a string', () => {
+        const date = new Date('2026-01-23T14:30:00Z');
+        const result = formatISOWithoutTimezone(date);
+        expect(typeof result).toBe('string');
     });
 });

@@ -78,19 +78,23 @@
 						</div>
 						<div class="mt-3 flex items-center gap-2">
 							<Kbd.Root>ctrl</Kbd.Root> +
-							<Kbd.Root>←</Kbd.Root> Previous Model run
+							<Kbd.Root>←</Kbd.Root> Previous Model Run
 						</div>
 						<div class="flex items-center gap-2">
 							<Kbd.Root>ctrl</Kbd.Root> +
-							<Kbd.Root>→</Kbd.Root> Next Model run
+							<Kbd.Root>→</Kbd.Root> Next Model Run
 						</div>
 						<div class="flex items-center gap-2">
 							<Kbd.Root>ctrl</Kbd.Root> +
-							<Kbd.Root>m</Kbd.Root> Lock Model run
+							<Kbd.Root>m</Kbd.Root> Lock Model Run
 						</div>
 						<div class="flex items-center gap-2">
 							<Kbd.Root>ctrl</Kbd.Root> +
-							<Kbd.Root>p</Kbd.Root> In Progress Model run
+							<Kbd.Root>l</Kbd.Root> Latest Model Run
+						</div>
+						<div class="flex items-center gap-2">
+							<Kbd.Root>ctrl</Kbd.Root> +
+							<Kbd.Root>p</Kbd.Root> In Progress Model Run
 						</div>
 					</div>
 				</div>

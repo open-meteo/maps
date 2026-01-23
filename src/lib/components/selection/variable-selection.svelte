@@ -105,7 +105,9 @@
 		variableSelectionExtended = vE;
 	});
 
-	const keydownEvent = (event: KeyboardEvent) => {
+	let ctrl = $state(false);
+	const keyDownEvent = (event: KeyboardEvent) => {
+		if (event.keyCode == 17 || event.keyCode == 91) ctrl = true;
 		if (
 			variableSelectionExtended &&
 			!variableSelectionOpen &&
@@ -114,16 +116,19 @@
 		) {
 			switch (event.key) {
 				case 'v':
-					vSO.set(true);
+					if (!ctrl) vSO.set(true);
 					break;
 				case 'd':
-					dSO.set(true);
+					if (!ctrl) dSO.set(true);
 					break;
 				case 'l':
-					pLSO.set(true);
+					if (!ctrl) pLSO.set(true);
 					break;
 			}
 		}
+	};
+	const keyUpEvent = (event: KeyboardEvent) => {
+		if (event.keyCode == 17 || event.keyCode == 91) ctrl = false;
 	};
 
 	const desktop = new MediaQuery('min-width: 768px');
@@ -133,13 +138,15 @@
 		}
 
 		if (browser) {
-			window.addEventListener('keydown', keydownEvent);
+			window.addEventListener('keydown', keyDownEvent);
+			window.addEventListener('keyup', keyUpEvent);
 		}
 	});
 
 	onDestroy(() => {
 		if (browser) {
-			window.removeEventListener('keydown', keydownEvent);
+			window.removeEventListener('keydown', keyDownEvent);
+			window.removeEventListener('keyup', keyUpEvent);
 		}
 	});
 

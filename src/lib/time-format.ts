@@ -11,7 +11,7 @@ export const pad = (num: number): string => String(num).padStart(2, '0');
  * @returns Formatted time string in local timezone (e.g., "14:30")
  */
 export const formatLocalTime = (date: Date): string =>
-    `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+	`${pad(date.getHours())}:${pad(date.getMinutes())}`;
 
 /**
  * Formats a date to display local date (DD-MM)
@@ -19,7 +19,7 @@ export const formatLocalTime = (date: Date): string =>
  * @returns Formatted date string in local timezone (e.g., "23-01")
  */
 export const formatLocalDate = (date: Date): string =>
-    `${pad(date.getDate())}-${pad(date.getMonth() + 1)}`;
+	`${pad(date.getDate())}-${pad(date.getMonth() + 1)}`;
 
 /**
  * Formats a date to display local date and time (DD-MM HH:MM)
@@ -27,7 +27,7 @@ export const formatLocalDate = (date: Date): string =>
  * @returns Formatted datetime string in local timezone (e.g., "23-01 14:30")
  */
 export const formatLocalDateTime = (date: Date): string =>
-    `${formatLocalDate(date)} ${formatLocalTime(date)}`;
+	`${formatLocalDate(date)} ${formatLocalTime(date)}`;
 
 /**
  * Formats a date to display UTC time (HH:MM)
@@ -35,7 +35,7 @@ export const formatLocalDateTime = (date: Date): string =>
  * @returns Formatted time string in UTC timezone (e.g., "14:30")
  */
 export const formatUTCTime = (date: Date): string =>
-    `${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
+	`${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
 
 /**
  * Formats a date to display UTC date (DD-MM)
@@ -43,7 +43,7 @@ export const formatUTCTime = (date: Date): string =>
  * @returns Formatted date string in UTC timezone (e.g., "23-01")
  */
 export const formatUTCDate = (date: Date): string =>
-    `${pad(date.getUTCDate())}-${pad(date.getUTCMonth() + 1)}`;
+	`${pad(date.getUTCDate())}-${pad(date.getUTCMonth() + 1)}`;
 
 /**
  * Formats a date to display UTC date and time (DD-MM HH:MM)
@@ -51,7 +51,7 @@ export const formatUTCDate = (date: Date): string =>
  * @returns Formatted datetime string in UTC timezone (e.g., "23-01 14:30")
  */
 export const formatUTCDateTime = (date: Date): string =>
-    `${formatUTCDate(date)} ${formatUTCTime(date)}`;
+	`${formatUTCDate(date)} ${formatUTCTime(date)}`;
 
 /**
  * Creates a new date set to the start of the local day (00:00:00.000)
@@ -59,9 +59,9 @@ export const formatUTCDateTime = (date: Date): string =>
  * @returns A new SvelteDate at the start of the local day
  */
 export const startOfLocalDay = (date: Date): SvelteDate => {
-    const day = new SvelteDate(date);
-    day.setHours(0, 0, 0, 0);
-    return day;
+	const day = new SvelteDate(date);
+	day.setHours(0, 0, 0, 0);
+	return day;
 };
 
 /**
@@ -72,9 +72,9 @@ export const startOfLocalDay = (date: Date): SvelteDate => {
  * @returns A new SvelteDate with the specified local time
  */
 export const withLocalTime = (date: Date, hour: number, minute = 0): SvelteDate => {
-    const next = new SvelteDate(date);
-    next.setHours(hour, minute, 0, 0);
-    return next;
+	const next = new SvelteDate(date);
+	next.setHours(hour, minute, 0, 0);
+	return next;
 };
 
 /**
@@ -84,9 +84,17 @@ export const withLocalTime = (date: Date, hour: number, minute = 0): SvelteDate 
  * @returns True if the date matches a timestep, false otherwise
  */
 export const isValidTimeStep = (
-    date: Date,
-    timeSteps: Date[] | SvelteDate[] | undefined
+	date: Date,
+	timeSteps: Date[] | SvelteDate[] | undefined
 ): boolean => {
-    if (!date || !timeSteps) return false;
-    return timeSteps.some((validTime) => validTime.getTime() === date.getTime());
+	if (!date || !timeSteps) return false;
+	return timeSteps.some((validTime) => validTime.getTime() === date.getTime());
 };
+
+/**
+ * Formats a date to ISO format without timezone (YYYY-MM-DDTHHMM)
+ * @param date - The date to format
+ * @returns ISO format string without colons or timezone indicator (e.g., "2026-01-23T1430")
+ */
+export const formatISOWithoutTimezone = (date: Date): string =>
+	date.toISOString().replace(/[:Z]/g, '').slice(0, 15);

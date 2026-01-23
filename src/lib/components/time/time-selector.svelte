@@ -93,7 +93,11 @@
 			// jump to next model run if available
 			if (currentIndex - 1 < 0) {
 				let date = new SvelteDate($time);
-				date.setUTCHours(date.getUTCHours() - 1);
+				if (timeInterval === 0.25) {
+					date.setUTCMinutes(date.getUTCMinutes() - 15);
+				} else {
+					date.setUTCHours(date.getUTCHours() - timeInterval);
+				}
 				onDateChange(date);
 			}
 		}
@@ -123,7 +127,17 @@
 			centerDateButton(date, true, 'forward', (date.getTime() - ts) / (60 * 60 * 1000));
 		} else {
 			if (timeSteps && currentIndex + 1 > timeSteps.length - 1) {
-				toast.warning('Already on latest timestep');
+				if ($modelRun && $modelRun.getTime() < latestReferenceTime.getTime()) {
+					let date = new SvelteDate($time);
+					if (timeInterval === 0.25) {
+						date.setUTCMinutes(date.getUTCMinutes() + 15);
+					} else {
+						date.setUTCHours(date.getUTCHours() + timeInterval);
+					}
+					onDateChange(date);
+				} else {
+					toast.warning('Already on latest timestep');
+				}
 			}
 		}
 	};
@@ -227,13 +241,13 @@
 		}
 	};
 
-	const toggleModelRunLock = () => {
+	const toggleModelRunLock = (event: Event | undefined) => {
 		modelRunLocked = !modelRunLocked;
 		toast.info(modelRunLocked ? 'Model run locked' : 'Model run unlocked');
+		if (event) preventDefaultDialogues(event);
 	};
 
-	const setInProgressModel = (event: Event) => {
-		console.log($inProgress);
+	const preventDefaultDialogues = (event: Event) => {
 		// prevent printing dialog, which is useless on a map anyway
 		event.preventDefault();
 		if (event.stopImmediatePropagation) {
@@ -244,24 +258,36 @@
 		return;
 	};
 
+	const setModelRun = (event: Event, type: string = 'latest') => {
+		if (type === 'latest') {
+			onModelRunChange(latestReferenceTime);
+		} else if (type === 'in-progress') {
+			const inProgressReferenceTime = new Date($inProgress?.reference_time as string);
+			if (inProgressReferenceTime.getTime() === latestReferenceTime.getTime()) {
+				toast.warning('No model run in progress at this time');
+			} else {
+				onModelRunChange(inProgressReferenceTime);
+			}
+		}
+		preventDefaultDialogues(event);
+	};
+
 	let ctrl = $state(false);
-	const keydownEvent = (event: KeyboardEvent) => {
+	const keyDownEvent = (event: KeyboardEvent) => {
 		if (event.keyCode == 17 || event.keyCode == 91) ctrl = true;
 
 		const canNavigate = !($domainSelectionOpen || $variableSelectionOpen);
 		if (!canNavigate) return;
-
-		console.log(event.key);
 
 		const actions: Record<string, () => void> = {
 			ArrowLeft: ctrl ? previousModel : previousHour,
 			ArrowRight: ctrl ? nextModel : nextHour,
 			ArrowDown: previousDay,
 			ArrowUp: nextDay,
-			m: ctrl ? () => {} : toggleModelRunLock,
-			p: ctrl ? () => setInProgressModel(event) : () => {},
-			n: ctrl ? () => {} : () => {},
-			c: ctrl ? () => {} : jumpToCurrentTime
+			c: ctrl ? () => {} : jumpToCurrentTime,
+			m: ctrl ? () => toggleModelRunLock(event) : () => {},
+			p: ctrl ? () => setModelRun(event, 'in-progress') : () => {},
+			l: ctrl ? () => setModelRun(event, 'latest') : () => {}
 		};
 
 		const action = actions[event.key];
@@ -274,21 +300,21 @@
 		}
 	};
 
-	const keyupEvent = (event: KeyboardEvent) => {
+	const keyUpEvent = (event: KeyboardEvent) => {
 		if (event.keyCode == 17 || event.keyCode == 91) ctrl = false;
 	};
 
 	onMount(() => {
 		if (browser) {
-			window.addEventListener('keydown', keydownEvent);
-			window.addEventListener('keyup', keyupEvent);
+			window.addEventListener('keydown', keyDownEvent);
+			window.addEventListener('keyup', keyUpEvent);
 		}
 	});
 
 	onDestroy(() => {
 		if (browser) {
-			window.removeEventListener('keydown', keydownEvent);
-			window.removeEventListener('keyup', keyupEvent);
+			window.removeEventListener('keydown', keyDownEvent);
+			window.removeEventListener('keyup', keyUpEvent);
 		}
 	});
 
@@ -941,7 +967,7 @@
 					{/each}
 				{:else}
 					{#each daySteps as dayStep, i (i)}
-						<div class="relative flex h-12.5 min-w-42.5 {!desktop.current ? 'select-none' : ''}">
+						<div class="relative flex h-12.5 min-w-42.5 select-none">
 							<!-- Day Names -->
 							<div
 								class="absolute flex mt-3.25 -translate-x-1/2 left-1/2 items-center justify-center text-center flex-col"
