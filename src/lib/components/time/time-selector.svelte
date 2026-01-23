@@ -17,15 +17,9 @@
 
 	import * as Select from '$lib/components/ui/select';
 
+	import { changeOMfileURL, findTimeStep, getMetaData, throttle, updateUrl } from '$lib';
 	import {
-		changeOMfileURL,
-		findTimeStep,
-		fmtISOWithoutTimezone,
-		getMetaData,
-		throttle,
-		updateUrl
-	} from '$lib';
-	import {
+		formatISOWithoutTimezone,
 		formatLocalDate,
 		formatLocalTime,
 		formatUTCDate,
@@ -191,7 +185,7 @@
 
 		$time = new SvelteDate(date);
 		currentDate = date;
-		if (callUpdateUrl) updateUrl('time', fmtISOWithoutTimezone($time));
+		if (callUpdateUrl) updateUrl('time', formatISOWithoutTimezone($time));
 		changeOMfileURL();
 	};
 
@@ -210,12 +204,11 @@
 		onDateChange(closestTime);
 
 		if ($modelRun.getTime() !== latestReferenceTime.getTime()) {
-			updateUrl('model_run', fmtISOWithoutTimezone($modelRun));
+			updateUrl('model_run', formatISOWithoutTimezone($modelRun));
 		} else {
 			updateUrl('model_run', undefined);
 		}
-		toast.info('Model run set to: ' + fmtISOWithoutTimezone($modelRun));
-
+		toast.info('Model run set to: ' + formatISOWithoutTimezone($modelRun));
 		await tick();
 		if (dayContainer) {
 			dayContainerScrollLeft = dayContainer.scrollLeft;
