@@ -767,7 +767,7 @@
 				disabled={modelRunLocked}
 			>
 				<Select.Trigger
-					class="h-4.5!  text-xs pl-1.5 pr-0.75 py-0 gap-1 border-none bg-transparent shadow-none hover:bg-accent/50 focus-visible:ring-0 focus-visible:ring-offset-0 {modelRunLocked
+					class="h-4.5! text-xs pl-1.5 pr-0.75 py-0 gap-1 border-none bg-transparent shadow-none hover:bg-accent/50 focus-visible:ring-0 focus-visible:ring-offset-0 {modelRunLocked
 						? 'opacity-60 cursor-not-allowed'
 						: 'cursor-pointer'}"
 					aria-label="Select model run"
