@@ -1,9 +1,8 @@
 <script lang="ts">
 	import { onDestroy, onMount, tick } from 'svelte';
 	import { MediaQuery, SvelteDate } from 'svelte/reactivity';
-	import { fade, slide } from 'svelte/transition';
+	import { fade } from 'svelte/transition';
 
-	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
 	import { browser } from '$app/environment';
@@ -187,18 +186,14 @@
 		$modelRun = step;
 		$metaJson = await getMetaData();
 
-		let timeInNewModelRun = false;
+		let closestTime = new SvelteDate($modelRun);
 		for (const vT of $metaJson.valid_times) {
 			const validTime = new Date(vT);
-			if (validTime.getTime() === $time.getTime()) {
-				timeInNewModelRun = true;
+			if (validTime.getTime() <= $time.getTime()) {
+				closestTime.setTime(validTime.getTime());
 			}
 		}
-		if (!timeInNewModelRun) {
-			onDateChange($modelRun);
-		} else {
-			changeOMfileURL();
-		}
+		onDateChange(closestTime);
 
 		if ($modelRun.getTime() !== latestReferenceTime.getTime()) {
 			updateUrl('model_run', fmtISOWithoutTimezone($modelRun));
@@ -216,7 +211,11 @@
 
 	const jumpToCurrentTime = () => {
 		let date = new SvelteDate(now);
-		date.setUTCHours(date.getUTCHours() + 1);
+		if (timeInterval === 0.25) {
+			date.setUTCMinutes(date.getUTCMinutes() + 15);
+		} else {
+			date.setUTCHours(date.getUTCHours() + timeInterval);
+		}
 		const timeStep = findTimeStep(date, timeSteps);
 		if (timeStep) date = new SvelteDate(timeStep);
 
@@ -570,7 +569,7 @@
 
 			const throttledOnScrollEvent = throttle((e: Event) => {
 				onScrollEvent(e);
-			}, 100);
+			}, 25);
 
 			dayContainer.addEventListener('scroll', (e) => {
 				if (dayContainer) {
@@ -654,16 +653,14 @@
 			bind:clientWidth={hoursHoverContainerWidth}
 			class="absolute {!desktop.current
 				? 'pointer-events-none'
-				: ''} md:mx-1 bottom-5 w-full h-8.5 {percentage
-				? 'z-20'
-				: 'z-10'} cursor-pointer duration-500"
+				: ''} md:mx-1 bottom-5 w-full h-8.5 z-20 cursor-pointer duration-500"
 		>
 			<!-- Hover Tooltip -->
 			{#if percentage && desktop.current && $metaJson}
 				<div
 					transition:fade={{ duration: 200 }}
 					style="left: calc({percentage * 100}% - 33px);"
-					class="absolute z-20 -top-8 p-0.5 w-16.5 text-center rounded bg-glass/95 {hoveredHour &&
+					class="absolute -top-8 p-0.5 w-16.5 text-center rounded bg-glass/95 {hoveredHour &&
 					currentTimeStep &&
 					currentTimeStep.getTime() === hoveredHour.getTime()
 						? 'font-bold'
@@ -751,7 +748,7 @@
 				disabled={modelRunLocked}
 			>
 				<Select.Trigger
-					class="!h-4.5  text-xs pl-1.5 pr-0.75 py-0 gap-1 border-none bg-transparent shadow-none hover:bg-accent/50 focus-visible:ring-0 focus-visible:ring-offset-0 {modelRunLocked
+					class="h-4.5!  text-xs pl-1.5 pr-0.75 py-0 gap-1 border-none bg-transparent shadow-none hover:bg-accent/50 focus-visible:ring-0 focus-visible:ring-offset-0 {modelRunLocked
 						? 'opacity-60 cursor-not-allowed'
 						: 'cursor-pointer'}"
 					aria-label="Select model run"
@@ -764,7 +761,7 @@
 						</div>
 					{:else if $modelRun}
 						{formatUTCDate($modelRun)}
-						{formatUTCTime($modelRun)}
+						{formatUTCTime($modelRun)}Z
 					{:else}
 						Select model run
 					{/if}
@@ -783,7 +780,7 @@
 								: ''}"
 						>
 							IP <small>{formatUTCDate(inProgressReferenceTime)}</small>
-							{formatUTCTime(inProgressReferenceTime)}
+							{formatUTCTime(inProgressReferenceTime)}Z
 						</Select.Item>
 					{/if}
 					{#each previousModelSteps as previousModelStep, i (i)}
@@ -797,7 +794,7 @@
 								: ''}"
 						>
 							<small>{formatUTCDate(previousModelStep)}</small>
-							{formatUTCTime(previousModelStep)}
+							{formatUTCTime(previousModelStep)}Z
 						</Select.Item>
 					{/each}
 				</Select.Content>
