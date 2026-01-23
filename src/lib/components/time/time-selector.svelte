@@ -234,7 +234,7 @@
 		}
 	};
 
-	const toggleModelRunLock = (event: Event | undefined) => {
+	const toggleModelRunLock = (event: Event | undefined = undefined) => {
 		modelRunLocked = !modelRunLocked;
 		toast.info(modelRunLocked ? 'Model run locked' : 'Model run unlocked');
 		if (event) preventDefaultDialogues(event);
@@ -794,11 +794,12 @@
 						<Select.Item
 							value={inProgressReferenceTime.getTime().toString()}
 							label={`IP ${formatUTCDate(inProgressReferenceTime)} ${formatUTCTime(inProgressReferenceTime)}`}
-							class="cursor-pointer {inProgressReferenceTime.getTime() === firstMetaTime.getTime()
+							class="cursor-pointer border-l-4 border-l-orange-600 dark:border-l-orange-400 [&_svg]:text-orange-600 dark:[&_svg]:text-orange-400 {inProgressReferenceTime.getTime() ===
+							firstMetaTime.getTime()
 								? 'text-orange-600 dark:text-orange-400 font-semibold'
 								: ''}"
 						>
-							IP <small>{formatUTCDate(inProgressReferenceTime)}</small>
+							<small class="min-w-8">{formatUTCDate(inProgressReferenceTime)}</small>
 							{formatUTCTime(inProgressReferenceTime)}Z
 						</Select.Item>
 					{/if}
@@ -806,13 +807,16 @@
 						<Select.Item
 							value={previousModelStep.getTime().toString()}
 							label={formatUTCDateTime(previousModelStep)}
-							class="cursor-pointer {previousModelStep.getTime() ===
+							class="cursor-pointer border-l-4 {previousModelStep.getTime() ===
+							latestReferenceTime.getTime()
+								? 'border-l-green-700 dark:border-l-green-500 [&_svg]:text-green-700 dark:[&_svg]:text-green-500'
+								: 'border-l-transparent'} {previousModelStep.getTime() ===
 								latestReferenceTime.getTime() &&
 							previousModelStep.getTime() === firstMetaTime.getTime()
 								? 'text-green-700 dark:text-green-500 font-semibold'
 								: ''}"
 						>
-							<small>{formatUTCDate(previousModelStep)}</small>
+							<small class="min-w-8">{formatUTCDate(previousModelStep)}</small>
 							{formatUTCTime(previousModelStep)}Z
 						</Select.Item>
 					{/each}
