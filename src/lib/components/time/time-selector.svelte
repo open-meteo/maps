@@ -23,10 +23,19 @@
 		findTimeStep,
 		fmtISOWithoutTimezone,
 		getMetaData,
-		pad,
 		throttle,
 		updateUrl
 	} from '$lib';
+	import {
+		formatLocalDate,
+		formatLocalTime,
+		formatUTCDate,
+		formatUTCDateTime,
+		formatUTCTime,
+		isValidTimeStep,
+		startOfLocalDay,
+		withLocalTime
+	} from '$lib/time-format';
 
 	let now = $state(new Date());
 	let disabled = $derived($loading);
@@ -71,24 +80,6 @@
 	});
 
 	let dayWidth = $derived(timeInterval === 0.25 ? 340 : 170);
-
-	const formatLocalTime = (date: Date) => `${pad(date.getHours())}:${pad(date.getMinutes())}`;
-	const formatLocalDate = (date: Date) => `${pad(date.getDate())}-${pad(date.getMonth() + 1)}`;
-	const formatUTCTime = (date: Date) => `${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
-	const formatUTCDate = (date: Date) => `${pad(date.getUTCDate())}-${pad(date.getUTCMonth() + 1)}`;
-	const formatUTCDateTime = (date: Date) => `${formatUTCDate(date)} ${formatUTCTime(date)}`;
-
-	const startOfLocalDay = (date: Date) => {
-		const day = new SvelteDate(date);
-		day.setHours(0, 0, 0, 0);
-		return day;
-	};
-
-	const withLocalTime = (date: Date, hour: number, minute = 0) => {
-		const next = new SvelteDate(date);
-		next.setHours(hour, minute, 0, 0);
-		return next;
-	};
 
 	const previousHour = () => {
 		let date = new SvelteDate($time);
@@ -461,15 +452,7 @@
 	);
 	let currentPercentageVisible = $derived(currentPercentage - dayContainerScrollPercentage);
 
-	const timeValid = (date: Date) => {
-		if (date && timeSteps)
-			for (let validTime of timeSteps) {
-				if (validTime.getTime() === date.getTime()) {
-					return true;
-				}
-			}
-		return false;
-	};
+	const timeValid = (date: Date) => isValidTimeStep(date, timeSteps);
 
 	let resizeTimeout: ReturnType<typeof setTimeout> | undefined;
 	let updateNowInterval: ReturnType<typeof setTimeout> | undefined;
@@ -587,7 +570,7 @@
 
 			const throttledOnScrollEvent = throttle((e: Event) => {
 				onScrollEvent(e);
-			}, 25);
+			}, 100);
 
 			dayContainer.addEventListener('scroll', (e) => {
 				if (dayContainer) {
