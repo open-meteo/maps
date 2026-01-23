@@ -31,7 +31,6 @@
 	let now = $state(new Date());
 	let disabled = $derived($loading);
 	let currentDate = $state(new Date($time));
-	const dark = $derived(mode.current === 'dark');
 
 	let timeInterval = $derived.by(() => {
 		let tI = $selectedDomain.time_interval;
@@ -75,19 +74,15 @@
 
 	const previousHour = () => {
 		let date = new SvelteDate($time);
+		let ts = date.getTime();
 		if (timeSteps && currentIndex - 1 >= 0) {
 			date = timeSteps[currentIndex - 1];
 
 			onDateChange(date);
-			if (desktop.current && currentPercentage < 0.1) {
-				dayContainer?.scrollTo({
-					left: dayContainerScrollLeft - dayWidth / 25,
-					behavior: 'smooth'
-				});
-			} else {
-				centerDateButton(date);
-			}
+
+			centerDateButton(date, true, 'backward', (ts - date.getTime()) / (60 * 60 * 1000));
 		} else {
+			// jump to next model run if available
 			if (currentIndex - 1 < 0) {
 				let date = new SvelteDate($time);
 				date.setUTCHours(date.getUTCHours() - 1);
@@ -111,18 +106,13 @@
 
 	const nextHour = () => {
 		let date = new SvelteDate($time);
+		let ts = date.getTime();
 		if (timeSteps && currentIndex + 1 <= timeSteps.length - 1) {
 			date = timeSteps[currentIndex + 1];
 
 			onDateChange(date);
-			if (desktop.current && currentPercentage > 0.82) {
-				dayContainer?.scrollTo({
-					left: dayContainerScrollLeft + dayWidth / 25,
-					behavior: 'smooth'
-				});
-			} else {
-				centerDateButton(date);
-			}
+
+			centerDateButton(date, true, 'forward', (date.getTime() - ts) / (60 * 60 * 1000));
 		} else {
 			if (timeSteps && currentIndex + 1 > timeSteps.length - 1) {
 				toast.warning('Already on latest timestep');
@@ -149,28 +139,24 @@
 
 	const previousDay = () => {
 		let date = new SvelteDate($time);
+		let ts = date.getTime();
 		date.setUTCHours(date.getUTCHours() - 24);
 		const timeStep = findTimeStep(date, timeSteps);
 		if (timeStep) date = new SvelteDate(timeStep);
 		onDateChange(date);
-		if (desktop.current && currentPercentage < 0.25) {
-			dayContainer?.scrollTo({ left: dayContainerScrollLeft - dayWidth, behavior: 'smooth' });
-		} else {
-			centerDateButton(date);
-		}
+
+		centerDateButton(date, true, 'backward', (ts - date.getTime()) / (60 * 60 * 1000));
 	};
 
 	const nextDay = () => {
 		let date = new SvelteDate($time);
+		let ts = date.getTime();
 		date.setUTCHours(date.getUTCHours() + 24);
 		const timeStep = findTimeStep(date, timeSteps);
 		if (timeStep) date = new SvelteDate(timeStep);
 		onDateChange(date);
-		if (desktop.current && currentPercentage > 0.75) {
-			dayContainer?.scrollTo({ left: dayContainerScrollLeft + dayWidth, behavior: 'smooth' });
-		} else {
-			centerDateButton(date);
-		}
+
+		centerDateButton(date, true, 'forward', (date.getTime() - ts) / (60 * 60 * 1000));
 	};
 
 	const onDateChange = async (date: Date, callUpdateUrl = true) => {
@@ -366,31 +352,58 @@
 		return timeStepsComplete;
 	});
 
-	// $inspect(timeStepsComplete).with(console.log);
-
 	let isDown = $state(false);
 	let startX = $state(0);
 	let startY = $state(0);
 	let scrollLeft = $state(0);
 	let scrollTop = $state(0);
 
-	const centerDateButton = (date: Date, smooth = false) => {
+	const centerDateButton = (
+		date: Date,
+		smooth = false,
+		direction: 'forward' | 'backward' = 'forward',
+		diff = 1
+	) => {
 		if (dayContainer) {
 			const index = timeStepsComplete.findIndex((tSC) => tSC.getTime() === date.getTime());
-			if (index) {
-				const hourWidth = dayWidth / 24;
-				const left = hourWidth * index;
-				dayContainer.scrollTo({ left: left, behavior: smooth ? 'smooth' : 'instant' });
+			if (index !== -1) {
+				if (desktop.current) {
+					if (dayContainerScrollWidth > hoursHoverContainerWidth - 8) {
+						let scrollTo = false;
+						if (direction === 'forward' && currentPercentageVisible > 0.66) {
+							scrollTo = true;
+						}
+
+						if (
+							direction === 'backward' &&
+							currentPercentageVisible < 0.33 &&
+							dayContainerScrollPercentage > 0
+						) {
+							scrollTo = true;
+						}
+						if (scrollTo) {
+							const hourWidth = dayWidth / 24;
+							const left =
+								dayContainerScrollLeft +
+								(direction === 'forward' ? hourWidth * diff : -hourWidth * diff);
+							dayContainer.scrollTo({ left: left, behavior: smooth ? 'smooth' : 'instant' });
+						}
+					}
+				} else {
+					const hourWidth = dayWidth / 24;
+					const left = hourWidth * index;
+					dayContainer.scrollTo({ left: left, behavior: smooth ? 'smooth' : 'instant' });
+				}
 			}
 		}
 	};
 
 	const desktop = new MediaQuery('min-width: 768px');
 
+	let viewWidth = $state(0);
 	let percentage = $state(0);
 
 	let dayContainer: HTMLElement | undefined = $state();
-	let viewWidth = $state(0);
 	let dayContainerScrollLeft: number = $state(0);
 	let dayContainerScrollWidth: number = $state(0);
 
@@ -432,6 +445,11 @@
 					)
 				: 0
 	);
+
+	let dayContainerScrollPercentage = $derived(
+		dayContainerScrollLeft / (dayContainerScrollWidth - hoursHoverContainerWidth)
+	);
+	let currentPercentageVisible = $derived(currentPercentage - dayContainerScrollPercentage);
 
 	const timeValid = (date: Date) => {
 		if (date && timeSteps)
@@ -555,17 +573,20 @@
 			dayContainerScrollWidth = dayContainer.scrollWidth;
 			viewWidth = window.innerWidth;
 			resizeObserver.observe(dayContainer);
+
+			const throttledOnScrollEvent = throttle((e: Event) => {
+				onScrollEvent(e);
+			}, 25);
+
 			dayContainer.addEventListener('scroll', (e) => {
 				if (dayContainer) {
 					dayContainerScrollLeft = dayContainer.scrollLeft;
 				}
 				if (!desktop.current) {
-					// throttle(() => onScrollEvent(e), 150);
-					onScrollEvent(e);
+					throttledOnScrollEvent(e);
 				}
 			});
 			dayContainer.addEventListener('scrollend', throttle(onScrollEndEvent, 150));
-
 			dayContainer.addEventListener('mousedown', (e) => {
 				if (!dayContainer) return;
 				isDown = true;
@@ -575,10 +596,6 @@
 				scrollTop = dayContainer.scrollTop;
 				if (dayContainer) dayContainer.style.cursor = 'grabbing';
 			});
-			// dayContainerParent.addEventListener('mouseleave', () => {
-			// 	isDown = false;
-			// 	if (dayContainer) dayContainer.style.cursor = 'grab';
-			// });
 			dayContainer.addEventListener('mouseup', () => {
 				isDown = false;
 				if (dayContainer) dayContainer.style.cursor = 'grab';
@@ -594,9 +611,6 @@
 				dayContainer.scrollLeft = scrollLeft - walkX;
 				dayContainer.scrollTop = scrollTop - walkY;
 			});
-			// dayContainer.addEventListener('click', () => {
-			// 	console.log('clicked');
-			// });
 		}
 	});
 
@@ -674,14 +688,12 @@
 				<!-- Current Tooltip -->
 				<div
 					transition:fade={{ duration: 200 }}
-					style="left: max(-4px,min(calc({currentPercentage * 100}% - 33px - {desktop.current
+					style="left: max(-33px,min(calc({currentPercentage * 100}% - 33px - {desktop.current
 						? dayContainerScrollLeft
-						: 0}px),calc(100% - 70px)));"
-					class="absolute bg-glass {disabled && desktop.current
-						? '-top-8 rounded'
-						: '-top-6 rounded-t'} {!desktop.current
-						? 'rounded-none!'
-						: ''} p-0.5 w-16.5 text-center"
+						: 0}px),calc(100% - 42px)));"
+					class="absolute bg-glass rounded {disabled && desktop.current
+						? '-top-8'
+						: '-top-6'} {!desktop.current ? 'rounded-none!' : ''} p-0.5 w-16.5 text-center"
 				>
 					<div class="relative duration-500 {!disabled ? 'text-foreground' : ''}">
 						{#if currentTimeStep}
@@ -843,7 +855,7 @@
 			</button>
 		</div>
 		<button
-			class="absolute bg-glass {desktop.current
+			class="absolute bg-glass z-50 {desktop.current
 				? '-left-7 h-12.5 w-7 rounded-s-xl'
 				: 'left-[calc(50%-57px)] -top-7 h-7 rounded-tl-lg'} {disabled
 				? 'cursor-not-allowed'
@@ -865,7 +877,7 @@
 			>
 		</button>
 		<button
-			class="absolute bg-glass {desktop.current
+			class="absolute bg-glass z-50 {desktop.current
 				? '-right-7 h-12.5 w-7 rounded-e-xl'
 				: 'right-[calc(50%-57px)] -top-7 h-7 rounded-tr-lg'} {disabled
 				? 'cursor-not-allowed'
@@ -902,9 +914,9 @@
 				{/if}
 				<!-- Current Cursor -->
 				<div
-					style="left: max(-4px,min(calc({currentPercentage * 100}% - 1px -  {desktop.current
+					style="left: max(-2px,min(calc({currentPercentage * 100}% - 1px -  {desktop.current
 						? dayContainerScrollLeft
-						: 0}px),calc(100% - 8px)));"
+						: 0}px),calc(100% - 6px)));"
 					class="absolute bg-red-700 dark:bg-red-500 z-20 w-1 top-0 h-3.5"
 				></div>
 			</div>
