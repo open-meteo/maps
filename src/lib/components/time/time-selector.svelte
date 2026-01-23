@@ -78,6 +78,18 @@
 	const formatUTCDate = (date: Date) => `${pad(date.getUTCDate())}-${pad(date.getUTCMonth() + 1)}`;
 	const formatUTCDateTime = (date: Date) => `${formatUTCDate(date)} ${formatUTCTime(date)}`;
 
+	const startOfLocalDay = (date: Date) => {
+		const day = new SvelteDate(date);
+		day.setHours(0, 0, 0, 0);
+		return day;
+	};
+
+	const withLocalTime = (date: Date, hour: number, minute = 0) => {
+		const next = new SvelteDate(date);
+		next.setHours(hour, minute, 0, 0);
+		return next;
+	};
+
 	const previousHour = () => {
 		let date = new SvelteDate($time);
 		let ts = date.getTime();
@@ -326,11 +338,8 @@
 				if (dates.includes(`${monthIndex}-${date}`)) {
 					continue;
 				} else {
-					const newDay = new SvelteDate(timeStep);
-					newDay.setHours(0);
-					newDay.setMinutes(0);
 					dates.push(`${monthIndex}-${date}`);
-					days.push(newDay);
+					days.push(startOfLocalDay(timeStep));
 				}
 			}
 		}
@@ -343,20 +352,10 @@
 			for (let i = 0; i <= 23; i++) {
 				if (timeInterval === 0.25) {
 					for (let j = 0; j < 60; j += 15) {
-						const date = new SvelteDate(day);
-						date.setHours(i);
-						date.setMinutes(j);
-						date.setSeconds(0);
-						date.setMilliseconds(0);
-						timeStepsComplete.push(date);
+						timeStepsComplete.push(withLocalTime(day, i, j));
 					}
 				} else {
-					const date = new SvelteDate(day);
-					date.setHours(i);
-					date.setMinutes(0);
-					date.setSeconds(0);
-					date.setMilliseconds(0);
-					timeStepsComplete.push(date);
+					timeStepsComplete.push(withLocalTime(day, i));
 				}
 			}
 		}
@@ -677,7 +676,7 @@
 				: 'z-10'} cursor-pointer duration-500"
 		>
 			<!-- Hover Tooltip -->
-			{#if percentage && desktop.current}
+			{#if percentage && desktop.current && $metaJson}
 				<div
 					transition:fade={{ duration: 200 }}
 					style="left: calc({percentage * 100}% - 33px);"
@@ -696,7 +695,7 @@
 						></div>
 					</div>
 				</div>
-			{:else if currentTimeStep}
+			{:else if currentTimeStep && $metaJson}
 				<!-- Current Tooltip -->
 				<div
 					transition:fade={{ duration: 200 }}
@@ -726,6 +725,15 @@
 							></div>
 						{/if}
 					</div>
+				</div>
+			{:else if !desktop.current && !$metaJson}
+				<!-- Loading skeleton tooltip -->
+				<div
+					transition:fade={{ duration: 200 }}
+					class="absolute bg-glass -top-6 rounded-none! p-0.5 w-16.5 text-center"
+					style="left: max(-4px, calc(50% - 33px), calc(100% - 70px));"
+				>
+					<div class="h-4 bg-foreground/10 rounded animate-pulse"></div>
 				</div>
 			{:else if !desktop.current}
 				<div
@@ -765,7 +773,13 @@
 						: 'cursor-pointer'}"
 					aria-label="Select model run"
 				>
-					{#if $modelRun}
+					{#if !$metaJson}
+						<!-- Loading skeleton -->
+						<div class="flex gap-1 items-center">
+							<div class="h-3 w-12 bg-foreground/10 rounded animate-pulse"></div>
+							<div class="h-3 w-8 bg-foreground/10 rounded animate-pulse"></div>
+						</div>
+					{:else if $modelRun}
 						{formatUTCDate($modelRun)}
 						{formatUTCTime($modelRun)}
 					{:else}
@@ -919,7 +933,32 @@
 
 			<div bind:this={dayContainer} class="flex overflow-x-scroll md:mx-1 px-[50vw] md:px-0">
 				{#if !$metaJson}
-					<div class="min-w-75"></div>
+					<!-- Loading Skeleton -->
+					{#each Array(7) as _, dayIndex (dayIndex)}
+						<div class="relative flex h-12.5 min-w-42.5 animate-pulse">
+							<!-- Skeleton Day Label -->
+							<div
+								class="absolute flex mt-3.25 -translate-x-1/2 left-1/2 items-center justify-center text-center flex-col"
+							>
+								<div class="h-4 w-16 bg-foreground/10 rounded mb-1"></div>
+								<div class="h-3 w-12 bg-foreground/10 rounded"></div>
+							</div>
+
+							<!-- Skeleton Hour Lines -->
+							<div class="flex mt-1 ml-0 pointer-events-none">
+								{#each Array(24) as _, hourIndex (hourIndex)}
+									<div
+										style="width: calc({dayWidth}px/24);"
+										class="h-{hourIndex % 12 === 0 && hourIndex !== 0
+											? '3.25'
+											: hourIndex % 3 === 0
+												? '2.5'
+												: '1.25'} border-l-2 border-foreground/10"
+									></div>
+								{/each}
+							</div>
+						</div>
+					{/each}
 				{:else}
 					{#each daySteps as dayStep, i (i)}
 						<div class="relative flex h-12.5 min-w-42.5 {!desktop.current ? 'select-none' : ''}">
