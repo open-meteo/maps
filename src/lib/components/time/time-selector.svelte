@@ -72,6 +72,12 @@
 
 	let dayWidth = $derived(timeInterval === 0.25 ? 340 : 170);
 
+	const formatLocalTime = (date: Date) => `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+	const formatLocalDate = (date: Date) => `${pad(date.getDate())}-${pad(date.getMonth() + 1)}`;
+	const formatUTCTime = (date: Date) => `${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
+	const formatUTCDate = (date: Date) => `${pad(date.getUTCDate())}-${pad(date.getUTCMonth() + 1)}`;
+	const formatUTCDateTime = (date: Date) => `${formatUTCDate(date)} ${formatUTCTime(date)}`;
+
 	const previousHour = () => {
 		let date = new SvelteDate($time);
 		let ts = date.getTime();
@@ -315,14 +321,14 @@
 		const dates: string[] = [];
 		if (timeSteps) {
 			for (const timeStep of timeSteps) {
-				let monthIndex = timeStep.getUTCMonth();
-				let date = timeStep.getUTCDate();
+				let monthIndex = timeStep.getMonth();
+				let date = timeStep.getDate();
 				if (dates.includes(`${monthIndex}-${date}`)) {
 					continue;
 				} else {
 					const newDay = new SvelteDate(timeStep);
-					newDay.setUTCHours(0);
-					newDay.setUTCMinutes(0);
+					newDay.setHours(0);
+					newDay.setMinutes(0);
 					dates.push(`${monthIndex}-${date}`);
 					days.push(newDay);
 				}
@@ -338,13 +344,18 @@
 				if (timeInterval === 0.25) {
 					for (let j = 0; j < 60; j += 15) {
 						const date = new SvelteDate(day);
-						date.setUTCHours(i);
-						date.setUTCMinutes(j);
+						date.setHours(i);
+						date.setMinutes(j);
+						date.setSeconds(0);
+						date.setMilliseconds(0);
 						timeStepsComplete.push(date);
 					}
 				} else {
 					const date = new SvelteDate(day);
-					date.setUTCHours(i);
+					date.setHours(i);
+					date.setMinutes(0);
+					date.setSeconds(0);
+					date.setMilliseconds(0);
 					timeStepsComplete.push(date);
 				}
 			}
@@ -508,6 +519,7 @@
 						currentDate = timeStep;
 						onDateChange(timeStep);
 					}
+					centerDateButton(timeStep);
 				}
 			});
 		}
@@ -544,7 +556,7 @@
 			const percentage = left / width;
 
 			if (left === 0) {
-				currentDate.setUTCHours(0);
+				currentDate.setHours(0);
 			}
 			if (percentage) {
 				let timeStep =
@@ -677,7 +689,7 @@
 				>
 					<div class="relative {!timeValid(hoveredHour) ? 'text-foreground/50' : ''}">
 						{#if hoveredHour}
-							{pad(hoveredHour.getUTCHours())}:{pad(hoveredHour.getUTCMinutes())}
+							{formatLocalTime(hoveredHour)}
 						{/if}
 						<div
 							class="-z-10 absolute -bottom-2 w-3 h-3 bg-glass/95 rotate-45 -translate-x-1/2 left-1/2"
@@ -699,11 +711,11 @@
 						{#if currentTimeStep}
 							{#if desktop.current}
 								<div class="font-bold">
-									{pad(currentTimeStep!.getUTCHours())}:{pad(currentTimeStep!.getUTCMinutes())}
+									{formatLocalTime(currentTimeStep!)}
 								</div>
 							{:else}
 								<div class={$time.getTime() === currentDate.getTime() ? 'font-bold' : ''}>
-									{pad(currentDate.getUTCHours())}:{pad(currentDate.getUTCMinutes())}
+									{formatLocalTime(currentDate)}
 								</div>
 							{/if}
 						{/if}
@@ -754,8 +766,8 @@
 					aria-label="Select model run"
 				>
 					{#if $modelRun}
-						{pad($modelRun.getUTCDate())}-{pad($modelRun.getUTCMonth() + 1)}
-						{pad($modelRun.getUTCHours())}:{pad($modelRun.getUTCMinutes())}
+						{formatUTCDate($modelRun)}
+						{formatUTCTime($modelRun)}
 					{:else}
 						Select model run
 					{/if}
@@ -768,43 +780,27 @@
 					{#if inProgressReferenceTime && $modelRun}
 						<Select.Item
 							value={inProgressReferenceTime.getTime().toString()}
-							label="IP {pad(inProgressReferenceTime.getUTCDate())}-{pad(
-								inProgressReferenceTime.getUTCMonth() + 1
-							)} {pad(inProgressReferenceTime.getUTCHours())}:{pad(
-								inProgressReferenceTime.getUTCMinutes()
-							)}"
+							label={`IP ${formatUTCDate(inProgressReferenceTime)} ${formatUTCTime(inProgressReferenceTime)}`}
 							class="cursor-pointer {inProgressReferenceTime.getTime() === firstMetaTime.getTime()
 								? 'text-orange-600 dark:text-orange-400 font-semibold'
 								: ''}"
 						>
-							IP <small
-								>{pad(inProgressReferenceTime.getUTCDate())}-{pad(
-									inProgressReferenceTime.getUTCMonth() + 1
-								)}</small
-							>
-							{pad(inProgressReferenceTime.getUTCHours())}:{pad(
-								inProgressReferenceTime.getUTCMinutes()
-							)}
+							IP <small>{formatUTCDate(inProgressReferenceTime)}</small>
+							{formatUTCTime(inProgressReferenceTime)}
 						</Select.Item>
 					{/if}
 					{#each previousModelSteps as previousModelStep, i (i)}
 						<Select.Item
 							value={previousModelStep.getTime().toString()}
-							label="{pad(previousModelStep.getUTCDate())}-{pad(
-								previousModelStep.getUTCMonth() + 1
-							)} {pad(previousModelStep.getUTCHours())}:{pad(previousModelStep.getUTCMinutes())}"
+							label={formatUTCDateTime(previousModelStep)}
 							class="cursor-pointer {previousModelStep.getTime() ===
 								latestReferenceTime.getTime() &&
 							previousModelStep.getTime() === firstMetaTime.getTime()
 								? 'text-green-700 dark:text-green-500 font-semibold'
 								: ''}"
 						>
-							<small
-								>{pad(previousModelStep.getUTCDate())}-{pad(
-									previousModelStep.getUTCMonth() + 1
-								)}</small
-							>
-							{pad(previousModelStep.getUTCHours())}:{pad(previousModelStep.getUTCMinutes())}
+							<small>{formatUTCDate(previousModelStep)}</small>
+							{formatUTCTime(previousModelStep)}
 						</Select.Item>
 					{/each}
 				</Select.Content>
@@ -932,9 +928,7 @@
 								class="absolute flex mt-3.25 -translate-x-1/2 left-1/2 items-center justify-center text-center flex-col"
 							>
 								<div class="">{dayNames[dayStep.getDay()]}</div>
-								<small class="-mt-2"
-									>{pad(dayStep.getUTCDate())}-{pad(dayStep.getUTCMonth() + 1)}</small
-								>
+								<small class="-mt-2">{formatLocalDate(dayStep)}</small>
 							</div>
 							{#if dayStep.getDate() === now.getDate()}
 								<div
