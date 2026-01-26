@@ -54,8 +54,9 @@
 				return 12;
 			case 'daily':
 				return 24;
+			default:
+				return 1;
 		}
-		return 1;
 	});
 
 	// Converts the selected domain's model interval to hours for calculations
@@ -73,8 +74,9 @@
 				return 12;
 			case 'daily':
 				return 24;
+			default:
+				return 1;
 		}
-		return 1;
 	});
 
 	// Calculates the pixel width of each day in the calendar based on time interval
@@ -731,9 +733,9 @@
 				<!-- Current Tooltip -->
 				<div
 					transition:fade={{ duration: 200 }}
-					style="left: max(-33px,min(calc({desktop.current
+					style="left: clamp(-28px, calc({desktop.current
 						? currentPosition - 33
-						: 0.5 * hoursHoverContainerWidth - 33}px),calc(100% - 42px)));"
+						: 0.5 * hoursHoverContainerWidth - 33}px), calc(100% - 38px));"
 					class="absolute bg-glass md:shadow-md backdrop-blur-sm rounded {disabled &&
 					desktop.current
 						? '-top-8'
@@ -772,9 +774,9 @@
 			{:else if !desktop.current}
 				<div
 					transition:fade={{ duration: 200 }}
-					style="left: max(-4px,min(calc({desktop.current
+					style="left: clamp(-4px, calc({desktop.current
 						? currentPosition - 33
-						: 0.5 * hoursHoverContainerWidth - 33}px),calc(100% - 70px)));"
+						: 0.5 * hoursHoverContainerWidth - 33}px), calc(100% - 70px));"
 					class="absolute bg-glass {disabled && desktop.current
 						? '-top-8 rounded'
 						: '-top-6 rounded-t'} {!desktop.current
@@ -959,9 +961,9 @@
 				{/if}
 				<!-- Current Cursor -->
 				<div
-					style="left: max(-2px,min({desktop.current
+					style="left: clamp(-2px, {desktop.current
 						? currentPosition - 1
-						: 0.5 * hoursHoverContainerWidth - 1}px,calc(100% - 6px)));"
+						: 0.5 * hoursHoverContainerWidth - 1}px,calc(100% - 6px));"
 					class="absolute bg-red-700 dark:bg-red-500 z-20 w-1 top-0 h-3.5"
 				></div>
 			</div>
