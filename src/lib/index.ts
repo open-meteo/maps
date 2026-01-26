@@ -28,6 +28,7 @@ import {
 	loading,
 	metaJson as mJ,
 	modelRun as mR,
+	modelRunLocked as mRL,
 	opacity,
 	preferences as p,
 	resolution as r,
@@ -101,6 +102,7 @@ export const urlParamsToPreferences = () => {
 			mR.set(modelRun);
 		}
 	}
+	//
 
 	const urlTime = params.get('time');
 	if (urlTime && urlTime.length == 15) {
@@ -209,12 +211,14 @@ export const checkClosestDomainInterval = () => {
 };
 
 export const checkClosestModelRun = async () => {
+	let modelRunLocked = get(mRL);
+
 	let timeStep = get(time);
 	const domain = get(selectedDomain);
 	const latest = get(l);
 	const latestReferenceTime = new Date(latest?.reference_time as string);
 
-	const modelRun = get(mR) as Date;;
+	const modelRun = get(mR) as Date;
 	const metaReferenceTime = new Date(metaJson?.reference_time as string);
 
 	let nearestModelRun = closestModelRun(timeStep, domain.model_interval);
@@ -272,7 +276,7 @@ export const checkClosestModelRun = async () => {
 		}
 	}
 
-	if (modelRun && setToModelRun.getTime() !== modelRun.getTime()) {
+	if (!modelRunLocked && modelRun && setToModelRun.getTime() !== modelRun.getTime()) {
 		mR.set(setToModelRun);
 		mJ.set(await getMetaData());
 		if (modelRun.getTime() !== latestReferenceTime.getTime()) {
@@ -280,7 +284,7 @@ export const checkClosestModelRun = async () => {
 		} else {
 			updateUrl('model_run', undefined);
 		}
-		toast.info('Model run set to: ' + formatISOWithoutTimezone(setToModelRun));
+		// toast.info('Model run set to: ' + formatISOWithoutTimezone(setToModelRun));
 	} else {
 		updateUrl();
 	}

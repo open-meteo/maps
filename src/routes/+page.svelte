@@ -66,7 +66,7 @@
 
 	import '../styles.css';
 
-	const METADATA_REFRESH_INTERVAL_MS = 60 * 1000;
+	const METADATA_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
 	let mapContainer: HTMLElement | null;
 

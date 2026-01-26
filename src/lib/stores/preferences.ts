@@ -60,8 +60,11 @@ export const localStorageVersion: Persisted<string | undefined> = persisted(
 export const helpOpen = writable(false);
 
 export const metaJson: Writable<DomainMetaDataJson | undefined> = writable(undefined);
+export const modelRunLocked = writable(false);
 
 export const resetStates = async () => {
+	modelRunLocked.set(false);
+
 	latest.set(undefined);
 	inProgress.set(undefined);
 	modelRun.set(undefined);

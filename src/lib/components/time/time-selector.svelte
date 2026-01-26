@@ -7,7 +7,7 @@
 
 	import { browser } from '$app/environment';
 
-	import { loading, modelRun, preferences, time } from '$lib/stores/preferences';
+	import { loading, modelRun, modelRunLocked, preferences, time } from '$lib/stores/preferences';
 	import { inProgress, latest, metaJson } from '$lib/stores/preferences';
 	import {
 		domainSelectionOpen,
@@ -105,10 +105,6 @@
 	};
 
 	const previousModel = () => {
-		if (modelRunLocked) {
-			toast.warning('Model run locked');
-			return;
-		}
 		const currentIndex = previousModelSteps.findIndex((pMS) =>
 			$modelRun ? $modelRun.getTime() === pMS.getTime() : false
 		);
@@ -149,10 +145,6 @@
 	};
 
 	const nextModel = () => {
-		if (modelRunLocked) {
-			toast.warning('Model run locked');
-			return;
-		}
 		const currentIndex = previousModelSteps.findIndex((pMS) =>
 			$modelRun ? $modelRun.getTime() === pMS.getTime() : false
 		);
@@ -196,7 +188,7 @@
 		date.setUTCHours(date.getUTCHours() + 24);
 		const timeStep = findTimeStep(date, timeSteps);
 		if (timeStep && timeStep.getTime() !== $time.getTime()) {
-			if (timeStep) date = new SvelteDate(timeStep);
+			date = new SvelteDate(timeStep);
 			onDateChange(date);
 			centerDateButton(date);
 		} else {
@@ -210,9 +202,13 @@
 
 	// updates the selected time and synchronizes with URL and OM file
 	const onDateChange = async (date: Date, checkForClosestModelRun = true) => {
-		if (modelRunLocked) {
+		if ($modelRunLocked) {
 			if (date.getTime() < firstMetaTime.getTime()) {
 				toast.warning("Model run locked, can't go before first time");
+				return;
+			}
+			if (date.getTime() > lastMetaTime.getTime()) {
+				toast.warning("Model run locked, can't go after last time");
 				return;
 			}
 		}
@@ -226,6 +222,7 @@
 	// changes the selected model run and updates available time steps
 	const onModelRunChange = async (step: Date) => {
 		$loading = true;
+		$modelRunLocked = true;
 		$modelRun = step;
 		$metaJson = await getMetaData();
 
@@ -243,7 +240,7 @@
 		} else {
 			updateUrl('model_run', undefined);
 		}
-		toast.info('Model run set to: ' + formatISOWithoutTimezone($modelRun));
+		// toast.info('Model run set to: ' + formatISOWithoutTimezone($modelRun));
 		await tick();
 		if (dayContainer) {
 			dayContainerScrollLeft = dayContainer.scrollLeft;
@@ -267,8 +264,8 @@
 	};
 
 	const toggleModelRunLock = (event: Event | undefined = undefined) => {
-		modelRunLocked = !modelRunLocked;
-		toast.info(modelRunLocked ? 'Model run locked' : 'Model run unlocked');
+		$modelRunLocked = !$modelRunLocked;
+		toast.info($modelRunLocked ? 'Model run locked' : 'Model run unlocked');
 		if (event) preventDefaultDialogues(event);
 	};
 
@@ -310,8 +307,8 @@
 			ArrowDown: previousDay,
 			ArrowUp: nextDay,
 			c: ctrl ? () => {} : jumpToCurrentTime,
-			m: ctrl ? () => toggleModelRunLock(event) : () => {},
-			p: ctrl ? () => setModelRun(event, 'in-progress') : () => {},
+			m: ctrl ? () => {} : () => toggleModelRunLock(event),
+			// p: ctrl ? () => setModelRun(event, 'in-progress') : () => {},
 			l: ctrl ? () => setModelRun(event, 'latest') : () => {}
 		};
 
@@ -663,8 +660,6 @@
 		if (resizeTimeout) clearTimeout(resizeTimeout);
 	});
 
-	let modelRunLocked = $state(false);
-
 	let previousModelSteps = $derived.by(() => {
 		const previousModels = [];
 		for (let day of Array.from({ length: Math.floor((6.9 * 24) / modelInterval) }, (_, i) => i)) {
@@ -798,12 +793,9 @@
 						onModelRunChange(selectedDate);
 					}
 				}}
-				disabled={modelRunLocked}
 			>
 				<Select.Trigger
-					class="h-4.5! text-xs pl-1.5 pr-0.75 py-0 gap-1 border-none bg-transparent shadow-none hover:bg-accent/50 focus-visible:ring-0 focus-visible:ring-offset-0 {modelRunLocked
-						? 'opacity-60 cursor-not-allowed'
-						: 'cursor-pointer'}"
+					class="h-4.5! text-xs pl-1.5 pr-0.75 py-0 gap-1 border-none bg-transparent shadow-none hover:bg-accent/50 focus-visible:ring-0 focus-visible:ring-offset-0 cursor-pointer"
 					aria-label="Select model run"
 				>
 					{#if !$metaJson}
@@ -866,7 +858,7 @@
 				}}
 				aria-label="Model Run Lock"
 			>
-				{#if modelRunLocked}
+				{#if $modelRunLocked}
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
 						width="14"
@@ -952,8 +944,10 @@
 					transition:fade={{ duration: 300 }}
 					class="absolute {desktop.current ? '-left-6' : 'left-1.75'} -top-5 text-xs p-1"
 				>
-					<!-- Timezone: {Intl.DateTimeFormat().resolvedOptions().timeZone}  -->
-					UTC {formatUTCOffset(now)}
+					{#if desktop.current}
+						{Intl.DateTimeFormat().resolvedOptions().timeZone}
+					{/if}
+					UTC{formatUTCOffset(now)}
 				</div>
 			{/if}
 			<div
