@@ -274,11 +274,7 @@
 	const preventDefaultDialogues = (event: Event) => {
 		// prevent printing dialog, which is useless on a map anyway
 		event.preventDefault();
-		if (event.stopImmediatePropagation) {
-			event.stopImmediatePropagation();
-		} else {
-			event.stopPropagation();
-		}
+		event.stopImmediatePropagation();
 		return;
 	};
 
@@ -767,7 +763,7 @@
 				<div
 					transition:fade={{ duration: 200 }}
 					class="absolute bg-glass backdrop-blur-sm -top-6 rounded-none! p-0.5 w-16.5 text-center"
-					style="left: max(-4px, calc(50% - 33px), calc(100% - 70px));"
+					style="left: clamp(-4px, calc(50% - 33px), calc(100% - 70px));"
 				>
 					<div class="h-4 bg-foreground/10 rounded animate-pulse"></div>
 				</div>
