@@ -88,7 +88,7 @@
 
 			onDateChange(date);
 
-			centerDateButton(date, true, 'backwards');
+			centerDateButton(date);
 		} else {
 			// jump to next model run if available
 			if (currentIndex - 1 < 0) {
