@@ -66,6 +66,8 @@
 
 	import '../styles.css';
 
+	const METADATA_REFRESH_INTERVAL_MS = 60 * 1000;
+
 	let mapContainer: HTMLElement | null;
 
 	onMount(() => {
@@ -177,7 +179,7 @@
 	onMount(() => {
 		metaDataInterval = setInterval(() => {
 			getInitialMetaData();
-		}, 60 * 1000);
+		}, METADATA_REFRESH_INTERVAL_MS);
 	});
 
 	onDestroy(() => {
