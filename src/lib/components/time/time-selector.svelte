@@ -662,7 +662,7 @@
 	});
 
 	onDestroy(() => {
-		clearInterval(updateNowInterval);
+		if (updateNowInterval) clearInterval(updateNowInterval);
 		if (resizeTimeout) clearTimeout(resizeTimeout);
 	});
 
