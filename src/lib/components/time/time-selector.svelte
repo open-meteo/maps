@@ -968,7 +968,10 @@
 				></div>
 			</div>
 
-			<div bind:this={dayContainer} class="flex overflow-x-scroll px-[50vw] md:px-0">
+			<div
+				bind:this={dayContainer}
+				class="flex overflow-x-scroll {desktop.current ? '' : 'scrollbar-hide'} px-[50vw] md:px-0"
+			>
 				{#if !$metaJson}
 					<!-- Loading Skeleton -->
 					{#each Array(7) as _, dayIndex (dayIndex)}
