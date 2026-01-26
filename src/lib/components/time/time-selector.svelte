@@ -24,6 +24,7 @@
 		formatLocalTime,
 		formatUTCDate,
 		formatUTCDateTime,
+		formatUTCOffset,
 		formatUTCTime,
 		isValidTimeStep,
 		startOfLocalDay,
@@ -946,6 +947,15 @@
 			>
 		</button>
 		<div class="time-selector md:px-0 h-12.5 relative bg-glass backdrop-blur-sm duration-500">
+			{#if hoverX || currentDate.getTime() !== $time.getTime()}
+				<div
+					transition:fade={{ duration: 300 }}
+					class="absolute {desktop.current ? '-left-6' : 'left-1.75'} -top-5 text-xs p-1"
+				>
+					<!-- Timezone: {Intl.DateTimeFormat().resolvedOptions().timeZone}  -->
+					UTC {formatUTCOffset(now)}
+				</div>
+			{/if}
 			<div
 				class="absolute {!desktop.current
 					? 'pointer-events-none'

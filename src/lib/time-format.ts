@@ -98,3 +98,17 @@ export const isValidTimeStep = (
  */
 export const formatISOWithoutTimezone = (date: Date): string =>
 	date.toISOString().replace(/[:Z]/g, '').slice(0, 15);
+
+/**
+ * Formats the UTC offset for a given date
+ * @param date - The date to format
+ * @returns UTC offset string in ±HH:MM format (e.g., "+05:30", "-08:00")
+ */
+export const formatUTCOffset = (date: Date): string => {
+	const offsetMinutes = -date.getTimezoneOffset();
+	const sign = offsetMinutes >= 0 ? '+' : '-';
+	const absOffsetMinutes = Math.abs(offsetMinutes);
+	const hours = Math.floor(absOffsetMinutes / 60);
+	const minutes = absOffsetMinutes % 60;
+	return `${sign}${pad(hours)}:${pad(minutes)}`;
+};

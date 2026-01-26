@@ -10,6 +10,7 @@ import {
 	formatUTCDate,
 	formatUTCDateTime,
 	formatUTCTime,
+	formatUTCOffset,
 	isValidTimeStep,
 	startOfLocalDay,
 	withLocalTime
@@ -301,5 +302,90 @@ describe('formatISOWithoutTimezone', () => {
 		const date = new Date('2026-01-23T14:30:00Z');
 		const result = formatISOWithoutTimezone(date);
 		expect(typeof result).toBe('string');
+	});
+});
+
+describe('formatUTCOffset', () => {
+	it('should format UTC+0 offset', () => {
+		// Create a date with UTC offset of 0 (Coordinated Universal Time)
+		const date = new Date('2026-01-23T14:30:00Z');
+		// Mock timezone offset
+		const originalOffset = date.getTimezoneOffset;
+		date.getTimezoneOffset = () => 0;
+		const result = formatUTCOffset(date);
+		expect(result).toBe('+00:00');
+		date.getTimezoneOffset = originalOffset;
+	});
+
+	it('should format positive UTC offset (UTC+1)', () => {
+		const date = new Date();
+		const originalOffset = date.getTimezoneOffset;
+		date.getTimezoneOffset = () => -60; // UTC+1 has offset of -60 minutes
+		const result = formatUTCOffset(date);
+		expect(result).toBe('+01:00');
+		date.getTimezoneOffset = originalOffset;
+	});
+
+	it('should format positive UTC offset with minutes (UTC+5:30)', () => {
+		const date = new Date();
+		const originalOffset = date.getTimezoneOffset;
+		date.getTimezoneOffset = () => -330; // UTC+5:30 has offset of -330 minutes
+		const result = formatUTCOffset(date);
+		expect(result).toBe('+05:30');
+		date.getTimezoneOffset = originalOffset;
+	});
+
+	it('should format negative UTC offset (UTC-5)', () => {
+		const date = new Date();
+		const originalOffset = date.getTimezoneOffset;
+		date.getTimezoneOffset = () => 300; // UTC-5 has offset of 300 minutes
+		const result = formatUTCOffset(date);
+		expect(result).toBe('-05:00');
+		date.getTimezoneOffset = originalOffset;
+	});
+
+	it('should format negative UTC offset with minutes (UTC-3:30)', () => {
+		const date = new Date();
+		const originalOffset = date.getTimezoneOffset;
+		date.getTimezoneOffset = () => 210; // UTC-3:30 has offset of 210 minutes
+		const result = formatUTCOffset(date);
+		expect(result).toBe('-03:30');
+		date.getTimezoneOffset = originalOffset;
+	});
+
+	it('should format large positive offset (UTC+12)', () => {
+		const date = new Date();
+		const originalOffset = date.getTimezoneOffset;
+		date.getTimezoneOffset = () => -720; // UTC+12 has offset of -720 minutes
+		const result = formatUTCOffset(date);
+		expect(result).toBe('+12:00');
+		date.getTimezoneOffset = originalOffset;
+	});
+
+	it('should format large negative offset (UTC-12)', () => {
+		const date = new Date();
+		const originalOffset = date.getTimezoneOffset;
+		date.getTimezoneOffset = () => 720; // UTC-12 has offset of 720 minutes
+		const result = formatUTCOffset(date);
+		expect(result).toBe('-12:00');
+		date.getTimezoneOffset = originalOffset;
+	});
+
+	it('should pad hours and minutes with leading zeros', () => {
+		const date = new Date();
+		const originalOffset = date.getTimezoneOffset;
+		date.getTimezoneOffset = () => -45; // UTC+0:45
+		const result = formatUTCOffset(date);
+		expect(result).toBe('+00:45');
+		date.getTimezoneOffset = originalOffset;
+	});
+
+	it('should return a string in format ±HH:MM', () => {
+		const date = new Date();
+		const originalOffset = date.getTimezoneOffset;
+		date.getTimezoneOffset = () => -90; // UTC+1:30
+		const result = formatUTCOffset(date);
+		expect(result).toMatch(/^[+-]\d{2}:\d{2}$/);
+		date.getTimezoneOffset = originalOffset;
 	});
 });

@@ -258,7 +258,7 @@ export const checkClosestModelRun = async () => {
 		setToModelRun = new SvelteDate(nearestModelRun);
 	} else {
 		if (modelRun && latestReferenceTime.getTime() === modelRun.getTime()) {
-			updateUrl('model_run', undefined);
+			updateUrl('model_run', undefined); // remove model_run from url when on latest
 		} else if (
 			modelRun &&
 			timeStep.getTime() > metaReferenceTime.getTime() &&
