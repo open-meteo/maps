@@ -81,11 +81,13 @@
 			}
 			resolutionSet.set(true);
 		}
+	});
 
+	onMount(async () => {
 		// resets all the states when a new version is set in 'package.json' and version already set before
 		if (version !== $localStorageVersion) {
 			if ($localStorageVersion) {
-				resetStates();
+				await resetStates();
 			}
 			$localStorageVersion = version;
 		}

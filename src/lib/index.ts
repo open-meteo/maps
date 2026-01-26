@@ -214,7 +214,7 @@ export const checkClosestModelRun = async () => {
 	const latest = get(l);
 	const latestReferenceTime = new Date(latest?.reference_time as string);
 
-	const modelRun = get(mR);
+	const modelRun = get(mR) as Date;;
 	const metaReferenceTime = new Date(metaJson?.reference_time as string);
 
 	let nearestModelRun = closestModelRun(timeStep, domain.model_interval);
