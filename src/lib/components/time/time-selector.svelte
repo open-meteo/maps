@@ -85,9 +85,7 @@
 		let date = new SvelteDate($time);
 		if (timeSteps && currentIndex - 1 >= 0) {
 			date = timeSteps[currentIndex - 1];
-
 			onDateChange(date);
-
 			centerDateButton(date);
 		} else {
 			// jump to next model run if available
@@ -114,6 +112,13 @@
 		if (currentIndex !== -1) {
 			onModelRunChange(previousModelSteps[currentIndex + 1]);
 		}
+		if (
+			$modelRun &&
+			inProgressReferenceTime &&
+			$modelRun.getTime() === inProgressReferenceTime.getTime()
+		) {
+			onModelRunChange(latestReferenceTime);
+		}
 	};
 
 	// Navigate to the next available time step
@@ -121,9 +126,7 @@
 		let date = new SvelteDate($time);
 		if (timeSteps && currentIndex + 1 <= timeSteps.length - 1) {
 			date = timeSteps[currentIndex + 1];
-
 			onDateChange(date);
-
 			centerDateButton(date);
 		} else {
 			if (timeSteps && currentIndex + 1 > timeSteps.length - 1) {
@@ -152,9 +155,26 @@
 		);
 		if (currentIndex !== -1) {
 			if (currentIndex === 0) {
-				toast.warning('Already on latest model');
+				if (
+					$modelRun &&
+					inProgressReferenceTime &&
+					inProgressReferenceTime.getTime() !== $modelRun.getTime() &&
+					inProgressReferenceTime.getTime() > latestReferenceTime.getTime()
+				) {
+					onModelRunChange(inProgressReferenceTime);
+				} else {
+					toast.warning('Already on latest model');
+				}
 			} else {
 				onModelRunChange(previousModelSteps[currentIndex - 1]);
+			}
+		} else {
+			if (
+				$modelRun &&
+				inProgressReferenceTime &&
+				inProgressReferenceTime.getTime() === $modelRun.getTime()
+			) {
+				toast.warning('Already on in-progress model');
 			}
 		}
 	};
@@ -165,7 +185,6 @@
 		const timeStep = findTimeStep(date, timeSteps);
 		if (timeStep) date = new SvelteDate(timeStep);
 		onDateChange(date);
-
 		centerDateButton(date);
 	};
 
@@ -173,14 +192,21 @@
 		let date = new SvelteDate($time);
 		date.setUTCHours(date.getUTCHours() + 24);
 		const timeStep = findTimeStep(date, timeSteps);
-		if (timeStep) date = new SvelteDate(timeStep);
-		onDateChange(date);
-
-		centerDateButton(date);
+		if (timeStep && timeStep.getTime() !== $time.getTime()) {
+			if (timeStep) date = new SvelteDate(timeStep);
+			onDateChange(date);
+			centerDateButton(date);
+		} else {
+			if ($modelRun && $modelRun.getTime() < latestReferenceTime.getTime()) {
+				onDateChange(date); // overshoots...
+			} else {
+				toast.warning('Already on latest timestep');
+			}
+		}
 	};
 
 	// updates the selected time and synchronizes with URL and OM file
-	const onDateChange = async (date: Date, callUpdateUrl = true) => {
+	const onDateChange = async (date: Date, checkForClosestModelRun = true) => {
 		if (modelRunLocked) {
 			if (date.getTime() < firstMetaTime.getTime()) {
 				toast.warning("Model run locked, can't go before first time");
@@ -190,8 +216,8 @@
 
 		$time = new SvelteDate(date);
 		currentDate = date;
-		if (callUpdateUrl) updateUrl('time', formatISOWithoutTimezone($time));
-		changeOMfileURL();
+		updateUrl('time', formatISOWithoutTimezone($time));
+		changeOMfileURL(false, false, checkForClosestModelRun);
 	};
 
 	// changes the selected model run and updates available time steps
@@ -207,7 +233,7 @@
 				closestTime.setTime(validTime.getTime());
 			}
 		}
-		onDateChange(closestTime);
+		onDateChange(closestTime, false);
 
 		if ($modelRun.getTime() !== latestReferenceTime.getTime()) {
 			updateUrl('model_run', formatISOWithoutTimezone($modelRun));

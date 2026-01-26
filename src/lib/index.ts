@@ -213,21 +213,28 @@ export const checkClosestModelRun = async () => {
 	const domain = get(selectedDomain);
 	const latest = get(l);
 	const latestReferenceTime = new Date(latest?.reference_time as string);
+
+	const modelRun = get(mR);
 	const metaReferenceTime = new Date(metaJson?.reference_time as string);
+
+	let nearestModelRun = closestModelRun(timeStep, domain.model_interval);
+	if (nearestModelRun.getTime() > latestReferenceTime.getTime()) {
+		nearestModelRun = latestReferenceTime;
+	}
 
 	// other than seasonal models, data is not available longer than 7 days
 	if (domain.model_interval !== 'monthly') {
 		// check that requested timeStep is not older than 7 days
-		const _7daysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-		if (timeStep.getTime() < _7daysAgo) {
+		const date7DaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+		if (timeStep.getTime() < date7DaysAgo) {
 			toast.warning('Date selected too old, using 7 days ago time');
-			const nowTimeStep = domainStep(new Date(_7daysAgo), domain.time_interval, 'floor');
+			const nowTimeStep = domainStep(new Date(date7DaysAgo), domain.time_interval, 'floor');
 			time.set(nowTimeStep);
 			timeStep = nowTimeStep;
 		}
 	}
 
-	// check that requested time is not newer than the last valid_time in the DomainMetaData
+	// check that requested time is not newer than the last valid_time in the DomainMetaData when MetaData not latest
 	if (metaJson) {
 		const metaTimeStep = new Date(metaJson.valid_times[metaJson.valid_times.length - 1]);
 
@@ -236,14 +243,9 @@ export const checkClosestModelRun = async () => {
 				toast.warning('Date selected too new, using latest available time');
 				time.set(metaTimeStep);
 				timeStep = metaTimeStep;
-			} //else {
-			// 	// set to new model run
-			// }
+			}
 		}
 	}
-
-	const nearestModelRun = closestModelRun(timeStep, domain.model_interval);
-	const modelRun = get(mR);
 
 	let setToModelRun = new SvelteDate(modelRun);
 
@@ -706,7 +708,11 @@ const checkVectorLoaded = (requestNumber: number) => {
 };
 
 let vectorRequests = 0;
-export const changeOMfileURL = (vectorOnly = false, rasterOnly = false) => {
+export const changeOMfileURL = (
+	vectorOnly = false,
+	rasterOnly = false,
+	checkForClosestModelRun = true
+) => {
 	if (!map || !omRasterSource) return;
 	loading.set(true);
 
@@ -714,7 +720,7 @@ export const changeOMfileURL = (vectorOnly = false, rasterOnly = false) => {
 		popup.remove();
 	}
 
-	checkClosestModelRun();
+	if (checkForClosestModelRun) checkClosestModelRun();
 
 	omUrl = getOMUrl();
 
