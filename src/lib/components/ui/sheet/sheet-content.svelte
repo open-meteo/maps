@@ -8,9 +8,9 @@
 				top: 'data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top inset-x-0 top-0 h-auto border-b',
 				bottom:
 					'data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom inset-x-0 bottom-0 h-auto border-t',
-				left: 'data-[state=closed]:slide-out-to-start data-[state=open]:slide-in-from-start inset-y-0 start-0 h-full w-3/4 border-e sm:max-w-sm',
+				left: 'data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left inset-y-0 left-0 h-full w-3/4 border-r sm:max-w-sm',
 				right:
-					'data-[state=closed]:slide-out-to-end data-[state=open]:slide-in-from-end inset-y-0 end-0 h-full w-3/4 border-s sm:max-w-sm'
+					'data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right inset-y-0 right-0 h-full w-3/4 border-l sm:max-w-sm'
 			}
 		},
 		defaultVariants: {
@@ -28,10 +28,8 @@
 	import { type WithoutChildrenOrChild, cn } from '$lib/utils.js';
 
 	import SheetOverlay from './sheet-overlay.svelte';
-	import SheetPortal from './sheet-portal.svelte';
 
 	import type { Snippet } from 'svelte';
-	import type { ComponentProps } from 'svelte';
 
 	let {
 		ref = $bindable(null),
@@ -41,13 +39,13 @@
 		children,
 		...restProps
 	}: WithoutChildrenOrChild<SheetPrimitive.ContentProps> & {
-		portalProps?: WithoutChildrenOrChild<ComponentProps<typeof SheetPortal>>;
+		portalProps?: SheetPrimitive.PortalProps;
 		side?: Side;
 		children: Snippet;
 	} = $props();
 </script>
 
-<SheetPortal {...portalProps}>
+<SheetPrimitive.Portal {...portalProps}>
 	<SheetOverlay />
 	<SheetPrimitive.Content
 		bind:ref
@@ -57,10 +55,10 @@
 	>
 		{@render children?.()}
 		<SheetPrimitive.Close
-			class="ring-offset-background focus-visible:ring-ring absolute end-4 top-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden disabled:pointer-events-none"
+			class="ring-offset-background focus-visible:ring-ring rounded-xs focus-visible:outline-hidden absolute right-4 top-4 opacity-70 transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none"
 		>
 			<XIcon class="size-4" />
 			<span class="sr-only">Close</span>
 		</SheetPrimitive.Close>
 	</SheetPrimitive.Content>
-</SheetPortal>
+</SheetPrimitive.Portal>
