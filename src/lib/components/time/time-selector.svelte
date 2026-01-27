@@ -288,10 +288,14 @@
 		if ($modelRunLocked) {
 			if (date.getTime() < metaFirstTime.getTime()) {
 				toast.warning("Model run locked, can't go before first time");
+				currentDate = new SvelteDate($time);
+				centerDateButton(currentDate);
 				return;
 			}
 			if (date.getTime() > metaLastTime.getTime()) {
 				toast.warning("Model run locked, can't go after last time");
+				currentDate = new SvelteDate($time);
+				centerDateButton(currentDate);
 				return;
 			}
 		}
@@ -299,9 +303,7 @@
 		$time = new SvelteDate(date);
 		currentDate = date;
 		updateUrl('time', formatISOWithoutTimezone($time));
-
 		checkClosestModelRun();
-
 		changeOMfileURL();
 	};
 
@@ -362,20 +364,11 @@
 		return;
 	};
 
-	const setModelRun = (event: Event, type: string = 'latest') => {
-		if (type === 'latest') {
-			if ($modelRun && $modelRun.getTime() === latestReferenceTime.getTime()) {
-				toast.warning('Already on latest model run');
-			} else {
-				onModelRunChange(latestReferenceTime);
-			}
-		} else if (type === 'in-progress') {
-			const inProgressReferenceTime = new Date($inProgress?.reference_time as string);
-			if (inProgressReferenceTime.getTime() === latestReferenceTime.getTime()) {
-				toast.warning('No model run in progress at this time');
-			} else {
-				onModelRunChange(inProgressReferenceTime);
-			}
+	const setLatestModelRun = (event: Event) => {
+		if ($modelRun && $modelRun.getTime() === latestReferenceTime.getTime()) {
+			toast.warning('Already on latest model run');
+		} else {
+			onModelRunChange(latestReferenceTime);
 		}
 		preventDefaultDialogues(event);
 	};
@@ -394,8 +387,7 @@
 			ArrowUp: nextDay,
 			c: ctrl ? () => {} : jumpToCurrentTime,
 			m: ctrl ? () => {} : () => toggleModelRunLock(event),
-			// p: ctrl ? () => setModelRun(event, 'in-progress') : () => {},
-			l: ctrl ? () => setModelRun(event, 'latest') : () => {}
+			l: ctrl ? () => setLatestModelRun(event) : () => {}
 		};
 
 		const action = actions[event.key];
@@ -525,7 +517,6 @@
 				} else {
 					const hourWidth = dayWidth / 24;
 					const left = hourWidth * index;
-					isScrolling = true;
 					dayContainer.scrollTo({ left: left, behavior: smooth ? 'smooth' : 'instant' });
 				}
 			}
@@ -638,6 +629,7 @@
 			clearTimeout(resizeTimeout);
 			resizeTimeout = setTimeout(() => {
 				if (dayContainer && !desktop.current) {
+					isScrolling = true;
 					centerDateButton(currentDate, false);
 				}
 			}, 100);
@@ -648,6 +640,7 @@
 				dayContainerScrollLeft = dayContainer.scrollLeft;
 				dayContainerScrollWidth = dayContainer.scrollWidth;
 				if (!desktop.current) {
+					isScrolling = true;
 					centerDateButton(currentDate, false);
 				}
 			}
