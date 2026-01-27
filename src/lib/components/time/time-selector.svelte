@@ -97,6 +97,7 @@
 		if (timeSteps && currentIndex - 1 >= 0) {
 			date = timeSteps[currentIndex - 1];
 			onDateChange(date);
+			isScrolling = true;
 			centerDateButton(date);
 		} else {
 			// jump to next model run if available
@@ -134,6 +135,7 @@
 		if (timeSteps && currentIndex + 1 <= timeSteps.length - 1) {
 			date = timeSteps[currentIndex + 1];
 			onDateChange(date);
+			isScrolling = true;
 			centerDateButton(date);
 		} else {
 			if (timeSteps && currentIndex + 1 > timeSteps.length - 1) {
@@ -188,6 +190,7 @@
 		const timeStep = findTimeStep(date, timeSteps);
 		if (timeStep) date = new SvelteDate(timeStep);
 		onDateChange(date);
+		isScrolling = true;
 		centerDateButton(date);
 	};
 
@@ -198,6 +201,7 @@
 		if (timeStep && timeStep.getTime() !== $time.getTime()) {
 			date = new SvelteDate(timeStep);
 			onDateChange(date);
+			isScrolling = true;
 			centerDateButton(date);
 		} else {
 			if ($modelRun && $modelRun.getTime() < latestReferenceTime.getTime()) {
