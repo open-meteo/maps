@@ -9,8 +9,8 @@ import {
 	formatLocalTime,
 	formatUTCDate,
 	formatUTCDateTime,
-	formatUTCTime,
 	formatUTCOffset,
+	formatUTCTime,
 	isValidTimeStep,
 	startOfLocalDay,
 	withLocalTime
