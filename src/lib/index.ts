@@ -43,7 +43,7 @@ import { formatISOWithoutTimezone } from './time-format';
 
 import type { Domain, DomainMetaDataJson } from '@openmeteo/mapbox-layer';
 
-export { findTimeStep, findTimeStepIndex } from '$lib/time-utils';
+export { findTimeStep } from '$lib/time-utils';
 
 let url = get(u);
 u.subscribe((newUrl) => {
@@ -79,9 +79,10 @@ now.setHours(now.getHours() + 1, 0, 0, 0);
 
 let omUrl: string;
 
-export const pad = (n: string | number) => {
-	return ('0' + n).slice(-2);
-};
+/**
+ * Pads a number with leading zeros to ensure 2 digits
+ */
+export const pad = (num: number | string): string => String(num).padStart(2, '0');
 
 export const urlParamsToPreferences = () => {
 	const params = new URLSearchParams(url.search);
@@ -95,14 +96,7 @@ export const urlParamsToPreferences = () => {
 		const minute = parseInt(urlModelTime.slice(13, 15));
 		// Parse Date from UTC components (urlTime is in UTC)
 		mR.set(new SvelteDate(Date.UTC(year, month, day, hour, minute, 0, 0)));
-	} else {
-		const modelRun = get(mR);
-		if (modelRun) {
-			modelRun.setUTCHours(0, 0, 0, 0);
-			mR.set(modelRun);
-		}
 	}
-	//
 
 	const urlTime = params.get('time');
 	if (urlTime && urlTime.length == 15) {
@@ -114,7 +108,6 @@ export const urlParamsToPreferences = () => {
 		// Parse Date from UTC components (urlTime is in UTC)
 		time.set(new SvelteDate(Date.UTC(year, month, day, hour, minute, 0, 0)));
 	}
-	checkClosestDomainInterval();
 
 	if (params.get('globe')) {
 		preferences.globe = params.get('globe') === 'true';
@@ -200,94 +193,6 @@ export const urlParamsToPreferences = () => {
 
 	vO.set(vectorOptions);
 	p.set(preferences);
-};
-
-export const checkClosestDomainInterval = () => {
-	const t = get(time);
-	const domain = get(selectedDomain);
-	const closestTime = domainStep(t, domain.time_interval, 'floor');
-	updateUrl('time', formatISOWithoutTimezone(closestTime));
-	time.set(closestTime);
-};
-
-export const checkClosestModelRun = async () => {
-	let modelRunLocked = get(mRL);
-
-	let timeStep = get(time);
-	const domain = get(selectedDomain);
-	const latest = get(l);
-	const latestReferenceTime = new Date(latest?.reference_time as string);
-
-	const modelRun = get(mR) as Date;
-	const metaReferenceTime = new Date(metaJson?.reference_time as string);
-
-	let nearestModelRun = closestModelRun(timeStep, domain.model_interval);
-	if (nearestModelRun.getTime() > latestReferenceTime.getTime()) {
-		nearestModelRun = latestReferenceTime;
-	}
-
-	// other than seasonal models, data is not available longer than 7 days
-	if (domain.model_interval !== 'monthly') {
-		// check that requested timeStep is not older than 7 days
-		const date7DaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-		if (timeStep.getTime() < date7DaysAgo) {
-			toast.warning('Date selected too old, using 7 days ago time');
-			const nowTimeStep = domainStep(new Date(date7DaysAgo), domain.time_interval, 'floor');
-			time.set(nowTimeStep);
-			timeStep = nowTimeStep;
-		}
-	}
-
-	// check that requested time is not newer than the last valid_time in the DomainMetaData when MetaData not latest
-	if (metaJson) {
-		const metaTimeStep = new Date(metaJson.valid_times[metaJson.valid_times.length - 1]);
-
-		if (timeStep.getTime() > metaTimeStep.getTime()) {
-			if (metaReferenceTime.getTime() >= latestReferenceTime.getTime()) {
-				toast.warning('Date selected too new, using latest available time');
-				time.set(metaTimeStep);
-				timeStep = metaTimeStep;
-			}
-		}
-	}
-
-	let setToModelRun = new SvelteDate(modelRun);
-
-	if (
-		nearestModelRun.getTime() > metaReferenceTime.getTime() &&
-		nearestModelRun.getTime() <= latestReferenceTime.getTime()
-	) {
-		setToModelRun = new SvelteDate(nearestModelRun);
-	} else if (modelRun && timeStep.getTime() < modelRun.getTime()) {
-		setToModelRun = new SvelteDate(nearestModelRun);
-	} else {
-		if (modelRun && latestReferenceTime.getTime() === modelRun.getTime()) {
-			updateUrl('model_run', undefined); // remove model_run from url when on latest
-		} else if (
-			modelRun &&
-			timeStep.getTime() > metaReferenceTime.getTime() &&
-			metaReferenceTime.getTime() > modelRun.getTime()
-		) {
-			setToModelRun = new SvelteDate(metaReferenceTime);
-		} else if (timeStep.getTime() < metaReferenceTime.getTime()) {
-			if (modelRun && modelRun.getTime() < nearestModelRun.getTime()) {
-				setToModelRun = new SvelteDate(nearestModelRun);
-			}
-		}
-	}
-
-	if (!modelRunLocked && modelRun && setToModelRun.getTime() !== modelRun.getTime()) {
-		mR.set(setToModelRun);
-		mJ.set(await getMetaData());
-		if (modelRun.getTime() !== latestReferenceTime.getTime()) {
-			updateUrl('model_run', formatISOWithoutTimezone(modelRun));
-		} else {
-			updateUrl('model_run', undefined);
-		}
-		// toast.info('Model run set to: ' + formatISOWithoutTimezone(setToModelRun));
-	} else {
-		updateUrl();
-	}
 };
 
 export const setMapControlSettings = () => {
@@ -401,8 +306,6 @@ export const addOmFileLayers = () => {
 	if (!map) return;
 	// when (re)-adding the om-file layers, we need to reset the vectorRequests to fix set the opacity correctly on the first request
 	vectorRequests = 0;
-
-	checkClosestModelRun();
 
 	omUrl = getOMUrl();
 	map.addSource('omRasterSource', {
@@ -712,19 +615,13 @@ const checkVectorLoaded = (requestNumber: number) => {
 };
 
 let vectorRequests = 0;
-export const changeOMfileURL = (
-	vectorOnly = false,
-	rasterOnly = false,
-	checkForClosestModelRun = true
-) => {
+export const changeOMfileURL = (vectorOnly = false, rasterOnly = false) => {
 	if (!map || !omRasterSource) return;
 	loading.set(true);
 
 	if (popup) {
 		popup.remove();
 	}
-
-	if (checkForClosestModelRun) checkClosestModelRun();
 
 	omUrl = getOMUrl();
 
@@ -1071,18 +968,6 @@ export const throttle = <T extends unknown[]>(callback: (...args: T) => void, de
 
 		setTimeout(() => {
 			waiting = false;
-		}, delay);
-	};
-};
-
-export const debounce = <T extends unknown[]>(callback: (...args: T) => void, delay: number) => {
-	let timeoutTimer: ReturnType<typeof setTimeout>;
-
-	return (...args: T) => {
-		clearTimeout(timeoutTimer);
-
-		timeoutTimer = setTimeout(() => {
-			callback(...args);
 		}, delay);
 	};
 };

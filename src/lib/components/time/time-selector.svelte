@@ -1,13 +1,21 @@
 <script lang="ts">
 	import { onDestroy, onMount, tick } from 'svelte';
-	import { MediaQuery, SvelteDate } from 'svelte/reactivity';
+	import { SvelteDate } from 'svelte/reactivity';
 	import { fade } from 'svelte/transition';
 
+	import { closestModelRun, domainStep } from '@openmeteo/mapbox-layer';
 	import { toast } from 'svelte-sonner';
 
 	import { browser } from '$app/environment';
 
-	import { loading, modelRun, modelRunLocked, preferences, time } from '$lib/stores/preferences';
+	import {
+		desktop,
+		loading,
+		modelRun,
+		modelRunLocked,
+		preferences,
+		time
+	} from '$lib/stores/preferences';
 	import { inProgress, latest, metaJson } from '$lib/stores/preferences';
 	import {
 		domainSelectionOpen,
@@ -200,14 +208,89 @@
 		}
 	};
 
+	const checkClosestModelRun = async () => {
+		let timeStep = new Date($time);
+
+		let nearestModelRun = closestModelRun(timeStep, $selectedDomain.model_interval);
+		if (nearestModelRun.getTime() > latestReferenceTime.getTime()) {
+			nearestModelRun = latestReferenceTime;
+		}
+
+		// other than seasonal models, data is not available longer than 7 days
+		if ($selectedDomain.model_interval !== 'monthly') {
+			// check that requested timeStep is not older than 7 days
+			const date7DaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+			if (timeStep.getTime() < date7DaysAgo) {
+				toast.warning('Date selected too old, using 7 days ago time');
+				const nowTimeStep = domainStep(
+					new Date(date7DaysAgo),
+					$selectedDomain.time_interval,
+					'floor'
+				);
+				time.set(nowTimeStep);
+				timeStep = nowTimeStep;
+			}
+		}
+
+		// check that requested time is not newer than the last valid_time in the DomainMetaData when MetaData not latest
+		if ($metaJson) {
+			const metaTimeStep = new Date(metaLastTime);
+
+			if (timeStep.getTime() > metaTimeStep.getTime()) {
+				if (metaReferenceTime.getTime() >= latestReferenceTime.getTime()) {
+					toast.warning('Date selected too new, using latest available time');
+					time.set(metaTimeStep);
+					timeStep = metaTimeStep;
+				}
+			}
+		}
+
+		let setToModelRun = new SvelteDate($modelRun);
+
+		if (
+			nearestModelRun.getTime() > metaReferenceTime.getTime() &&
+			nearestModelRun.getTime() <= latestReferenceTime.getTime()
+		) {
+			setToModelRun = new SvelteDate(nearestModelRun);
+		} else if ($modelRun && timeStep.getTime() < $modelRun.getTime()) {
+			setToModelRun = new SvelteDate(nearestModelRun);
+		} else {
+			if ($modelRun && latestReferenceTime.getTime() === $modelRun.getTime()) {
+				updateUrl('model_run', undefined); // remove model_run from url when on latest
+			} else if (
+				$modelRun &&
+				timeStep.getTime() > metaReferenceTime.getTime() &&
+				metaReferenceTime.getTime() > $modelRun.getTime()
+			) {
+				setToModelRun = new SvelteDate(metaReferenceTime);
+			} else if (timeStep.getTime() < metaReferenceTime.getTime()) {
+				if ($modelRun && $modelRun.getTime() < nearestModelRun.getTime()) {
+					setToModelRun = new SvelteDate(nearestModelRun);
+				}
+			}
+		}
+
+		if (!$modelRunLocked && $modelRun && setToModelRun.getTime() !== $modelRun.getTime()) {
+			$modelRun = setToModelRun;
+			$metaJson = await getMetaData();
+			if ($modelRun.getTime() !== latestReferenceTime.getTime()) {
+				updateUrl('model_run', formatISOWithoutTimezone($modelRun));
+			} else {
+				updateUrl('model_run', undefined);
+			}
+		} else {
+			updateUrl();
+		}
+	};
+
 	// updates the selected time and synchronizes with URL and OM file
-	const onDateChange = async (date: Date, checkForClosestModelRun = true) => {
+	const onDateChange = async (date: Date) => {
 		if ($modelRunLocked) {
-			if (date.getTime() < firstMetaTime.getTime()) {
+			if (date.getTime() < metaFirstTime.getTime()) {
 				toast.warning("Model run locked, can't go before first time");
 				return;
 			}
-			if (date.getTime() > lastMetaTime.getTime()) {
+			if (date.getTime() > metaLastTime.getTime()) {
 				toast.warning("Model run locked, can't go after last time");
 				return;
 			}
@@ -216,7 +299,10 @@
 		$time = new SvelteDate(date);
 		currentDate = date;
 		updateUrl('time', formatISOWithoutTimezone($time));
-		changeOMfileURL(false, false, checkForClosestModelRun);
+
+		checkClosestModelRun();
+
+		changeOMfileURL();
 	};
 
 	// changes the selected model run and updates available time steps
@@ -233,7 +319,8 @@
 				closestTime.setTime(validTime.getTime());
 			}
 		}
-		onDateChange(closestTime, false);
+
+		onDateChange(closestTime);
 
 		if ($modelRun.getTime() !== latestReferenceTime.getTime()) {
 			updateUrl('model_run', formatISOWithoutTimezone($modelRun));
@@ -259,7 +346,6 @@
 		if (timeStep) date = new SvelteDate(timeStep);
 
 		onDateChange(date);
-
 		centerDateButton(date);
 	};
 
@@ -344,11 +430,13 @@
 	const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 	const millisecondsPerDay = 24 * 60 * 60 * 1000;
 
-	const firstMetaTime = $derived(new Date($metaJson?.valid_times[0] as string));
-	const lastMetaTime = $derived(
+	const latestReferenceTime = $derived(new Date($latest?.reference_time as string));
+
+	const metaReferenceTime = new Date($metaJson?.reference_time as string);
+	const metaFirstTime = $derived(new Date($metaJson?.valid_times[0] as string));
+	const metaLastTime = $derived(
 		new Date($metaJson?.valid_times[$metaJson?.valid_times.length - 1] as string)
 	);
-	const latestReferenceTime = $derived(new Date($latest?.reference_time as string));
 
 	const timeSteps = $derived(
 		$metaJson?.valid_times.map((validTime: string) => new SvelteDate(validTime))
@@ -444,8 +532,6 @@
 		}
 	};
 
-	const desktop = new MediaQuery('min-width: 768px');
-
 	let hoverX = $state(0);
 	let viewWidth = $state(0);
 
@@ -465,7 +551,7 @@
 						(timeStepsComplete.length * (hoverX + dayContainerScrollLeft)) / dayContainerScrollWidth
 					)
 				]
-			: firstMetaTime
+			: metaFirstTime
 	);
 
 	let currentTimeStep = $derived(
@@ -527,8 +613,8 @@
 
 					if (
 						!validTime &&
-						timeStep.getTime() > firstMetaTime.getTime() &&
-						timeStep.getTime() < lastMetaTime.getTime()
+						timeStep.getTime() > metaFirstTime.getTime() &&
+						timeStep.getTime() < metaLastTime.getTime()
 					) {
 						const foundTimeStep = findTimeStep(timeStep, timeSteps);
 						if (foundTimeStep) timeStep = new SvelteDate(foundTimeStep);
@@ -589,8 +675,11 @@
 			// Clear isScrolling flag when scrolling ends
 			isScrolling = false;
 
-			if (!desktop.current) {
-				if (!isDown) {
+			if (!desktop.current && !isDown) {
+				if ($loading) {
+					centerDateButton($time);
+					currentDate = new SvelteDate($time);
+				} else {
 					let timeStep = findTimeStep(currentDate, timeSteps);
 					if (timeStep) currentDate = timeStep;
 					onDateChange(currentDate);
@@ -604,19 +693,23 @@
 			viewWidth = window.innerWidth;
 			resizeObserver.observe(dayContainer);
 
-			const throttledOnScrollEvent = throttle((e: Event) => {
+			const throttledScrollEvent = throttle((e: Event) => {
 				onScrollEvent(e);
 			}, 25);
+
+			const throttledScrollEndEvent = throttle(() => {
+				onScrollEndEvent();
+			}, 150);
 
 			dayContainer.addEventListener('scroll', (e) => {
 				if (dayContainer) {
 					dayContainerScrollLeft = dayContainer.scrollLeft;
 				}
 				if (!desktop.current) {
-					throttledOnScrollEvent(e);
+					throttledScrollEvent(e);
 				}
 			});
-			dayContainer.addEventListener('scrollend', throttle(onScrollEndEvent, 150));
+			dayContainer.addEventListener('scrollend', throttledScrollEndEvent);
 			dayContainer.addEventListener('mousedown', (e) => {
 				if (!desktop.current) {
 					if (!dayContainer) return;
@@ -696,83 +789,71 @@
 				: ''} bottom-5 w-full h-8.5 z-20 cursor-pointer duration-500"
 		>
 			<!-- Hover Tooltip -->
-			{#if hoverX && desktop.current && $metaJson}
-				<div
-					transition:fade={{ duration: 200 }}
-					style="left: calc({hoverX}px - 33px);"
-					class="absolute shadow-md -top-8 p-0.5 w-16.5 text-center rounded bg-glass backdrop-blur-sm {hoveredHour &&
-					currentTimeStep &&
-					currentTimeStep.getTime() === hoveredHour.getTime()
-						? 'font-bold'
-						: ''}"
-				>
-					<div class="relative {!timeValid(hoveredHour) ? 'text-foreground/50' : ''}">
-						{#if hoveredHour}
-							{formatLocalTime(hoveredHour)}
-						{/if}
-						<div
-							class="-z-10 absolute -bottom-2 w-3 h-3 bg-glass backdrop-blur-sm rotate-45 -translate-x-1/2 left-1/2"
-							style="clip-path: polygon(0% 100%, 100% 100%, 100% 0%);"
-						></div>
-					</div>
-				</div>
-			{:else if currentTimeStep && $metaJson}
-				<!-- Current Tooltip -->
-				<div
-					transition:fade={{ duration: 200 }}
-					style="left: clamp(-28px, calc({desktop.current
-						? currentPosition - 33
-						: 0.5 * hoursHoverContainerWidth - 33}px), calc(100% - 38px));"
-					class="absolute bg-glass md:shadow-md backdrop-blur-sm rounded {disabled &&
-					desktop.current
-						? '-top-8'
-						: '-top-6'} {!desktop.current ? 'rounded-none!' : ''} p-0.5 w-16.5 text-center"
-				>
-					<div class="relative duration-500 {!disabled ? 'text-foreground' : ''}">
-						{#if currentTimeStep}
-							{#if desktop.current}
-								<div class="font-bold">
-									{formatLocalTime(currentTimeStep!)}
-								</div>
-							{:else}
-								<div class={$time.getTime() === currentDate.getTime() ? 'font-bold' : ''}>
-									{formatLocalTime(currentDate)}
-								</div>
+			{#if $metaJson}
+				{#if hoverX && desktop.current}
+					<div
+						transition:fade={{ duration: 200 }}
+						style="left: calc({hoverX}px - 33px);"
+						class="absolute shadow-md -top-8 p-0.5 w-16.5 text-center rounded bg-glass backdrop-blur-sm {hoveredHour &&
+						currentTimeStep &&
+						currentTimeStep.getTime() === hoveredHour.getTime()
+							? 'font-bold'
+							: ''}"
+					>
+						<div class="relative {!timeValid(hoveredHour) ? 'text-foreground/50' : ''}">
+							{#if hoveredHour}
+								{formatLocalTime(hoveredHour)}
 							{/if}
-						{/if}
-						{#if disabled && desktop.current}
 							<div
-								transition:fade={{ duration: 200 }}
-								class="-z-10 absolute -bottom-2 w-3 h-3 bg-glass rotate-45 -translate-x-1/2 left-1/2"
+								class="-z-10 absolute -bottom-2 w-3 h-3 bg-glass backdrop-blur-sm rotate-45 -translate-x-1/2 left-1/2"
 								style="clip-path: polygon(0% 100%, 100% 100%, 100% 0%);"
 							></div>
-						{/if}
+						</div>
 					</div>
-				</div>
-			{:else if !desktop.current && !$metaJson}
+				{:else if currentTimeStep}
+					<!-- Current Tooltip -->
+					<div
+						transition:fade={{ duration: 200 }}
+						style="left: clamp(-28px, calc({desktop.current
+							? currentPosition - 33
+							: 0.5 * hoursHoverContainerWidth - 33}px), calc(100% - 38px));"
+						class="absolute bg-glass md:shadow-md backdrop-blur-sm rounded {disabled &&
+						desktop.current
+							? '-top-8'
+							: '-top-6'} {!desktop.current ? 'rounded-none!' : ''} p-0.5 w-16.5 text-center"
+					>
+						<div class="relative duration-500 {!disabled ? 'text-foreground' : ''}">
+							{#if currentTimeStep}
+								{#if desktop.current}
+									<div class="font-bold">
+										{formatLocalTime(currentTimeStep!)}
+									</div>
+								{:else}
+									<div class={$time.getTime() === currentDate.getTime() ? 'font-bold' : ''}>
+										{formatLocalTime(currentDate)}
+									</div>
+								{/if}
+							{/if}
+							{#if disabled && desktop.current}
+								<div
+									transition:fade={{ duration: 200 }}
+									class="-z-10 absolute -bottom-2 w-3 h-3 bg-glass rotate-45 -translate-x-1/2 left-1/2"
+									style="clip-path: polygon(0% 100%, 100% 100%, 100% 0%);"
+								></div>
+							{/if}
+						</div>
+					</div>
+				{/if}
+			{:else if desktop.current}
 				<!-- Loading skeleton tooltip -->
 				<div
 					transition:fade={{ duration: 200 }}
-					class="absolute bg-glass backdrop-blur-sm -top-6 rounded-none! p-0.5 w-16.5 text-center"
+					class="absolute flex items-center justify-center bg-glass h-4.5 backdrop-blur-sm -top-6 rounded-none! p-0.5 w-16.5 text-center"
 					style="left: clamp(-4px, calc(50% - 33px), calc(100% - 70px));"
 				>
-					<div class="h-4 bg-foreground/10 rounded animate-pulse"></div>
+					<div class="h-3 w-8 bg-foreground/10 rounded animate-pulse"></div>
 				</div>
-			{:else if !desktop.current}
-				<div
-					transition:fade={{ duration: 200 }}
-					style="left: clamp(-4px, calc({desktop.current
-						? currentPosition - 33
-						: 0.5 * hoursHoverContainerWidth - 33}px), calc(100% - 70px));"
-					class="absolute bg-glass {disabled && desktop.current
-						? '-top-8 rounded'
-						: '-top-6 rounded-t'} {!desktop.current
-						? 'rounded-none!'
-						: ''} p-0.5 w-16.5 text-center"
-				>
-					<div class="relative duration-500 text-foreground text-bold">12:00</div>
-				</div>
-			{/if}
+			{:else}{/if}
 		</div>
 		<!-- Model Run Selection Dropdown -->
 		<div
@@ -816,7 +897,7 @@
 							value={inProgressReferenceTime.getTime().toString()}
 							label={`IP ${formatUTCDate(inProgressReferenceTime)} ${formatUTCTime(inProgressReferenceTime)}`}
 							class="cursor-pointer border-l-4 border-l-orange-600 dark:border-l-orange-400 [&_svg]:text-orange-600 dark:[&_svg]:text-orange-400 {inProgressReferenceTime.getTime() ===
-							firstMetaTime.getTime()
+							metaFirstTime.getTime()
 								? 'text-orange-600 dark:text-orange-400 font-semibold'
 								: ''}"
 						>
@@ -833,7 +914,7 @@
 								? 'border-l-green-700 dark:border-l-green-500 [&_svg]:text-green-700 dark:[&_svg]:text-green-500'
 								: 'border-l-transparent'} {previousModelStep.getTime() ===
 								latestReferenceTime.getTime() &&
-							previousModelStep.getTime() === firstMetaTime.getTime()
+							previousModelStep.getTime() === metaFirstTime.getTime()
 								? 'text-green-700 dark:text-green-500 font-semibold'
 								: ''}"
 						>
@@ -939,10 +1020,10 @@
 					transition:fade={{ duration: 300 }}
 					class="absolute {desktop.current ? '-left-6' : 'left-1.75'} -top-5 text-xs p-1"
 				>
+					UTC{formatUTCOffset(now)}
 					{#if desktop.current}
 						{Intl.DateTimeFormat().resolvedOptions().timeZone}
 					{/if}
-					UTC{formatUTCOffset(now)}
 				</div>
 			{/if}
 			<div
@@ -965,9 +1046,9 @@
 
 			<div
 				bind:this={dayContainer}
-				class="flex overflow-x-scroll {desktop.current ? '' : 'scrollbar-hide'} px-[50vw] md:px-0"
+				class="flex overflow-x-scroll {desktop.current ? '' : ''} px-[50vw] md:px-0"
 			>
-				{#if !$metaJson}
+				{#if !$metaJson || !$modelRun}
 					<!-- Loading Skeleton -->
 					{#each Array(7) as _, dayIndex (dayIndex)}
 						<div class="relative flex h-12.5 min-w-42.5 animate-pulse">

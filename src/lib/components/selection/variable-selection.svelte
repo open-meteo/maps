@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
-	import { MediaQuery } from 'svelte/reactivity';
 	import { get } from 'svelte/store';
 
 	import CheckIcon from '@lucide/svelte/icons/check';
@@ -17,7 +16,7 @@
 
 	import { browser } from '$app/environment';
 
-	import { loading, metaJson } from '$lib/stores/preferences';
+	import { desktop, loading, metaJson } from '$lib/stores/preferences';
 	import {
 		domainSelectionOpen as dSO,
 		domain,
@@ -131,7 +130,6 @@
 		if (event.keyCode == 17 || event.keyCode == 91) ctrl = false;
 	};
 
-	const desktop = new MediaQuery('min-width: 768px');
 	onMount(() => {
 		if (desktop.current && typeof get(vSE) === 'undefined') {
 			vSE.set(true);

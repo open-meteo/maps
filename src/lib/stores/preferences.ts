@@ -1,3 +1,4 @@
+import { MediaQuery } from 'svelte/reactivity';
 import { type Writable, writable } from 'svelte/store';
 
 import { setMode } from 'mode-watcher';
@@ -40,7 +41,7 @@ export const time = writable(new Date(now));
 export const modelRun: Writable<Date | undefined> = writable(undefined);
 
 export const sheet = writable(false);
-export const loading = writable(false);
+export const loading = writable(true);
 
 export const tileSize: Persisted<128 | 256 | 512> = persisted('tile_size', 256);
 export const resolution: Persisted<0.5 | 1 | 2> = persisted('resolution', 1);
@@ -107,3 +108,5 @@ export const completeDefaultValues: { [key: string]: boolean | string | number }
 	...defaultPreferences,
 	...defaultVectorOptions
 };
+
+export const desktop = new MediaQuery('min-width: 768px');

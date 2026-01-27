@@ -20,7 +20,6 @@
 	import { map } from '$lib/stores/map';
 	import { defaultColorHash, omProtocolSettings } from '$lib/stores/om-protocol-settings';
 	import {
-		latest,
 		loading,
 		localStorageVersion,
 		metaJson,
@@ -29,6 +28,7 @@
 		resetStates,
 		resolution,
 		resolutionSet,
+		time,
 		url
 	} from '$lib/stores/preferences';
 	import { domain, selectedDomain, selectedVariable, variable } from '$lib/stores/variables';
@@ -52,8 +52,8 @@
 		addOmFileLayers,
 		addPopup,
 		changeOMfileURL,
-		checkClosestDomainInterval,
 		checkHighDefinition,
+		findTimeStep,
 		getInitialMetaData,
 		getMetaData,
 		getStyle,
@@ -63,6 +63,7 @@
 		updateUrl,
 		urlParamsToPreferences
 	} from '$lib';
+	import { formatISOWithoutTimezone } from '$lib/time-format';
 
 	import '../styles.css';
 
@@ -140,13 +141,13 @@
 			$map.addControl(new HelpButton());
 
 			if (getInitialMetaDataPromise) await getInitialMetaDataPromise;
-			$metaJson = $latest;
 
 			addOmFileLayers();
 			addHillshadeSources();
 			$map.addControl(new HillshadeButton());
 
 			addPopup();
+			changeOMfileURL();
 		});
 	});
 
@@ -160,7 +161,13 @@
 		await getInitialMetaDataPromise;
 		$metaJson = await getMetaData();
 
-		checkClosestDomainInterval();
+		const timeSteps = $metaJson?.valid_times.map((validTime: string) => new Date(validTime));
+		const timeStep = findTimeStep($time, timeSteps);
+		// clamp time to valid times in meta data
+		if (timeStep) {
+			$time = timeStep;
+			updateUrl('time', formatISOWithoutTimezone($time));
+		}
 
 		matchVariableOrFirst();
 

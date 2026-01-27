@@ -29,7 +29,7 @@
 		}
 	});
 
-	const desktop = new MediaQuery('min-width: 640px');
+	const smallerDesktop = new MediaQuery('min-width: 640px');
 </script>
 
 <Dialog.Root bind:open={$helpOpen}>
@@ -37,7 +37,7 @@
 		<Dialog.Header>
 			<Dialog.Title class="text-2xl">Help</Dialog.Title>
 		</Dialog.Header>
-		{#if desktop.current}
+		{#if smallerDesktop.current}
 			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 				<div class="flex flex-col">
 					<div class="flex items-center mb-2 gap-1.25 -ml-0.5">

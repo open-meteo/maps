@@ -1,9 +1,6 @@
 import { SvelteDate } from 'svelte/reactivity';
 
-/**
- * Pads a number with leading zeros to ensure 2 digits
- */
-export const pad = (num: number): string => String(num).padStart(2, '0');
+import { pad } from '$lib';
 
 /**
  * Formats a date to display local time (HH:MM)
