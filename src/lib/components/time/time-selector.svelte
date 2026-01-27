@@ -571,23 +571,18 @@
 			if (isScrolling) return;
 
 			const target = e.target as Element;
-			const width = target.getBoundingClientRect().width;
 			const left = target.scrollLeft;
-			const percentage = left / width;
 
 			if (left === 0) {
 				currentDate.setHours(0);
 			}
-			if (percentage) {
-				let timeStep =
-					timeStepsComplete[
-						Math.round(
-							(timeStepsComplete.length * (percentage * hoursHoverContainerWidth)) /
-								(dayContainerScrollWidth - viewWidth)
-						)
-					];
-				currentDate = new SvelteDate(timeStep);
-			}
+			let timeStep =
+				timeStepsComplete[
+					Math.round(
+						(timeStepsComplete.length * target.scrollLeft) / (dayContainerScrollWidth - viewWidth)
+					)
+				];
+			currentDate = new SvelteDate(timeStep);
 		};
 
 		const onScrollEndEvent = () => {
