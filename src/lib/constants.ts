@@ -46,5 +46,7 @@ export const COMPLETE_DEFAULT_VALUES: { [key: string]: boolean | string | number
 export const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 export const MILLISECONDS_PER_HOUR = 60 * 60 * 1000;    // 1 hour in milliseconds
 export const MILLISECONDS_PER_MINUTE = 60 * 1000;    // 1 minute in milliseconds
-
 export const METADATA_REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+// Calendar display constants
+export const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];

@@ -95,7 +95,7 @@
 	<div
 		class="absolute {$preferences.timeSelector && !desktop.current
 			? 'bottom-16.5'
-			: 'bottom-2.5'} duration-500 left-2.5 z-10"
+			: 'bottom-2.5'} duration-500 left-2.5 z-10 select-none"
 		style="max-height: {totalHeight + 100}px;"
 	>
 		<div

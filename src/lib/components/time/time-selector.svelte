@@ -27,6 +27,7 @@
 
 	import { changeOMfileURL, findTimeStep, getMetaData, throttle, updateUrl } from '$lib';
 	import {
+		DAY_NAMES,
 		MILLISECONDS_PER_DAY,
 		MILLISECONDS_PER_HOUR,
 		MILLISECONDS_PER_MINUTE
@@ -51,28 +52,6 @@
 	// Tracks the currently selected date for display and navigation
 	let currentDate = $state(new Date($time));
 
-	// Converts the selected domain's time interval to hours for calculations
-	let timeInterval = $derived.by(() => {
-		let tI = $selectedDomain.time_interval;
-
-		switch (tI) {
-			case '15_minute':
-				return 0.25;
-			case 'hourly':
-				return 1;
-			case '3_hourly':
-				return 3;
-			case '6_hourly':
-				return 6;
-			case '12_hourly':
-				return 12;
-			case 'daily':
-				return 24;
-			default:
-				return 1;
-		}
-	});
-
 	// Converts the selected domain's model interval to hours for calculations
 	let modelInterval = $derived.by(() => {
 		let mI = $selectedDomain.model_interval;
@@ -88,13 +67,12 @@
 				return 12;
 			case 'daily':
 				return 24;
+			case 'monthly':
+				return 720;
 			default:
 				return 1;
 		}
 	});
-
-	// Calculates the pixel width of each day in the calendar based on time interval
-	let dayWidth = $derived(timeInterval === 0.25 ? 340 : 170);
 
 	// Navigate to the previous available time step
 	const previousHour = () => {
@@ -108,10 +86,10 @@
 			// jump to next model run if available
 			if (currentIndex - 1 < 0) {
 				let date = new SvelteDate($time);
-				if (timeInterval === 0.25) {
+				if (metaFirstResolution === 0.25) {
 					date.setUTCMinutes(date.getUTCMinutes() - 15);
 				} else {
-					date.setUTCHours(date.getUTCHours() - timeInterval);
+					date.setUTCHours(date.getUTCHours() - metaFirstResolution);
 				}
 				onDateChange(date);
 			}
@@ -146,10 +124,10 @@
 			if (timeSteps && currentIndex + 1 > timeSteps.length - 1) {
 				if ($modelRun && $modelRun.getTime() < latestReferenceTime.getTime()) {
 					let date = new SvelteDate($time);
-					if (timeInterval === 0.25) {
+					if (metaLastResolution === 0.25) {
 						date.setUTCMinutes(date.getUTCMinutes() + 15);
 					} else {
-						date.setUTCHours(date.getUTCHours() + timeInterval);
+						date.setUTCHours(date.getUTCHours() + metaLastResolution);
 					}
 					onDateChange(date);
 				} else {
@@ -244,6 +222,7 @@
 		// check that requested time is not newer than the last valid_time in the DomainMetaData when MetaData not latest
 		if ($metaJson) {
 			if (timeStep.getTime() > metaLastTime.getTime()) {
+				// latest is last model available
 				if (metaReferenceTime.getTime() >= latestReferenceTime.getTime()) {
 					toast.warning('Date selected too new, using latest available time');
 					time.set(new Date(metaLastTime));
@@ -285,6 +264,7 @@
 				const error = e as Error;
 				toast.warning(error.message);
 				// set to latest
+				$time = new Date(latestReferenceTime);
 				$modelRun = new Date(latestReferenceTime);
 				$metaJson = $latest;
 			}
@@ -354,10 +334,10 @@
 
 	const jumpToCurrentTime = () => {
 		let date = new SvelteDate(now);
-		if (timeInterval === 0.25) {
+		if (metaFirstResolution === 0.25) {
 			date.setUTCMinutes(date.getUTCMinutes() + 15);
 		} else {
-			date.setUTCHours(date.getUTCHours() + timeInterval);
+			date.setUTCHours(date.getUTCHours() + metaFirstResolution);
 		}
 		const timeStep = findTimeStep(date, timeSteps);
 		if (timeStep) date = new SvelteDate(timeStep);
@@ -391,7 +371,6 @@
 	let ctrl = $state(false);
 	const keyDownEvent = (event: KeyboardEvent) => {
 		if (event.keyCode == 17 || event.keyCode == 91) ctrl = true;
-		console.log(metaFirstResolution, metaLastResolution);
 
 		const canNavigate = !($domainSelectionOpen || $variableSelectionOpen);
 		if (!canNavigate) return;
@@ -435,17 +414,16 @@
 		}
 	});
 
-	// constants for calendar display
-	const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
 	const latestReferenceTime = $derived(new Date($latest?.reference_time as string));
 
 	const metaReferenceTime = new Date($metaJson?.reference_time as string);
+
 	const metaFirstTime = $derived(new Date($metaJson?.valid_times[0] as string));
 	const metaFirstResolution = $derived.by(() => {
 		const metaSecondTime = new Date($metaJson?.valid_times[1] as string);
 		return (metaSecondTime.getTime() - metaFirstTime.getTime()) / MILLISECONDS_PER_HOUR;
 	});
+
 	const metaLastTime = $derived(
 		new Date($metaJson?.valid_times[$metaJson?.valid_times.length - 1] as string)
 	);
@@ -455,6 +433,9 @@
 		);
 		return (metaLastTime.getTime() - metaSecondToLastTime.getTime()) / MILLISECONDS_PER_HOUR;
 	});
+
+	// Calculates the pixel width of each day in the calendar based on time interval
+	let dayWidth = $derived(metaFirstResolution === 0.25 ? 340 : 170);
 
 	const timeSteps = $derived(
 		$metaJson?.valid_times.map((validTime: string) => new SvelteDate(validTime))
@@ -497,7 +478,7 @@
 		const timeStepsComplete = [];
 		for (let day of daySteps) {
 			for (let i = 0; i <= 23; i++) {
-				if (timeInterval === 0.25) {
+				if (metaFirstResolution === 0.25) {
 					for (let j = 0; j < 60; j += 15) {
 						timeStepsComplete.push(withLocalTime(day, i, j));
 					}
@@ -541,7 +522,7 @@
 						}
 					}
 				} else {
-					const hourWidth = dayWidth / 24;
+					const hourWidth = metaFirstResolution === 0.25 ? dayWidth / 96 : dayWidth / 24;
 					const left = hourWidth * index;
 					dayContainer.scrollTo({ left: left, behavior: smooth ? 'smooth' : 'instant' });
 				}
@@ -687,7 +668,7 @@
 						(timeStepsComplete.length * target.scrollLeft) / (dayContainerScrollWidth - viewWidth)
 					)
 				];
-			currentDate = new SvelteDate(timeStep);
+			if (timeStep) currentDate = new SvelteDate(timeStep);
 		};
 
 		const onScrollEndEvent = () => {
@@ -795,7 +776,9 @@
 		: ''} {$preferences.timeSelector ? '' : 'pointer-events-none'}"
 >
 	<div
-		class="duration-500 {disabled ? 'pointer-events-none' : ''} {$preferences.timeSelector
+		class="duration-500 select-none {disabled
+			? 'pointer-events-none'
+			: ''} {$preferences.timeSelector
 			? 'opacity-100 translate-y-0'
 			: 'pointer-events-none opacity-0 translate-y-15'}"
 	>
@@ -1070,7 +1053,11 @@
 				{#if !$metaJson || !$modelRun}
 					<!-- Loading Skeleton -->
 					{#each Array(7) as _, dayIndex (dayIndex)}
-						<div class="relative flex h-12.5 min-w-42.5 animate-pulse">
+						<div
+							class="relative flex h-12.5 {metaFirstResolution === 0.25
+								? 'min-w-85'
+								: 'min-w-42.5'} animate-pulse"
+						>
 							<!-- Skeleton Day Label -->
 							<div
 								class="absolute flex mt-3.25 -translate-x-1/2 left-1/2 items-center justify-center text-center flex-col"
@@ -1096,19 +1083,24 @@
 					{/each}
 				{:else}
 					{#each daySteps as dayStep, i (i)}
-						<div class="relative flex h-12.5 min-w-42.5 select-none">
+						<div
+							class="relative flex h-12.5 {metaFirstResolution === 0.25
+								? 'min-w-85'
+								: 'min-w-42.5'}"
+						>
 							<!-- Day Names -->
 							<div
 								class="absolute flex mt-3.25 -translate-x-1/2 left-1/2 items-center justify-center text-center flex-col"
 							>
-								<div class="">{dayNames[dayStep.getDay()]}</div>
+								<div class="">{DAY_NAMES[dayStep.getDay()]}</div>
 								<small class="-mt-2">{formatLocalDate(dayStep)}</small>
 							</div>
 							{#if dayStep.getDate() === now.getDate()}
 								<div
 									style="left: {dayWidth *
 										((now.getTime() - dayStep.getTime()) /
-											MILLISECONDS_PER_DAY)}px; width: calc({dayWidth}px/{timeInterval === 0.25
+											MILLISECONDS_PER_DAY)}px; width: calc({dayWidth}px/{metaFirstResolution ===
+									0.25
 										? 72
 										: 24});"
 									class="absolute h-4.5 border-orange-500 z-20 border-l-2"
@@ -1120,16 +1112,16 @@
 								{#each timeStepsComplete as timeStep, j (j)}
 									{#if timeStep.getTime() >= dayStep.getTime() && timeStep.getTime() < dayStep.getTime() + MILLISECONDS_PER_DAY}
 										<div
-											style="width: calc({dayWidth}px/{timeInterval === 0.25 ? 96 : 24});"
-											class="h-1.25 {timeInterval !== 0.25 && j % 12 === 0 && j !== 0
+											style="width: calc({dayWidth}px/{metaFirstResolution === 0.25 ? 96 : 24});"
+											class="h-1.25 {metaFirstResolution !== 0.25 && j % 12 === 0 && j !== 0
 												? 'h-3.25'
-												: ''} {timeInterval !== 0.25 && j % 3 === 0
+												: ''} {metaFirstResolution !== 0.25 && j % 3 === 0
 												? 'h-2.5'
-												: ''} {timeInterval !== 0.25 && j % 24 === 0 && j !== 0
+												: ''} {metaFirstResolution !== 0.25 && j % 24 === 0 && j !== 0
 												? 'h-6'
-												: ''} {timeInterval === 0.25 && j % 4 === 0
+												: ''} {metaFirstResolution === 0.25 && j % 4 === 0
 												? 'h-2.5'
-												: ''} {timeInterval === 0.25 && j % 16 === 0 && j !== 0
+												: ''} {metaFirstResolution === 0.25 && j % 16 === 0 && j !== 0
 												? 'h-3.25'
 												: ''} border-l-2
 												{!timeSteps?.find((tS) => timeStep.getTime() === tS.getTime()) ? 'border-foreground/20' : ''}"
