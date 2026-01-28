@@ -9,6 +9,7 @@
 		omProtocol,
 		updateCurrentBounds
 	} from '@openmeteo/mapbox-layer';
+	import ShadeMap from 'mapbox-gl-shadow-simulator';
 	import { type RequestParameters } from 'maplibre-gl';
 	import * as maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
@@ -142,8 +143,29 @@
 			if (getInitialMetaDataPromise) await getInitialMetaDataPromise;
 
 			addOmFileLayers();
+
 			addHillshadeSources();
 			$map.addControl(new HillshadeButton());
+
+			const shadeMap = new ShadeMap({
+				date: new Date(), // display shadows for current date
+				color: '#01112f', // shade color
+				opacity: 0.7, // opacity of shade color
+				apiKey: '',
+				terrainSource: {
+					tileSize: 256,
+					maxZoom: 15,
+					getSourceUrl: ({ x, y, z }) => {
+						return `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`;
+					},
+					getElevation: ({ r, g, b, a }) => {
+						return r * 256 + g + b / 256 - 32768;
+					}
+				},
+				debug: (msg) => {
+					console.log(new Date().toISOString(), msg);
+				}
+			}).addTo($map);
 
 			addPopup();
 			changeOMfileURL();
