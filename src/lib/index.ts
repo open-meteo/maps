@@ -18,11 +18,6 @@ import { toast } from 'svelte-sonner';
 import { browser } from '$app/environment';
 import { pushState } from '$app/navigation';
 
-import {
-	BEFORE_LAYER_RASTER,
-	BEFORE_LAYER_VECTOR,
-	BEFORE_LAYER_VECTOR_WATER_CLIP
-} from '$lib/constants';
 import { map as m } from '$lib/stores/map';
 import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 import {
@@ -43,6 +38,12 @@ import {
 } from '$lib/stores/preferences';
 import { domain as d, selectedDomain, variable as v } from '$lib/stores/variables';
 import { vectorOptions as vO } from '$lib/stores/vector';
+
+import {
+	BEFORE_LAYER_RASTER,
+	BEFORE_LAYER_VECTOR,
+	BEFORE_LAYER_VECTOR_WATER_CLIP
+} from '$lib/constants';
 
 import { formatISOWithoutTimezone } from './time-format';
 
@@ -714,7 +715,7 @@ export const addPopup = () => {
 	if (!map) return;
 
 	const updatePopup = (e: maplibregl.MapMouseEvent) => {
-		if (!showPopup) return;
+		if (!showPopup || !map) return;
 
 		const coordinates = e.lngLat;
 		if (!popup) {
@@ -750,6 +751,7 @@ export const addPopup = () => {
 
 	map.on('mousemove', updatePopup);
 	map.on('click', (e: maplibregl.MapMouseEvent) => {
+		if (!map) return;
 		showPopup = !showPopup;
 		if (!showPopup && popup) {
 			popup.remove();
@@ -875,7 +877,7 @@ export const updateUrl = async (
 
 	await tick();
 	try {
-		pushState(url + map._hash.getHashString(), {});
+		if (map) pushState(url + map._hash.getHashString(), {});
 	} catch {
 		pushState(url, {});
 	}
