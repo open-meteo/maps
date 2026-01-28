@@ -1,6 +1,6 @@
 import { SvelteDate } from 'svelte/reactivity';
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
 	formatISOWithoutTimezone,
@@ -12,16 +12,25 @@ import {
 	formatUTCOffset,
 	formatUTCTime,
 	isValidTimeStep,
+	parseISOWithoutTimezone,
 	startOfLocalDay,
 	withLocalTime
 } from '$lib/time-format';
 
 describe('formatLocalTime', () => {
-	it('should format time in local timezone', () => {
-		const date = new Date('2026-01-23T14:30:00Z');
+	beforeEach(() => {
+		// Mock timezone to UTC+1 (CET) by setting TZ environment variable
+		vi.stubEnv('TZ', 'Europe/Berlin');
+	});
+
+	afterEach(() => {
+		vi.unstubAllEnvs();
+	});
+
+	it('should format time in UTC+1 timezone', () => {
+		const date = new Date('2026-01-23T14:30:00Z'); // 14:30 UTC = 15:30 CET
 		const result = formatLocalTime(date);
-		// Result depends on local timezone, but should be in HH:MM format
-		expect(result).toMatch(/^\d{2}:\d{2}$/);
+		expect(result).toBe('15:30');
 	});
 
 	it('should pad single digits', () => {
@@ -305,87 +314,173 @@ describe('formatISOWithoutTimezone', () => {
 	});
 });
 
+describe('parseISOWithoutTimezone', () => {
+	it('should parse ISO string to Date object', () => {
+		const isoString = '2026-01-23T1430';
+		const result = parseISOWithoutTimezone(isoString);
+		expect(result).toBeInstanceOf(Date);
+		expect(result.getUTCFullYear()).toBe(2026);
+		expect(result.getUTCMonth()).toBe(0); // January is 0
+		expect(result.getUTCDate()).toBe(23);
+		expect(result.getUTCHours()).toBe(14);
+		expect(result.getUTCMinutes()).toBe(30);
+	});
+
+	it('should parse midnight correctly', () => {
+		const isoString = '2026-01-23T0000';
+		const result = parseISOWithoutTimezone(isoString);
+		expect(result.getUTCHours()).toBe(0);
+		expect(result.getUTCMinutes()).toBe(0);
+	});
+
+	it('should parse end of day correctly', () => {
+		const isoString = '2026-01-23T2359';
+		const result = parseISOWithoutTimezone(isoString);
+		expect(result.getUTCHours()).toBe(23);
+		expect(result.getUTCMinutes()).toBe(59);
+	});
+
+	it('should parse single digit hours and minutes with padding', () => {
+		const isoString = '2026-12-31T0105';
+		const result = parseISOWithoutTimezone(isoString);
+		expect(result.getUTCFullYear()).toBe(2026);
+		expect(result.getUTCMonth()).toBe(11); // December is 11
+		expect(result.getUTCDate()).toBe(31);
+		expect(result.getUTCHours()).toBe(1);
+		expect(result.getUTCMinutes()).toBe(5);
+	});
+
+	it('should be inverse of formatISOWithoutTimezone', () => {
+		const originalDate = new Date('2026-01-23T14:30:00Z');
+		const isoString = formatISOWithoutTimezone(originalDate);
+		const parsedDate = parseISOWithoutTimezone(isoString);
+		expect(parsedDate.getTime()).toBe(
+			Date.UTC(
+				originalDate.getUTCFullYear(),
+				originalDate.getUTCMonth(),
+				originalDate.getUTCDate(),
+				originalDate.getUTCHours(),
+				originalDate.getUTCMinutes(),
+				0,
+				0
+			)
+		);
+	});
+
+	it('should throw error for invalid string length', () => {
+		expect(() => parseISOWithoutTimezone('2026-01-23')).toThrow(
+			'Invalid ISO string format. Expected format: YYYY-MM-DDTHHMM'
+		);
+		expect(() => parseISOWithoutTimezone('2026-01-23T14:30:00')).toThrow(
+			'Invalid ISO string format. Expected format: YYYY-MM-DDTHHMM'
+		);
+	});
+
+	it('should throw error for empty string', () => {
+		expect(() => parseISOWithoutTimezone('')).toThrow(
+			'Invalid ISO string format. Expected format: YYYY-MM-DDTHHMM'
+		);
+	});
+
+	it('should throw error for invalid month', () => {
+		expect(() => parseISOWithoutTimezone('2026-13-23T1430')).toThrow(
+			'Invalid date values in ISO string'
+		);
+		expect(() => parseISOWithoutTimezone('2026-00-23T1430')).toThrow(
+			'Invalid date values in ISO string'
+		);
+	});
+
+	it('should throw error for invalid day', () => {
+		expect(() => parseISOWithoutTimezone('2026-01-32T1430')).toThrow(
+			'Invalid date values in ISO string'
+		);
+		expect(() => parseISOWithoutTimezone('2026-01-00T1430')).toThrow(
+			'Invalid date values in ISO string'
+		);
+	});
+
+	it('should throw error for invalid hour', () => {
+		expect(() => parseISOWithoutTimezone('2026-01-23T2430')).toThrow(
+			'Invalid date values in ISO string'
+		);
+	});
+
+	it('should throw error for invalid minute', () => {
+		expect(() => parseISOWithoutTimezone('2026-01-23T1460')).toThrow(
+			'Invalid date values in ISO string'
+		);
+	});
+
+	it('should throw error for non-numeric values', () => {
+		expect(() => parseISOWithoutTimezone('XXXX-XX-XXTXXXX')).toThrow(
+			'Invalid date values in ISO string'
+		);
+	});
+});
+
 describe('formatUTCOffset', () => {
 	it('should format UTC+0 offset', () => {
-		// Create a date with UTC offset of 0 (Coordinated Universal Time)
+		vi.stubEnv('TZ', 'UTC');
 		const date = new Date('2026-01-23T14:30:00Z');
-		// Mock timezone offset
-		const originalOffset = date.getTimezoneOffset;
-		date.getTimezoneOffset = () => 0;
 		const result = formatUTCOffset(date);
 		expect(result).toBe('+00:00');
-		date.getTimezoneOffset = originalOffset;
+		vi.unstubAllEnvs();
 	});
 
 	it('should format positive UTC offset (UTC+1)', () => {
-		const date = new Date();
-		const originalOffset = date.getTimezoneOffset;
-		date.getTimezoneOffset = () => -60; // UTC+1 has offset of -60 minutes
+		vi.stubEnv('TZ', 'Europe/Berlin');
+		const date = new Date('2026-01-23T14:30:00Z');
 		const result = formatUTCOffset(date);
 		expect(result).toBe('+01:00');
-		date.getTimezoneOffset = originalOffset;
+		vi.unstubAllEnvs();
 	});
 
 	it('should format positive UTC offset with minutes (UTC+5:30)', () => {
-		const date = new Date();
-		const originalOffset = date.getTimezoneOffset;
-		date.getTimezoneOffset = () => -330; // UTC+5:30 has offset of -330 minutes
+		vi.stubEnv('TZ', 'Asia/Kolkata');
+		const date = new Date('2026-01-23T14:30:00Z');
 		const result = formatUTCOffset(date);
 		expect(result).toBe('+05:30');
-		date.getTimezoneOffset = originalOffset;
+		vi.unstubAllEnvs();
 	});
 
 	it('should format negative UTC offset (UTC-5)', () => {
-		const date = new Date();
-		const originalOffset = date.getTimezoneOffset;
-		date.getTimezoneOffset = () => 300; // UTC-5 has offset of 300 minutes
+		vi.stubEnv('TZ', 'America/New_York');
+		const date = new Date('2026-01-23T14:30:00Z');
 		const result = formatUTCOffset(date);
 		expect(result).toBe('-05:00');
-		date.getTimezoneOffset = originalOffset;
+		vi.unstubAllEnvs();
 	});
 
 	it('should format negative UTC offset with minutes (UTC-3:30)', () => {
-		const date = new Date();
-		const originalOffset = date.getTimezoneOffset;
-		date.getTimezoneOffset = () => 210; // UTC-3:30 has offset of 210 minutes
+		vi.stubEnv('TZ', 'America/St_Johns');
+		const date = new Date('2026-01-23T14:30:00Z');
 		const result = formatUTCOffset(date);
 		expect(result).toBe('-03:30');
-		date.getTimezoneOffset = originalOffset;
+		vi.unstubAllEnvs();
 	});
 
 	it('should format large positive offset (UTC+12)', () => {
-		const date = new Date();
-		const originalOffset = date.getTimezoneOffset;
-		date.getTimezoneOffset = () => -720; // UTC+12 has offset of -720 minutes
+		vi.stubEnv('TZ', 'Pacific/Auckland');
+		const date = new Date('2026-01-23T14:30:00Z');
 		const result = formatUTCOffset(date);
-		expect(result).toBe('+12:00');
-		date.getTimezoneOffset = originalOffset;
+		expect(result).toBe('+13:00'); // New Zealand is UTC+13 in summer (NZDT)
+		vi.unstubAllEnvs();
 	});
 
-	it('should format large negative offset (UTC-12)', () => {
-		const date = new Date();
-		const originalOffset = date.getTimezoneOffset;
-		date.getTimezoneOffset = () => 720; // UTC-12 has offset of 720 minutes
+	it('should format large negative offset (UTC-10)', () => {
+		vi.stubEnv('TZ', 'Pacific/Honolulu');
+		const date = new Date('2026-01-23T14:30:00Z');
 		const result = formatUTCOffset(date);
-		expect(result).toBe('-12:00');
-		date.getTimezoneOffset = originalOffset;
+		expect(result).toBe('-10:00');
+		vi.unstubAllEnvs();
 	});
 
-	it('should pad hours and minutes with leading zeros', () => {
-		const date = new Date();
-		const originalOffset = date.getTimezoneOffset;
-		date.getTimezoneOffset = () => -45; // UTC+0:45
+	it('should format Tokyo timezone (UTC+9)', () => {
+		vi.stubEnv('TZ', 'Asia/Tokyo');
+		const date = new Date('2026-01-23T14:30:00Z');
 		const result = formatUTCOffset(date);
-		expect(result).toBe('+00:45');
-		date.getTimezoneOffset = originalOffset;
-	});
-
-	it('should return a string in format ±HH:MM', () => {
-		const date = new Date();
-		const originalOffset = date.getTimezoneOffset;
-		date.getTimezoneOffset = () => -90; // UTC+1:30
-		const result = formatUTCOffset(date);
-		expect(result).toMatch(/^[+-]\d{2}:\d{2}$/);
-		date.getTimezoneOffset = originalOffset;
+		expect(result).toBe('+09:00');
+		vi.unstubAllEnvs();
 	});
 });

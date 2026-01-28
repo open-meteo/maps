@@ -190,5 +190,4 @@ describe('findTimeStep', () => {
 
 		expect(result?.getTime()).toBe(timeSteps[2].getTime());
 	});
-
 });

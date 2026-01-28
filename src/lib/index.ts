@@ -13,6 +13,7 @@ import {
 } from '@openmeteo/mapbox-layer';
 import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
+import { parse } from 'node:path';
 import { toast } from 'svelte-sonner';
 
 import { browser } from '$app/environment';
@@ -45,7 +46,7 @@ import {
 	BEFORE_LAYER_VECTOR_WATER_CLIP
 } from '$lib/constants';
 
-import { formatISOWithoutTimezone } from './time-format';
+import { formatISOWithoutTimezone, parseISOWithoutTimezone } from './time-format';
 
 import type { Domain, DomainMetaDataJson } from '@openmeteo/mapbox-layer';
 
@@ -109,24 +110,16 @@ export const urlParamsToPreferences = () => {
 
 	const urlModelTime = params.get('model_run');
 	if (urlModelTime && urlModelTime.length == 15) {
-		const year = parseInt(urlModelTime.slice(0, 4));
-		const month = parseInt(urlModelTime.slice(5, 7)) - 1;
-		const day = parseInt(urlModelTime.slice(8, 10));
-		const hour = parseInt(urlModelTime.slice(11, 13));
-		const minute = parseInt(urlModelTime.slice(13, 15));
+		const parsedModelTime = parseISOWithoutTimezone(urlModelTime);
 		// Parse Date from UTC components (urlTime is in UTC)
-		mR.set(new SvelteDate(Date.UTC(year, month, day, hour, minute, 0, 0)));
+		mR.set(parsedModelTime);
 	}
 
 	const urlTime = params.get('time');
 	if (urlTime && urlTime.length == 15) {
-		const year = parseInt(urlTime.slice(0, 4));
-		const month = parseInt(urlTime.slice(5, 7)) - 1;
-		const day = parseInt(urlTime.slice(8, 10));
-		const hour = parseInt(urlTime.slice(11, 13));
-		const minute = parseInt(urlTime.slice(13, 15));
+		const parsedUrlTime = parseISOWithoutTimezone(urlTime);
 		// Parse Date from UTC components (urlTime is in UTC)
-		time.set(new SvelteDate(Date.UTC(year, month, day, hour, minute, 0, 0)));
+		time.set(parsedUrlTime);
 	}
 
 	if (params.get('globe')) {

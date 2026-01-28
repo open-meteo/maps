@@ -97,6 +97,44 @@ export const formatISOWithoutTimezone = (date: Date): string =>
 	date.toISOString().replace(/[:Z]/g, '').slice(0, 15);
 
 /**
+ * Parses an ISO format string without timezone to a Date object
+ * @param isoString - ISO format string (YYYY-MM-DDTHHMM, e.g., "2026-01-23T1430")
+ * @returns Date object in UTC timezone
+ * @throws Error if the string format is invalid
+ */
+export const parseISOWithoutTimezone = (isoString: string): Date => {
+	if (!isoString || isoString.length !== 15) {
+		throw new Error('Invalid ISO string format. Expected format: YYYY-MM-DDTHHMM');
+	}
+
+	const year = parseInt(isoString.slice(0, 4), 10);
+	const month = parseInt(isoString.slice(5, 7), 10);
+	const day = parseInt(isoString.slice(8, 10), 10);
+	const hour = parseInt(isoString.slice(11, 13), 10);
+	const minute = parseInt(isoString.slice(13, 15), 10);
+
+	if (
+		isNaN(year) ||
+		isNaN(month) ||
+		isNaN(day) ||
+		isNaN(hour) ||
+		isNaN(minute) ||
+		month < 1 ||
+		month > 12 ||
+		day < 1 ||
+		day > 31 ||
+		hour < 0 ||
+		hour > 23 ||
+		minute < 0 ||
+		minute > 59
+	) {
+		throw new Error('Invalid date values in ISO string');
+	}
+
+	return new Date(Date.UTC(year, month - 1, day, hour, minute, 0, 0));
+};
+
+/**
  * Formats the UTC offset for a given date
  * @param date - The date to format
  * @returns UTC offset string in ±HH:MM format (e.g., "+05:30", "-08:00")
