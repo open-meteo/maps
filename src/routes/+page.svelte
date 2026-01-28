@@ -63,7 +63,7 @@
 		updateUrl,
 		urlParamsToPreferences
 	} from '$lib';
-	import { METADATA_REFRESH_INTERVAL_MS } from '$lib/constants';
+	import { METADATA_REFRESH_INTERVAL } from '$lib/constants';
 	import { formatISOWithoutTimezone } from '$lib/time-format';
 
 	import '../styles.css';
@@ -187,7 +187,7 @@
 	onMount(() => {
 		metaDataInterval = setInterval(() => {
 			getInitialMetaData();
-		}, METADATA_REFRESH_INTERVAL_MS);
+		}, METADATA_REFRESH_INTERVAL);
 	});
 
 	onDestroy(() => {

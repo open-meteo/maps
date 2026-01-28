@@ -30,7 +30,8 @@
 		DAY_NAMES,
 		MILLISECONDS_PER_DAY,
 		MILLISECONDS_PER_HOUR,
-		MILLISECONDS_PER_MINUTE
+		MILLISECONDS_PER_MINUTE,
+		MILLISECONDS_PER_WEEK
 	} from '$lib/constants';
 	import {
 		formatISOWithoutTimezone,
@@ -188,7 +189,7 @@
 			centerDateButton(date);
 		} else {
 			if ($modelRun && $modelRun.getTime() < latestReferenceTime.getTime()) {
-				onDateChange(date); // overshoots...
+				onDateChange(date);
 			} else {
 				toast.warning('Already on latest timestep');
 			}
@@ -206,7 +207,7 @@
 		// other than seasonal models, data is not available longer than 7 days
 		if ($selectedDomain.model_interval !== 'monthly') {
 			// check that requested timeStep is not older than 7 days
-			const date7DaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+			const date7DaysAgo = Date.now() - MILLISECONDS_PER_WEEK;
 			if (timeStep.getTime() < date7DaysAgo) {
 				toast.warning('Date selected too old, using 7 days ago time');
 				const nowTimeStep = domainStep(

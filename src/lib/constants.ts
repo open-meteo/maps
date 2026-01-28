@@ -43,10 +43,14 @@ export const COMPLETE_DEFAULT_VALUES: { [key: string]: boolean | string | number
 };
 
 // Time constants
-export const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-export const MILLISECONDS_PER_HOUR = 60 * 60 * 1000;    // 1 hour in milliseconds
-export const MILLISECONDS_PER_MINUTE = 60 * 1000;    // 1 minute in milliseconds
-export const METADATA_REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes in milliseconds
+export const MILLISECONDS_PER_SECOND = 1000; // 1 second in milliseconds
+export const MILLISECONDS_PER_MINUTE = 60 * MILLISECONDS_PER_SECOND; // 1 minute in milliseconds
+export const MILLISECONDS_PER_HOUR = 60 * MILLISECONDS_PER_MINUTE; // 1 hour in milliseconds
+export const MILLISECONDS_PER_DAY = 24 * MILLISECONDS_PER_HOUR; // 1 day in milliseconds
+export const MILLISECONDS_PER_WEEK = 7 * MILLISECONDS_PER_DAY; // 7 days in milliseconds
+
+// Metadata refresh interval
+export const METADATA_REFRESH_INTERVAL = 5 * MILLISECONDS_PER_MINUTE; // 5 minutes in milliseconds
 
 // Calendar display constants
 export const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
