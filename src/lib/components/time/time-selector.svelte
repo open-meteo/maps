@@ -250,7 +250,7 @@
 		}
 
 		if (!$modelRunLocked && $modelRun && setToModelRun.getTime() !== $modelRun.getTime()) {
-			$modelRun = setToModelRun;
+			$modelRun = new Date(setToModelRun);
 			try {
 				$metaJson = await getMetaData();
 			} catch (e) {
@@ -291,7 +291,7 @@
 		$time = new SvelteDate(date);
 		currentDate = date;
 		updateUrl('time', formatISOWithoutTimezone($time));
-		checkClosestModelRun();
+		await checkClosestModelRun();
 		changeOMfileURL();
 	};
 
@@ -395,7 +395,7 @@
 
 	const latestReferenceTime = $derived(new Date($latest?.reference_time as string));
 
-	const metaReferenceTime = new Date($metaJson?.reference_time as string);
+	const metaReferenceTime = $derived(new Date($metaJson?.reference_time as string));
 
 	const metaFirstTime = $derived(new Date($metaJson?.valid_times[0] as string));
 	const metaFirstResolution = $derived.by(() => {

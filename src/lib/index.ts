@@ -110,14 +110,12 @@ export const urlParamsToPreferences = () => {
 	const urlModelTime = params.get('model_run');
 	if (urlModelTime && urlModelTime.length == 15) {
 		const parsedModelTime = parseISOWithoutTimezone(urlModelTime);
-		// Parse Date from UTC components (urlTime is in UTC)
 		mR.set(parsedModelTime);
 	}
 
 	const urlTime = params.get('time');
 	if (urlTime && urlTime.length == 15) {
 		const parsedUrlTime = parseISOWithoutTimezone(urlTime);
-		// Parse Date from UTC components (urlTime is in UTC)
 		time.set(parsedUrlTime);
 	}
 
