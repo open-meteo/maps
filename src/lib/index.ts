@@ -13,7 +13,6 @@ import {
 } from '@openmeteo/mapbox-layer';
 import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
-import { parse } from 'node:path';
 import { toast } from 'svelte-sonner';
 
 import { browser } from '$app/environment';
@@ -46,7 +45,7 @@ import {
 	BEFORE_LAYER_VECTOR_WATER_CLIP
 } from '$lib/constants';
 
-import { formatISOWithoutTimezone, parseISOWithoutTimezone } from './time-format';
+import { parseISOWithoutTimezone } from './time-format';
 
 import type { Domain, DomainMetaDataJson } from '@openmeteo/mapbox-layer';
 
