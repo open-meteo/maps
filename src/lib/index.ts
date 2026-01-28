@@ -18,6 +18,11 @@ import { toast } from 'svelte-sonner';
 import { browser } from '$app/environment';
 import { pushState } from '$app/navigation';
 
+import {
+	BEFORE_LAYER_RASTER,
+	BEFORE_LAYER_VECTOR,
+	BEFORE_LAYER_VECTOR_WATER_CLIP
+} from '$lib/constants';
 import { map as m } from '$lib/stores/map';
 import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 import {
@@ -70,9 +75,9 @@ vO.subscribe((newVectorOptions) => {
 	vectorOptions = newVectorOptions;
 });
 
-const beforeLayerRaster = 'waterway-tunnel';
-const beforeLayerVector = 'place_label_other';
-const beforeLayerVectorWaterClip = 'water-clip';
+const beforeLayerRaster = BEFORE_LAYER_RASTER;
+const beforeLayerVector = BEFORE_LAYER_VECTOR;
+const beforeLayerVectorWaterClip = BEFORE_LAYER_VECTOR_WATER_CLIP;
 
 const now = new SvelteDate();
 now.setHours(now.getHours() + 1, 0, 0, 0);

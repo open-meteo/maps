@@ -9,10 +9,12 @@ import {
 } from '@openmeteo/mapbox-layer';
 import { type Persisted, persisted } from 'svelte-persisted-store';
 
-export const defaultDomain = 'dwd_icon';
+import { DEFAULT_DOMAIN, DEFAULT_VARIABLE } from '$lib/constants';
+
+export const defaultDomain = DEFAULT_DOMAIN;
 export const domain = persisted('domain', defaultDomain);
 
-export const defaultVariable = 'temperature_2m';
+export const defaultVariable = DEFAULT_VARIABLE;
 export const variable = persisted('variable', defaultVariable);
 
 export const selectedDomain = derived(domain, ($domain) => {
@@ -39,16 +41,16 @@ export const selectedVariable = derived(variable, ($variable) => {
 export const levelGroupSelected: Writable<{ value: string; label: string } | undefined> = writable(
 	get(selectedVariable).value.match(LEVEL_REGEX)
 		? (variableOptions.find(
-				({ value }) => value === get(selectedVariable).value.match(LEVEL_PREFIX)?.groups?.prefix
-			) ?? undefined)
+			({ value }) => value === get(selectedVariable).value.match(LEVEL_PREFIX)?.groups?.prefix
+		) ?? undefined)
 		: undefined
 );
 selectedVariable.subscribe((newVariable) => {
 	levelGroupSelected.set(
 		newVariable.value.match(LEVEL_REGEX)
 			? (variableOptions.find(
-					({ value }) => value === newVariable.value.match(LEVEL_PREFIX)?.groups?.prefix
-				) ?? undefined)
+				({ value }) => value === newVariable.value.match(LEVEL_PREFIX)?.groups?.prefix
+			) ?? undefined)
 			: undefined
 	);
 });

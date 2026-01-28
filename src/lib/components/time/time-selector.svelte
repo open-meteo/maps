@@ -27,6 +27,11 @@
 
 	import { changeOMfileURL, findTimeStep, getMetaData, throttle, updateUrl } from '$lib';
 	import {
+		MILLISECONDS_PER_DAY,
+		MILLISECONDS_PER_HOUR,
+		MILLISECONDS_PER_MINUTE
+	} from '$lib/constants';
+	import {
 		formatISOWithoutTimezone,
 		formatLocalDate,
 		formatLocalTime,
@@ -238,13 +243,11 @@
 
 		// check that requested time is not newer than the last valid_time in the DomainMetaData when MetaData not latest
 		if ($metaJson) {
-			const metaTimeStep = new Date(metaLastTime);
-
-			if (timeStep.getTime() > metaTimeStep.getTime()) {
+			if (timeStep.getTime() > metaLastTime.getTime()) {
 				if (metaReferenceTime.getTime() >= latestReferenceTime.getTime()) {
 					toast.warning('Date selected too new, using latest available time');
-					time.set(metaTimeStep);
-					timeStep = metaTimeStep;
+					time.set(new Date(metaLastTime));
+					timeStep = new Date(metaLastTime);
 				}
 			}
 		}
@@ -276,7 +279,15 @@
 
 		if (!$modelRunLocked && $modelRun && setToModelRun.getTime() !== $modelRun.getTime()) {
 			$modelRun = setToModelRun;
-			$metaJson = await getMetaData();
+			try {
+				$metaJson = await getMetaData();
+			} catch (e) {
+				const error = e as Error;
+				toast.warning(error.message);
+				// set to latest
+				$modelRun = new Date(latestReferenceTime);
+				$metaJson = $latest;
+			}
 			if ($modelRun.getTime() !== latestReferenceTime.getTime()) {
 				updateUrl('model_run', formatISOWithoutTimezone($modelRun));
 			} else {
@@ -333,7 +344,7 @@
 		} else {
 			updateUrl('model_run', undefined);
 		}
-		// toast.info('Model run set to: ' + formatISOWithoutTimezone($modelRun));
+
 		await tick();
 		if (dayContainer) {
 			dayContainerScrollLeft = dayContainer.scrollLeft;
@@ -380,6 +391,7 @@
 	let ctrl = $state(false);
 	const keyDownEvent = (event: KeyboardEvent) => {
 		if (event.keyCode == 17 || event.keyCode == 91) ctrl = true;
+		console.log(metaFirstResolution, metaLastResolution);
 
 		const canNavigate = !($domainSelectionOpen || $variableSelectionOpen);
 		if (!canNavigate) return;
@@ -397,7 +409,8 @@
 		const action = actions[event.key];
 		if (!action) return;
 
-		if (!disabled) {
+		// check if loading
+		if (!disabled || ['m'].includes(event.key)) {
 			action();
 		} else {
 			toast.warning('Still loading another OM file');
@@ -424,15 +437,24 @@
 
 	// constants for calendar display
 	const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-	const millisecondsPerDay = 24 * 60 * 60 * 1000;
 
 	const latestReferenceTime = $derived(new Date($latest?.reference_time as string));
 
 	const metaReferenceTime = new Date($metaJson?.reference_time as string);
 	const metaFirstTime = $derived(new Date($metaJson?.valid_times[0] as string));
+	const metaFirstResolution = $derived.by(() => {
+		const metaSecondTime = new Date($metaJson?.valid_times[1] as string);
+		return (metaSecondTime.getTime() - metaFirstTime.getTime()) / MILLISECONDS_PER_HOUR;
+	});
 	const metaLastTime = $derived(
 		new Date($metaJson?.valid_times[$metaJson?.valid_times.length - 1] as string)
 	);
+	const metaLastResolution = $derived.by(() => {
+		const metaSecondToLastTime = new Date(
+			$metaJson?.valid_times[$metaJson?.valid_times.length - 2] as string
+		);
+		return (metaLastTime.getTime() - metaSecondToLastTime.getTime()) / MILLISECONDS_PER_HOUR;
+	});
 
 	const timeSteps = $derived(
 		$metaJson?.valid_times.map((validTime: string) => new SvelteDate(validTime))
@@ -579,7 +601,7 @@
 		if (updateNowInterval) clearInterval(updateNowInterval);
 		updateNowInterval = setInterval(() => {
 			now = new Date();
-		}, 60 * 1000);
+		}, MILLISECONDS_PER_MINUTE);
 
 		if (hoursHoverContainer) {
 			hoursHoverContainer.addEventListener('mousemove', (e) => {
@@ -1086,7 +1108,7 @@
 								<div
 									style="left: {dayWidth *
 										((now.getTime() - dayStep.getTime()) /
-											millisecondsPerDay)}px; width: calc({dayWidth}px/{timeInterval === 0.25
+											MILLISECONDS_PER_DAY)}px; width: calc({dayWidth}px/{timeInterval === 0.25
 										? 72
 										: 24});"
 									class="absolute h-4.5 border-orange-500 z-20 border-l-2"
@@ -1096,7 +1118,7 @@
 							<!-- Hour / 15 Minutes Lines -->
 							<div class="flex mt-1 ml-0 pointer-events-none {i === 0 ? 'justify-self-end' : ''}">
 								{#each timeStepsComplete as timeStep, j (j)}
-									{#if timeStep.getTime() >= dayStep.getTime() && timeStep.getTime() < dayStep.getTime() + millisecondsPerDay}
+									{#if timeStep.getTime() >= dayStep.getTime() && timeStep.getTime() < dayStep.getTime() + MILLISECONDS_PER_DAY}
 										<div
 											style="width: calc({dayWidth}px/{timeInterval === 0.25 ? 96 : 24});"
 											class="h-1.25 {timeInterval !== 0.25 && j % 12 === 0 && j !== 0
