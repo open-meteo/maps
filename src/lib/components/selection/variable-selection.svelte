@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
-	import { MediaQuery } from 'svelte/reactivity';
 	import { get } from 'svelte/store';
 
 	import CheckIcon from '@lucide/svelte/icons/check';
@@ -14,10 +13,11 @@
 		levelGroupVariables,
 		variableOptions
 	} from '@openmeteo/mapbox-layer';
+	import { toast } from 'svelte-sonner';
 
 	import { browser } from '$app/environment';
 
-	import { loading, metaJson } from '$lib/stores/preferences';
+	import { desktop, loading, metaJson } from '$lib/stores/preferences';
 	import {
 		domainSelectionOpen as dSO,
 		domain,
@@ -105,7 +105,9 @@
 		variableSelectionExtended = vE;
 	});
 
-	const keydownEvent = (event: KeyboardEvent) => {
+	let ctrl = $state(false);
+	const keyDownEvent = (event: KeyboardEvent) => {
+		if (event.keyCode == 17 || event.keyCode == 91) ctrl = true;
 		if (
 			variableSelectionExtended &&
 			!variableSelectionOpen &&
@@ -114,32 +116,39 @@
 		) {
 			switch (event.key) {
 				case 'v':
-					vSO.set(true);
+					if (!ctrl) vSO.set(true);
 					break;
 				case 'd':
-					dSO.set(true);
+					if (!ctrl) dSO.set(true);
 					break;
 				case 'l':
-					pLSO.set(true);
+					if (!ctrl) pLSO.set(true);
+					break;
+				case 'Escape':
+					toast.dismiss();
 					break;
 			}
 		}
 	};
+	const keyUpEvent = (event: KeyboardEvent) => {
+		if (event.keyCode == 17 || event.keyCode == 91) ctrl = false;
+	};
 
-	const desktop = new MediaQuery('min-width: 768px');
 	onMount(() => {
 		if (desktop.current && typeof get(vSE) === 'undefined') {
 			vSE.set(true);
 		}
 
 		if (browser) {
-			window.addEventListener('keydown', keydownEvent);
+			window.addEventListener('keydown', keyDownEvent);
+			window.addEventListener('keyup', keyUpEvent);
 		}
 	});
 
 	onDestroy(() => {
 		if (browser) {
-			window.removeEventListener('keydown', keydownEvent);
+			window.removeEventListener('keydown', keyDownEvent);
+			window.removeEventListener('keyup', keyUpEvent);
 		}
 	});
 
@@ -165,9 +174,9 @@
 </script>
 
 <div
-	class="absolute top-[10px] flex max-h-[300px] gap-2.5 duration-300 {variableSelectionExtended
+	class="absolute top-2.5 flex max-h-75 gap-2.5 z-30 duration-300 {variableSelectionExtended
 		? 'left-2.5'
-		: '-left-[182px]'} "
+		: '-left-45.5'} "
 >
 	{#if $loading || !$metaJson}
 		<VariableSelectionEmpty />
@@ -244,8 +253,8 @@
 										{#if value.startsWith(group)}
 											<Command.Item
 												{value}
-												class="hover:!bg-primary/25 cursor-pointer {$selectedDomain.value === value
-													? '!bg-primary/15'
+												class="hover:bg-primary/25! cursor-pointer {$selectedDomain.value === value
+													? 'bg-primary/15!'
 													: ''}"
 												onSelect={() => {
 													$loading = true;
@@ -281,7 +290,7 @@
 					<Button
 						variant="outline"
 						style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
-						class="bg-background/90 dark:bg-background/70 hover:!bg-background h-7.25 w-[180px] cursor-pointer justify-between rounded-[4px] border-none !p-1.5"
+						class="bg-background/90 dark:bg-background/70 hover:bg-background! h-7.25 w-[180px] cursor-pointer justify-between rounded-[4px] border-none !p-1.5"
 						role="combobox"
 						aria-expanded={variableSelectionOpen}
 					>

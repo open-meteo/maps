@@ -10,8 +10,8 @@
 
 	import { reloadStyles } from '../buttons';
 
-	const reset = () => {
-		resetStates();
+	const reset = async () => {
+		await resetStates();
 		for (let [key] of $url.searchParams) {
 			$url.searchParams.delete(key);
 		}

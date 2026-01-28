@@ -22,6 +22,7 @@
 	--card-foreground: oklch(0.129 0.042 264.695);
 	--popover: oklch(1 0 0);
 	--popover-foreground: oklch(0.129 0.042 264.695);
+	--glass: rgba(240, 240, 240, 0.65);
 	--primary: oklch(0.208 0.042 265.755);
 	--primary-foreground: oklch(0.984 0.003 247.858);
 	--secondary: oklch(0.968 0.007 247.896);
@@ -56,6 +57,7 @@
 	--card-foreground: oklch(0.984 0.003 247.858);
 	--popover: oklch(0.208 0.042 265.755);
 	--popover-foreground: oklch(0.984 0.003 247.858);
+	--glass: rgba(15, 15, 15, 0.65);
 	--primary: oklch(0.929 0.013 255.508);
 	--primary-foreground: oklch(0.208 0.042 265.755);
 	--secondary: oklch(0.279 0.041 260.031);
@@ -103,6 +105,7 @@
 	--color-accent: var(--accent);
 	--color-accent-foreground: var(--accent-foreground);
 	--color-destructive: var(--destructive);
+	--color-glass: var(--glass);
 	--color-border: var(--border);
 	--color-input: var(--input);
 	--color-ring: var(--ring);
@@ -165,6 +168,17 @@ body {
 	position: absolute;
 	width: 100%;
 	min-height: 100%;
+}
+
+.maplibregl-ctrl-bottom-right {
+	transition-duration: 500ms;
+	z-index: 0;
+}
+
+@media (max-width: 768px) {
+	.time-selector-open .maplibregl-ctrl-bottom-right {
+		bottom: 65px;
+	}
 }
 
 .dark .maplibregl-ctrl.maplibregl-ctrl-group {
@@ -239,12 +253,15 @@ body {
 .maplibregl-popup-anchor-top .maplibregl-popup-tip {
 	border-bottom-color: rgba(100, 100, 100, 1);
 }
+
 .maplibregl-popup-anchor-right .maplibregl-popup-tip {
 	border-left-color: rgba(100, 100, 100, 1);
 }
+
 .maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
 	border-top-color: rgba(100, 100, 100, 1);
 }
+
 .maplibregl-popup-anchor-left .maplibregl-popup-tip {
 	border-right-color: rgba(100, 100, 100, 1);
 }
@@ -254,16 +271,23 @@ body {
 	scale: 0.7;
 }
 
-@media (orientation: landscape) {
-	.time-selector {
-		bottom: calc(var(--spacing) * 2.5);
-	}
-}
-
 [data-sonner-toast][data-styled='true'] [data-close-button] {
 	left: unset !important;
 	right: -6px !important;
 	top: 7px !important;
 	border: none !important;
 	background: none !important;
+}
+
+/* For Webkit-based browsers (Chrome, Safari and Opera) */
+.scrollbar-hide::-webkit-scrollbar {
+	display: none;
+}
+
+/* For IE, Edge and Firefox */
+.scrollbar-hide {
+	-ms-overflow-style: none;
+	/* IE and Edge */
+	scrollbar-width: none;
+	/* Firefox */
 }

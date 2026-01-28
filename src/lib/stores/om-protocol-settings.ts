@@ -4,6 +4,7 @@ import { type OMapsFileReader, defaultOmProtocolSettings } from '@openmeteo/mapb
 import { persisted } from 'svelte-persisted-store';
 
 import { getNextOmUrls } from '$lib';
+import { DEFAULT_COLOR_HASH } from '$lib/constants';
 
 import { metaJson } from './preferences';
 import { selectedDomain } from './variables';
@@ -15,7 +16,7 @@ import type {
 	RenderableColorScale
 } from '@openmeteo/mapbox-layer';
 
-export const defaultColorHash = '';
+export const defaultColorHash = DEFAULT_COLOR_HASH;
 
 export const customColorScales = persisted<Record<string, RenderableColorScale>>(
 	'custom-color-scales',

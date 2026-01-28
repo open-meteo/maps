@@ -92,7 +92,12 @@
 </script>
 
 {#if $preferences.showScale}
-	<div class="absolute bottom-2.5 left-2.5 z-10" style="max-height: {totalHeight + 100}px;">
+	<div
+		class="absolute {$preferences.timeSelector && !desktop.current
+			? 'bottom-16.5'
+			: 'bottom-2.5'} duration-500 left-2.5 z-10 select-none"
+		style="max-height: {totalHeight + 100}px;"
+	>
 		<div
 			style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
 			class="flex flex-col-reverse overflow-hidden rounded-[4px]"

@@ -5,9 +5,7 @@
 	import {
 		GridFactory,
 		type RenderableColorScale,
-		closestModelRun,
 		domainOptions,
-		domainStep,
 		omProtocol,
 		updateCurrentBounds
 	} from '@openmeteo/mapbox-layer';
@@ -26,6 +24,7 @@
 		localStorageVersion,
 		metaJson,
 		modelRun,
+		preferences,
 		resetStates,
 		resolution,
 		resolutionSet,
@@ -53,9 +52,9 @@
 		addOmFileLayers,
 		addPopup,
 		changeOMfileURL,
-		checkClosestDomainInterval,
-		checkClosestModelRun,
 		checkHighDefinition,
+		findTimeStep,
+		getInitialMetaData,
 		getMetaData,
 		getStyle,
 		hashValue,
@@ -64,6 +63,8 @@
 		updateUrl,
 		urlParamsToPreferences
 	} from '$lib';
+	import { METADATA_REFRESH_INTERVAL } from '$lib/constants';
+	import { formatISOWithoutTimezone } from '$lib/time-format';
 
 	import '../styles.css';
 
@@ -80,11 +81,13 @@
 			}
 			resolutionSet.set(true);
 		}
+	});
 
+	onMount(async () => {
 		// resets all the states when a new version is set in 'package.json' and version already set before
 		if (version !== $localStorageVersion) {
 			if ($localStorageVersion) {
-				resetStates();
+				await resetStates();
 			}
 			$localStorageVersion = version;
 		}
@@ -135,29 +138,34 @@
 			$map.addControl(new SettingsButton());
 			$map.addControl(new TimeButton());
 			$map.addControl(new HelpButton());
-			$metaJson = await getMetaData();
+
+			if (getInitialMetaDataPromise) await getInitialMetaDataPromise;
 
 			addOmFileLayers();
 			addHillshadeSources();
 			$map.addControl(new HillshadeButton());
 
 			addPopup();
+			changeOMfileURL();
 		});
 	});
 
+	let getInitialMetaDataPromise: Promise<void> | undefined;
 	const domainSubscription = domain.subscribe(async (newDomain) => {
 		await tick(); // await the selectedDomain to be set
 		updateUrl('domain', newDomain);
 
+		$modelRun = undefined;
+		getInitialMetaDataPromise = getInitialMetaData();
+		await getInitialMetaDataPromise;
 		$metaJson = await getMetaData();
 
-		checkClosestDomainInterval();
-		// align model run with new model_interval on domain change
-		$modelRun = closestModelRun($modelRun, $selectedDomain.model_interval);
-		checkClosestModelRun(); // checks and updates time and model run to fit the current domain selection
-
-		if ($modelRun.getTime() - $time.getTime() > 0) {
-			$time = domainStep($modelRun, $selectedDomain.time_interval, 'forward');
+		const timeSteps = $metaJson?.valid_times.map((validTime: string) => new Date(validTime));
+		const timeStep = findTimeStep($time, timeSteps);
+		// clamp time to valid times in meta data
+		if (timeStep) {
+			$time = timeStep;
+			updateUrl('time', formatISOWithoutTimezone($time));
 		}
 
 		matchVariableOrFirst();
@@ -175,12 +183,21 @@
 		toast('Variable set to: ' + $selectedVariable.label);
 	});
 
+	let metaDataInterval: ReturnType<typeof setInterval>;
+	onMount(() => {
+		metaDataInterval = setInterval(() => {
+			getInitialMetaData();
+		}, METADATA_REFRESH_INTERVAL);
+	});
+
 	onDestroy(() => {
 		if ($map) {
 			$map.remove();
 		}
 		domainSubscription(); // unsubscribe
 		variableSubscription(); // unsubscribe
+
+		clearInterval(metaDataInterval);
 	});
 </script>
 
@@ -192,7 +209,11 @@
 	<Spinner />
 {/if}
 
-<div class="map" id="#map_container" bind:this={mapContainer}></div>
+<div
+	class="map maplibregl-map {$preferences.timeSelector ? 'time-selector-open' : ''}"
+	id="#map_container"
+	bind:this={mapContainer}
+></div>
 
 <Scale
 	afterColorScaleChange={async (variable: string, colorScale: RenderableColorScale) => {
