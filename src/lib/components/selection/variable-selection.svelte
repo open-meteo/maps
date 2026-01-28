@@ -13,6 +13,7 @@
 		levelGroupVariables,
 		variableOptions
 	} from '@openmeteo/mapbox-layer';
+	import { toast } from 'svelte-sonner';
 
 	import { browser } from '$app/environment';
 
@@ -122,6 +123,9 @@
 					break;
 				case 'l':
 					if (!ctrl) pLSO.set(true);
+					break;
+				case 'Escape':
+					toast.dismiss();
 					break;
 			}
 		}

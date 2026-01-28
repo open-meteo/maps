@@ -350,14 +350,6 @@
 	const toggleModelRunLock = (event: Event | undefined = undefined) => {
 		$modelRunLocked = !$modelRunLocked;
 		toast.info($modelRunLocked ? 'Model run locked' : 'Model run unlocked');
-		if (event) preventDefaultDialogues(event);
-	};
-
-	const preventDefaultDialogues = (event: Event) => {
-		// prevent printing dialog, which is useless on a map anyway
-		event.preventDefault();
-		event.stopImmediatePropagation();
-		return;
 	};
 
 	const setLatestModelRun = (event: Event) => {
@@ -366,7 +358,6 @@
 		} else {
 			onModelRunChange(latestReferenceTime);
 		}
-		preventDefaultDialogues(event);
 	};
 
 	let ctrl = $state(false);
