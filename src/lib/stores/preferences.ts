@@ -15,8 +15,6 @@ import {
 
 import { customColorScales } from './om-protocol-settings';
 import {
-	defaultDomain,
-	defaultVariable,
 	domain,
 	domainSelectionOpen,
 	variable,
@@ -34,7 +32,7 @@ export const preferences = persisted('preferences', defaultPreferences);
 // URL object containing current url states setings and flags
 export const url: Writable<URL> = writable();
 
-const now = new Date();
+let now = new Date();
 now.setUTCHours(now.getUTCHours() + 1, 0, 0, 0);
 
 export const time = writable(new Date(now));
@@ -78,6 +76,8 @@ export const resetStates = async () => {
 	sheet.set(false);
 	loading.set(false);
 
+	now = new Date();
+	now.setUTCHours(now.getUTCHours() + 1, 0, 0, 0);
 	time.set(new Date(now));
 
 	domain.set('dwd_icon');

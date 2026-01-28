@@ -87,11 +87,7 @@
 			// jump to next model run if available
 			if (currentIndex - 1 < 0) {
 				let date = new SvelteDate($time);
-				if (metaFirstResolution === 0.25) {
-					date.setUTCMinutes(date.getUTCMinutes() - 15);
-				} else {
-					date.setUTCHours(date.getUTCHours() - metaFirstResolution);
-				}
+				date.setTime(date.getTime() - metaFirstResolution);
 				onDateChange(date);
 			}
 		}
@@ -125,11 +121,7 @@
 			if (timeSteps && currentIndex + 1 > timeSteps.length - 1) {
 				if ($modelRun && $modelRun.getTime() < latestReferenceTime.getTime()) {
 					let date = new SvelteDate($time);
-					if (metaLastResolution === 0.25) {
-						date.setUTCMinutes(date.getUTCMinutes() + 15);
-					} else {
-						date.setUTCHours(date.getUTCHours() + metaLastResolution);
-					}
+					date.setTime(date.getTime() + metaLastResolution);
 					onDateChange(date);
 				} else {
 					toast.warning('Already on latest timestep');
@@ -335,14 +327,9 @@
 
 	const jumpToCurrentTime = () => {
 		let date = new SvelteDate(now);
-		if (metaFirstResolution === 0.25) {
-			date.setUTCMinutes(date.getUTCMinutes() + 15);
-		} else {
-			date.setUTCHours(date.getUTCHours() + metaFirstResolution);
-		}
+		date.setTime(date.getTime() + metaFirstResolution); // next time step
 		const timeStep = findTimeStep(date, timeSteps);
 		if (timeStep) date = new SvelteDate(timeStep);
-
 		onDateChange(date);
 		centerDateButton(date);
 	};
@@ -413,8 +400,9 @@
 	const metaFirstTime = $derived(new Date($metaJson?.valid_times[0] as string));
 	const metaFirstResolution = $derived.by(() => {
 		const metaSecondTime = new Date($metaJson?.valid_times[1] as string);
-		return (metaSecondTime.getTime() - metaFirstTime.getTime()) / MILLISECONDS_PER_HOUR;
+		return metaSecondTime.getTime() - metaFirstTime.getTime();
 	});
+	const metaFirstResolutionHours = $derived(metaFirstResolution / MILLISECONDS_PER_HOUR);
 
 	const metaLastTime = $derived(
 		new Date($metaJson?.valid_times[$metaJson?.valid_times.length - 1] as string)
@@ -423,11 +411,11 @@
 		const metaSecondToLastTime = new Date(
 			$metaJson?.valid_times[$metaJson?.valid_times.length - 2] as string
 		);
-		return (metaLastTime.getTime() - metaSecondToLastTime.getTime()) / MILLISECONDS_PER_HOUR;
+		return metaLastTime.getTime() - metaSecondToLastTime.getTime();
 	});
 
 	// Calculates the pixel width of each day in the calendar based on time interval
-	let dayWidth = $derived(metaFirstResolution === 0.25 ? 340 : 170);
+	let dayWidth = $derived(metaFirstResolutionHours === 0.25 ? 340 : 170);
 
 	const timeSteps = $derived(
 		$metaJson?.valid_times.map((validTime: string) => new SvelteDate(validTime))
@@ -470,7 +458,7 @@
 		const timeStepsComplete = [];
 		for (let day of daySteps) {
 			for (let i = 0; i <= 23; i++) {
-				if (metaFirstResolution === 0.25) {
+				if (metaFirstResolutionHours === 0.25) {
 					for (let j = 0; j < 60; j += 15) {
 						timeStepsComplete.push(withLocalTime(day, i, j));
 					}
@@ -514,7 +502,7 @@
 						}
 					}
 				} else {
-					const hourWidth = metaFirstResolution === 0.25 ? dayWidth / 96 : dayWidth / 24;
+					const hourWidth = metaFirstResolutionHours === 0.25 ? dayWidth / 96 : dayWidth / 24;
 					const left = hourWidth * index;
 					dayContainer.scrollTo({ left: left, behavior: smooth ? 'smooth' : 'instant' });
 				}
@@ -1046,7 +1034,7 @@
 					<!-- Loading Skeleton -->
 					{#each Array(7) as _, dayIndex (dayIndex)}
 						<div
-							class="relative flex h-12.5 {metaFirstResolution === 0.25
+							class="relative flex h-12.5 {metaFirstResolutionHours === 0.25
 								? 'min-w-85'
 								: 'min-w-42.5'} animate-pulse"
 						>
@@ -1076,7 +1064,7 @@
 				{:else}
 					{#each daySteps as dayStep, i (i)}
 						<div
-							class="relative flex h-12.5 {metaFirstResolution === 0.25
+							class="relative flex h-12.5 {metaFirstResolutionHours === 0.25
 								? 'min-w-85'
 								: 'min-w-42.5'}"
 						>
@@ -1091,7 +1079,7 @@
 								<div
 									style="left: {dayWidth *
 										((now.getTime() - dayStep.getTime()) /
-											MILLISECONDS_PER_DAY)}px; width: calc({dayWidth}px/{metaFirstResolution ===
+											MILLISECONDS_PER_DAY)}px; width: calc({dayWidth}px/{metaFirstResolutionHours ===
 									0.25
 										? 72
 										: 24});"
@@ -1104,16 +1092,18 @@
 								{#each timeStepsComplete as timeStep, j (j)}
 									{#if timeStep.getTime() >= dayStep.getTime() && timeStep.getTime() < dayStep.getTime() + MILLISECONDS_PER_DAY}
 										<div
-											style="width: calc({dayWidth}px/{metaFirstResolution === 0.25 ? 96 : 24});"
-											class="h-1.25 {metaFirstResolution !== 0.25 && j % 12 === 0 && j !== 0
+											style="width: calc({dayWidth}px/{metaFirstResolutionHours === 0.25
+												? 96
+												: 24});"
+											class="h-1.25 {metaFirstResolutionHours !== 0.25 && j % 12 === 0 && j !== 0
 												? 'h-3.25'
-												: ''} {metaFirstResolution !== 0.25 && j % 3 === 0
+												: ''} {metaFirstResolutionHours !== 0.25 && j % 3 === 0
 												? 'h-2.5'
-												: ''} {metaFirstResolution !== 0.25 && j % 24 === 0 && j !== 0
+												: ''} {metaFirstResolutionHours !== 0.25 && j % 24 === 0 && j !== 0
 												? 'h-6'
-												: ''} {metaFirstResolution === 0.25 && j % 4 === 0
+												: ''} {metaFirstResolutionHours === 0.25 && j % 4 === 0
 												? 'h-2.5'
-												: ''} {metaFirstResolution === 0.25 && j % 16 === 0 && j !== 0
+												: ''} {metaFirstResolutionHours === 0.25 && j % 16 === 0 && j !== 0
 												? 'h-3.25'
 												: ''} border-l-2
 												{!timeSteps?.find((tS) => timeStep.getTime() === tS.getTime()) ? 'border-foreground/20' : ''}"

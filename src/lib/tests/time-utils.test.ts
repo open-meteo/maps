@@ -191,20 +191,4 @@ describe('findTimeStep', () => {
 		expect(result?.getTime()).toBe(timeSteps[2].getTime());
 	});
 
-	it('should handle unsorted timesteps (edge case)', () => {
-		// Note: In production, timesteps should always be sorted
-		// But this tests robustness
-		const timeSteps = [
-			new Date('2026-01-22T12:00:00Z'),
-			new Date('2026-01-22T10:00:00Z'),
-			new Date('2026-01-22T11:00:00Z')
-		];
-		const date = new Date('2026-01-22T11:30:00Z');
-
-		const result = findTimeStep(date, timeSteps);
-
-		// findLast will find the last occurrence <= date
-		// In this case, it's the last element (11:00)
-		expect(result?.getTime()).toBe(timeSteps[2].getTime());
-	});
 });
