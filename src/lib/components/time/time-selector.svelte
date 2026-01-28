@@ -347,12 +347,12 @@
 		centerDateButton(date);
 	};
 
-	const toggleModelRunLock = (event: Event | undefined = undefined) => {
+	const toggleModelRunLock = () => {
 		$modelRunLocked = !$modelRunLocked;
 		toast.info($modelRunLocked ? 'Model run locked' : 'Model run unlocked');
 	};
 
-	const setLatestModelRun = (event: Event) => {
+	const setLatestModelRun = () => {
 		if ($modelRun && $modelRun.getTime() === latestReferenceTime.getTime()) {
 			toast.warning('Already on latest model run');
 		} else {
@@ -373,8 +373,8 @@
 			ArrowDown: previousDay,
 			ArrowUp: nextDay,
 			c: ctrl ? () => {} : jumpToCurrentTime,
-			m: ctrl ? () => {} : () => toggleModelRunLock(event),
-			l: ctrl ? () => setLatestModelRun(event) : () => {}
+			m: ctrl ? () => {} : () => toggleModelRunLock(),
+			n: ctrl ? () => {} : () => setLatestModelRun()
 		};
 
 		const action = actions[event.key];
