@@ -50,30 +50,43 @@ import type { Domain, DomainMetaDataJson } from '@openmeteo/mapbox-layer';
 
 export { findTimeStep } from '$lib/time-utils';
 
-let url = get(u);
-u.subscribe((newUrl) => {
-	url = newUrl;
-});
+let url: any;
+let map: maplibregl.Map | undefined;
+let preferences: any;
+let metaJson: DomainMetaDataJson | undefined;
+let vectorOptions: any;
 
-let map = get(m);
-m.subscribe((newMap) => {
-	map = newMap;
-});
+// Initialize store subscriptions only once on first access
+let storesInitialized = false;
+const initializeStores = () => {
+	if (storesInitialized) return;
+	storesInitialized = true;
 
-let preferences = get(p);
-p.subscribe((newPreferences) => {
-	preferences = newPreferences;
-});
+	url = get(u);
+	u.subscribe((newUrl) => {
+		url = newUrl;
+	});
 
-let metaJson = get(mJ);
-mJ.subscribe((newMetaJson) => {
-	metaJson = newMetaJson;
-});
+	map = get(m);
+	m.subscribe((newMap) => {
+		map = newMap;
+	});
 
-let vectorOptions = get(vO);
-vO.subscribe((newVectorOptions) => {
-	vectorOptions = newVectorOptions;
-});
+	preferences = get(p);
+	p.subscribe((newPreferences) => {
+		preferences = newPreferences;
+	});
+
+	metaJson = get(mJ);
+	mJ.subscribe((newMetaJson) => {
+		metaJson = newMetaJson;
+	});
+
+	vectorOptions = get(vO);
+	vO.subscribe((newVectorOptions) => {
+		vectorOptions = newVectorOptions;
+	});
+};
 
 const beforeLayerRaster = BEFORE_LAYER_RASTER;
 const beforeLayerVector = BEFORE_LAYER_VECTOR;
@@ -90,6 +103,7 @@ let omUrl: string;
 export const pad = (num: number | string): string => String(num).padStart(2, '0');
 
 export const urlParamsToPreferences = () => {
+	initializeStores();
 	const params = new URLSearchParams(url.search);
 
 	const urlModelTime = params.get('model_run');
