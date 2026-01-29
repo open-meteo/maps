@@ -14,6 +14,7 @@
 		modelRun,
 		modelRunLocked,
 		preferences,
+		shadeMap,
 		time
 	} from '$lib/stores/preferences';
 	import { inProgress, latest, metaJson } from '$lib/stores/preferences';
@@ -289,6 +290,7 @@
 		}
 
 		$time = new SvelteDate(date);
+		$shadeMap?.setDate($time);
 		currentDate = date;
 		updateUrl('time', formatISOWithoutTimezone($time));
 		await checkClosestModelRun();
@@ -524,11 +526,18 @@
 
 	let hoveredHour = $derived(
 		timeStepsComplete
-			? timeStepsComplete[
-					Math.round(
-						(timeStepsComplete.length * (hoverX + dayContainerScrollLeft)) / dayContainerScrollWidth
-					)
-				]
+			? // ? timeStepsComplete[
+				// 		Math.round(
+				// 			(timeStepsComplete.length *
+				// 		)
+				// 	]
+				new Date(
+					timeStepsComplete[0].getTime() +
+						((timeStepsComplete[timeStepsComplete.length - 1].getTime() -
+							timeStepsComplete[0].getTime()) *
+							(hoverX + dayContainerScrollLeft)) /
+							dayContainerScrollWidth
+				)
 			: metaFirstTime
 	);
 
@@ -566,10 +575,15 @@
 
 		if (hoursHoverContainer) {
 			hoursHoverContainer.addEventListener('mousemove', (e) => {
-				if (hoursHoverContainerWidth) hoverX = e.layerX;
+				if (hoursHoverContainerWidth) {
+					hoverX = e.layerX;
+
+					$shadeMap?.setDate(hoveredHour);
+				}
 			});
 			hoursHoverContainer.addEventListener('mouseout', () => {
 				hoverX = 0;
+				$shadeMap?.setDate($time);
 			});
 			hoursHoverContainer.addEventListener('click', () => {
 				if (desktop.current) {
@@ -642,12 +656,21 @@
 			if (left === 0) {
 				currentDate.setHours(0);
 			}
-			let timeStep =
-				timeStepsComplete[
-					Math.round(
-						(timeStepsComplete.length * target.scrollLeft) / (dayContainerScrollWidth - viewWidth)
-					)
-				];
+			// let timeStep =
+			// 	timeStepsComplete[
+			// 		Math.round(
+			// 			(timeStepsComplete.length * target.scrollLeft) / (dayContainerScrollWidth - viewWidth)
+			// 		)
+			// 	];
+			//
+			let timeStep = new Date(
+				timeStepsComplete[0].getTime() +
+					(timeStepsComplete[timeStepsComplete.length - 1].getTime() -
+						timeStepsComplete[0].getTime()) *
+						(target.scrollLeft / (dayContainerScrollWidth - viewWidth))
+			);
+			$shadeMap?.setDate(timeStep);
+
 			if (timeStep) currentDate = new SvelteDate(timeStep);
 		};
 
@@ -660,9 +683,17 @@
 					centerDateButton($time);
 					currentDate = new SvelteDate($time);
 				} else {
-					let timeStep = findTimeStep(currentDate, timeSteps);
+					let timeStep =
+						timeStepsComplete[
+							Math.round(
+								(timeStepsComplete.length * dayContainerScrollLeft) /
+									(dayContainerScrollWidth - viewWidth)
+							)
+						];
+					timeStep = findTimeStep(timeStep, timeSteps);
 					if (timeStep) currentDate = timeStep;
 					onDateChange(currentDate);
+					isScrolling = true;
 					centerDateButton(currentDate);
 				}
 			}
