@@ -29,6 +29,7 @@
 		resetStates,
 		resolution,
 		resolutionSet,
+		shadeMap,
 		time,
 		url
 	} from '$lib/stores/preferences';
@@ -147,16 +148,17 @@
 			addHillshadeSources();
 			$map.addControl(new HillshadeButton());
 
-			const shadeMap = new ShadeMap({
-				date: new Date(), // display shadows for current date
+			$shadeMap = new ShadeMap({
+				date: $time, // display shadows for current date
 				color: '#01112f', // shade color
 				opacity: 0.7, // opacity of shade color
-				apiKey: '',
+				apiKey: '', // obtain from https://shademap.app/about/,
 				terrainSource: {
 					tileSize: 256,
 					maxZoom: 15,
+
 					getSourceUrl: ({ x, y, z }) => {
-						return `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`;
+						return `https://tiles.mapterhorn.com/${z}/${x}/${y}.webp`;
 					},
 					getElevation: ({ r, g, b, a }) => {
 						return r * 256 + g + b / 256 - 32768;

@@ -1,6 +1,9 @@
 import { MediaQuery } from 'svelte/reactivity';
 import { type Writable, writable } from 'svelte/store';
 
+import type ShadeMap from 'mapbox-gl-shadow-simulator';
+
+
 import { setMode } from 'mode-watcher';
 import { type Persisted, persisted } from 'svelte-persisted-store';
 
@@ -60,6 +63,8 @@ export const helpOpen = writable(false);
 
 export const metaJson: Writable<DomainMetaDataJson | undefined> = writable(undefined);
 export const modelRunLocked = writable(false);
+
+export const shadeMap = writable<ShadeMap | null>(null);
 
 export const resetStates = async () => {
 	modelRunLocked.set(false);

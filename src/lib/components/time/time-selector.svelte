@@ -14,6 +14,7 @@
 		modelRun,
 		modelRunLocked,
 		preferences,
+		shadeMap,
 		time
 	} from '$lib/stores/preferences';
 	import { inProgress, latest, metaJson } from '$lib/stores/preferences';
@@ -289,6 +290,7 @@
 		}
 
 		$time = new SvelteDate(date);
+		$shadeMap?.setDate($time);
 		currentDate = date;
 		updateUrl('time', formatISOWithoutTimezone($time));
 		await checkClosestModelRun();
