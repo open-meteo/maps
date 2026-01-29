@@ -526,11 +526,18 @@
 
 	let hoveredHour = $derived(
 		timeStepsComplete
-			? timeStepsComplete[
-					Math.round(
-						(timeStepsComplete.length * (hoverX + dayContainerScrollLeft)) / dayContainerScrollWidth
-					)
-				]
+			? // ? timeStepsComplete[
+				// 		Math.round(
+				// 			(timeStepsComplete.length *
+				// 		)
+				// 	]
+				new Date(
+					timeStepsComplete[0].getTime() +
+						((timeStepsComplete[timeStepsComplete.length - 1].getTime() -
+							timeStepsComplete[0].getTime()) *
+							(hoverX + dayContainerScrollLeft)) /
+							dayContainerScrollWidth
+				)
 			: metaFirstTime
 	);
 
@@ -568,10 +575,15 @@
 
 		if (hoursHoverContainer) {
 			hoursHoverContainer.addEventListener('mousemove', (e) => {
-				if (hoursHoverContainerWidth) hoverX = e.layerX;
+				if (hoursHoverContainerWidth) {
+					hoverX = e.layerX;
+
+					$shadeMap?.setDate(hoveredHour);
+				}
 			});
 			hoursHoverContainer.addEventListener('mouseout', () => {
 				hoverX = 0;
+				$shadeMap?.setDate($time);
 			});
 			hoursHoverContainer.addEventListener('click', () => {
 				if (desktop.current) {
