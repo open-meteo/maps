@@ -14,6 +14,7 @@
 		modelRun,
 		modelRunLocked,
 		preferences,
+		shadeMap,
 		time
 	} from '$lib/stores/preferences';
 	import { inProgress, latest, metaJson } from '$lib/stores/preferences';
@@ -455,19 +456,23 @@
 
 	// generates all possible time steps for the current day
 	const timeStepsComplete = $derived.by(() => {
-		const timeStepsComplete = [];
-		for (let day of daySteps) {
-			for (let i = 0; i <= 23; i++) {
-				if (metaFirstResolutionHours === 0.25) {
-					for (let j = 0; j < 60; j += 15) {
-						timeStepsComplete.push(withLocalTime(day, i, j));
+		if (metaFirstResolutionHours) {
+			const timeStepsComplete = [];
+			for (let day of daySteps) {
+				for (let i = 0; i <= 23; i++) {
+					if (metaFirstResolutionHours === 0.25) {
+						for (let j = 0; j < 60; j += 15) {
+							timeStepsComplete.push(withLocalTime(day, i, j));
+						}
+					} else {
+						timeStepsComplete.push(withLocalTime(day, i));
 					}
-				} else {
-					timeStepsComplete.push(withLocalTime(day, i));
 				}
 			}
+			return timeStepsComplete;
+		} else {
+			return undefined;
 		}
-		return timeStepsComplete;
 	});
 
 	// state variables for mouse interaction and scrolling behavior
@@ -524,11 +529,18 @@
 
 	let hoveredHour = $derived(
 		timeStepsComplete
-			? timeStepsComplete[
-					Math.round(
-						(timeStepsComplete.length * (hoverX + dayContainerScrollLeft)) / dayContainerScrollWidth
-					)
-				]
+			? // ? timeStepsComplete[
+				// 		Math.round(
+				// 			(timeStepsComplete.length *
+				// 		)
+				// 	]
+				new Date(
+					timeStepsComplete[0].getTime() +
+						((timeStepsComplete[timeStepsComplete.length - 1].getTime() -
+							timeStepsComplete[0].getTime()) *
+							(hoverX + dayContainerScrollLeft)) /
+							dayContainerScrollWidth
+				)
 			: metaFirstTime
 	);
 
@@ -567,11 +579,14 @@
 
 		if (hoursHoverContainer) {
 			hoursHoverContainer.addEventListener('mousemove', (e) => {
-				if (hoursHoverContainerWidth)
+				if (hoursHoverContainerWidth) {
 					hoverX = e.layerX + (isSafari ? hoursHoverContainerWidth / 2 : 0);
+					$shadeMap?.setDate(hoveredHour);
+				}
 			});
 			hoursHoverContainer.addEventListener('mouseout', () => {
 				hoverX = 0;
+				$shadeMap?.setDate($time);
 			});
 			hoursHoverContainer.addEventListener('click', () => {
 				if (desktop.current) {
@@ -645,12 +660,21 @@
 			if (left === 0) {
 				currentDate.setHours(0);
 			}
-			let timeStep =
-				timeStepsComplete[
-					Math.round(
-						(timeStepsComplete.length * target.scrollLeft) / (dayContainerScrollWidth - viewWidth)
-					)
-				];
+			// let timeStep =
+			// 	timeStepsComplete[
+			// 		Math.round(
+			// 			(timeStepsComplete.length * target.scrollLeft) / (dayContainerScrollWidth - viewWidth)
+			// 		)
+			// 	];
+			//
+			let timeStep = new Date(
+				timeStepsComplete[0].getTime() +
+					(timeStepsComplete[timeStepsComplete.length - 1].getTime() -
+						timeStepsComplete[0].getTime()) *
+						(target.scrollLeft / (dayContainerScrollWidth - viewWidth))
+			);
+			$shadeMap?.setDate(timeStep);
+
 			if (timeStep) currentDate = new SvelteDate(timeStep);
 		};
 
@@ -663,9 +687,17 @@
 					centerDateButton($time);
 					currentDate = new SvelteDate($time);
 				} else {
-					let timeStep = findTimeStep(currentDate, timeSteps);
+					let timeStep =
+						timeStepsComplete[
+							Math.round(
+								(timeStepsComplete.length * dayContainerScrollLeft) /
+									(dayContainerScrollWidth - viewWidth)
+							)
+						];
+					timeStep = findTimeStep(timeStep, timeSteps);
 					if (timeStep) currentDate = timeStep;
 					onDateChange(currentDate);
+					isScrolling = true;
 					centerDateButton(currentDate);
 				}
 			}
@@ -678,7 +710,7 @@
 
 			const throttledScrollEvent = throttle((e: Event) => {
 				onScrollEvent(e);
-			}, 25);
+			}, 0);
 
 			const throttledScrollEndEvent = throttle(() => {
 				onScrollEndEvent();
