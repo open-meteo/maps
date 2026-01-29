@@ -644,12 +644,21 @@
 			if (left === 0) {
 				currentDate.setHours(0);
 			}
-			let timeStep =
-				timeStepsComplete[
-					Math.round(
-						(timeStepsComplete.length * target.scrollLeft) / (dayContainerScrollWidth - viewWidth)
-					)
-				];
+			// let timeStep =
+			// 	timeStepsComplete[
+			// 		Math.round(
+			// 			(timeStepsComplete.length * target.scrollLeft) / (dayContainerScrollWidth - viewWidth)
+			// 		)
+			// 	];
+			//
+			let timeStep = new Date(
+				timeStepsComplete[0].getTime() +
+					(timeStepsComplete[timeStepsComplete.length - 1].getTime() -
+						timeStepsComplete[0].getTime()) *
+						(target.scrollLeft / (dayContainerScrollWidth - viewWidth))
+			);
+			$shadeMap?.setDate(timeStep);
+
 			if (timeStep) currentDate = new SvelteDate(timeStep);
 		};
 
@@ -662,9 +671,17 @@
 					centerDateButton($time);
 					currentDate = new SvelteDate($time);
 				} else {
-					let timeStep = findTimeStep(currentDate, timeSteps);
+					let timeStep =
+						timeStepsComplete[
+							Math.round(
+								(timeStepsComplete.length * dayContainerScrollLeft) /
+									(dayContainerScrollWidth - viewWidth)
+							)
+						];
+					timeStep = findTimeStep(timeStep, timeSteps);
 					if (timeStep) currentDate = timeStep;
 					onDateChange(currentDate);
+					isScrolling = true;
 					centerDateButton(currentDate);
 				}
 			}
