@@ -290,7 +290,6 @@
 		}
 
 		$time = new SvelteDate(date);
-		$shadeMap?.setDate($time);
 		currentDate = date;
 		updateUrl('time', formatISOWithoutTimezone($time));
 		await checkClosestModelRun();

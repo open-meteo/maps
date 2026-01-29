@@ -32,6 +32,7 @@ import {
 	opacity,
 	preferences as p,
 	resolution as r,
+	shadeMap as sM,
 	tileSize as tS,
 	time,
 	url as u
@@ -603,6 +604,8 @@ const checkRasterLoaded = () => {
 			}
 			checked = 0;
 			loading.set(false);
+			const shadeMap = get(sM);
+			if (shadeMap) shadeMap.setDate(get(time));
 			clearInterval(checkRasterSourceLoadedInterval);
 		}
 	}, 50);
