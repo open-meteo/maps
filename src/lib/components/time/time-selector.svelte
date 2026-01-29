@@ -558,6 +558,7 @@
 	let updateNowInterval: ReturnType<typeof setTimeout> | undefined;
 	const horizontalScrollSpeed = 1;
 
+	const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 	onMount(() => {
 		if (updateNowInterval) clearInterval(updateNowInterval);
 		updateNowInterval = setInterval(() => {
@@ -566,7 +567,8 @@
 
 		if (hoursHoverContainer) {
 			hoursHoverContainer.addEventListener('mousemove', (e) => {
-				if (hoursHoverContainerWidth) hoverX = e.layerX;
+				if (hoursHoverContainerWidth)
+					hoverX = e.layerX + (isSafari ? hoursHoverContainerWidth / 2 : 0);
 			});
 			hoursHoverContainer.addEventListener('mouseout', () => {
 				hoverX = 0;
@@ -582,7 +584,7 @@
 							)
 						];
 
-					if (timeSteps)
+					if (timeStep && timeSteps)
 						for (let tS of timeSteps) {
 							if (tS.getTime() === timeStep.getTime()) {
 								validTime = true;
@@ -590,6 +592,7 @@
 						}
 
 					if (
+						timeStep &&
 						!validTime &&
 						timeStep.getTime() > metaFirstTime.getTime() &&
 						timeStep.getTime() < metaLastTime.getTime()
@@ -600,8 +603,8 @@
 					if (timeStep) {
 						currentDate = timeStep;
 						onDateChange(timeStep);
+						centerDateButton(timeStep);
 					}
-					centerDateButton(timeStep);
 				}
 			});
 		}
@@ -1028,7 +1031,7 @@
 
 			<div
 				bind:this={dayContainer}
-				class="flex overflow-x-scroll {desktop.current ? '' : ''} px-[50vw] md:px-0"
+				class="flex overflow-x-scroll {desktop.current ? '' : 'px-[50vw]'}"
 			>
 				{#if !$metaJson || !$modelRun}
 					<!-- Loading Skeleton -->
