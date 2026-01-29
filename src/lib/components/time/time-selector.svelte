@@ -457,19 +457,23 @@
 
 	// generates all possible time steps for the current day
 	const timeStepsComplete = $derived.by(() => {
-		const timeStepsComplete = [];
-		for (let day of daySteps) {
-			for (let i = 0; i <= 23; i++) {
-				if (metaFirstResolutionHours === 0.25) {
-					for (let j = 0; j < 60; j += 15) {
-						timeStepsComplete.push(withLocalTime(day, i, j));
+		if (metaFirstResolutionHours) {
+			const timeStepsComplete = [];
+			for (let day of daySteps) {
+				for (let i = 0; i <= 23; i++) {
+					if (metaFirstResolutionHours === 0.25) {
+						for (let j = 0; j < 60; j += 15) {
+							timeStepsComplete.push(withLocalTime(day, i, j));
+						}
+					} else {
+						timeStepsComplete.push(withLocalTime(day, i));
 					}
-				} else {
-					timeStepsComplete.push(withLocalTime(day, i));
 				}
 			}
+			return timeStepsComplete;
+		} else {
+			return undefined;
 		}
-		return timeStepsComplete;
 	});
 
 	// state variables for mouse interaction and scrolling behavior
@@ -706,7 +710,7 @@
 
 			const throttledScrollEvent = throttle((e: Event) => {
 				onScrollEvent(e);
-			}, 25);
+			}, 0);
 
 			const throttledScrollEndEvent = throttle(() => {
 				onScrollEndEvent();
