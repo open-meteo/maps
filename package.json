@@ -24,7 +24,8 @@
 		"format": "prettier --write .",
 		"lint": "prettier --check . && eslint .",
 		"test": "vitest",
-		"coverage": "vitest run --coverage"
+		"coverage": "vitest run --coverage",
+		"upgrade:ui": "npx shadcn-svelte@latest add button command dialog input kbd label popover select separator sheet sonner switch -y -o"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^2.0.0",
