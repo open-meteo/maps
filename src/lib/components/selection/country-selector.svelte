@@ -2,6 +2,7 @@
 	import CheckIcon from '@lucide/svelte/icons/check';
 	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down';
 
+	import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 	import { typing } from '$lib/stores/preferences';
 
 	import { Button } from '$lib/components/ui/button';
@@ -11,7 +12,8 @@
 	export interface Country {
 		name: string;
 		code: string;
-		filename: string;
+		filename?: string;
+		filenames?: string[];
 		geojson?: any;
 	}
 
@@ -33,6 +35,241 @@
 	// Map of country names/codes to their GeoJSON filenames
 	const countryList: Country[] = [
 		{ name: 'None', code: '', filename: '' },
+		{
+			name: 'Africa (Continent)',
+			code: 'CONT-AF',
+			filenames: [
+				'algeria.json',
+				'angola.json',
+				'benin.json',
+				'botswana.json',
+				'burkina_faso.json',
+				'burundi.json',
+				'cameroon.json',
+				'cape_verde.json',
+				'central_african_republic.json',
+				'chad.json',
+				'comoros.json',
+				'congo.json',
+				'democratic_congo.json',
+				'djibouti.json',
+				'egypt.json',
+				'equatorial_guinea.json',
+				'eritrea.json',
+				'eswatini.json',
+				'ethiopia.json',
+				'gabon.json',
+				'gambia.json',
+				'ghana.json',
+				'guinea.json',
+				'guinea_bissau.json',
+				'ivory_coast.json',
+				'kenya.json',
+				'lesotho.json',
+				'liberia.json',
+				'libya.json',
+				'madagascar.json',
+				'malawi.json',
+				'mali.json',
+				'mauritania.json',
+				'mauritius.json',
+				'morocco.json',
+				'mozambique.json',
+				'namibia.json',
+				'niger.json',
+				'nigeria.json',
+				'rwanda.json',
+				'sao_tome_and_principe.json',
+				'senegal.json',
+				'seychelles.json',
+				'sierra_leone.json',
+				'somalia.json',
+				'south_africa.json',
+				'south_sudan.json',
+				'sudan.json',
+				'tanzania.json',
+				'togo.json',
+				'tunisia.json',
+				'uganda.json',
+				'western_sahara.json',
+				'zambia.json',
+				'zimbabwe.json'
+			]
+		},
+		{
+			name: 'Asia (Continent)',
+			code: 'CONT-AS',
+			filenames: [
+				'afghanistan.json',
+				'armenia.json',
+				'azerbaijan.json',
+				'bahrain.json',
+				'bangladesh.json',
+				'bhutan.json',
+				'brunei.json',
+				'cambodia.json',
+				'china.json',
+				'georgia.json',
+				'india.json',
+				'indonesia.json',
+				'iran.json',
+				'iraq.json',
+				'israel.json',
+				'japan.json',
+				'jordan.json',
+				'kazakhstan.json',
+				'kuwait.json',
+				'kyrgyzstan.json',
+				'laos.json',
+				'lebanon.json',
+				'malaysia.json',
+				'maldives.json',
+				'mongolia.json',
+				'myanmar.json',
+				'nepal.json',
+				'north_korea.json',
+				'oman.json',
+				'pakistan.json',
+				'palestine.json',
+				'philippines.json',
+				'qatar.json',
+				'russia.json',
+				'saudi_arabia.json',
+				'singapore.json',
+				'south_korea.json',
+				'sri_lanka.json',
+				'syria.json',
+				'taiwan.json',
+				'tajikistan.json',
+				'thailand.json',
+				'east_timor.json',
+				'turkey.json',
+				'turkmenistan.json',
+				'united_arab_emirates.json',
+				'uzbekistan.json',
+				'vietnam.json',
+				'yemen.json'
+			]
+		},
+		{
+			name: 'Europe (Continent)',
+			code: 'CONT-EU',
+			filenames: [
+				'albania.json',
+				'andorra.json',
+				'austria.json',
+				'belarus.json',
+				'belgium.json',
+				'bosnia_and_herzegovina.json',
+				'bulgaria.json',
+				'croatia.json',
+				'cyprus.json',
+				'czechia.json',
+				'denmark.json',
+				'estonia.json',
+				'finland.json',
+				'france.json',
+				'germany.json',
+				'greece.json',
+				'hungary.json',
+				'iceland.json',
+				'ireland.json',
+				'italy.json',
+				'latvia.json',
+				'liechtenstein.json',
+				'lithuania.json',
+				'luxembourg.json',
+				'malta.json',
+				'moldova.json',
+				'monaco.json',
+				'montenegro.json',
+				'netherlands.json',
+				'north_macedonia.json',
+				'norway.json',
+				'poland.json',
+				'portugal.json',
+				'romania.json',
+				'san_marino.json',
+				'serbia.json',
+				'slovakia.json',
+				'slovenia.json',
+				'spain.json',
+				'sweden.json',
+				'switzerland.json',
+				'ukraine.json',
+				'united_kingdom.json',
+				'vatican.json'
+			]
+		},
+		{
+			name: 'North America (Continent)',
+			code: 'CONT-NA',
+			filenames: [
+				'antigua_and_barbuda.json',
+				'bahamas.json',
+				'barbados.json',
+				'belize.json',
+				'canada.json',
+				'costa_rica.json',
+				'cuba.json',
+				'dominica.json',
+				'dominican_republic.json',
+				'el_salvador.json',
+				'grenada.json',
+				'guatemala.json',
+				'haiti.json',
+				'honduras.json',
+				'jamaica.json',
+				'mexico.json',
+				'nicaragua.json',
+				'panama.json',
+				'saint_kitts_and_nevis.json',
+				'saint_lucia.json',
+				'saint_vincent_and_the_grenadines.json',
+				'trinidad_and_tobago.json',
+				'usa.json'
+			]
+		},
+		{
+			name: 'South America (Continent)',
+			code: 'CONT-SA',
+			filenames: [
+				'argentina.json',
+				'bolivia.json',
+				'brazil.json',
+				'chile.json',
+				'colombia.json',
+				'ecuador.json',
+				'guyana.json',
+				'paraguay.json',
+				'peru.json',
+				'suriname.json',
+				'uruguay.json',
+				'venezuela.json'
+			]
+		},
+		{
+			name: 'Oceania (Continent)',
+			code: 'CONT-OC',
+			filenames: [
+				'australia.json',
+				'cook_islands.json',
+				'fiji.json',
+				'kiribati.json',
+				'marshall_islands.json',
+				'micronesia.json',
+				'nauru.json',
+				'new_zealand.json',
+				'niue.json',
+				'palau.json',
+				'papua_new_guinea.json',
+				'samoa.json',
+				'solomon_islands.json',
+				'tonga.json',
+				'tuvalu.json',
+				'vanuatu.json'
+			]
+		},
 		{ name: 'Afghanistan', code: 'AF', filename: 'afghanistan.json' },
 		{ name: 'Albania', code: 'AL', filename: 'albania.json' },
 		{ name: 'Algeria', code: 'DZ', filename: 'algeria.json' },
@@ -243,7 +480,9 @@
 		const search = searchValue.toLowerCase();
 		return countryList.filter(
 			(country) =>
-				country.name.toLowerCase().includes(search) || country.code.toLowerCase().includes(search)
+				country.name === 'None' ||
+				country.name.toLowerCase().includes(search) ||
+				country.code.toLowerCase().includes(search)
 		);
 	});
 
@@ -262,11 +501,36 @@
 			return country; // Already loaded
 		}
 
+		const files =
+			country.filenames && country.filenames.length > 0
+				? country.filenames
+				: country.filename
+					? [country.filename]
+					: [];
+
+		if (files.length === 0) {
+			return country;
+		}
+
 		try {
 			loadingGeojson = true;
-			const response = await fetch(`/world-geojson/countries/${country.filename}`);
-			const geojson = await response.json();
-			country.geojson = geojson;
+			const responses = await Promise.all(
+				files.map((file) => fetch(`/world-geojson/countries/${file}`))
+			);
+			const geojsons = await Promise.all(responses.map((response) => response.json()));
+
+			if (geojsons.length === 1) {
+				country.geojson = geojsons[0];
+				return country;
+			}
+
+			const features = geojsons.flatMap((collection) =>
+				Array.isArray(collection?.features) ? collection.features : []
+			);
+			country.geojson = {
+				type: 'FeatureCollection',
+				features
+			};
 			return country;
 		} catch (error) {
 			console.error(`Failed to load GeoJSON for ${country.name}:`, error);
@@ -283,20 +547,40 @@
 		// Load GeoJSON asynchronously
 		const countryWithGeojson = await loadCountryGeoJson(country);
 		onselect?.(countryWithGeojson);
+		searchValue = '';
 	}
 </script>
 
-<div class="w-48 absolute left-4 top-40 z-50">
+<div class="w-48 absolute left-2.5 top-32 z-50">
 	<Popover.Root bind:open>
 		<Popover.Trigger>
-			<Button variant="outline" role="combobox" aria-expanded={open} class="w-full justify-between">
-				{selectedCountryObj ? selectedCountryObj.name : 'Select country...'}
-				<ChevronsUpDownIcon class="ml-2 h-4 w-4 shrink-0 opacity-50" />
+			<Button
+				variant="outline"
+				role="combobox"
+				aria-expanded={open}
+				class="w-full bg-glass h-8 rounded-sm w-[180px] backdrop-blur-sm cursor-pointer border-none justify-between {$omProtocolSettings.clippingOptions
+					? 'ring-2 ring-accent ring-foreground'
+					: ''}"
+			>
+				<span class="truncate">
+					Clip: {selectedCountryObj ? selectedCountryObj.name : 'Select country...'}
+				</span>
+				<ChevronsUpDownIcon class="-ml-2 h-4 w-4 shrink-0 opacity-50" />
 			</Button>
 		</Popover.Trigger>
-		<Popover.Content class="w-full p-0">
+		<Popover.Content
+			class="w-full p-0 bg-glass! backdrop-blur-sm border-none shadow-lg mt-1 rounded-sm"
+		>
 			<Command.Root shouldFilter={false}>
-				<Command.Input placeholder="Search country..." bind:value={searchValue} />
+				<div class="flex items-center gap-2 p-2 bg-transparent">
+					<Command.Input placeholder="Search country..." bind:value={searchValue} class="flex-1" />
+					<button
+						onclick={() => (searchValue = '')}
+						class="px-2 py-1 text-sm hover:bg-muted/80 rounded text-muted-foreground hover:text-foreground transition-colors"
+					>
+						Clear
+					</button>
+				</div>
 				<Command.List>
 					<Command.Empty>No country found.</Command.Empty>
 					<Command.Group>

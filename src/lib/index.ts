@@ -11,6 +11,8 @@ import {
 	getColorScale,
 	getValueFromLatLong
 } from '@openmeteo/mapbox-layer';
+import * as turf from '@turf/turf';
+import { pointsWithinPolygon } from '@turf/turf';
 import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
 import { toast } from 'svelte-sonner';
@@ -723,6 +725,21 @@ export const addPopup = () => {
 		);
 
 		if (isFinite(value)) {
+			const omProtocolSettingsState = get(omProtocolSettings);
+			const clippingOptions = omProtocolSettingsState.clippingOptions;
+			if (clippingOptions) {
+				if (
+					!turf.booleanPointInPolygon(
+						coordinates.toArray(),
+						turf.multiPolygon(clippingOptions.polygons)
+					)
+				) {
+					popup
+						.setLngLat(coordinates)
+						.setHTML(`<span style="padding: 3px 5px;" class="popup-string">Outside clip</span>`);
+					return;
+				}
+			}
 			const dark = mode.current === 'dark';
 			const colorScale = getColorScale(get(v), dark, omProtocolSettings.colorScales);
 			const color = getColor(colorScale, value);
@@ -798,11 +815,10 @@ export const getOMUrl = () => {
 		url += `&resolution_factor=${resolution}`;
 	}
 
-	const omProtocolSettingsState = get(omProtocolSettings)
+	const omProtocolSettingsState = get(omProtocolSettings);
 	hashValue(JSON.stringify(omProtocolSettingsState.clippingOptions)).then((hash) => {
 		url += `&clipping_options_hash=${hash}`;
 	});
-
 
 	return url;
 };
