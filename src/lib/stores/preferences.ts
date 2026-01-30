@@ -61,6 +61,8 @@ export const helpOpen = writable(false);
 export const metaJson: Writable<DomainMetaDataJson | undefined> = writable(undefined);
 export const modelRunLocked = writable(false);
 
+export const typing = writable(false);
+
 export const resetStates = async () => {
 	modelRunLocked.set(false);
 
