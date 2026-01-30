@@ -9,6 +9,7 @@
 		omProtocol,
 		updateCurrentBounds
 	} from '@openmeteo/mapbox-layer';
+	import * as turf from '@turf/turf';
 	import { type RequestParameters } from 'maplibre-gl';
 	import * as maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
@@ -43,6 +44,7 @@
 	import HelpDialog from '$lib/components/help/help-dialog.svelte';
 	import Spinner from '$lib/components/loading/spinner.svelte';
 	import Scale from '$lib/components/scale/scale.svelte';
+	import CountrySelector, { type Country } from '$lib/components/selection/country-selector.svelte';
 	import VariableSelection from '$lib/components/selection/variable-selection.svelte';
 	import Settings from '$lib/components/settings/settings.svelte';
 	import TimeSelector from '$lib/components/time/time-selector.svelte';
@@ -106,7 +108,7 @@
 		);
 
 		maplibregl.addProtocol('om', (params: RequestParameters) =>
-			omProtocol(params, undefined, omProtocolSettings)
+			omProtocol(params, undefined, $omProtocolSettings)
 		);
 
 		const style = await getStyle();
@@ -199,6 +201,46 @@
 
 		clearInterval(metaDataInterval);
 	});
+
+	let selectedCountry = $state('');
+
+	const handleCountrySelect = (country: Country) => {
+		console.log('Selected:', country);
+
+		if (country.name === 'None') {
+			$omProtocolSettings.clippingOptions = undefined;
+			changeOMfileURL();
+			return;
+		}
+
+		const flatten = turf.flatten(country.geojson);
+		console.log(flatten);
+
+		let polygon;
+		if (flatten.features.length === 1) {
+			polygon = flatten.features[0];
+		} else {
+			polygon = turf.union(flatten);
+		}
+		console.log(polygon);
+
+		const bbox = turf.bbox(polygon);
+		const simplifiedPolygon = turf.simplify(polygon, {
+			tolerance: 0.00025,
+			highQuality: true
+		});
+
+		let polygons = [];
+		for (let coords of simplifiedPolygon.geometry.coordinates) {
+			polygons.push(...coords);
+		}
+
+		$omProtocolSettings.clippingOptions = {
+			polygons: [polygons],
+			bounds: bbox
+		};
+		changeOMfileURL();
+	};
 </script>
 
 <svelte:head>
@@ -217,14 +259,15 @@
 
 <Scale
 	afterColorScaleChange={async (variable: string, colorScale: RenderableColorScale) => {
-		omProtocolSettings.colorScales[variable] = colorScale;
-		const colorHash = await hashValue(JSON.stringify(omProtocolSettings.colorScales));
+		$omProtocolSettings.colorScales[variable] = colorScale;
+		const colorHash = await hashValue(JSON.stringify($omProtocolSettings.colorScales));
 		updateUrl('color_hash', colorHash, defaultColorHash);
 		changeOMfileURL();
 		toast('Changed color scale');
 	}}
 />
 <VariableSelection />
+<CountrySelector bind:selectedCountry onselect={handleCountrySelect} />
 <TimeSelector />
 <Settings />
 <HelpDialog />

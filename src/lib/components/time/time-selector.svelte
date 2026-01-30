@@ -14,7 +14,8 @@
 		modelRun,
 		modelRunLocked,
 		preferences,
-		time
+		time,
+		typing
 	} from '$lib/stores/preferences';
 	import { inProgress, latest, metaJson } from '$lib/stores/preferences';
 	import {
@@ -349,6 +350,7 @@
 
 	let ctrl = $state(false);
 	const keyDownEvent = (event: KeyboardEvent) => {
+		if ($typing) return;
 		if (event.keyCode == 17 || event.keyCode == 91) ctrl = true;
 
 		const canNavigate = !($domainSelectionOpen || $variableSelectionOpen);

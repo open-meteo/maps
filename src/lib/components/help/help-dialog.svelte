@@ -4,12 +4,13 @@
 
 	import { browser } from '$app/environment';
 
-	import { helpOpen } from '$lib/stores/preferences';
+	import { helpOpen, typing } from '$lib/stores/preferences';
 
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Kbd from '$lib/components/ui/kbd';
 
 	const keydownEvent = (event: KeyboardEvent) => {
+		if ($typing) return;
 		switch (event.key) {
 			case 'h':
 				$helpOpen = !$helpOpen;

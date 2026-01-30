@@ -798,6 +798,12 @@ export const getOMUrl = () => {
 		url += `&resolution_factor=${resolution}`;
 	}
 
+	const omProtocolSettingsState = get(omProtocolSettings)
+	hashValue(JSON.stringify(omProtocolSettingsState.clippingOptions)).then((hash) => {
+		url += `&clipping_options_hash=${hash}`;
+	});
+
+
 	return url;
 };
 
