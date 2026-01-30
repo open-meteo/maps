@@ -741,7 +741,7 @@ export const addPopup = () => {
 				}
 			}
 			const dark = mode.current === 'dark';
-			const colorScale = getColorScale(get(v), dark, omProtocolSettings.colorScales);
+			const colorScale = getColorScale(get(v), dark, omProtocolSettingsState.colorScales);
 			const color = getColor(colorScale, value);
 			const content = '<span class="popup-value">' + value.toFixed(1) + '</span>' + colorScale.unit;
 			popup
