@@ -3,7 +3,6 @@ import { SvelteDate } from 'svelte/reactivity';
 import { get } from 'svelte/store';
 
 import {
-	TIME_SELECTED_REGEX,
 	VARIABLE_PREFIX,
 	closestModelRun,
 	domainStep,
@@ -45,7 +44,7 @@ import {
 	BEFORE_LAYER_VECTOR_WATER_CLIP
 } from '$lib/constants';
 
-import { parseISOWithoutTimezone } from './time-format';
+import { formatISOUTCWithZ, parseISOWithoutTimezone } from './time-format';
 
 import type { Domain, DomainMetaDataJson } from '@openmeteo/mapbox-layer';
 
@@ -801,39 +800,46 @@ export const getOMUrl = () => {
 
 	return url;
 };
-
 export const getNextOmUrls = (
-	omUrl: string,
+	_omUrl: string,
 	domain: Domain,
 	metaJson: DomainMetaDataJson | undefined
-) => {
-	let nextUrl, prevUrl;
-
+): [string | undefined, string | undefined] => {
 	const url = `https://map-tiles.open-meteo.com/data_spatial/${domain.value}`;
 
-	const matches = omUrl.match(TIME_SELECTED_REGEX);
-	if (matches) {
-		const date = new Date('20' + matches[0].substring(0, matches[0].length - 2) + ':00Z');
-		const prevUrlDate = domainStep(date, domain.time_interval, 'backward');
-		const nextUrlDate = domainStep(date, domain.time_interval, 'forward');
-		let currentModelRun;
-		if (metaJson) {
-			currentModelRun = new Date(metaJson.reference_time);
-		}
-		let prevUrlModelRun = closestModelRun(prevUrlDate, domain.model_interval);
-		if (currentModelRun && prevUrlModelRun > currentModelRun) {
-			prevUrlModelRun = currentModelRun;
-		}
-		let nextUrlModelRun = closestModelRun(nextUrlDate, domain.model_interval);
-		if (currentModelRun && nextUrlModelRun > currentModelRun) {
-			nextUrlModelRun = currentModelRun;
-		}
-		prevUrl = url + `/${fmtModelRun(prevUrlModelRun)}/${fmtSelectedTime(prevUrlDate)}.om`;
-		nextUrl = url + `/${fmtModelRun(nextUrlModelRun)}/${fmtSelectedTime(nextUrlDate)}.om`;
-		return [prevUrl, nextUrl];
+	const date = get(time);
+	const dateString = formatISOUTCWithZ(date);
+	let prevUrlDate: Date;
+	let nextUrlDate: Date;
+	if (metaJson) {
+		const currentIndex = metaJson.valid_times.findIndex((vDateString) => {
+			return dateString === vDateString;
+		});
+		prevUrlDate = new Date(metaJson.valid_times[currentIndex + 1]);
+		nextUrlDate = new Date(metaJson.valid_times[currentIndex - 1]);
 	} else {
-		return undefined;
+		prevUrlDate = domainStep(date, domain.time_interval, 'backward');
+		nextUrlDate = domainStep(date, domain.time_interval, 'forward');
 	}
+	let currentModelRun;
+	if (metaJson) {
+		currentModelRun = new Date(metaJson.reference_time);
+	}
+	let prevUrlModelRun = closestModelRun(prevUrlDate, domain.model_interval);
+	if (currentModelRun && prevUrlModelRun > currentModelRun) {
+		prevUrlModelRun = currentModelRun;
+	}
+	let nextUrlModelRun = closestModelRun(nextUrlDate, domain.model_interval);
+	if (currentModelRun && nextUrlModelRun > currentModelRun) {
+		nextUrlModelRun = currentModelRun;
+	}
+	const prevUrl = !isNaN(prevUrlDate.getTime())
+		? url + `/${fmtModelRun(prevUrlModelRun)}/${fmtSelectedTime(prevUrlDate)}.om`
+		: undefined;
+	const nextUrl = !isNaN(nextUrlDate.getTime())
+		? url + `/${fmtModelRun(nextUrlModelRun)}/${fmtSelectedTime(nextUrlDate)}.om`
+		: undefined;
+	return [prevUrl, nextUrl];
 };
 
 export const hashValue = (val: string) =>
