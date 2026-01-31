@@ -347,6 +347,12 @@
 		}
 	};
 
+	// throttled versions of the navigation functions
+	const throttledPreviousHour = throttle(previousHour, 150);
+	const throttledNextHour = throttle(nextHour, 150);
+	const throttledPreviousDay = throttle(previousDay, 150);
+	const throttledNextDay = throttle(nextDay, 150);
+
 	let ctrl = $state(false);
 	const keyDownEvent = (event: KeyboardEvent) => {
 		if (event.keyCode == 17 || event.keyCode == 91) ctrl = true;
@@ -355,10 +361,10 @@
 		if (!canNavigate) return;
 
 		const actions: Record<string, () => void> = {
-			ArrowLeft: ctrl ? previousModel : previousHour,
-			ArrowRight: ctrl ? nextModel : nextHour,
-			ArrowDown: previousDay,
-			ArrowUp: nextDay,
+			ArrowLeft: ctrl ? previousModel : throttledPreviousHour,
+			ArrowRight: ctrl ? nextModel : throttledNextHour,
+			ArrowDown: throttledPreviousDay,
+			ArrowUp: throttledNextDay,
 			c: ctrl ? () => {} : jumpToCurrentTime,
 			m: ctrl ? () => {} : () => toggleModelRunLock(),
 			n: ctrl ? () => {} : () => setLatestModelRun()
@@ -371,7 +377,7 @@
 		if (!disabled || ['m'].includes(event.key)) {
 			action();
 		} else {
-			toast.warning('Still loading another OM file');
+			// toast.warning('Still loading another OM file');
 		}
 	};
 

@@ -97,6 +97,20 @@ export const formatISOWithoutTimezone = (date: Date): string =>
 	date.toISOString().replace(/[:Z]/g, '').slice(0, 15);
 
 /**
+ * Formats a date to ISO UTC format with 'Z' timezone (YYYY-MM-DDTHH:MMZ)
+ * @param date - The date to format
+ * @returns ISO UTC string with minutes and Z (e.g., "2026-02-03T06:00Z")
+ */
+export const formatISOUTCWithZ = (date: Date): string => {
+	const year = date.getUTCFullYear();
+	const month = pad(date.getUTCMonth() + 1);
+	const day = pad(date.getUTCDate());
+	const hour = pad(date.getUTCHours());
+	const minute = pad(date.getUTCMinutes());
+	return `${year}-${month}-${day}T${hour}:${minute}Z`;
+};
+
+/**
  * Parses an ISO format string without timezone to a Date object
  * @param isoString - ISO format string (YYYY-MM-DDTHHMM, e.g., "2026-01-23T1430")
  * @returns Date object in UTC timezone
