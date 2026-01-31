@@ -152,10 +152,13 @@
 
 	let getInitialMetaDataPromise: Promise<void> | undefined;
 	const domainSubscription = domain.subscribe(async (newDomain) => {
-		await tick(); // await the selectedDomain to be set
-		updateUrl('domain', newDomain);
+		if ($domain !== newDomain) {
+			await tick(); // await the selectedDomain to be set
+			updateUrl('domain', newDomain);
+			$modelRun = undefined;
+			toast('Domain set to: ' + $selectedDomain.label);
+		}
 
-		$modelRun = undefined;
 		getInitialMetaDataPromise = getInitialMetaData();
 		await getInitialMetaDataPromise;
 		$metaJson = await getMetaData();
@@ -169,18 +172,19 @@
 		}
 
 		matchVariableOrFirst();
-
 		changeOMfileURL();
-		toast('Domain set to: ' + $selectedDomain.label);
 	});
 
 	const variableSubscription = variable.subscribe(async (newVar) => {
-		await tick(); // await the selectedVariable to be set
-		updateUrl('variable', newVar);
+		if ($variable !== newVar) {
+			await tick(); // await the selectedVariable to be set
+			updateUrl('variable', newVar);
+			toast('Variable set to: ' + $selectedVariable.label);
+		}
+
 		if (!$loading) {
 			changeOMfileURL();
 		}
-		toast('Variable set to: ' + $selectedVariable.label);
 	});
 
 	let metaDataInterval: ReturnType<typeof setInterval>;

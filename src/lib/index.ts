@@ -111,6 +111,7 @@ export const urlParamsToPreferences = () => {
 	if (urlModelTime && urlModelTime.length == 15) {
 		const parsedModelTime = parseISOWithoutTimezone(urlModelTime);
 		mR.set(parsedModelTime);
+		mRL.set(true);
 	}
 
 	const urlTime = params.get('time');
