@@ -484,7 +484,7 @@
 	let isScrolling = $state(false);
 
 	const centerDateButton = (date: Date, smooth = true) => {
-		if (dayContainer) {
+		if (dayContainer && timeStepsComplete) {
 			const index = timeStepsComplete.findIndex((tSC) => tSC.getTime() === date.getTime());
 			if (index !== -1) {
 				if (desktop.current) {
@@ -589,7 +589,7 @@
 				$shadeMap?.setDate($time);
 			});
 			hoursHoverContainer.addEventListener('click', () => {
-				if (desktop.current) {
+				if (desktop.current && timeStepsComplete) {
 					let validTime = false;
 					let timeStep =
 						timeStepsComplete[
@@ -652,7 +652,7 @@
 		});
 
 		const onScrollEvent = (e: Event) => {
-			if (isScrolling) return;
+			if (isScrolling || !timeStepsComplete) return;
 
 			const target = e.target as Element;
 			const left = target.scrollLeft;
@@ -682,7 +682,7 @@
 			// Clear isScrolling flag when scrolling ends
 			isScrolling = false;
 
-			if (!desktop.current && !isDown) {
+			if (!desktop.current && !isDown && timeStepsComplete) {
 				if ($loading) {
 					centerDateButton($time);
 					currentDate = new SvelteDate($time);
@@ -865,7 +865,7 @@
 				<!-- Loading skeleton tooltip -->
 				<div
 					transition:fade={{ duration: 200 }}
-					class="absolute flex items-center justify-center bg-glass h-4.5 backdrop-blur-sm -top-6 rounded-none! p-0.5 w-16.5 text-center"
+					class="absolute flex items-center justify-center bg-glass h-6 backdrop-blur-sm -top-5 rounded p-0.5 w-25 text-center"
 					style="left: clamp(-4px, calc(50% - 33px), calc(100% - 70px));"
 				>
 					<div class="h-3 w-8 bg-foreground/10 rounded animate-pulse"></div>
