@@ -6,7 +6,7 @@ import { persisted } from 'svelte-persisted-store';
 import { getNextOmUrls } from '$lib';
 import { DEFAULT_COLOR_HASH } from '$lib/constants';
 
-import { metaJson } from './preferences';
+import { metaJson } from './time';
 import { selectedDomain } from './variables';
 
 import type {
@@ -36,18 +36,17 @@ export const omProtocolSettings: OmProtocolSettings = {
 		// dwd icon models are cached locally on server
 		if (!state.dataOptions.domain.value.startsWith('dwd_icon')) {
 			const nextOmUrls = getNextOmUrls(state.omFileUrl, get(selectedDomain), get(metaJson));
-			if (nextOmUrls) {
-				for (const nextOmUrl of nextOmUrls) {
-					if (!omFileReader.hasFileOpen(nextOmUrl)) {
-						fetch(nextOmUrl, {
-							method: 'GET',
-							headers: {
-								Range: 'bytes=0-255' // Just fetch first 256 bytes to trigger caching
-							}
-						}).catch(() => {
-							// Silently ignore errors for prefetches
-						});
-					}
+			for (const nextOmUrl of nextOmUrls) {
+				if (nextOmUrl === undefined) continue;
+				if (!omFileReader.hasFileOpen(nextOmUrl)) {
+					fetch(nextOmUrl, {
+						method: 'GET',
+						headers: {
+							Range: 'bytes=0-255' // Just fetch first 256 bytes to trigger caching
+						}
+					}).catch(() => {
+						// Silently ignore errors for prefetches
+					});
 				}
 			}
 		}
