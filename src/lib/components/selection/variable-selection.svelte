@@ -191,9 +191,9 @@
 				<Popover.Trigger>
 					<Button
 						variant="outline"
-						class="bg-glass backdrop-blur-sm shadow-md {domainSelectionOpen
-							? 'bg-background'
-							: ''} hover:bg-background border-none h-7.25 w-45 cursor-pointer justify-between rounded p-1.5!"
+						class="bg-glass/75 dark:bg-glass/75 backdrop-blur-sm shadow-md {domainSelectionOpen
+							? 'bg-background!'
+							: ''} hover:bg-background! border-none h-7.25 w-45 cursor-pointer justify-between rounded p-1.5!"
 						role="combobox"
 						aria-expanded={domainSelectionOpen}
 					>
@@ -290,8 +290,8 @@
 				<Popover.Trigger class={domainSelectionOpen ? 'hidden' : ''}>
 					<Button
 						variant="outline"
-						class="bg-glass backdrop-blur-sm shadow-md  {variableSelectionOpen
-							? 'bg-background'
+						class="bg-glass/75 dark:bg-glass/75 backdrop-blur-sm shadow-md  {variableSelectionOpen
+							? 'bg-background!'
 							: ''} hover:bg-background! h-7.25 w-45 cursor-pointer justify-between rounded border-none p-1.5!"
 						role="combobox"
 						aria-expanded={variableSelectionOpen}
@@ -384,9 +384,9 @@
 
 										<Command.Item
 											value={v?.value}
-											class="hover:!bg-primary/25 cursor-pointer {$selectedVariable.value ===
+											class="hover:bg-primary/20! cursor-pointer {$selectedVariable.value ===
 											v?.value
-												? '!bg-primary/15'
+												? 'bg-primary/10!'
 												: ''}"
 											onSelect={() => {
 												$levelGroupSelected = undefined;
@@ -420,9 +420,9 @@
 					<Popover.Trigger class={domainSelectionOpen || variableSelectionOpen ? 'hidden' : ''}>
 						<Button
 							variant="outline"
-							class="bg-glass backdrop-blur-sm shadow-md {pressureLevelSelectionOpen
-								? 'bg-background'
-								: ''} hover:bg-background h-7.25 w-45 cursor-pointer justify-between rounded border-none p-1.5!"
+							class="bg-glass/75 dark:bg-glass/75 backdrop-blur-sm shadow-md {pressureLevelSelectionOpen
+								? 'bg-background!'
+								: ''} hover:bg-background! h-7.25 w-45 cursor-pointer justify-between rounded border-none p-1.5!"
 							role="combobox"
 							aria-expanded={pressureLevelSelectionOpen}
 						>
@@ -470,8 +470,8 @@
 										{#if !value.includes('v_component') && !value.includes('_direction')}
 											<Command.Item
 												{value}
-												class="hover:!bg-primary/25 cursor-pointer {lvl === $level && u === $unit
-													? '!bg-primary/15'
+												class="hover:bg-primary/20! cursor-pointer {lvl === $level && u === $unit
+													? 'bg-primary/10!'
 													: ''}"
 												onSelect={() => {
 													$variable = value;
@@ -497,7 +497,7 @@
 	{/if}
 
 	<button
-		class="bg-glass backdrop-blur-sm shadow-md hover:bg-background duration-200 h-7.25 w-7.25 flex cursor-pointer items-center rounded p-0 z-20"
+		class="bg-glass/75 backdrop-blur-sm shadow-md hover:bg-background duration-200 h-7.25 w-7.25 flex cursor-pointer items-center rounded p-0 z-20"
 		onclick={() => {
 			vSE.set(!get(vSE));
 		}}

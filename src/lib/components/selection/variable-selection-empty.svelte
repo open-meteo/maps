@@ -15,7 +15,7 @@
 <div class="flex flex-col gap-2.5">
 	<Button
 		variant="outline"
-		class="bg-glass backdrop-blur-sm shadow-md hover:bg-background h-7.25 w-45 cursor-pointer justify-between rounded border-none p-1.5!"
+		class="bg-glass/75 dark:bg-glass/75 backdrop-blur-sm shadow-md hover:bg-background! h-7.25 w-45 cursor-pointer justify-between rounded border-none p-1.5!"
 		role="combobox"
 	>
 		<div class="truncate">
@@ -26,7 +26,7 @@
 
 	<Button
 		variant="outline"
-		class="bg-glass backdrop-blur-sm shadow-md hover:bg-background h-7.25 w-45 cursor-pointer justify-between rounded border-none p-1.5!"
+		class="bg-glass/75 dark:bg-glass/75 backdrop-blur-sm shadow-md hover:bg-background! h-7.25 w-45 cursor-pointer justify-between rounded border-none p-1.5!"
 		role="combobox"
 	>
 		<div class="truncate">
@@ -40,7 +40,7 @@
 	{#if $levelGroupSelected}
 		<Button
 			variant="outline"
-			class="bg-glass backdrop-blur-sm shadow-md hover:bg-background h-7.25 w-45 cursor-pointer justify-between rounded border-none p-1.5!"
+			class="bg-glass/75 dark:bg-glass/75 backdrop-blur-sm shadow-md hover:bg-background! h-7.25 w-45 cursor-pointer justify-between rounded border-none p-1.5!"
 			role="combobox"
 		>
 			<div class="truncate">{$level + ' ' + $unit || 'Select a domain...'}</div>
