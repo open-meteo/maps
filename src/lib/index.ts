@@ -754,12 +754,12 @@ export const addPopup = () => {
 };
 
 /** e.g. /2025/06/06/1200Z/ */
-const fmtModelRun = (modelRun: Date) => {
+export const fmtModelRun = (modelRun: Date) => {
 	return `${modelRun.getUTCFullYear()}/${pad(modelRun.getUTCMonth() + 1)}/${pad(modelRun.getUTCDate())}/${pad(modelRun.getUTCHours())}${pad(modelRun.getUTCMinutes())}Z`;
 };
 
 /** e.g. 2025-06-06-1200 */
-const fmtSelectedTime = (time: Date) => {
+export const fmtSelectedTime = (time: Date) => {
 	return `${time.getUTCFullYear()}-${pad(time.getUTCMonth() + 1)}-${pad(time.getUTCDate())}T${pad(time.getUTCHours())}${pad(time.getUTCMinutes())}`;
 };
 
