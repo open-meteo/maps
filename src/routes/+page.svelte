@@ -167,8 +167,7 @@
 			$time = timeStep;
 			updateUrl('time', formatISOWithoutTimezone($time));
 		} else {
-			// else take the first possible time
-
+			// otherwise use first valid time
 			$time = timeSteps[0];
 			updateUrl('time', formatISOWithoutTimezone($time));
 		}
