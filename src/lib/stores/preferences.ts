@@ -14,7 +14,7 @@ import {
 } from '$lib/constants';
 
 import { customColorScales } from './om-protocol-settings';
-import { inProgress, latest, modelRun, now, time } from './time';
+import { inProgress, latest, metaJson, modelRun, modelRunLocked, now, time } from './time';
 import {
 	domain,
 	domainSelectionOpen,
@@ -23,8 +23,6 @@ import {
 	variableSelectionOpen
 } from './variables';
 import { defaultVectorOptions, vectorOptions } from './vector';
-
-import type { DomainMetaDataJson } from '@openmeteo/mapbox-layer';
 
 export const defaultPreferences = DEFAULT_PREFERENCES;
 
@@ -59,9 +57,6 @@ export const localStorageVersion: Persisted<string | undefined> = persisted(
 
 export const helpOpen = writable(false);
 
-export const metaJson: Writable<DomainMetaDataJson | undefined> = writable(undefined);
-export const modelRunLocked = writable(false);
-
 export const resetStates = async () => {
 	modelRunLocked.set(false);
 
@@ -79,6 +74,7 @@ export const resetStates = async () => {
 
 	const currentTimeStep = new Date();
 	currentTimeStep.setUTCHours(currentTimeStep.getUTCHours() + 1, 0, 0, 0);
+	now.set(new Date());
 	time.set(new Date(currentTimeStep));
 
 	domain.set('dwd_icon');

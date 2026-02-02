@@ -23,15 +23,20 @@ import {
 	completeDefaultValues,
 	defaultPreferences,
 	loading,
-	metaJson as mJ,
-	modelRunLocked as mRL,
 	opacity,
 	preferences as p,
 	resolution as r,
 	tileSize as tS,
 	url as u
 } from '$lib/stores/preferences';
-import { inProgress as iP, latest as l, modelRun as mR, time } from '$lib/stores/time';
+import {
+	inProgress as iP,
+	latest as l,
+	metaJson as mJ,
+	modelRun as mR,
+	modelRunLocked as mRL,
+	time
+} from '$lib/stores/time';
 import { domain as d, selectedDomain, variable as v } from '$lib/stores/variables';
 import { type VectorOptions, vectorOptions as vO } from '$lib/stores/vector';
 

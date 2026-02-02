@@ -22,14 +22,13 @@
 	import {
 		loading,
 		localStorageVersion,
-		metaJson,
 		preferences,
 		resetStates,
 		resolution,
 		resolutionSet,
 		url
 	} from '$lib/stores/preferences';
-	import { modelRun, time } from '$lib/stores/time';
+	import { metaJson, modelRun, time } from '$lib/stores/time';
 	import { domain, selectedDomain, selectedVariable, variable } from '$lib/stores/variables';
 
 	import {
