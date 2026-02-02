@@ -23,14 +23,13 @@
 		loading,
 		localStorageVersion,
 		metaJson,
-		modelRun,
 		preferences,
 		resetStates,
 		resolution,
 		resolutionSet,
-		time,
 		url
 	} from '$lib/stores/preferences';
+	import { modelRun, time } from '$lib/stores/time';
 	import { domain, selectedDomain, selectedVariable, variable } from '$lib/stores/variables';
 
 	import {
@@ -63,7 +62,6 @@
 		updateUrl,
 		urlParamsToPreferences
 	} from '$lib';
-	import { METADATA_REFRESH_INTERVAL } from '$lib/constants';
 	import { formatISOWithoutTimezone } from '$lib/time-format';
 
 	import '../styles.css';
@@ -169,6 +167,11 @@
 		if (timeStep) {
 			$time = timeStep;
 			updateUrl('time', formatISOWithoutTimezone($time));
+		} else {
+			// else take the first possible time
+
+			$time = timeSteps[0];
+			updateUrl('time', formatISOWithoutTimezone($time));
 		}
 
 		matchVariableOrFirst();
@@ -187,21 +190,12 @@
 		}
 	});
 
-	let metaDataInterval: ReturnType<typeof setInterval>;
-	onMount(() => {
-		metaDataInterval = setInterval(() => {
-			getInitialMetaData();
-		}, METADATA_REFRESH_INTERVAL);
-	});
-
 	onDestroy(() => {
 		if ($map) {
 			$map.remove();
 		}
 		domainSubscription(); // unsubscribe
 		variableSubscription(); // unsubscribe
-
-		clearInterval(metaDataInterval);
 	});
 </script>
 

@@ -8,15 +8,9 @@
 
 	import { browser } from '$app/environment';
 
-	import {
-		desktop,
-		loading,
-		modelRun,
-		modelRunLocked,
-		preferences,
-		time
-	} from '$lib/stores/preferences';
-	import { inProgress, latest, metaJson } from '$lib/stores/preferences';
+	import { desktop, loading, modelRunLocked, preferences } from '$lib/stores/preferences';
+	import { metaJson } from '$lib/stores/preferences';
+	import { inProgress, latest, modelRun, now, time } from '$lib/stores/time';
 	import {
 		domainSelectionOpen,
 		selectedDomain,
@@ -30,7 +24,6 @@
 		DAY_NAMES,
 		MILLISECONDS_PER_DAY,
 		MILLISECONDS_PER_HOUR,
-		MILLISECONDS_PER_MINUTE,
 		MILLISECONDS_PER_WEEK
 	} from '$lib/constants';
 	import {
@@ -46,8 +39,6 @@
 		withLocalTime
 	} from '$lib/time-format';
 
-	// Current time, updated every minute to track real time
-	let now = $state(new Date());
 	// Disables time selection when loading new OM files
 	let disabled = $derived($loading);
 	// Tracks the currently selected date for display and navigation
@@ -326,7 +317,7 @@
 	};
 
 	const jumpToCurrentTime = () => {
-		let date = new SvelteDate(now);
+		let date = new SvelteDate($now);
 		date.setTime(date.getTime() + metaFirstResolution); // next time step
 		const timeStep = findTimeStep(date, timeSteps);
 		if (timeStep) date = new SvelteDate(timeStep);
@@ -561,16 +552,10 @@
 	const timeValid = (date: Date) => isValidTimeStep(date, timeSteps);
 
 	let resizeTimeout: ReturnType<typeof setTimeout> | undefined;
-	let updateNowInterval: ReturnType<typeof setTimeout> | undefined;
 	const horizontalScrollSpeed = 1;
 
 	const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 	onMount(() => {
-		if (updateNowInterval) clearInterval(updateNowInterval);
-		updateNowInterval = setInterval(() => {
-			now = new Date();
-		}, MILLISECONDS_PER_MINUTE);
-
 		if (hoursHoverContainer) {
 			hoursHoverContainer.addEventListener('mousemove', (e) => {
 				if (hoursHoverContainerWidth)
@@ -733,7 +718,6 @@
 	});
 
 	onDestroy(() => {
-		if (updateNowInterval) clearInterval(updateNowInterval);
 		if (resizeTimeout) clearTimeout(resizeTimeout);
 	});
 
@@ -1011,7 +995,7 @@
 					transition:fade={{ duration: 300 }}
 					class="absolute {desktop.current ? '-left-6' : 'left-1.75'} -top-5 text-xs p-1"
 				>
-					UTC{formatUTCOffset(now)}
+					UTC{formatUTCOffset($now)}
 					{#if desktop.current}
 						{Intl.DateTimeFormat().resolvedOptions().timeZone}
 					{/if}
@@ -1084,10 +1068,10 @@
 								<div class="">{DAY_NAMES[dayStep.getDay()]}</div>
 								<small class="-mt-2">{formatLocalDate(dayStep)}</small>
 							</div>
-							{#if dayStep.getDate() === now.getDate()}
+							{#if dayStep.getDate() === $now.getDate()}
 								<div
 									style="left: {dayWidth *
-										((now.getTime() - dayStep.getTime()) /
+										(($now.getTime() - dayStep.getTime()) /
 											MILLISECONDS_PER_DAY)}px; width: calc({dayWidth}px/{metaFirstResolutionHours ===
 									0.25
 										? 72

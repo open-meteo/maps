@@ -1,5 +1,4 @@
 import { tick } from 'svelte';
-import { SvelteDate } from 'svelte/reactivity';
 import { get } from 'svelte/store';
 
 import {
@@ -20,23 +19,21 @@ import { pushState } from '$app/navigation';
 import { map as m } from '$lib/stores/map';
 import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 import {
+	type Preferences,
 	completeDefaultValues,
 	defaultPreferences,
-	inProgress as iP,
-	latest as l,
 	loading,
 	metaJson as mJ,
-	modelRun as mR,
 	modelRunLocked as mRL,
 	opacity,
 	preferences as p,
 	resolution as r,
 	tileSize as tS,
-	time,
 	url as u
 } from '$lib/stores/preferences';
+import { inProgress as iP, latest as l, modelRun as mR, time } from '$lib/stores/time';
 import { domain as d, selectedDomain, variable as v } from '$lib/stores/variables';
-import { vectorOptions as vO } from '$lib/stores/vector';
+import { type VectorOptions, vectorOptions as vO } from '$lib/stores/vector';
 
 import {
 	BEFORE_LAYER_RASTER,
@@ -50,11 +47,11 @@ import type { Domain, DomainMetaDataJson } from '@openmeteo/mapbox-layer';
 
 export { findTimeStep } from '$lib/time-utils';
 
-let url: any;
+let url: URL;
 let map: maplibregl.Map | undefined;
-let preferences: any;
+let preferences: Preferences;
 let metaJson: DomainMetaDataJson | undefined;
-let vectorOptions: any;
+let vectorOptions: VectorOptions;
 
 // Initialize store subscriptions only once on first access
 let storesInitialized = false;
@@ -91,9 +88,6 @@ const initializeStores = () => {
 const beforeLayerRaster = BEFORE_LAYER_RASTER;
 const beforeLayerVector = BEFORE_LAYER_VECTOR;
 const beforeLayerVectorWaterClip = BEFORE_LAYER_VECTOR_WATER_CLIP;
-
-const now = new SvelteDate();
-now.setHours(now.getHours() + 1, 0, 0, 0);
 
 let omUrl: string;
 
@@ -354,7 +348,7 @@ export const addOmFileLayers = () => {
 
 let omVectorSource: maplibregl.VectorTileSource | undefined;
 export const addVectorLayer = () => {
-	if (!map) return;
+	if (!map || !map.style) return;
 	if (!map.getSource('omVectorSource' + String(vectorRequests))) {
 		map.addSource('omVectorSource' + String(vectorRequests), {
 			url: 'om://' + omUrl,

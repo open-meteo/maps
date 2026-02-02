@@ -14,6 +14,7 @@ import {
 } from '$lib/constants';
 
 import { customColorScales } from './om-protocol-settings';
+import { inProgress, latest, modelRun, now, time } from './time';
 import {
 	domain,
 	domainSelectionOpen,
@@ -27,16 +28,19 @@ import type { DomainMetaDataJson } from '@openmeteo/mapbox-layer';
 
 export const defaultPreferences = DEFAULT_PREFERENCES;
 
+export interface Preferences {
+	globe: boolean;
+	terrain: boolean;
+	hillshade: boolean;
+	clipWater: boolean;
+	showScale: boolean;
+	timeSelector: boolean;
+}
+
 export const preferences = persisted('preferences', defaultPreferences);
 
 // URL object containing current url states setings and flags
 export const url: Writable<URL> = writable();
-
-let now = new Date();
-now.setUTCHours(now.getUTCHours() + 1, 0, 0, 0);
-
-export const time = writable(new Date(now));
-export const modelRun: Writable<Date | undefined> = writable(undefined);
 
 export const sheet = writable(false);
 export const loading = writable(true);
@@ -47,9 +51,6 @@ export const resolution: Persisted<0.5 | 1 | 2> = persisted('resolution', DEFAUL
 export const resolutionSet = persisted('resolution-set', false);
 
 export const opacity = persisted('opacity', DEFAULT_OPACITY);
-
-export const latest: Writable<DomainMetaDataJson | undefined> = writable(undefined);
-export const inProgress: Writable<DomainMetaDataJson | undefined> = writable(undefined);
 
 export const localStorageVersion: Persisted<string | undefined> = persisted(
 	'local-storage-version',
@@ -76,9 +77,9 @@ export const resetStates = async () => {
 	sheet.set(false);
 	loading.set(false);
 
-	now = new Date();
-	now.setUTCHours(now.getUTCHours() + 1, 0, 0, 0);
-	time.set(new Date(now));
+	const currentTimeStep = new Date();
+	currentTimeStep.setUTCHours(currentTimeStep.getUTCHours() + 1, 0, 0, 0);
+	time.set(new Date(currentTimeStep));
 
 	domain.set('dwd_icon');
 	variable.set('temperature_2m');
