@@ -100,7 +100,7 @@
 	>
 		<div
 			style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
-			class="flex flex-col-reverse overflow-hidden rounded-[4px]"
+			class="flex flex-col-reverse overflow-hidden rounded"
 		>
 			<div
 				class="flex flex-col-reverse"

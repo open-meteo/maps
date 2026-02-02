@@ -337,7 +337,7 @@
 					<div class="flex items-center gap-2">
 						<button
 							style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
-							class="bg-background/90 dark:bg-background/70 hover:!bg-background flex h-7.25 w-7.25 cursor-pointer items-center rounded-[4px] p-0"
+							class="bg-background/90 dark:bg-background/70 hover:!bg-background flex h-7.25 w-7.25 cursor-pointer items-center rounded p-0"
 							aria-label="Hide Variable Selection"
 							><svg
 								opacity="0.75"
