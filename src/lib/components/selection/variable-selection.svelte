@@ -193,8 +193,8 @@
 					<Button
 						variant="outline"
 						class="bg-glass/75 dark:bg-glass/75 backdrop-blur-sm shadow-md {domainSelectionOpen
-							? 'bg-background!'
-							: ''} hover:bg-background! border-none h-7.25 w-45 cursor-pointer justify-between rounded p-1.5!"
+							? 'bg-glass/95!'
+							: ''} hover:bg-glass/95! border-none h-7.25 w-45 cursor-pointer justify-between rounded p-1.5!"
 						role="combobox"
 						aria-expanded={domainSelectionOpen}
 					>
@@ -221,7 +221,7 @@
 							}, 10);
 						}
 					}}
-					class="ml-2.5 w-62.5 rounded border-none bg-transparent p-0"
+					class="bg-transparent! ml-2.5 w-62.5 rounded border-none! p-0"
 				>
 					<Popover.Close
 						class="absolute right-0.5 top-0.5 flex h-5 w-5 cursor-pointer items-center justify-center"
@@ -243,8 +243,7 @@
 						></Popover.Close
 					>
 					<Command.Root
-						style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
-						class="rounded-[3px]"
+						class="bg-glass/85! backdrop-blur-sm rounded"
 					>
 						<Command.Input class="border-none ring-0" placeholder="Search domains..." />
 						<Command.List>
@@ -292,8 +291,8 @@
 					<Button
 						variant="outline"
 						class="bg-glass/75 dark:bg-glass/75 backdrop-blur-sm shadow-md  {variableSelectionOpen
-							? 'bg-background!'
-							: ''} hover:bg-background! h-7.25 w-45 cursor-pointer justify-between rounded border-none p-1.5!"
+							? 'bg-glass/95!'
+							: ''} hover:bg-glass/95! h-7.25 w-45 cursor-pointer justify-between rounded border-none p-1.5!"
 						role="combobox"
 						aria-expanded={variableSelectionOpen}
 					>
@@ -322,7 +321,7 @@
 							firstChild.focus();
 						}
 					}}
-					class="ml-2.5 w-62.5 rounded border-none bg-transparent p-0"
+					class="ml-2.5 w-62.5 rounded border-none bg-transparent! p-0"
 				>
 					<Popover.Close
 						class="absolute right-0.5 top-0.5 flex h-5 w-5 cursor-pointer items-center justify-center"
@@ -344,8 +343,7 @@
 						></Popover.Close
 					>
 					<Command.Root
-						style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
-						class="rounded-[3px]"
+						class="bg-glass/85! backdrop-blur-sm rounded"
 					>
 						<Command.Input class="border-none ring-0" placeholder="Search variables..." />
 						<Command.List>
@@ -422,8 +420,8 @@
 						<Button
 							variant="outline"
 							class="bg-glass/75 dark:bg-glass/75 backdrop-blur-sm shadow-md {pressureLevelSelectionOpen
-								? 'bg-background!'
-								: ''} hover:bg-background! h-7.25 w-45 cursor-pointer justify-between rounded border-none p-1.5!"
+								? 'bg-glass/95!'
+								: ''} hover:bg-glass/95! h-7.25 w-45 cursor-pointer justify-between rounded border-none p-1.5!"
 							role="combobox"
 							aria-expanded={pressureLevelSelectionOpen}
 						>
@@ -435,7 +433,7 @@
 					</Popover.Trigger>
 					<Popover.Content
 						tabindex={0}
-						class="ml-2.5 w-62.5 rounded border-none bg-transparent p-0"
+						class="ml-2.5 w-62.5 rounded border-none bg-transparent! p-0"
 					>
 						<Popover.Close
 							class="absolute right-0.5 top-0.5 flex h-5 w-5 cursor-pointer items-center justify-center"
@@ -457,8 +455,7 @@
 							></Popover.Close
 						>
 						<Command.Root
-							style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
-							class="rounded-[3px]"
+							class="bg-glass/85! backdrop-blur-sm rounded"
 						>
 							<Command.Input class="border-none ring-0" placeholder="Search levels..." />
 							<Command.List>
@@ -498,7 +495,7 @@
 	{/if}
 
 	<button
-		class="bg-glass/75 backdrop-blur-sm shadow-md hover:bg-background duration-200 h-7.25 w-7.25 flex cursor-pointer items-center rounded p-0 z-20"
+		class="bg-glass/75 backdrop-blur-sm shadow-md hover:bg-glass/95 duration-200 h-7.25 w-7.25 flex cursor-pointer items-center rounded p-0 z-20"
 		onclick={() => {
 			vSE.set(!get(vSE));
 		}}

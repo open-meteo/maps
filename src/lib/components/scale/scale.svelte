@@ -99,13 +99,9 @@
 		style="max-height: {totalHeight + 100}px;"
 	>
 		<div
-			style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
-			class="flex flex-col-reverse overflow-hidden rounded"
-		>
+			class="flex flex-col-reverse overflow-hidden rounded  shadow-md">
 			<div
-				class="flex flex-col-reverse"
-				style="{isDark ? 'background:black;' : 'background:white;'} height: {totalHeight}px;"
-			>
+				class="flex flex-col-reverse bg-glass/90">
 				{#each labeledColors as lc, i (lc)}
 					{@const alphaValue = getAlpha(lc.color)}
 					<button
@@ -156,7 +152,7 @@
 
 			{#if colorScale.unit}
 				<div
-					class="bg-background/90 dark:bg-background/70 h-[23px] w-full overflow-hidden py-1 text-center text-xs"
+					class="bg-glass/75 backdrop-blur-sm shadow-md h-[23px] w-full overflow-hidden py-1 text-center text-xs"
 				>
 					{colorScale.unit}
 				</div>
