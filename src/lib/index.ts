@@ -754,12 +754,12 @@ export const addPopup = () => {
 };
 
 /** e.g. /2025/06/06/1200Z/ */
-const fmtModelRun = (modelRun: Date) => {
+export const fmtModelRun = (modelRun: Date) => {
 	return `${modelRun.getUTCFullYear()}/${pad(modelRun.getUTCMonth() + 1)}/${pad(modelRun.getUTCDate())}/${pad(modelRun.getUTCHours())}${pad(modelRun.getUTCMinutes())}Z`;
 };
 
 /** e.g. 2025-06-06-1200 */
-const fmtSelectedTime = (time: Date) => {
+export const fmtSelectedTime = (time: Date) => {
 	return `${time.getUTCFullYear()}-${pad(time.getUTCMonth() + 1)}-${pad(time.getUTCDate())}T${pad(time.getUTCHours())}${pad(time.getUTCMinutes())}`;
 };
 
@@ -768,7 +768,7 @@ export const getOMUrl = () => {
 	const uri =
 		domain && domain.startsWith('dwd_icon')
 			? `https://s3.servert.ch`
-			: `https://map-tiles.open-meteo.com`;
+			: `https://openmeteo.s3.amazonaws.com`;
 
 	let url = `${uri}/data_spatial/${domain}`;
 
@@ -804,7 +804,7 @@ export const getNextOmUrls = (
 	domain: Domain,
 	metaJson: DomainMetaDataJson | undefined
 ): [string | undefined, string | undefined] => {
-	const url = `https://map-tiles.open-meteo.com/data_spatial/${domain.value}`;
+	const url = `https:/openmeteo.s3.amazonaws.com/data_spatial/${domain.value}`;
 
 	const date = get(time);
 	const dateString = formatISOUTCWithZ(date);
@@ -885,7 +885,7 @@ export const getInitialMetaData = async () => {
 	const uri =
 		domain && domain.value.startsWith('dwd_icon')
 			? `https://s3.servert.ch`
-			: `https://map-tiles.open-meteo.com`;
+			: `https://openmeteo.s3.amazonaws.com`;
 
 	const metaJsonResults = await Promise.all([
 		fetch(`${uri}/data_spatial/${domain.value}/latest.json`),
@@ -935,7 +935,7 @@ export const getMetaData = async (): Promise<DomainMetaDataJson> => {
 	const uri =
 		domain && domain.value.startsWith('dwd_icon')
 			? `https://s3.servert.ch`
-			: `https://map-tiles.open-meteo.com`;
+			: `https://openmeteo.s3.amazonaws.com`;
 
 	const metaJsonUrl = `${uri}/data_spatial/${domain.value}/${fmtModelRun(modelRun as Date)}/meta.json`;
 
