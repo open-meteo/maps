@@ -17,7 +17,8 @@
 
 	import { browser } from '$app/environment';
 
-	import { desktop, loading, metaJson } from '$lib/stores/preferences';
+	import { desktop, loading } from '$lib/stores/preferences';
+	import { metaJson } from '$lib/stores/time';
 	import {
 		domainSelectionOpen as dSO,
 		domain,

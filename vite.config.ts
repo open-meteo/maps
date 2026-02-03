@@ -17,13 +17,13 @@ const addHeaders = (res: ServerResponse) => {
 const viteServerConfig = (): Plugin => ({
 	name: 'add-headers',
 	configureServer: (server: ViteDevServer) => {
-		server.middlewares.use((req: IncomingMessage, res: ServerResponse, next: () => void) => {
+		server.middlewares.use((_req: IncomingMessage, res: ServerResponse, next: () => void) => {
 			addHeaders(res);
 			next();
 		});
 	},
 	configurePreviewServer: (server: PreviewServer) => {
-		server.middlewares.use((req: IncomingMessage, res: ServerResponse, next: () => void) => {
+		server.middlewares.use((_req: IncomingMessage, res: ServerResponse, next: () => void) => {
 			addHeaders(res);
 			next();
 		});

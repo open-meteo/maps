@@ -1,9 +1,7 @@
 import { tick } from 'svelte';
-import { SvelteDate } from 'svelte/reactivity';
 import { get } from 'svelte/store';
 
 import {
-	TIME_SELECTED_REGEX,
 	VARIABLE_PREFIX,
 	closestModelRun,
 	domainStep,
@@ -21,23 +19,26 @@ import { pushState } from '$app/navigation';
 import { map as m } from '$lib/stores/map';
 import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 import {
+	type Preferences,
 	completeDefaultValues,
 	defaultPreferences,
-	inProgress as iP,
-	latest as l,
 	loading,
-	metaJson as mJ,
-	modelRun as mR,
-	modelRunLocked as mRL,
 	opacity,
 	preferences as p,
 	resolution as r,
 	tileSize as tS,
-	time,
 	url as u
 } from '$lib/stores/preferences';
+import {
+	inProgress as iP,
+	latest as l,
+	metaJson as mJ,
+	modelRun as mR,
+	modelRunLocked as mRL,
+	time
+} from '$lib/stores/time';
 import { domain as d, selectedDomain, variable as v } from '$lib/stores/variables';
-import { vectorOptions as vO } from '$lib/stores/vector';
+import { type VectorOptions, vectorOptions as vO } from '$lib/stores/vector';
 
 import {
 	BEFORE_LAYER_RASTER,
@@ -45,17 +46,17 @@ import {
 	BEFORE_LAYER_VECTOR_WATER_CLIP
 } from '$lib/constants';
 
-import { parseISOWithoutTimezone } from './time-format';
+import { formatISOUTCWithZ, parseISOWithoutTimezone } from './time-format';
 
 import type { Domain, DomainMetaDataJson } from '@openmeteo/mapbox-layer';
 
 export { findTimeStep } from '$lib/time-utils';
 
-let url: any;
+let url: URL;
 let map: maplibregl.Map | undefined;
-let preferences: any;
+let preferences: Preferences;
 let metaJson: DomainMetaDataJson | undefined;
-let vectorOptions: any;
+let vectorOptions: VectorOptions;
 
 // Initialize store subscriptions only once on first access
 let storesInitialized = false;
@@ -93,9 +94,6 @@ const beforeLayerRaster = BEFORE_LAYER_RASTER;
 const beforeLayerVector = BEFORE_LAYER_VECTOR;
 const beforeLayerVectorWaterClip = BEFORE_LAYER_VECTOR_WATER_CLIP;
 
-const now = new SvelteDate();
-now.setHours(now.getHours() + 1, 0, 0, 0);
-
 let omUrl: string;
 
 /**
@@ -111,6 +109,7 @@ export const urlParamsToPreferences = () => {
 	if (urlModelTime && urlModelTime.length == 15) {
 		const parsedModelTime = parseISOWithoutTimezone(urlModelTime);
 		mR.set(parsedModelTime);
+		mRL.set(true);
 	}
 
 	const urlTime = params.get('time');
@@ -354,7 +353,7 @@ export const addOmFileLayers = () => {
 
 let omVectorSource: maplibregl.VectorTileSource | undefined;
 export const addVectorLayer = () => {
-	if (!map) return;
+	if (!map || !map.style) return;
 	if (!map.getSource('omVectorSource' + String(vectorRequests))) {
 		map.addSource('omVectorSource' + String(vectorRequests), {
 			url: 'om://' + omUrl,
@@ -800,39 +799,46 @@ export const getOMUrl = () => {
 
 	return url;
 };
-
 export const getNextOmUrls = (
-	omUrl: string,
+	_omUrl: string,
 	domain: Domain,
 	metaJson: DomainMetaDataJson | undefined
-) => {
-	let nextUrl, prevUrl;
-
+): [string | undefined, string | undefined] => {
 	const url = `https://map-tiles.open-meteo.com/data_spatial/${domain.value}`;
 
-	const matches = omUrl.match(TIME_SELECTED_REGEX);
-	if (matches) {
-		const date = new Date('20' + matches[0].substring(0, matches[0].length - 2) + ':00Z');
-		const prevUrlDate = domainStep(date, domain.time_interval, 'backward');
-		const nextUrlDate = domainStep(date, domain.time_interval, 'forward');
-		let currentModelRun;
-		if (metaJson) {
-			currentModelRun = new Date(metaJson.reference_time);
-		}
-		let prevUrlModelRun = closestModelRun(prevUrlDate, domain.model_interval);
-		if (currentModelRun && prevUrlModelRun > currentModelRun) {
-			prevUrlModelRun = currentModelRun;
-		}
-		let nextUrlModelRun = closestModelRun(nextUrlDate, domain.model_interval);
-		if (currentModelRun && nextUrlModelRun > currentModelRun) {
-			nextUrlModelRun = currentModelRun;
-		}
-		prevUrl = url + `/${fmtModelRun(prevUrlModelRun)}/${fmtSelectedTime(prevUrlDate)}.om`;
-		nextUrl = url + `/${fmtModelRun(nextUrlModelRun)}/${fmtSelectedTime(nextUrlDate)}.om`;
-		return [prevUrl, nextUrl];
+	const date = get(time);
+	const dateString = formatISOUTCWithZ(date);
+	let prevUrlDate: Date;
+	let nextUrlDate: Date;
+	if (metaJson) {
+		const currentIndex = metaJson.valid_times.findIndex((vDateString) => {
+			return dateString === vDateString;
+		});
+		prevUrlDate = new Date(metaJson.valid_times[currentIndex + 1]);
+		nextUrlDate = new Date(metaJson.valid_times[currentIndex - 1]);
 	} else {
-		return undefined;
+		prevUrlDate = domainStep(date, domain.time_interval, 'backward');
+		nextUrlDate = domainStep(date, domain.time_interval, 'forward');
 	}
+	let currentModelRun;
+	if (metaJson) {
+		currentModelRun = new Date(metaJson.reference_time);
+	}
+	let prevUrlModelRun = closestModelRun(prevUrlDate, domain.model_interval);
+	if (currentModelRun && prevUrlModelRun > currentModelRun) {
+		prevUrlModelRun = currentModelRun;
+	}
+	let nextUrlModelRun = closestModelRun(nextUrlDate, domain.model_interval);
+	if (currentModelRun && nextUrlModelRun > currentModelRun) {
+		nextUrlModelRun = currentModelRun;
+	}
+	const prevUrl = !isNaN(prevUrlDate.getTime())
+		? url + `/${fmtModelRun(prevUrlModelRun)}/${fmtSelectedTime(prevUrlDate)}.om`
+		: undefined;
+	const nextUrl = !isNaN(nextUrlDate.getTime())
+		? url + `/${fmtModelRun(nextUrlModelRun)}/${fmtSelectedTime(nextUrlDate)}.om`
+		: undefined;
+	return [prevUrl, nextUrl];
 };
 
 export const hashValue = (val: string) =>
