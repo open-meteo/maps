@@ -802,10 +802,7 @@
 						style="left: clamp(-28px, calc({desktop.current
 							? currentPosition - 33
 							: 0.5 * hoursHoverContainerWidth - 33}px), calc(100% - 38px));"
-						class="absolute bg-glass/65 md:shadow-md backdrop-blur-sm rounded {disabled &&
-						desktop.current
-							? '-top-8'
-							: '-top-6'} {!desktop.current ? 'rounded-none!' : ''} p-0.5 w-16.5 text-center"
+						class="absolute bg-glass/65 md:shadow-md backdrop-blur-sm rounded -top-6 {!desktop.current ? 'rounded-none!' : ''} p-0.5 w-16.5 text-center"
 					>
 						<div class="relative duration-500 {!disabled ? 'text-foreground' : ''}">
 							{#if currentTimeStep}
