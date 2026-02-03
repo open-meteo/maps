@@ -35,20 +35,20 @@ export const omProtocolSettings: OmProtocolSettings = {
 	postReadCallback: (omFileReader: OMapsFileReader, data: Data, state: OmUrlState) => {
 		// dwd icon models are cached locally on server
 		if (!state.dataOptions.domain.value.startsWith('dwd_icon')) {
-			const nextOmUrls = getNextOmUrls(state.omFileUrl, get(selectedDomain), get(metaJson));
-			for (const nextOmUrl of nextOmUrls) {
-				if (nextOmUrl === undefined) continue;
-				if (!omFileReader.hasFileOpen(nextOmUrl)) {
-					fetch(nextOmUrl, {
-						method: 'GET',
-						headers: {
-							Range: 'bytes=0-255' // Just fetch first 256 bytes to trigger caching
-						}
-					}).catch(() => {
-						// Silently ignore errors for prefetches
-					});
-				}
-			}
+			// const nextOmUrls = getNextOmUrls(state.omFileUrl, get(selectedDomain), get(metaJson));
+			// for (const nextOmUrl of nextOmUrls) {
+			// 	if (nextOmUrl === undefined) continue;
+			// 	if (!omFileReader.hasFileOpen(nextOmUrl)) {
+			// 		fetch(nextOmUrl, {
+			// 			method: 'GET',
+			// 			headers: {
+			// 				Range: 'bytes=0-255' // Just fetch first 256 bytes to trigger caching
+			// 			}
+			// 		}).catch(() => {
+			// 			// Silently ignore errors for prefetches
+			// 		});
+			// 	}
+			// }
 		}
 		if (
 			state.dataOptions.domain.value === 'ecmwf_ifs' &&

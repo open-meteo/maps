@@ -1,10 +1,13 @@
-import { getProtocolInstance } from '@openmeteo/mapbox-layer';
+import { get } from 'svelte/store';
+
+import { currentBounds, getProtocolInstance, getRanges } from '@openmeteo/mapbox-layer';
 
 import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 
 import { fmtModelRun, fmtSelectedTime } from '$lib';
 
 import { MILLISECONDS_PER_DAY } from './constants';
+import { selectedDomain } from './stores/variables';
 
 import type { DomainMetaDataJson } from '@openmeteo/mapbox-layer';
 
@@ -127,13 +130,14 @@ export const prefetchData = async (
 
 	try {
 		const instance = getProtocolInstance(omProtocolSettings);
+		const ranges = getRanges(get(selectedDomain).grid, currentBounds);
 		const omFileReader = instance.omFileReader;
 
 		// Build base URL
 		const uri =
 			domain && domain.startsWith('dwd_icon')
 				? `https://s3.servert.ch`
-				: `https://map-tiles.open-meteo.com`;
+				: `https://openmeteo.s3.amazonaws.com`;
 
 		let successCount = 0;
 		const totalCount = timeSteps.length;
@@ -144,7 +148,7 @@ export const prefetchData = async (
 
 			try {
 				await omFileReader.setToOmFile(url);
-				await omFileReader.prefetchVariable(variable);
+				await omFileReader.prefetchVariable(variable, ranges);
 				successCount++;
 			} catch {
 				// Silently continue on errors
