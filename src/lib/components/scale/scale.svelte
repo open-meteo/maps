@@ -101,7 +101,7 @@
 		<div
 			class="flex flex-col-reverse overflow-hidden rounded  shadow-md">
 			<div
-				class="flex flex-col-reverse bg-glass/90">
+				class="flex flex-col-reverse bg-glass/30 backdrop-blur-sm">
 				{#each labeledColors as lc, i (lc)}
 					{@const alphaValue = getAlpha(lc.color)}
 					<button

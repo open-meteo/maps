@@ -14,7 +14,7 @@
 </script>
 
 <Sheet.Root bind:open={$sheet}>
-	<Sheet.Content class="max-h-screen w-96 border-none">
+	<Sheet.Content class="bg-glass/90 backdrop-blur-sm max-h-screen w-96 border-none">
 		<div class="flex flex-col px-6 pt-12 pb-18 gap-6 min-h-full overflow-y-scroll">
 			<UnitSettings />
 			<GridSettings />
