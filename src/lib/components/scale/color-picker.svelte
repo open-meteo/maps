@@ -147,7 +147,7 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-	class="color-picker-content absolute left-full ml-2 z-50 bg-popover border border-border rounded-lg shadow-xl p-3 w-60"
+	class="color-picker-content absolute left-full ml-2 z-50 bg-glass/90 backdrop-blur shadow-md border border-border rounded-lg shadow-xl p-3 w-60"
 	onclick={(e) => e.stopPropagation()}
 	onkeydown={(e) => e.key === 'Escape' && onclose()}
 >

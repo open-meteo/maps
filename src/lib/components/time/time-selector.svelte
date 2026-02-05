@@ -770,7 +770,7 @@
 					<div
 						transition:fade={{ duration: 200 }}
 						style="left: calc({hoverX}px - 33px);"
-						class="absolute shadow-md -top-8 p-0.5 w-16.5 text-center rounded bg-glass backdrop-blur-sm {hoveredHour &&
+						class="absolute shadow-md -top-8 p-0.5 w-16.5 text-center rounded bg-glass/75 backdrop-blur-sm {hoveredHour &&
 						currentTimeStep &&
 						currentTimeStep.getTime() === hoveredHour.getTime()
 							? 'font-bold'
@@ -781,7 +781,7 @@
 								{formatLocalTime(hoveredHour)}
 							{/if}
 							<div
-								class="-z-10 absolute -bottom-2 w-3 h-3 bg-glass backdrop-blur-sm rotate-45 -translate-x-1/2 left-1/2"
+								class="-z-10 absolute -bottom-2 w-3 h-3 bg-glass/75 backdrop-blur-sm rotate-45 -translate-x-1/2 left-1/2"
 								style="clip-path: polygon(0% 100%, 100% 100%, 100% 0%);"
 							></div>
 						</div>
@@ -793,10 +793,9 @@
 						style="left: clamp(-28px, calc({desktop.current
 							? currentPosition - 33
 							: 0.5 * hoursHoverContainerWidth - 33}px), calc(100% - 38px));"
-						class="absolute bg-glass md:shadow-md backdrop-blur-sm rounded {disabled &&
-						desktop.current
-							? '-top-8'
-							: '-top-6'} {!desktop.current ? 'rounded-none!' : ''} p-0.5 w-16.5 text-center"
+						class="absolute bg-glass/75 md:shadow-md backdrop-blur-sm rounded -top-6 {!desktop.current
+							? 'rounded-none!'
+							: ''} p-0.5 w-16.5 text-center"
 					>
 						<div class="relative duration-500 {!disabled ? 'text-foreground' : ''}">
 							{#if currentTimeStep}
@@ -813,7 +812,7 @@
 							{#if disabled && desktop.current}
 								<div
 									transition:fade={{ duration: 200 }}
-									class="-z-10 absolute -bottom-2 w-3 h-3 bg-glass rotate-45 -translate-x-1/2 left-1/2"
+									class="-z-10 absolute -bottom-2 w-3 h-3 bg-glass/75 rotate-45 backdrop-blur-sm -translate-x-1/2 left-1/2"
 									style="clip-path: polygon(0% 100%, 100% 100%, 100% 0%);"
 								></div>
 							{/if}
@@ -824,7 +823,7 @@
 				<!-- Loading skeleton tooltip -->
 				<div
 					transition:fade={{ duration: 200 }}
-					class="absolute flex items-center justify-center bg-glass h-4.5 backdrop-blur-sm -top-6 rounded-none! p-0.5 w-16.5 text-center"
+					class="absolute flex items-center justify-center bg-glass/75 h-4.5 backdrop-blur-sm -top-6 rounded-none! p-0.5 w-16.5 text-center"
 					style="left: clamp(-4px, calc(50% - 33px), calc(100% - 70px));"
 				>
 					<div class="h-3 w-8 bg-foreground/10 rounded animate-pulse"></div>
@@ -833,7 +832,7 @@
 		</div>
 		<!-- Model Run Selection Dropdown -->
 		<div
-			class="-top-4.5 h-4.5 z-10 right-0 absolute flex rounded-t-lg items-center px-2 gap-0.5 bg-glass backdrop-blur-sm"
+			class="-top-4.5 h-4.5 z-10 right-0 absolute flex rounded-t-lg items-center px-2 gap-0.5 bg-glass/65 backdrop-blur-sm"
 		>
 			<Select.Root
 				type="single"
@@ -864,7 +863,7 @@
 					{/if}
 				</Select.Trigger>
 				<Select.Content
-					class="left-5 border-none max-h-60 bg-glass backdrop-blur-sm"
+					class="left-5 border-none max-h-60 bg-glass/65 backdrop-blur-sm"
 					sideOffset={4}
 					align="end"
 				>
@@ -946,7 +945,7 @@
 			</button>
 		</div>
 		<button
-			class="absolute bg-glass backdrop-blur-sm z-50 {desktop.current
+			class="absolute bg-glass/75 backdrop-blur-sm z-50 {desktop.current
 				? '-left-7 h-12.5 w-7 rounded-s-xl'
 				: 'left-[calc(50%-57px)] -top-7 h-7 rounded-tl-lg'} {disabled
 				? 'cursor-not-allowed'
@@ -968,7 +967,7 @@
 			>
 		</button>
 		<button
-			class="absolute bg-glass backdrop-blur-sm z-50 {desktop.current
+			class="absolute bg-glass/75 backdrop-blur-sm z-50 {desktop.current
 				? '-right-7 h-12.5 w-7 rounded-e-xl'
 				: 'right-[calc(50%-57px)] -top-7 h-7 rounded-tr-lg'} {disabled
 				? 'cursor-not-allowed'
@@ -990,7 +989,7 @@
 				><path d="m9 18 6-6-6-6" /></svg
 			>
 		</button>
-		<div class="time-selector md:px-0 h-12.5 relative bg-glass backdrop-blur-sm duration-500">
+		<div class="time-selector md:px-0 h-12.5 relative bg-glass/75 backdrop-blur-sm duration-500">
 			{#if hoverX || currentDate.getTime() !== $time.getTime()}
 				<div
 					transition:fade={{ duration: 300 }}
