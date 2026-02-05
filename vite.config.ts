@@ -33,12 +33,7 @@ export default ({ mode }: { mode: string }) => {
 	process.env = { ...process.env, ...loadEnv(mode, process.cwd()) };
 
 	return defineConfig({
-		plugins: [
-			tailwindcss(),
-			sveltekit(),
-			devtoolsJson(),
-			viteServerConfig()
-		],
+		plugins: [tailwindcss(), sveltekit(), devtoolsJson(), viteServerConfig()],
 		optimizeDeps: {
 			exclude: ['@openmeteo/file-reader', '@openmeteo/file-format-wasm']
 		},
