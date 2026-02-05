@@ -250,7 +250,7 @@ export const addHillshadeSources = () => {
 
 	map.addSource('terrainSource', {
 		type: 'raster-dem',
-		tiles: ['mapterhorn://{z}/{x}/{y}'],
+		tiles: ['https://tiles.mapterhorn.com/{z}/{x}/{y}.webp'],
 		encoding: 'terrarium',
 		tileSize: 512,
 		attribution: '<a href="https://mapterhorn.com/attribution">© Mapterhorn</a>'
@@ -766,7 +766,7 @@ const fmtSelectedTime = (time: Date) => {
 export const getOMUrl = () => {
 	const domain = get(d);
 	const uri =
-		domain && domain.startsWith('dwd_icon')
+		domain && domain.startsWith('dwd_icon') && !domain.endsWith('eps')
 			? `https://s3.servert.ch`
 			: `https://map-tiles.open-meteo.com`;
 
@@ -883,7 +883,7 @@ export const getInitialMetaData = async () => {
 	const domain = get(selectedDomain);
 
 	const uri =
-		domain && domain.value.startsWith('dwd_icon')
+		domain && domain.value.startsWith('dwd_icon')&& !domain.value.endsWith('eps')
 			? `https://s3.servert.ch`
 			: `https://map-tiles.open-meteo.com`;
 
@@ -933,7 +933,7 @@ export const getMetaData = async (): Promise<DomainMetaDataJson> => {
 	}
 
 	const uri =
-		domain && domain.value.startsWith('dwd_icon')
+		domain && domain.value.startsWith('dwd_icon') && !domain.value.endsWith('eps')
 			? `https://s3.servert.ch`
 			: `https://map-tiles.open-meteo.com`;
 
