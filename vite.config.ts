@@ -2,7 +2,6 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig, loadEnv } from 'vite';
 import devtoolsJson from 'vite-plugin-devtools-json';
-import dts from 'vite-plugin-dts';
 
 import type { IncomingMessage, ServerResponse } from 'http';
 import type { Plugin, PreviewServer, ViteDevServer } from 'vite';
@@ -38,9 +37,6 @@ export default ({ mode }: { mode: string }) => {
 			tailwindcss(),
 			sveltekit(),
 			devtoolsJson(),
-			dts({
-				insertTypesEntry: true
-			}),
 			viteServerConfig()
 		],
 		optimizeDeps: {
