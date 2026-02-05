@@ -172,18 +172,26 @@ body {
 
 .maplibregl-ctrl.maplibregl-ctrl-group {
 	background-color: rgba(240, 240, 240, 0.8);
-	backdrop-filter: blur(4px);
+	backdrop-filter: blur(2px);
 	box-shadow: none;
+	transition: 200ms;
 }
 
 .maplibregl-ctrl.maplibregl-ctrl-attrib {
 	background-color: rgba(240, 240, 240, 0.8);
-	backdrop-filter: blur(4px);
-	color: white;
+	backdrop-filter: blur(2px);
 }
 
 .maplibregl-ctrl.maplibregl-ctrl-group:hover {
-	background-color: rgba(240, 240, 240, 0.95);
+	background-color: rgba(240, 240, 240, 1);
+}
+
+.dark .maplibregl-ctrl.maplibregl-ctrl-group:hover {
+	background-color: rgba(15, 15, 15, 1);
+}
+
+.maplibregl-ctrl button:not(:disabled):hover {
+	background-color: unset;
 }
 
 .maplibregl-ctrl-bottom-right {
