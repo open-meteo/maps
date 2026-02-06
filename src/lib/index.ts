@@ -664,7 +664,7 @@ const fadeVectorLayers = (opacity: number, request: number) => {
 
 export const getStyle = async () => {
 	return await fetch(
-		`https://tiles.servert.ch/styles/openmeteo-maps-${mode.current === 'dark' ? 'dark' : 'white'}.json` //${preferences.clipWater ? '-water-clip' : ''
+		`https://background-tiles.open-meteo.com/styles/openmeteo-maps-${mode.current === 'dark' ? 'dark' : 'white'}.json` //${preferences.clipWater ? '-water-clip' : ''
 	)
 		.then((response) => response.json())
 		.then((style) => {
@@ -883,7 +883,7 @@ export const getInitialMetaData = async () => {
 	const domain = get(selectedDomain);
 
 	const uri =
-		domain && domain.value.startsWith('dwd_icon')&& !domain.value.endsWith('eps')
+		domain && domain.value.startsWith('dwd_icon') && !domain.value.endsWith('eps')
 			? `https://s3.servert.ch`
 			: `https://map-tiles.open-meteo.com`;
 
