@@ -8,16 +8,9 @@
 
 	import { browser } from '$app/environment';
 
-	import {
-		desktop,
-		loading,
-		modelRun,
-		modelRunLocked,
-		preferences,
-		time,
-		typing
-	} from '$lib/stores/preferences';
-	import { inProgress, latest, metaJson } from '$lib/stores/preferences';
+	import { desktop, loading, preferences, typing } from '$lib/stores/preferences';
+	import { metaJson, modelRunLocked } from '$lib/stores/time';
+	import { inProgress, latest, modelRun, now, time } from '$lib/stores/time';
 	import {
 		domainSelectionOpen,
 		selectedDomain,
@@ -31,7 +24,6 @@
 		DAY_NAMES,
 		MILLISECONDS_PER_DAY,
 		MILLISECONDS_PER_HOUR,
-		MILLISECONDS_PER_MINUTE,
 		MILLISECONDS_PER_WEEK
 	} from '$lib/constants';
 	import {
@@ -47,8 +39,6 @@
 		withLocalTime
 	} from '$lib/time-format';
 
-	// Current time, updated every minute to track real time
-	let now = $state(new Date());
 	// Disables time selection when loading new OM files
 	let disabled = $derived($loading);
 	// Tracks the currently selected date for display and navigation
@@ -327,7 +317,7 @@
 	};
 
 	const jumpToCurrentTime = () => {
-		let date = new SvelteDate(now);
+		let date = new SvelteDate($now);
 		date.setTime(date.getTime() + metaFirstResolution); // next time step
 		const timeStep = findTimeStep(date, timeSteps);
 		if (timeStep) date = new SvelteDate(timeStep);
@@ -348,6 +338,12 @@
 		}
 	};
 
+	// throttled versions of the navigation functions
+	const throttledPreviousHour = throttle(previousHour, 150);
+	const throttledNextHour = throttle(nextHour, 150);
+	const throttledPreviousDay = throttle(previousDay, 150);
+	const throttledNextDay = throttle(nextDay, 150);
+
 	let ctrl = $state(false);
 	const keyDownEvent = (event: KeyboardEvent) => {
 		if ($typing) return;
@@ -357,10 +353,10 @@
 		if (!canNavigate) return;
 
 		const actions: Record<string, () => void> = {
-			ArrowLeft: ctrl ? previousModel : previousHour,
-			ArrowRight: ctrl ? nextModel : nextHour,
-			ArrowDown: previousDay,
-			ArrowUp: nextDay,
+			ArrowLeft: ctrl ? previousModel : throttledPreviousHour,
+			ArrowRight: ctrl ? nextModel : throttledNextHour,
+			ArrowDown: throttledPreviousDay,
+			ArrowUp: throttledNextDay,
 			c: ctrl ? () => {} : jumpToCurrentTime,
 			m: ctrl ? () => {} : () => toggleModelRunLock(),
 			n: ctrl ? () => {} : () => setLatestModelRun()
@@ -373,7 +369,7 @@
 		if (!disabled || ['m'].includes(event.key)) {
 			action();
 		} else {
-			toast.warning('Still loading another OM file');
+			// toast.warning('Still loading another OM file');
 		}
 	};
 
@@ -557,16 +553,10 @@
 	const timeValid = (date: Date) => isValidTimeStep(date, timeSteps);
 
 	let resizeTimeout: ReturnType<typeof setTimeout> | undefined;
-	let updateNowInterval: ReturnType<typeof setTimeout> | undefined;
 	const horizontalScrollSpeed = 1;
 
 	const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 	onMount(() => {
-		if (updateNowInterval) clearInterval(updateNowInterval);
-		updateNowInterval = setInterval(() => {
-			now = new Date();
-		}, MILLISECONDS_PER_MINUTE);
-
 		if (hoursHoverContainer) {
 			hoursHoverContainer.addEventListener('mousemove', (e) => {
 				if (hoursHoverContainerWidth)
@@ -729,7 +719,6 @@
 	});
 
 	onDestroy(() => {
-		if (updateNowInterval) clearInterval(updateNowInterval);
 		if (resizeTimeout) clearTimeout(resizeTimeout);
 	});
 
@@ -781,7 +770,7 @@
 					<div
 						transition:fade={{ duration: 200 }}
 						style="left: calc({hoverX}px - 33px);"
-						class="absolute shadow-md -top-8 p-0.5 w-16.5 text-center rounded bg-glass backdrop-blur-sm {hoveredHour &&
+						class="absolute shadow-md -top-8 p-0.5 w-16.5 text-center rounded bg-glass/75 backdrop-blur-sm {hoveredHour &&
 						currentTimeStep &&
 						currentTimeStep.getTime() === hoveredHour.getTime()
 							? 'font-bold'
@@ -792,7 +781,7 @@
 								{formatLocalTime(hoveredHour)}
 							{/if}
 							<div
-								class="-z-10 absolute -bottom-2 w-3 h-3 bg-glass backdrop-blur-sm rotate-45 -translate-x-1/2 left-1/2"
+								class="-z-10 absolute -bottom-2 w-3 h-3 bg-glass/75 backdrop-blur-sm rotate-45 -translate-x-1/2 left-1/2"
 								style="clip-path: polygon(0% 100%, 100% 100%, 100% 0%);"
 							></div>
 						</div>
@@ -804,10 +793,9 @@
 						style="left: clamp(-28px, calc({desktop.current
 							? currentPosition - 33
 							: 0.5 * hoursHoverContainerWidth - 33}px), calc(100% - 38px));"
-						class="absolute bg-glass md:shadow-md backdrop-blur-sm rounded {disabled &&
-						desktop.current
-							? '-top-8'
-							: '-top-6'} {!desktop.current ? 'rounded-none!' : ''} p-0.5 w-16.5 text-center"
+						class="absolute bg-glass/75 md:shadow-md backdrop-blur-sm rounded -top-6 {!desktop.current
+							? 'rounded-none!'
+							: ''} p-0.5 w-16.5 text-center"
 					>
 						<div class="relative duration-500 {!disabled ? 'text-foreground' : ''}">
 							{#if currentTimeStep}
@@ -824,7 +812,7 @@
 							{#if disabled && desktop.current}
 								<div
 									transition:fade={{ duration: 200 }}
-									class="-z-10 absolute -bottom-2 w-3 h-3 bg-glass rotate-45 -translate-x-1/2 left-1/2"
+									class="-z-10 absolute -bottom-2 w-3 h-3 bg-glass/75 rotate-45 backdrop-blur-sm -translate-x-1/2 left-1/2"
 									style="clip-path: polygon(0% 100%, 100% 100%, 100% 0%);"
 								></div>
 							{/if}
@@ -835,7 +823,7 @@
 				<!-- Loading skeleton tooltip -->
 				<div
 					transition:fade={{ duration: 200 }}
-					class="absolute flex items-center justify-center bg-glass h-4.5 backdrop-blur-sm -top-6 rounded-none! p-0.5 w-16.5 text-center"
+					class="absolute flex items-center justify-center bg-glass/75 h-4.5 backdrop-blur-sm -top-6 rounded-none! p-0.5 w-16.5 text-center"
 					style="left: clamp(-4px, calc(50% - 33px), calc(100% - 70px));"
 				>
 					<div class="h-3 w-8 bg-foreground/10 rounded animate-pulse"></div>
@@ -844,7 +832,7 @@
 		</div>
 		<!-- Model Run Selection Dropdown -->
 		<div
-			class="-top-4.5 h-4.5 z-10 right-0 absolute flex rounded-t-lg items-center px-2 gap-0.5 bg-glass backdrop-blur-sm"
+			class="-top-4.5 h-4.5 z-10 right-0 absolute flex rounded-t-lg items-center px-2 gap-0.5 bg-glass/65 backdrop-blur-sm"
 		>
 			<Select.Root
 				type="single"
@@ -875,7 +863,7 @@
 					{/if}
 				</Select.Trigger>
 				<Select.Content
-					class="left-5 border-none max-h-60 bg-glass backdrop-blur-sm"
+					class="left-5 border-none max-h-60 bg-glass/65 backdrop-blur-sm"
 					sideOffset={4}
 					align="end"
 				>
@@ -957,7 +945,7 @@
 			</button>
 		</div>
 		<button
-			class="absolute bg-glass backdrop-blur-sm z-50 {desktop.current
+			class="absolute bg-glass/75 backdrop-blur-sm z-50 {desktop.current
 				? '-left-7 h-12.5 w-7 rounded-s-xl'
 				: 'left-[calc(50%-57px)] -top-7 h-7 rounded-tl-lg'} {disabled
 				? 'cursor-not-allowed'
@@ -979,7 +967,7 @@
 			>
 		</button>
 		<button
-			class="absolute bg-glass backdrop-blur-sm z-50 {desktop.current
+			class="absolute bg-glass/75 backdrop-blur-sm z-50 {desktop.current
 				? '-right-7 h-12.5 w-7 rounded-e-xl'
 				: 'right-[calc(50%-57px)] -top-7 h-7 rounded-tr-lg'} {disabled
 				? 'cursor-not-allowed'
@@ -1001,13 +989,13 @@
 				><path d="m9 18 6-6-6-6" /></svg
 			>
 		</button>
-		<div class="time-selector md:px-0 h-12.5 relative bg-glass backdrop-blur-sm duration-500">
+		<div class="time-selector md:px-0 h-12.5 relative bg-glass/75 backdrop-blur-sm duration-500">
 			{#if hoverX || currentDate.getTime() !== $time.getTime()}
 				<div
 					transition:fade={{ duration: 300 }}
 					class="absolute {desktop.current ? '-left-6' : 'left-1.75'} -top-5 text-xs p-1"
 				>
-					UTC{formatUTCOffset(now)}
+					UTC{formatUTCOffset($now)}
 					{#if desktop.current}
 						{Intl.DateTimeFormat().resolvedOptions().timeZone}
 					{/if}
@@ -1080,10 +1068,10 @@
 								<div class="">{DAY_NAMES[dayStep.getDay()]}</div>
 								<small class="-mt-2">{formatLocalDate(dayStep)}</small>
 							</div>
-							{#if dayStep.getDate() === now.getDate()}
+							{#if dayStep.getDate() === $now.getDate()}
 								<div
 									style="left: {dayWidth *
-										((now.getTime() - dayStep.getTime()) /
+										(($now.getTime() - dayStep.getTime()) /
 											MILLISECONDS_PER_DAY)}px; width: calc({dayWidth}px/{metaFirstResolutionHours ===
 									0.25
 										? 72

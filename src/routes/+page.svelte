@@ -23,15 +23,13 @@
 	import {
 		loading,
 		localStorageVersion,
-		metaJson,
-		modelRun,
 		preferences,
 		resetStates,
 		resolution,
 		resolutionSet,
-		time,
 		url
 	} from '$lib/stores/preferences';
+	import { metaJson, modelRun, time } from '$lib/stores/time';
 	import { domain, selectedDomain, selectedVariable, variable } from '$lib/stores/variables';
 
 	import {
@@ -65,7 +63,6 @@
 		updateUrl,
 		urlParamsToPreferences
 	} from '$lib';
-	import { METADATA_REFRESH_INTERVAL } from '$lib/constants';
 	import { formatISOWithoutTimezone } from '$lib/time-format';
 
 	import '../styles.css';
@@ -105,17 +102,6 @@
 	});
 
 	onMount(async () => {
-		const protocol = new Protocol({ metadata: true });
-		maplibregl.addProtocol(
-			'mapterhorn',
-			async (params: RequestParameters, abortController: AbortController) => {
-				const [z, x, y] = params.url.replace('mapterhorn://', '').split('/').map(Number);
-				const name = z <= 12 ? 'planet' : `6-${x >> (z - 6)}-${y >> (z - 6)}`;
-				const url = `pmtiles://https://mapterhorn.servert.ch/${name}.pmtiles/${z}/${x}/${y}.webp`;
-				return await protocol.tile({ ...params, url }, abortController);
-			}
-		);
-
 		maplibregl.addProtocol('om', (params: RequestParameters) =>
 			omProtocol(params, undefined, $omProtocolSettings)
 		);
@@ -163,10 +149,13 @@
 
 	let getInitialMetaDataPromise: Promise<void> | undefined;
 	const domainSubscription = domain.subscribe(async (newDomain) => {
-		await tick(); // await the selectedDomain to be set
-		updateUrl('domain', newDomain);
+		if ($domain !== newDomain) {
+			await tick(); // await the selectedDomain to be set
+			updateUrl('domain', newDomain);
+			$modelRun = undefined;
+			toast('Domain set to: ' + $selectedDomain.label);
+		}
 
-		$modelRun = undefined;
 		getInitialMetaDataPromise = getInitialMetaData();
 		await getInitialMetaDataPromise;
 		$metaJson = await getMetaData();
@@ -177,28 +166,26 @@
 		if (timeStep) {
 			$time = timeStep;
 			updateUrl('time', formatISOWithoutTimezone($time));
+		} else {
+			// otherwise use first valid time
+			$time = timeSteps[0];
+			updateUrl('time', formatISOWithoutTimezone($time));
 		}
 
 		matchVariableOrFirst();
-
 		changeOMfileURL();
-		toast('Domain set to: ' + $selectedDomain.label);
 	});
 
 	const variableSubscription = variable.subscribe(async (newVar) => {
-		await tick(); // await the selectedVariable to be set
-		updateUrl('variable', newVar);
+		if ($variable !== newVar) {
+			await tick(); // await the selectedVariable to be set
+			updateUrl('variable', newVar);
+			toast('Variable set to: ' + $selectedVariable.label);
+		}
+
 		if (!$loading) {
 			changeOMfileURL();
 		}
-		toast('Variable set to: ' + $selectedVariable.label);
-	});
-
-	let metaDataInterval: ReturnType<typeof setInterval>;
-	onMount(() => {
-		metaDataInterval = setInterval(() => {
-			getInitialMetaData();
-		}, METADATA_REFRESH_INTERVAL);
 	});
 
 	onDestroy(() => {
@@ -207,8 +194,6 @@
 		}
 		domainSubscription(); // unsubscribe
 		variableSubscription(); // unsubscribe
-
-		clearInterval(metaDataInterval);
 	});
 
 	let selectedCountry = $state('');

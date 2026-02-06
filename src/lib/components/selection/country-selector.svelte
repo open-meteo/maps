@@ -556,24 +556,26 @@
 		<Popover.Trigger>
 			<Button
 				variant="outline"
+				class="bg-glass/75 dark:bg-glass/75 backdrop-blur-sm shadow-md {open
+					? 'bg-glass/95!'
+					: ''} hover:bg-glass/95! border-none h-7.25 w-45 cursor-pointer justify-between rounded p-1.5!"
 				role="combobox"
 				aria-expanded={open}
-				class="w-full bg-glass h-8 rounded-sm w-[180px] backdrop-blur-sm cursor-pointer border-none justify-between {$omProtocolSettings.clippingOptions
-					? 'ring-2 ring-accent ring-foreground'
-					: ''}"
 			>
-				<span class="truncate">
+				<div class="truncate">
 					Clip: {selectedCountryObj ? selectedCountryObj.name : 'Select country...'}
-				</span>
-				<ChevronsUpDownIcon class="-ml-2 h-4 w-4 shrink-0 opacity-50" />
+				</div>
+				<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
 			</Button>
 		</Popover.Trigger>
-		<Popover.Content
-			class="w-full p-0 bg-glass! backdrop-blur-sm border-none shadow-lg mt-1 rounded-sm"
-		>
-			<Command.Root shouldFilter={false}>
+		<Popover.Content class="bg-transparent! ml-2.5 w-62.5 rounded border-none! p-0">
+			<Command.Root class="bg-glass/85! backdrop-blur-sm rounded" shouldFilter={false}>
 				<div class="flex items-center gap-2 p-2 bg-transparent">
-					<Command.Input placeholder="Search country..." bind:value={searchValue} class="flex-1" />
+					<Command.Input
+						class="flex-1 border-none ring-0"
+						placeholder="Search country..."
+						bind:value={searchValue}
+					/>
 					<button
 						onclick={() => (searchValue = '')}
 						class="px-2 py-1 text-sm hover:bg-muted/80 rounded text-muted-foreground hover:text-foreground transition-colors"
