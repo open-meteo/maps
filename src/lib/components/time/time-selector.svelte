@@ -8,7 +8,7 @@
 
 	import { browser } from '$app/environment';
 
-	import { desktop, loading, preferences } from '$lib/stores/preferences';
+	import { desktop, loading, preferences, typing } from '$lib/stores/preferences';
 	import { metaJson, modelRunLocked } from '$lib/stores/time';
 	import { inProgress, latest, modelRun, now, time } from '$lib/stores/time';
 	import {
@@ -346,6 +346,7 @@
 
 	let ctrl = $state(false);
 	const keyDownEvent = (event: KeyboardEvent) => {
+		if ($typing) return;
 		if (event.keyCode == 17 || event.keyCode == 91) ctrl = true;
 
 		const canNavigate = !($domainSelectionOpen || $variableSelectionOpen);

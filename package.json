@@ -70,5 +70,8 @@
 		"vite-plugin-devtools-json": "^1.0.0",
 		"vitest": "^4.0.4",
 		"vitest-browser-svelte": "^2.0.1"
+	},
+	"dependencies": {
+		"@turf/turf": "^7.3.3"
 	}
 }

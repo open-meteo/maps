@@ -17,7 +17,7 @@
 
 	import { browser } from '$app/environment';
 
-	import { desktop, loading } from '$lib/stores/preferences';
+	import { desktop, loading, typing } from '$lib/stores/preferences';
 	import { metaJson } from '$lib/stores/time';
 	import {
 		domainSelectionOpen as dSO,
@@ -108,6 +108,7 @@
 
 	let ctrl = $state(false);
 	const keyDownEvent = (event: KeyboardEvent) => {
+		if ($typing) return;
 		if (event.keyCode == 17 || event.keyCode == 91) ctrl = true;
 		if (
 			variableSelectionExtended &&
@@ -242,9 +243,7 @@
 							></button
 						></Popover.Close
 					>
-					<Command.Root
-						class="bg-glass/85! backdrop-blur-sm rounded"
-					>
+					<Command.Root class="bg-glass/85! backdrop-blur-sm rounded">
 						<Command.Input class="border-none ring-0" placeholder="Search domains..." />
 						<Command.List>
 							<Command.Empty>No domains found.</Command.Empty>
@@ -342,9 +341,7 @@
 							></button
 						></Popover.Close
 					>
-					<Command.Root
-						class="bg-glass/85! backdrop-blur-sm rounded"
-					>
+					<Command.Root class="bg-glass/85! backdrop-blur-sm rounded">
 						<Command.Input class="border-none ring-0" placeholder="Search variables..." />
 						<Command.List>
 							<Command.Empty>No variables found.</Command.Empty>
@@ -454,9 +451,7 @@
 								></button
 							></Popover.Close
 						>
-						<Command.Root
-							class="bg-glass/85! backdrop-blur-sm rounded"
-						>
+						<Command.Root class="bg-glass/85! backdrop-blur-sm rounded">
 							<Command.Input class="border-none ring-0" placeholder="Search levels..." />
 							<Command.List>
 								<Command.Empty>No levels found.</Command.Empty>
