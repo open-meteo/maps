@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { fade } from 'svelte/transition';
+
 	import CheckIcon from '@lucide/svelte/icons/check';
 	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down';
 
@@ -18,11 +20,11 @@
 	}
 
 	interface Props {
-		selectedCountry?: string;
-		onselect?: (country: Country) => void;
+		selectedCountries?: string[];
+		onselect?: (countries: Country[]) => void;
 	}
 
-	let { selectedCountry = $bindable(), onselect }: Props = $props();
+	let { selectedCountries = $bindable([]), onselect }: Props = $props();
 
 	let open = $state(false);
 	let searchValue = $state('');
@@ -34,7 +36,6 @@
 
 	// Map of country names/codes to their GeoJSON filenames
 	const countryList: Country[] = [
-		{ name: 'None', code: '', filename: '' },
 		{
 			name: 'Africa (Continent)',
 			code: 'CONT-AF',
@@ -480,23 +481,37 @@
 		const search = searchValue.toLowerCase();
 		return countryList.filter(
 			(country) =>
-				country.name === 'None' ||
-				country.name.toLowerCase().includes(search) ||
-				country.code.toLowerCase().includes(search)
+				country.name.toLowerCase().includes(search) || country.code.toLowerCase().includes(search)
 		);
 	});
 
-	// Get the selected country object
-	const selectedCountryObj = $derived.by(() => {
-		return countryList.find((c) => c.code === selectedCountry);
+	// Get the selected country objects
+	const selectedCountryObjs = $derived.by(() => {
+		return countryList.filter((c) => selectedCountries.includes(c.code));
 	});
+
+	// Calculate the total number of actual countries (deduplicated by filename)
+	const totalCountriesCount = $derived.by(() => {
+		const uniqueFiles = new Set<string>();
+		for (const country of selectedCountryObjs) {
+			if (country.filenames && country.filenames.length > 0) {
+				for (const filename of country.filenames) {
+					uniqueFiles.add(filename);
+				}
+			} else if (country.filename) {
+				uniqueFiles.add(country.filename);
+			}
+		}
+		return uniqueFiles.size;
+	});
+
+	// Helper to check if a country is selected
+	function isSelected(countryCode: string): boolean {
+		return selectedCountries.includes(countryCode);
+	}
 
 	// Load GeoJSON for a specific country asynchronously
 	async function loadCountryGeoJson(country: Country): Promise<Country> {
-		if (country.name === 'None') {
-			return country;
-		}
-
 		if (country.geojson) {
 			return country; // Already loaded
 		}
@@ -541,12 +556,26 @@
 	}
 
 	async function handleSelect(country: Country) {
-		selectedCountry = country.code;
-		open = false;
+		// Toggle selection
+		const index = selectedCountries.indexOf(country.code);
+		if (index > -1) {
+			// Remove from selection
+			selectedCountries = selectedCountries.filter((code) => code !== country.code);
+		} else {
+			// Add to selection
+			selectedCountries = [...selectedCountries, country.code];
+		}
 
-		// Load GeoJSON asynchronously
-		const countryWithGeojson = await loadCountryGeoJson(country);
-		onselect?.(countryWithGeojson);
+		// Load GeoJSON for all selected countries
+		const selectedWithGeojson = await Promise.all(
+			selectedCountryObjs.map((c) => loadCountryGeoJson(c))
+		);
+		onselect?.(selectedWithGeojson);
+	}
+
+	function clearAll() {
+		selectedCountries = [];
+		onselect?.([]);
 		searchValue = '';
 	}
 </script>
@@ -563,25 +592,49 @@
 				aria-expanded={open}
 			>
 				<div class="truncate">
-					Clip: {selectedCountryObj ? selectedCountryObj.name : 'Select country...'}
+					{#if selectedCountries.length === 0}
+						Clip: Select countries...
+					{:else if totalCountriesCount === 1}
+						Clip: {selectedCountryObjs[0]?.name}
+					{:else}
+						Clip: {totalCountriesCount} countries
+					{/if}
 				</div>
 				<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
 			</Button>
 		</Popover.Trigger>
 		<Popover.Content class="bg-transparent! ml-2.5 w-62.5 rounded border-none! p-0">
 			<Command.Root class="bg-glass/85! backdrop-blur-sm rounded" shouldFilter={false}>
-				<div class="flex items-center gap-2 p-2 bg-transparent">
-					<Command.Input
-						class="flex-1 border-none ring-0"
-						placeholder="Search country..."
-						bind:value={searchValue}
-					/>
-					<button
-						onclick={() => (searchValue = '')}
-						class="px-2 py-1 text-sm hover:bg-muted/80 rounded text-muted-foreground hover:text-foreground transition-colors"
-					>
-						Clear
-					</button>
+				<div class="flex flex-col gap-1 bg-transparent">
+					<div class="flex items-center gap-2">
+						<Command.Input
+							class="flex-1 border-none ring-0"
+							placeholder="Search countries..."
+							bind:value={searchValue}
+						/>
+						{#if searchValue.length > 0}
+							<button
+								transition:fade
+								onclick={() => (searchValue = '')}
+								class="px-2 py-1 bg-none absolute right-2 top-1 cursor-pointer text-sm rounded text-muted-foreground hover:text-foreground transition-colors"
+							>
+								Clear
+							</button>
+						{/if}
+					</div>
+					{#if selectedCountries.length > 0}
+						<div
+							class="flex items-center justify-between px-3 py-1 text-xs border-t border-muted/50"
+						>
+							<span class="text-muted-foreground">{totalCountriesCount} selected</span>
+							<button
+								onclick={clearAll}
+								class="px-2 py-0.5 cursor-pointer hover:bg-muted/80 rounded text-muted-foreground hover:text-foreground transition-colors"
+							>
+								Clear All
+							</button>
+						</div>
+					{/if}
 				</div>
 				<Command.List>
 					<Command.Empty>No country found.</Command.Empty>
@@ -592,11 +645,11 @@
 								onSelect={() => handleSelect(country)}
 								class="cursor-pointer"
 							>
-								<CheckIcon
-									class={`mr-2 h-4 w-4 ${selectedCountry === country.code ? 'opacity-100' : 'opacity-0'}`}
-								/>
 								{country.name}
 								<span class="ml-auto text-xs text-muted-foreground">{country.code}</span>
+								<CheckIcon
+									class={`mr-2 h-4 w-4 ${isSelected(country.code) ? 'opacity-100' : 'opacity-0'}`}
+								/>
 							</Command.Item>
 						{/each}
 					</Command.Group>

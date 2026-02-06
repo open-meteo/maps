@@ -196,16 +196,28 @@
 		variableSubscription(); // unsubscribe
 	});
 
-	let selectedCountry = $state('');
+	let selectedCountries = $state<string[]>([]);
 
-	const handleCountrySelect = (country: Country) => {
-		if (country.name === 'None') {
+	const handleCountrySelect = (countries: Country[]) => {
+		if (countries.length === 0) {
 			$omProtocolSettings.clippingOptions = undefined;
 			changeOMfileURL();
 			return;
 		}
 
-		const flatten = turf.flatten(country.geojson) as FeatureCollection<Geometry>;
+		// Merge all country geojson into one
+		const allFeatures = countries.flatMap((country) => {
+			if (!country.geojson) return [];
+			const flatten = turf.flatten(country.geojson) as FeatureCollection<Geometry>;
+			return flatten.features;
+		});
+
+		const mergedGeojson: FeatureCollection<Geometry> = {
+			type: 'FeatureCollection',
+			features: allFeatures
+		};
+
+		const flatten = mergedGeojson;
 
 		const polygonFeatures = (flatten.features as Feature<Geometry>[])
 			.filter(
@@ -319,7 +331,7 @@
 	}}
 />
 <VariableSelection />
-<CountrySelector bind:selectedCountry onselect={handleCountrySelect} />
+<CountrySelector bind:selectedCountries onselect={handleCountrySelect} />
 <TimeSelector />
 <Settings />
 <HelpDialog />
