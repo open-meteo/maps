@@ -66,6 +66,7 @@
 	import '../styles.css';
 
 	let mapContainer: HTMLElement | null;
+	let pmtilesProtocol: Protocol | undefined;
 
 	onMount(() => {
 		$url = new URL(document.location.href);
@@ -91,6 +92,9 @@
 	});
 
 	onMount(async () => {
+		pmtilesProtocol = new Protocol();
+		maplibregl.addProtocol('pmtiles', pmtilesProtocol.tile);
+
 		maplibregl.addProtocol('om', (params: RequestParameters) =>
 			omProtocol(params, undefined, omProtocolSettings)
 		);
@@ -180,6 +184,9 @@
 	onDestroy(() => {
 		if ($map) {
 			$map.remove();
+		}
+		if (pmtilesProtocol) {
+			pmtilesProtocol.destroy();
 		}
 		domainSubscription(); // unsubscribe
 		variableSubscription(); // unsubscribe
