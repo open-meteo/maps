@@ -91,17 +91,6 @@
 	});
 
 	onMount(async () => {
-		const protocol = new Protocol({ metadata: true });
-		maplibregl.addProtocol(
-			'mapterhorn',
-			async (params: RequestParameters, abortController: AbortController) => {
-				const [z, x, y] = params.url.replace('mapterhorn://', '').split('/').map(Number);
-				const name = z <= 12 ? 'planet' : `6-${x >> (z - 6)}-${y >> (z - 6)}`;
-				const url = `pmtiles://https://mapterhorn.servert.ch/${name}.pmtiles/${z}/${x}/${y}.webp`;
-				return await protocol.tile({ ...params, url }, abortController);
-			}
-		);
-
 		maplibregl.addProtocol('om', (params: RequestParameters) =>
 			omProtocol(params, undefined, omProtocolSettings)
 		);

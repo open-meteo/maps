@@ -22,7 +22,7 @@
 	--card-foreground: oklch(0.129 0.042 264.695);
 	--popover: oklch(1 0 0);
 	--popover-foreground: oklch(0.129 0.042 264.695);
-	--glass: rgba(240, 240, 240, 0.65);
+	--glass: rgba(240, 240, 240);
 	--primary: oklch(0.208 0.042 265.755);
 	--primary-foreground: oklch(0.984 0.003 247.858);
 	--secondary: oklch(0.968 0.007 247.896);
@@ -57,7 +57,7 @@
 	--card-foreground: oklch(0.984 0.003 247.858);
 	--popover: oklch(0.208 0.042 265.755);
 	--popover-foreground: oklch(0.984 0.003 247.858);
-	--glass: rgba(15, 15, 15, 0.65);
+	--glass: rgba(15, 15, 15);
 	--primary: oklch(0.929 0.013 255.508);
 	--primary-foreground: oklch(0.208 0.042 265.755);
 	--secondary: oklch(0.279 0.041 260.031);
@@ -170,6 +170,30 @@ body {
 	min-height: 100%;
 }
 
+.maplibregl-ctrl.maplibregl-ctrl-group {
+	background-color: rgba(240, 240, 240, 0.8);
+	backdrop-filter: blur(2px);
+	box-shadow: none;
+	transition: 200ms;
+}
+
+.maplibregl-ctrl.maplibregl-ctrl-attrib {
+	background-color: rgba(240, 240, 240, 0.8);
+	backdrop-filter: blur(2px);
+}
+
+.maplibregl-ctrl.maplibregl-ctrl-group:hover {
+	background-color: rgba(240, 240, 240, 1);
+}
+
+.dark .maplibregl-ctrl.maplibregl-ctrl-group:hover {
+	background-color: rgba(15, 15, 15, 1);
+}
+
+.maplibregl-ctrl button:not(:disabled):hover {
+	background-color: unset;
+}
+
 .maplibregl-ctrl-bottom-right {
 	transition-duration: 500ms;
 	z-index: 0;
@@ -182,7 +206,7 @@ body {
 }
 
 .dark .maplibregl-ctrl.maplibregl-ctrl-group {
-	background-color: rgba(40, 40, 40, 0.95);
+	background-color: rgba(15, 15, 15, 0.65);
 }
 
 .dark .maplibregl-ctrl.maplibregl-ctrl-group .maplibregl-ctrl-icon {
@@ -190,7 +214,8 @@ body {
 }
 
 .dark .maplibregl-ctrl.maplibregl-ctrl-attrib {
-	background-color: rgba(40, 40, 40, 0.95);
+	background-color: rgba(15, 15, 15, 0.65);
+	backdrop-filter: blur(4px);
 	color: white;
 }
 
@@ -234,6 +259,7 @@ body {
 	border: 3px solid rgba(100, 100, 100, 1);
 	padding: 0;
 	background-color: rgba(255, 255, 255, 0.65);
+	backdrop-filter: blur(4px);
 }
 
 .dark .maplibregl-popup .maplibregl-popup-content {
