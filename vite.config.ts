@@ -39,6 +39,7 @@ export default ({ mode }: { mode: string }) => {
 			sveltekit(),
 			SvelteKitPWA({
 				srcDir: './src',
+				registerType: 'autoUpdate',
 				manifest: {
 					name: 'Open-Meteo Maps',
 					short_name: 'OM Maps',
@@ -62,28 +63,31 @@ export default ({ mode }: { mode: string }) => {
 						}
 					]
 				},
-				injectManifest: {
-					globPatterns: ['client/**/*.{js,css,ico,png,svg,webp}']
-				},
 				workbox: {
 					maximumFileSizeToCacheInBytes: 5242880,
-					globPatterns: ['client/**/*.{js,css,ico,png,svg,webp}'],
+					globPatterns: ['**/*.{js,css,ico,png,svg,webp}'],
+					navigateFallback: '/',
+					cleanupOutdatedCaches: true,
 					// Runtime caching for weather data and map tiles
 					// TODO: Improve these caching rules!
 					runtimeCaching: [
 						{
+							// Open-Meteo JSON Data
 							urlPattern: /^https:\/\/openmeteo\.s3\.amazonaws\.com\/data_spatial\/.*\.json$/,
 							handler: 'NetworkFirst',
 							options: {
 								cacheName: 'weather-metadata',
 								expiration: {
 									maxEntries: 50,
-									maxAgeSeconds: 60 * 60 * 24 // 1 day
+									maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
+								},
+								cacheableResponse: {
+									statuses: [0, 200]
 								}
 							}
 						},
 						{
-							urlPattern: /^https:\/\/maptiler\.servert\.nl\/.*\.webp$/,
+							urlPattern: /^https:\/\/maptiler\.servert\.nl\/.*\.json|pbf$/,
 							handler: 'CacheFirst',
 							options: {
 								cacheName: 'map-tiles',
@@ -97,7 +101,7 @@ export default ({ mode }: { mode: string }) => {
 							}
 						},
 						{
-							urlPattern: ({ url }) => url.href.includes('.tiles.mapterhorn.com'),
+							urlPattern: /^https:\/\/tiles\.mapterhorn\.com\/.*\.json|webp$/,
 							handler: 'CacheFirst',
 							options: {
 								cacheName: 'mapterhorn-cache',
@@ -111,16 +115,12 @@ export default ({ mode }: { mode: string }) => {
 								rangeRequests: true
 							}
 						}
-					],
-					navigateFallback: '/',
-					cleanupOutdatedCaches: true
-				},
-				devOptions: {
-					enabled: false,
-					suppressWarnings: false,
-					type: 'module',
-					navigateFallback: '/'
+					]
 				}
+				// devOptions: {
+				// 	enabled: false,
+				// 	suppressWarnings: false
+				// }
 			}),
 			devtoolsJson(),
 			viteServerConfig()

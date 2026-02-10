@@ -134,10 +134,7 @@ export const prefetchData = async (
 		const omFileReader = instance.omFileReader;
 
 		// Build base URL
-		const uri =
-			domain && domain.startsWith('dwd_icon')
-				? `https://s3.servert.ch`
-				: `https://openmeteo.s3.amazonaws.com`;
+		const uri = `https://openmeteo.s3.amazonaws.com`;
 
 		let successCount = 0;
 		const totalCount = timeSteps.length;
