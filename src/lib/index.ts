@@ -26,6 +26,7 @@ import {
 	opacity,
 	preferences as p,
 	resolution as r,
+	shadeMap as sM,
 	tileSize as tS,
 	url as u
 } from '$lib/stores/preferences';
@@ -602,6 +603,8 @@ const checkRasterLoaded = () => {
 			}
 			checked = 0;
 			loading.set(false);
+			const shadeMap = get(sM);
+			if (shadeMap) shadeMap.setDate(get(time));
 			clearInterval(checkRasterSourceLoadedInterval);
 		}
 	}, 50);
@@ -883,7 +886,7 @@ export const getInitialMetaData = async () => {
 	const domain = get(selectedDomain);
 
 	const uri =
-		domain && domain.value.startsWith('dwd_icon')&& !domain.value.endsWith('eps')
+		domain && domain.value.startsWith('dwd_icon') && !domain.value.endsWith('eps')
 			? `https://s3.servert.ch`
 			: `https://map-tiles.open-meteo.com`;
 

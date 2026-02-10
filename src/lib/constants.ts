@@ -18,6 +18,7 @@ export const DEFAULT_PREFERENCES = {
 	hillshade: false,
 	clipWater: false,
 	showScale: true,
+	crepuscule: false,
 	timeSelector: true
 };
 

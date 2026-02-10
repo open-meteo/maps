@@ -24,6 +24,8 @@ import {
 } from './variables';
 import { defaultVectorOptions, vectorOptions } from './vector';
 
+import type ShadeMap from 'mapbox-gl-shadow-simulator';
+
 export const defaultPreferences = DEFAULT_PREFERENCES;
 
 export interface Preferences {
@@ -56,6 +58,8 @@ export const localStorageVersion: Persisted<string | undefined> = persisted(
 );
 
 export const helpOpen = writable(false);
+
+export const shadeMap = writable<ShadeMap | null>(null);
 
 export const resetStates = async () => {
 	modelRunLocked.set(false);
