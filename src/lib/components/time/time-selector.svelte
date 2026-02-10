@@ -344,21 +344,18 @@
 	const throttledPreviousDay = throttle(previousDay, 150);
 	const throttledNextDay = throttle(nextDay, 150);
 
-	let ctrl = $state(false);
 	const keyDownEvent = (event: KeyboardEvent) => {
-		if (event.keyCode == 17 || event.keyCode == 91) ctrl = true;
-
 		const canNavigate = !($domainSelectionOpen || $variableSelectionOpen);
 		if (!canNavigate) return;
 
 		const actions: Record<string, () => void> = {
-			ArrowLeft: ctrl ? previousModel : throttledPreviousHour,
-			ArrowRight: ctrl ? nextModel : throttledNextHour,
+			ArrowLeft: event.ctrlKey ? previousModel : throttledPreviousHour,
+			ArrowRight: event.ctrlKey ? nextModel : throttledNextHour,
 			ArrowDown: throttledPreviousDay,
 			ArrowUp: throttledNextDay,
-			c: ctrl ? () => {} : jumpToCurrentTime,
-			m: ctrl ? () => {} : () => toggleModelRunLock(),
-			n: ctrl ? () => {} : () => setLatestModelRun()
+			c: jumpToCurrentTime,
+			m: () => toggleModelRunLock(),
+			n: () => setLatestModelRun()
 		};
 
 		const action = actions[event.key];
@@ -367,26 +364,18 @@
 		// check if loading
 		if (!disabled || ['m'].includes(event.key)) {
 			action();
-		} else {
-			// toast.warning('Still loading another OM file');
 		}
-	};
-
-	const keyUpEvent = (event: KeyboardEvent) => {
-		if (event.keyCode == 17 || event.keyCode == 91) ctrl = false;
 	};
 
 	onMount(() => {
 		if (browser) {
 			window.addEventListener('keydown', keyDownEvent);
-			window.addEventListener('keyup', keyUpEvent);
 		}
 	});
 
 	onDestroy(() => {
 		if (browser) {
 			window.removeEventListener('keydown', keyDownEvent);
-			window.removeEventListener('keyup', keyUpEvent);
 		}
 	});
 
