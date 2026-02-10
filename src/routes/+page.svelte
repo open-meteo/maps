@@ -12,7 +12,6 @@
 	import { type RequestParameters } from 'maplibre-gl';
 	import * as maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
-	import { Protocol } from 'pmtiles';
 	import { toast } from 'svelte-sonner';
 
 	import { version } from '$app/environment';
