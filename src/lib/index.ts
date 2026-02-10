@@ -250,10 +250,7 @@ export const addHillshadeSources = () => {
 
 	map.addSource('terrainSource', {
 		type: 'raster-dem',
-		tiles: ['https://tiles.mapterhorn.com/{z}/{x}/{y}.webp'],
-		encoding: 'terrarium',
-		tileSize: 512,
-		attribution: '<a href="https://mapterhorn.com/attribution">© Mapterhorn</a>'
+		url: 'https://tiles.mapterhorn.com/tilejson.json'
 	});
 };
 
