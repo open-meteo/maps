@@ -3,7 +3,7 @@
 </script>
 
 <div
-	in:fade={{ delay: 1200, duration: 400 }}
+	in:fade={{ delay: 400, duration: 400 }}
 	out:fade={{ duration: 150 }}
 	class="pointer-events-none absolute top-[50%] left-[50%] z-50 transform-[translate(-50%,-50%)]"
 >

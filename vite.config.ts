@@ -2,7 +2,6 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig, loadEnv } from 'vite';
 import devtoolsJson from 'vite-plugin-devtools-json';
-import dts from 'vite-plugin-dts';
 
 import type { IncomingMessage, ServerResponse } from 'http';
 import type { Plugin, PreviewServer, ViteDevServer } from 'vite';
@@ -17,13 +16,13 @@ const addHeaders = (res: ServerResponse) => {
 const viteServerConfig = (): Plugin => ({
 	name: 'add-headers',
 	configureServer: (server: ViteDevServer) => {
-		server.middlewares.use((req: IncomingMessage, res: ServerResponse, next: () => void) => {
+		server.middlewares.use((_req: IncomingMessage, res: ServerResponse, next: () => void) => {
 			addHeaders(res);
 			next();
 		});
 	},
 	configurePreviewServer: (server: PreviewServer) => {
-		server.middlewares.use((req: IncomingMessage, res: ServerResponse, next: () => void) => {
+		server.middlewares.use((_req: IncomingMessage, res: ServerResponse, next: () => void) => {
 			addHeaders(res);
 			next();
 		});
@@ -34,15 +33,7 @@ export default ({ mode }: { mode: string }) => {
 	process.env = { ...process.env, ...loadEnv(mode, process.cwd()) };
 
 	return defineConfig({
-		plugins: [
-			tailwindcss(),
-			sveltekit(),
-			devtoolsJson(),
-			dts({
-				insertTypesEntry: true
-			}),
-			viteServerConfig()
-		],
+		plugins: [tailwindcss(), sveltekit(), devtoolsJson(), viteServerConfig()],
 		optimizeDeps: {
 			exclude: ['@openmeteo/file-reader', '@openmeteo/file-format-wasm']
 		},

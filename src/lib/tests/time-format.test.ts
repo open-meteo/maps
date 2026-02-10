@@ -255,7 +255,7 @@ describe('isValidTimeStep', () => {
 	it('should return false when date is undefined', () => {
 		const timeSteps = [new Date('2026-01-23T10:00:00Z')];
 
-		expect(isValidTimeStep(undefined as any, timeSteps)).toBe(false);
+		expect(isValidTimeStep(undefined as any, timeSteps)).toBe(false); // eslint-disable-line
 	});
 
 	it('should work with SvelteDate instances', () => {
