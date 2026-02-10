@@ -65,7 +65,7 @@ export default ({ mode }: { mode: string }) => {
 				},
 				workbox: {
 					maximumFileSizeToCacheInBytes: 5242880,
-					globPatterns: ['**/*.{js,css,ico,png,svg,webp,wasm}'],
+					globPatterns: ['client/**/*.{js,css,ico,png,svg,webp,wasm}'],
 					navigateFallback: '/',
 					cleanupOutdatedCaches: true,
 					// Runtime caching for weather data and map tiles
