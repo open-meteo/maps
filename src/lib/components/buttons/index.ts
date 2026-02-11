@@ -1,6 +1,6 @@
 import { get } from 'svelte/store';
 
-import * as maplibregl from 'maplibre-gl';
+import maplibregl from 'maplibre-gl';
 import { mode, setMode } from 'mode-watcher';
 
 import { map as m } from '$lib/stores/map';
@@ -19,6 +19,8 @@ import {
 	terrainHandler,
 	updateUrl
 } from '$lib';
+
+import type { TerrainControl } from 'maplibre-gl';
 
 let map = get(m);
 m.subscribe((newMap) => {
@@ -126,7 +128,7 @@ export class TimeButton {
 	onRemove() {}
 }
 
-let terrainControl: maplibregl.TerrainControl;
+let terrainControl: TerrainControl;
 const addTerrainControl = () => {
 	if (!map.hasControl(terrainControl)) {
 		terrainControl = new maplibregl.TerrainControl({

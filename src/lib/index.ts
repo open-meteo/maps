@@ -10,7 +10,7 @@ import {
 	getValueFromLatLong
 } from '@openmeteo/mapbox-layer';
 import { booleanPointInPolygon, multiPolygon } from '@turf/turf';
-import * as maplibregl from 'maplibre-gl';
+import maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
 import { toast } from 'svelte-sonner';
 
@@ -56,11 +56,14 @@ import {
 import { formatISOUTCWithZ, parseISOWithoutTimezone } from './time-format';
 
 import type { Domain, DomainMetaDataJson } from '@openmeteo/mapbox-layer';
+import type { Map, MapMouseEvent, RasterTileSource, VectorTileSource } from 'maplibre-gl';
+
+const { GeolocateControl, GlobeControl, NavigationControl, Popup } = maplibregl;
 
 export { findTimeStep } from '$lib/time-utils';
 
 let url: URL;
-let map: maplibregl.Map | undefined;
+let map: Map | undefined;
 let preferences: Preferences;
 let metaJson: DomainMetaDataJson | undefined;
 let vectorOptions: VectorOptions;
@@ -227,14 +230,14 @@ export const setMapControlSettings = () => {
 
 	map.touchZoomRotate.disableRotation();
 
-	const navigationControl = new maplibregl.NavigationControl({
+	const navigationControl = new NavigationControl({
 		visualizePitch: true,
 		showZoom: true,
 		showCompass: true
 	});
 	map.addControl(navigationControl);
 
-	const locateControl = new maplibregl.GeolocateControl({
+	const locateControl = new GeolocateControl({
 		fitBoundsOptions: {
 			maxZoom: 13.5
 		},
@@ -245,7 +248,7 @@ export const setMapControlSettings = () => {
 	});
 	map.addControl(locateControl);
 
-	const globeControl = new maplibregl.GlobeControl();
+	const globeControl = new GlobeControl();
 	map.addControl(globeControl);
 	globeControl._globeButton.addEventListener('click', () => globeHandler());
 
@@ -328,7 +331,7 @@ export const checkHighDefinition = () => {
 	}
 };
 
-let omRasterSource: maplibregl.RasterTileSource | undefined;
+let omRasterSource: RasterTileSource | undefined;
 export const addOmFileLayers = () => {
 	if (!map) return;
 	// when (re)-adding the om-file layers, we need to reset the vectorRequests to fix set the opacity correctly on the first request
@@ -369,7 +372,7 @@ export const addOmFileLayers = () => {
 	}
 };
 
-let omVectorSource: maplibregl.VectorTileSource | undefined;
+let omVectorSource: VectorTileSource | undefined;
 export const addVectorLayer = () => {
 	if (!map || !map.style) return;
 	if (!map.getSource('omVectorSource' + String(vectorRequests))) {
@@ -721,12 +724,12 @@ let showPopup = false;
 export const addPopup = () => {
 	if (!map) return;
 
-	const updatePopup = (e: maplibregl.MapMouseEvent) => {
+	const updatePopup = (e: MapMouseEvent) => {
 		if (!showPopup || !map) return;
 
 		const coordinates = e.lngLat;
 		if (!popup) {
-			popup = new maplibregl.Popup({ closeButton: false })
+			popup = new Popup({ closeButton: false })
 				.setLngLat(coordinates)
 				.setHTML(`<span class="value-popup">Outside domain</span>`)
 				.addTo(map);
@@ -767,7 +770,7 @@ export const addPopup = () => {
 	};
 
 	map.on('mousemove', updatePopup);
-	map.on('click', (e: maplibregl.MapMouseEvent) => {
+	map.on('click', (e: MapMouseEvent) => {
 		if (!map) return;
 		showPopup = !showPopup;
 		if (!showPopup && popup) {

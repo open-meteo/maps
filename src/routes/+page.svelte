@@ -9,10 +9,8 @@
 		omProtocol,
 		updateCurrentBounds
 	} from '@openmeteo/mapbox-layer';
-	import { type RequestParameters } from 'maplibre-gl';
-	import * as maplibregl from 'maplibre-gl';
+	import maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
-	import { Protocol } from 'pmtiles';
 	import { toast } from 'svelte-sonner';
 
 	import { version } from '$app/environment';
@@ -72,6 +70,8 @@
 	import { formatISOWithoutTimezone } from '$lib/time-format';
 
 	import '../styles.css';
+
+	import type { RequestParameters } from 'maplibre-gl';
 
 	let mapContainer: HTMLElement | null;
 
