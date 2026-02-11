@@ -17,6 +17,7 @@
 
 	import { version } from '$app/environment';
 
+	import { clippingCountryCodes } from '$lib/stores/clipping';
 	import { map } from '$lib/stores/map';
 	import { defaultColorHash, omProtocolSettings } from '$lib/stores/om-protocol-settings';
 	import {
@@ -62,7 +63,12 @@
 		updateUrl,
 		urlParamsToPreferences
 	} from '$lib';
-	import { buildCountryClippingOptions } from '$lib/clipping';
+	import {
+		CLIP_COUNTRIES_PARAM,
+		buildCountryClippingOptions,
+		isSameCountrySelection,
+		serializeClipCountriesParam
+	} from '$lib/clipping';
 	import { formatISOWithoutTimezone } from '$lib/time-format';
 
 	import '../styles.css';
@@ -189,9 +195,23 @@
 
 	let selectedCountries = $state<string[]>([]);
 	const handleCountrySelect = (countries: Country[]) => {
-		$omProtocolSettings.clippingOptions = buildCountryClippingOptions(countries);
-		changeOMfileURL();
+		if (!isSameCountrySelection(selectedCountries, $clippingCountryCodes)) {
+			clippingCountryCodes.set(selectedCountries);
+			updateUrl(CLIP_COUNTRIES_PARAM, serializeClipCountriesParam(selectedCountries));
+		}
+
+		const nextClipping = buildCountryClippingOptions(countries);
+		if ($omProtocolSettings.clippingOptions !== nextClipping) {
+			$omProtocolSettings.clippingOptions = nextClipping;
+			changeOMfileURL();
+		}
 	};
+
+	onMount(() => {
+		if (!isSameCountrySelection(selectedCountries, $clippingCountryCodes)) {
+			selectedCountries = $clippingCountryCodes;
+		}
+	});
 </script>
 
 <svelte:head>

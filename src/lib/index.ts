@@ -18,6 +18,7 @@ import { toast } from 'svelte-sonner';
 import { browser } from '$app/environment';
 import { pushState } from '$app/navigation';
 
+import { clippingCountryCodes } from '$lib/stores/clipping';
 import { map as m } from '$lib/stores/map';
 import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 import {
@@ -48,6 +49,11 @@ import {
 	BEFORE_LAYER_VECTOR_WATER_CLIP
 } from '$lib/constants';
 
+import {
+	CLIP_COUNTRIES_PARAM,
+	parseClipCountriesParam,
+	serializeClipCountriesParam
+} from './clipping';
 import { formatISOUTCWithZ, parseISOWithoutTimezone } from './time-format';
 
 import type { Domain, DomainMetaDataJson } from '@openmeteo/mapbox-layer';
@@ -175,6 +181,17 @@ export const urlParamsToPreferences = () => {
 	} else {
 		if (preferences.clipWater) {
 			url.searchParams.set('clip_water', String(preferences.clipWater));
+		}
+	}
+
+	const clipCountries = parseClipCountriesParam(params.get(CLIP_COUNTRIES_PARAM));
+	if (clipCountries.length > 0) {
+		clippingCountryCodes.set(clipCountries);
+	} else {
+		const currentCodes = get(clippingCountryCodes);
+		const serialized = serializeClipCountriesParam(currentCodes);
+		if (serialized) {
+			url.searchParams.set(CLIP_COUNTRIES_PARAM, serialized);
 		}
 	}
 
@@ -895,7 +912,8 @@ export const updateUrl = async (
 
 	await tick();
 	try {
-		if (map) pushState(url + map._hash.getHashString(), {});
+		const nextUrl = url.toString().replace(/%2C/g, ',');
+		if (map) pushState(nextUrl + map._hash.getHashString(), {});
 	} catch {
 		pushState(url, {});
 	}
@@ -905,7 +923,7 @@ export const getInitialMetaData = async () => {
 	const domain = get(selectedDomain);
 
 	const uri =
-		domain && domain.value.startsWith('dwd_icon')&& !domain.value.endsWith('eps')
+		domain && domain.value.startsWith('dwd_icon') && !domain.value.endsWith('eps')
 			? `https://s3.servert.ch`
 			: `https://map-tiles.open-meteo.com`;
 

@@ -29,15 +29,32 @@
 	let open = $state(false);
 	let searchValue = $state('');
 	let loadingGeojson = $state(false);
+	let selectionRequestId = 0;
 
 	$effect(() => {
 		typing.set(open);
 	});
 
+	$effect(() => {
+		if (!onselect) return;
+		const requestId = ++selectionRequestId;
+		if (selectedCountries.length === 0) {
+			onselect([]);
+			return;
+		}
+		(async () => {
+			const selectedWithGeojson = await Promise.all(
+				selectedCountryObjs.map((c) => loadCountryGeoJson(c))
+			);
+			if (requestId !== selectionRequestId) return;
+			onselect?.(selectedWithGeojson);
+		})();
+	});
+
 	// Map of country names/codes to their GeoJSON filenames
 	const countryList: Country[] = [
 		{
-			name: 'Africa (Continent)',
+			name: 'Africa',
 			code: 'CONT-AF',
 			filenames: [
 				'algeria.json',
@@ -98,7 +115,7 @@
 			]
 		},
 		{
-			name: 'Asia (Continent)',
+			name: 'Asia',
 			code: 'CONT-AS',
 			filenames: [
 				'afghanistan.json',
@@ -153,7 +170,7 @@
 			]
 		},
 		{
-			name: 'Europe (Continent)',
+			name: 'Europe',
 			code: 'CONT-EU',
 			filenames: [
 				'albania.json',
@@ -203,7 +220,7 @@
 			]
 		},
 		{
-			name: 'North America (Continent)',
+			name: 'North America',
 			code: 'CONT-NA',
 			filenames: [
 				'antigua_and_barbuda.json',
@@ -232,7 +249,7 @@
 			]
 		},
 		{
-			name: 'South America (Continent)',
+			name: 'South America',
 			code: 'CONT-SA',
 			filenames: [
 				'argentina.json',
@@ -250,7 +267,7 @@
 			]
 		},
 		{
-			name: 'Oceania (Continent)',
+			name: 'Oceania',
 			code: 'CONT-OC',
 			filenames: [
 				'australia.json',
@@ -565,17 +582,10 @@
 			// Add to selection
 			selectedCountries = [...selectedCountries, country.code];
 		}
-
-		// Load GeoJSON for all selected countries
-		const selectedWithGeojson = await Promise.all(
-			selectedCountryObjs.map((c) => loadCountryGeoJson(c))
-		);
-		onselect?.(selectedWithGeojson);
 	}
 
 	function clearAll() {
 		selectedCountries = [];
-		onselect?.([]);
 		searchValue = '';
 	}
 </script>
@@ -645,8 +655,9 @@
 								onSelect={() => handleSelect(country)}
 								class="cursor-pointer"
 							>
-								{country.name}
-								<span class="ml-auto text-xs text-muted-foreground">{country.code}</span>
+								<span class="truncate">{country.name}</span>
+								<span class="ml-auto text-xs text-muted-foreground text-nowrap">{country.code}</span
+								>
 								<CheckIcon
 									class={`mr-2 h-4 w-4 ${isSelected(country.code) ? 'opacity-100' : 'opacity-0'}`}
 								/>
