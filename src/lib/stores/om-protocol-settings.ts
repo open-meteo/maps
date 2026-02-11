@@ -1,7 +1,7 @@
 import { get } from 'svelte/store';
 
 import { BrowserBlockCache } from '@openmeteo/file-reader';
-import { type OMapsFileReader, defaultOmProtocolSettings } from '@openmeteo/mapbox-layer';
+import { type MapboxLayerFileReader, defaultOmProtocolSettings } from '@openmeteo/mapbox-layer';
 import { persisted } from 'svelte-persisted-store';
 
 import { browser } from '$app/environment';
@@ -45,7 +45,7 @@ export const omProtocolSettings: OmProtocolSettings = {
 	// dynamic (can be changed during runtime)
 	colorScales: { ...defaultOmProtocolSettings.colorScales, ...initialCustomColorScales },
 
-	postReadCallback: (omFileReader: OMapsFileReader, data: Data, state: OmUrlState) => {
+	postReadCallback: (_omFileReader: MapboxLayerFileReader, data: Data, state: OmUrlState) => {
 		// dwd icon models are cached locally on server
 		if (!state.dataOptions.domain.value.startsWith('dwd_icon')) {
 			// const nextOmUrls = getNextOmUrls(state.omFileUrl, get(selectedDomain), get(metaJson));
