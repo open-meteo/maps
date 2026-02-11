@@ -832,6 +832,9 @@ export const getOMUrl = () => {
 	hashValue(JSON.stringify(omProtocolSettingsState.clippingOptions)).then((hash) => {
 		url += `&clipping_options_hash=${hash}`;
 	});
+	hashValue(JSON.stringify(omProtocolSettingsState.clippingOptions)).then((hash) => {
+		console.log(hash);
+	});
 
 	return url;
 };

@@ -3,6 +3,7 @@
 	import { get } from 'svelte/store';
 
 	import {
+		type Bounds,
 		GridFactory,
 		type RenderableColorScale,
 		domainOptions,
@@ -58,6 +59,7 @@
 		hashValue,
 		matchVariableOrFirst,
 		setMapControlSettings,
+		throttle,
 		updateUrl,
 		urlParamsToPreferences
 	} from '$lib';
@@ -74,6 +76,10 @@
 	import type { RequestParameters } from 'maplibre-gl';
 
 	let mapContainer: HTMLElement | null;
+
+	const throttledUpdateCurrentBounds = throttle((bounds: Bounds) => {
+		updateCurrentBounds(bounds);
+	}, 100);
 
 	onMount(() => {
 		$url = new URL(document.location.href);
@@ -124,7 +130,13 @@
 		setMapControlSettings();
 
 		$map.on('dataloading', () => {
-			updateCurrentBounds($map.getBounds());
+			const bounds = $map.getBounds();
+			updateCurrentBounds([
+				bounds.getWest(),
+				bounds.getSouth(),
+				bounds.getEast(),
+				bounds.getNorth()
+			]);
 		});
 
 		$map.on('load', async () => {
@@ -194,7 +206,7 @@
 	});
 
 	let selectedCountries = $state<string[]>([]);
-	const handleCountrySelect = (countries: Country[]) => {
+	const handleCountrySelect = async (countries: Country[]) => {
 		if (!isSameCountrySelection(selectedCountries, $clippingCountryCodes)) {
 			clippingCountryCodes.set(selectedCountries);
 			updateUrl(CLIP_COUNTRIES_PARAM, serializeClipCountriesParam(selectedCountries));
@@ -203,7 +215,11 @@
 		const nextClipping = buildCountryClippingOptions(countries);
 		if ($omProtocolSettings.clippingOptions !== nextClipping) {
 			$omProtocolSettings.clippingOptions = nextClipping;
+			await tick();
 			changeOMfileURL();
+			// setTimeout(() => {
+			// 	$map.fire('dataloading');
+			// }, 500);
 		}
 	};
 
