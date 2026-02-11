@@ -9,8 +9,7 @@ import {
 	getColorScale,
 	getValueFromLatLong
 } from '@openmeteo/mapbox-layer';
-import * as turf from '@turf/turf';
-import { pointsWithinPolygon } from '@turf/turf';
+import { booleanPointInPolygon, multiPolygon } from '@turf/turf';
 import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
 import { toast } from 'svelte-sonner';
@@ -744,12 +743,7 @@ export const addPopup = () => {
 			const omProtocolSettingsState = get(omProtocolSettings);
 			const clippingOptions = omProtocolSettingsState.clippingOptions;
 			if (clippingOptions) {
-				if (
-					!turf.booleanPointInPolygon(
-						coordinates.toArray(),
-						turf.multiPolygon(clippingOptions.polygons)
-					)
-				) {
+				if (!booleanPointInPolygon(coordinates.toArray(), multiPolygon(clippingOptions.polygons))) {
 					popup
 						.setLngLat(coordinates)
 						.setHTML(`<span style="padding: 3px 5px;" class="popup-string">Outside clip</span>`);

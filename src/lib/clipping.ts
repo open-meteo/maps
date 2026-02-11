@@ -1,4 +1,4 @@
-import * as turf from '@turf/turf';
+import { flatten, simplify } from '@turf/turf';
 
 import type { Country } from '$lib/components/selection/country-selector.svelte';
 import type { ClippingOptions } from '@openmeteo/mapbox-layer';
@@ -9,8 +9,8 @@ export const buildCountryClippingOptions = (countries: Country[]): ClippingOptio
 
 	const allFeatures = countries.flatMap((country) => {
 		if (!country.geojson) return [];
-		const flatten = turf.flatten(country.geojson) as FeatureCollection<Geometry>;
-		return flatten.features;
+		const flattened = flatten(country.geojson) as FeatureCollection<Geometry>;
+		return flattened.features;
 	});
 
 	const mergedGeojson: FeatureCollection<Geometry> = {
@@ -18,7 +18,7 @@ export const buildCountryClippingOptions = (countries: Country[]): ClippingOptio
 		features: allFeatures
 	};
 
-	const simplifiedGeoJSON = turf.simplify(mergedGeojson, {
+	const simplifiedGeoJSON = simplify(mergedGeojson, {
 		tolerance: 0.00025,
 		highQuality: true
 	});
