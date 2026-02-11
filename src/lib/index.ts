@@ -361,9 +361,8 @@ export const addVectorLayer = () => {
 		});
 		omVectorSource = map.getSource('omVectorSource' + String(vectorRequests));
 		if (omVectorSource) {
-			omVectorSource.on('error', (e) => {
+			omVectorSource.on('error', (_e) => {
 				clearInterval(checkVectorSourceLoadedInterval);
-				toast.error(e.error.message);
 			});
 		}
 	}
