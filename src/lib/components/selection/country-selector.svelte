@@ -547,7 +547,7 @@
 		try {
 			loadingGeojson = true;
 			const responses = await Promise.all(
-				files.map((file) => fetch(`/world-geojson/countries/${file}`))
+				files.map((file) => fetch(`https://tiles.open-meteo.com/world-geojson/countries/${file}`))
 			);
 			const geojsons = await Promise.all(responses.map((response) => response.json()));
 
