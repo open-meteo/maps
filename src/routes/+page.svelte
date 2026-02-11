@@ -9,7 +9,6 @@
 		omProtocol,
 		updateCurrentBounds
 	} from '@openmeteo/mapbox-layer';
-	import * as turf from '@turf/turf';
 	import { type RequestParameters } from 'maplibre-gl';
 	import * as maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
@@ -63,18 +62,10 @@
 		updateUrl,
 		urlParamsToPreferences
 	} from '$lib';
+	import { buildCountryClippingOptions } from '$lib/clipping';
 	import { formatISOWithoutTimezone } from '$lib/time-format';
 
 	import '../styles.css';
-
-	import type {
-		Feature,
-		FeatureCollection,
-		Geometry,
-		GeometryCollection,
-		MultiPolygon,
-		Polygon
-	} from 'geojson';
 
 	let mapContainer: HTMLElement | null;
 
@@ -197,34 +188,8 @@
 	});
 
 	let selectedCountries = $state<string[]>([]);
-
 	const handleCountrySelect = (countries: Country[]) => {
-		if (countries.length === 0) {
-			$omProtocolSettings.clippingOptions = undefined;
-			changeOMfileURL();
-			return;
-		}
-
-		// Merge all country geojson into one
-		const allFeatures = countries.flatMap((country) => {
-			if (!country.geojson) return [];
-			const flatten = turf.flatten(country.geojson) as FeatureCollection<Geometry>;
-			return flatten.features;
-		});
-
-		const mergedGeojson: FeatureCollection<Geometry> = {
-			type: 'FeatureCollection',
-			features: allFeatures
-		};
-
-		const simplifiedGeoJSON = turf.simplify(mergedGeojson, {
-			tolerance: 0.00025,
-			highQuality: true
-		});
-
-		$omProtocolSettings.clippingOptions = {
-			geojson: simplifiedGeoJSON
-		};
+		$omProtocolSettings.clippingOptions = buildCountryClippingOptions(countries);
 		changeOMfileURL();
 	};
 </script>
