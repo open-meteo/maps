@@ -938,14 +938,14 @@
 			style={desktop.current
 				? ''
 				: mode.current === 'dark'
-					? 'background: linear-gradient(to right, rgba(15,15,15,1), rgba(15,15,15,0.9), rgba(15,15,15,0.5), rgba(15,15,15,0));'
-					: 'background: linear-gradient(to right, rgba(240,240,240,1), rgba(240,240,240,0.9), rgba(240,240,240,0.5), rgba(240,240,240,0));'}
+					? 'background: linear-gradient(to right, rgba(15,15,15,1), rgba(15,15,15,0.95), rgba(15,15,15,0.9), rgba(15,15,15,0.5), rgba(15,15,15,0));'
+					: 'background: linear-gradient(to right, rgba(240,240,240,1), rgba(240,240,240,0.95), rgba(240,240,240,0.9), rgba(240,240,240,0.5), rgba(240,240,240,0));'}
 			class="absolute z-50 h-full flex items-center {desktop.current
 				? '-left-7 w-7 rounded-s-xl bg-glass/75 backdrop-blur-sm'
-				: 'left-0 w-14 backdrop-blur-xxs'}"
+				: 'left-0 w-12 backdrop-blur-xxs'}"
 		>
 			<button
-				class="flex items-center {desktop.current ? 'h-12.5  ' : 'top-3.5 w-14 h-7'} {disabled
+				class="flex items-center {desktop.current ? 'h-12.5  ' : 'top-3.5 w-12 h-full'} {disabled
 					? 'cursor-not-allowed'
 					: 'cursor-pointer'} "
 				onclick={previousHour}
@@ -970,16 +970,16 @@
 			style={desktop.current
 				? ''
 				: mode.current === 'dark'
-					? 'background: linear-gradient(to left, rgba(15,15,15,1), rgba(15,15,15,0.9), rgba(15,15,15,0.5), rgba(15,15,15,0));'
-					: 'background: linear-gradient(to left, rgba(240,240,240,1), rgba(240,240,240,0.9), rgba(240,240,240,0.5), rgba(240,240,240,0));'}
+					? 'background: linear-gradient(to left, rgba(15,15,15,1), rgba(15,15,15,0.95), rgba(15,15,15,0.9), rgba(15,15,15,0.5), rgba(15,15,15,0));'
+					: 'background: linear-gradient(to left, rgba(240,240,240,1), rgba(240,240,240,0.95), rgba(240,240,240,0.9), rgba(240,240,240,0.5), rgba(240,240,240,0));'}
 			class="absolute z-50 h-full flex items-center justify-end {desktop.current
 				? '-right-7 w-7 rounded-e-xl bg-glass/75 backdrop-blur-sm'
-				: 'right-0 w-14'}"
+				: 'right-0 w-12 h-full backdrop-blur-xxs'}"
 		>
 			<button
-				class="flex items-center w-7 {desktop.current
+				class="flex items-center justify-end w-7 {desktop.current
 					? '-right-7 h-12.5'
-					: 'right-0 top-3.5 h-7'} {disabled ? 'cursor-not-allowed' : 'cursor-pointer'} "
+					: 'right-0 w-12 h-full'} {disabled ? 'cursor-not-allowed' : 'cursor-pointer'} "
 				onclick={nextHour}
 				aria-label="Next Hour"
 			>
