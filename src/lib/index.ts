@@ -661,7 +661,7 @@ const fadeVectorLayers = (opacity: number, request: number) => {
 
 export const getStyle = async () => {
 	return await fetch(
-		`https://tiles.open-meteo.com/styles/openmeteo-maps-${mode.current === 'dark' ? 'dark' : 'white'}.json` //${preferences.clipWater ? '-water-clip' : ''
+		`https://tiles.open-meteo.com/styles/minimal-planet-maps${mode.current === 'dark' ? '-dark' : ''}${preferences.clipWater ? '-water-clip' : ''}.json`
 	)
 		.then((response) => response.json())
 		.then((style) => {
