@@ -978,7 +978,7 @@
 		>
 			<button
 				class="flex items-center w-7 {desktop.current
-					? '-right-7 h-12.5 rounded-e-xl bg-glass/75 backdrop-blur-sm'
+					? '-right-7 h-12.5'
 					: 'right-0 top-3.5 h-7'} {disabled ? 'cursor-not-allowed' : 'cursor-pointer'} "
 				onclick={nextHour}
 				aria-label="Next Hour"
@@ -1100,11 +1100,11 @@
 												? 96
 												: 24});"
 											class="h-1.25 {metaFirstResolutionHours !== 0.25 && j % 12 === 0 && j !== 0
-												? 'h-3.25'
+												? 'h-3 md:h-3.25'
 												: ''} {metaFirstResolutionHours !== 0.25 && j % 3 === 0
-												? 'h-2.5'
+												? 'h-2 md:h-2.5'
 												: ''} {metaFirstResolutionHours !== 0.25 && j % 24 === 0 && j !== 0
-												? 'h-5 md:h-6'
+												? 'h-4 md:h-6'
 												: ''} {metaFirstResolutionHours === 0.25 && j % 4 === 0
 												? 'h-2.5'
 												: ''} {metaFirstResolutionHours === 0.25 && j % 16 === 0 && j !== 0
