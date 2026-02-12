@@ -177,6 +177,7 @@ body {
 }
 
 .maplibregl-ctrl.maplibregl-ctrl-attrib {
+	transition: 200ms;
 	background-color: rgba(240, 240, 240, 0.8);
 	backdrop-filter: blur(2px);
 }
@@ -200,7 +201,11 @@ body {
 
 @media (max-width: 768px) {
 	.time-selector-open .maplibregl-ctrl-bottom-right {
-		bottom: 65px;
+		bottom: 93px;
+	}
+
+	.time-selector-open .maplibregl-ctrl.maplibregl-ctrl-attrib {
+		margin-right: 5px;
 	}
 }
 

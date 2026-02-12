@@ -33,21 +33,21 @@ describe('findTimeStep', () => {
 		expect(result?.getTime()).toBe(date.getTime());
 	});
 
-	it('should find the closest previous timestep when no exact match', () => {
+	it('should find the closest timestep when no exact match', () => {
 		const timeSteps = [
 			new Date('2026-01-22T10:00:00Z'),
 			new Date('2026-01-22T11:00:00Z'),
 			new Date('2026-01-22T12:00:00Z'),
 			new Date('2026-01-22T13:00:00Z')
 		];
-		const date = new Date('2026-01-22T12:30:00Z'); // Between 12:00 and 13:00
+		const date = new Date('2026-01-22T12:40:00Z'); // Closer to 13:00
 
 		const result = findTimeStep(date, timeSteps);
 
-		expect(result?.getTime()).toBe(timeSteps[2].getTime()); // Should return 12:00
+		expect(result?.getTime()).toBe(timeSteps[3].getTime()); // Should return 13:00
 	});
 
-	it('should return undefined when date is before all timesteps', () => {
+	it('should return the first timestep when date is before all timesteps', () => {
 		const timeSteps = [
 			new Date('2026-01-22T10:00:00Z'),
 			new Date('2026-01-22T11:00:00Z'),
@@ -57,7 +57,7 @@ describe('findTimeStep', () => {
 
 		const result = findTimeStep(date, timeSteps);
 
-		expect(result).toBeUndefined();
+		expect(result?.getTime()).toBe(timeSteps[0].getTime());
 	});
 
 	it('should return the last timestep when date is after all timesteps', () => {
@@ -79,11 +79,11 @@ describe('findTimeStep', () => {
 			new SvelteDate('2026-01-22T11:00:00Z'),
 			new SvelteDate('2026-01-22T12:00:00Z')
 		];
-		const date = new SvelteDate('2026-01-22T11:30:00Z');
+		const date = new SvelteDate('2026-01-22T11:40:00Z');
 
 		const result = findTimeStep(date, timeSteps);
 
-		expect(result?.getTime()).toBe(timeSteps[1].getTime());
+		expect(result?.getTime()).toBe(timeSteps[2].getTime());
 	});
 
 	it('should work with mixed Date and SvelteDate', () => {
@@ -92,11 +92,11 @@ describe('findTimeStep', () => {
 			new Date('2026-01-22T11:00:00Z'),
 			new Date('2026-01-22T12:00:00Z')
 		];
-		const date = new SvelteDate('2026-01-22T11:30:00Z');
+		const date = new SvelteDate('2026-01-22T11:40:00Z');
 
 		const result = findTimeStep(date, timeSteps);
 
-		expect(result?.getTime()).toBe(timeSteps[1].getTime());
+		expect(result?.getTime()).toBe(timeSteps[2].getTime());
 	});
 
 	it('should handle 15-minute intervals', () => {
@@ -140,7 +140,7 @@ describe('findTimeStep', () => {
 
 		const result = findTimeStep(date, timeSteps);
 
-		expect(result?.getTime()).toBe(timeSteps[2].getTime()); // Should return Jan 22
+		expect(result?.getTime()).toBe(timeSteps[3].getTime()); // Should return Jan 23
 	});
 
 	it('should handle single timestep array', () => {
