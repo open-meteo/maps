@@ -242,9 +242,7 @@
 							></button
 						></Popover.Close
 					>
-					<Command.Root
-						class="bg-glass/85! backdrop-blur-sm rounded"
-					>
+					<Command.Root class="bg-glass/85! backdrop-blur-sm rounded">
 						<Command.Input class="border-none ring-0" placeholder="Search domains..." />
 						<Command.List>
 							<Command.Empty>No domains found.</Command.Empty>
@@ -342,9 +340,7 @@
 							></button
 						></Popover.Close
 					>
-					<Command.Root
-						class="bg-glass/85! backdrop-blur-sm rounded"
-					>
+					<Command.Root class="bg-glass/85! backdrop-blur-sm rounded">
 						<Command.Input class="border-none ring-0" placeholder="Search variables..." />
 						<Command.List>
 							<Command.Empty>No variables found.</Command.Empty>
@@ -454,9 +450,7 @@
 								></button
 							></Popover.Close
 						>
-						<Command.Root
-							class="bg-glass/85! backdrop-blur-sm rounded"
-						>
+						<Command.Root class="bg-glass/85! backdrop-blur-sm rounded">
 							<Command.Input class="border-none ring-0" placeholder="Search levels..." />
 							<Command.List>
 								<Command.Empty>No levels found.</Command.Empty>

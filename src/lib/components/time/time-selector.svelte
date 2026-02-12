@@ -329,6 +329,7 @@
 		const timeStep = findTimeStep(date, timeSteps);
 		if (timeStep) date = new SvelteDate(timeStep);
 		onDateChange(date);
+		isScrolling = true;
 		centerDateButton(date);
 	};
 

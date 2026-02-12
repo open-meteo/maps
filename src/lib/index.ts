@@ -250,10 +250,7 @@ export const addHillshadeSources = () => {
 
 	map.addSource('terrainSource', {
 		type: 'raster-dem',
-		tiles: ['https://tiles.mapterhorn.com/{z}/{x}/{y}.webp'],
-		encoding: 'terrarium',
-		tileSize: 512,
-		attribution: '<a href="https://mapterhorn.com/attribution">© Mapterhorn</a>'
+		url: 'https://tiles.mapterhorn.com/tilejson.json'
 	});
 };
 
@@ -667,7 +664,7 @@ const fadeVectorLayers = (opacity: number, request: number) => {
 
 export const getStyle = async () => {
 	return await fetch(
-		`https://maptiler.servert.nl/styles/minimal-world-maps${mode.current === 'dark' ? '-dark' : ''}${preferences.clipWater ? '-water-clip' : ''}/style.json`
+		`https://tiles.open-meteo.com/styles/minimal-planet-maps${mode.current === 'dark' ? '-dark' : ''}${preferences.clipWater ? '-water-clip' : ''}.json`
 	)
 		.then((response) => response.json())
 		.then((style) => {
