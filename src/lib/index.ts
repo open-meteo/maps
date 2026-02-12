@@ -358,9 +358,8 @@ export const addVectorLayer = () => {
 		});
 		omVectorSource = map.getSource('omVectorSource' + String(vectorRequests));
 		if (omVectorSource) {
-			omVectorSource.on('error', (e) => {
+			omVectorSource.on('error', () => {
 				clearInterval(checkVectorSourceLoadedInterval);
-				toast.error(e.error.message);
 			});
 		}
 	}
@@ -592,14 +591,18 @@ const checkRasterLoaded = () => {
 	let checked = 0;
 	checkRasterSourceLoadedInterval = setInterval(() => {
 		checked++;
-		if (omRasterSource && omRasterSource.loaded()) {
-			if (checked >= 200) {
-				// Timeout after 10s
-				toast.error('Request timed out');
+		if (omRasterSource) {
+			if (checked === 200) {
+				// Notify user that request is slow
+				toast.warning(
+					'Loading raster data might be limited by bandwidth or upstream server speed.'
+				);
 			}
-			checked = 0;
-			loading.set(false);
-			clearInterval(checkRasterSourceLoadedInterval);
+			if (omRasterSource.loaded()) {
+				checked = 0;
+				loading.set(false);
+				clearInterval(checkRasterSourceLoadedInterval);
+			}
 		}
 	}, 50);
 };
