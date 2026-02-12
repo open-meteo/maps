@@ -4,6 +4,7 @@
 	import { fade } from 'svelte/transition';
 
 	import { closestModelRun, domainStep } from '@openmeteo/mapbox-layer';
+	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
 	import { browser } from '$app/environment';
@@ -322,6 +323,7 @@
 		const timeStep = findTimeStep(date, timeSteps);
 		if (timeStep) date = new SvelteDate(timeStep);
 		onDateChange(date);
+		isScrolling = true;
 		centerDateButton(date);
 	};
 
@@ -344,22 +346,20 @@
 	const throttledPreviousDay = throttle(previousDay, 150);
 	const throttledNextDay = throttle(nextDay, 150);
 
-	let ctrl = $state(false);
 	const keyDownEvent = (event: KeyboardEvent) => {
 		if ($typing) return;
-		if (event.keyCode == 17 || event.keyCode == 91) ctrl = true;
 
 		const canNavigate = !($domainSelectionOpen || $variableSelectionOpen);
 		if (!canNavigate) return;
 
 		const actions: Record<string, () => void> = {
-			ArrowLeft: ctrl ? previousModel : throttledPreviousHour,
-			ArrowRight: ctrl ? nextModel : throttledNextHour,
+			ArrowLeft: event.ctrlKey ? previousModel : throttledPreviousHour,
+			ArrowRight: event.ctrlKey ? nextModel : throttledNextHour,
 			ArrowDown: throttledPreviousDay,
 			ArrowUp: throttledNextDay,
-			c: ctrl ? () => {} : jumpToCurrentTime,
-			m: ctrl ? () => {} : () => toggleModelRunLock(),
-			n: ctrl ? () => {} : () => setLatestModelRun()
+			c: jumpToCurrentTime,
+			m: () => toggleModelRunLock(),
+			n: () => setLatestModelRun()
 		};
 
 		const action = actions[event.key];
@@ -368,26 +368,18 @@
 		// check if loading
 		if (!disabled || ['m'].includes(event.key)) {
 			action();
-		} else {
-			// toast.warning('Still loading another OM file');
 		}
-	};
-
-	const keyUpEvent = (event: KeyboardEvent) => {
-		if (event.keyCode == 17 || event.keyCode == 91) ctrl = false;
 	};
 
 	onMount(() => {
 		if (browser) {
 			window.addEventListener('keydown', keyDownEvent);
-			window.addEventListener('keyup', keyUpEvent);
 		}
 	});
 
 	onDestroy(() => {
 		if (browser) {
 			window.removeEventListener('keydown', keyDownEvent);
-			window.removeEventListener('keyup', keyUpEvent);
 		}
 	});
 
@@ -793,9 +785,9 @@
 						style="left: clamp(-28px, calc({desktop.current
 							? currentPosition - 33
 							: 0.5 * hoursHoverContainerWidth - 33}px), calc(100% - 38px));"
-						class="absolute bg-glass/75 md:shadow-md backdrop-blur-sm rounded -top-6 {!desktop.current
-							? 'rounded-none!'
-							: ''} p-0.5 w-16.5 text-center"
+						class="absolute md:bg-glass/75 md:shadow-md md:backdrop-blur-sm rounded {!desktop.current
+							? '-top-2 rounded-none!'
+							: '-top-6'} p-0.5 w-16.5 text-center"
 					>
 						<div class="relative duration-500 {!disabled ? 'text-foreground' : ''}">
 							{#if currentTimeStep}
@@ -944,52 +936,73 @@
 				{/if}
 			</button>
 		</div>
-		<button
-			class="absolute bg-glass/75 backdrop-blur-sm z-50 {desktop.current
-				? '-left-7 h-12.5 w-7 rounded-s-xl'
-				: 'left-[calc(50%-57px)] -top-7 h-7 rounded-tl-lg'} {disabled
-				? 'cursor-not-allowed'
-				: 'cursor-pointer'} "
-			onclick={previousHour}
-			aria-label="Previous Hour"
+		<div
+			style={desktop.current
+				? ''
+				: mode.current === 'dark'
+					? 'background: linear-gradient(to right, rgba(15,15,15,1), rgba(15,15,15,0.95), rgba(15,15,15,0.9), rgba(15,15,15,0.5), rgba(15,15,15,0));'
+					: 'background: linear-gradient(to right, rgba(240,240,240,1), rgba(240,240,240,0.95), rgba(240,240,240,0.9), rgba(240,240,240,0.5), rgba(240,240,240,0));'}
+			class="absolute z-50 h-full flex items-center {desktop.current
+				? '-left-7 w-7 rounded-s-xl bg-glass/75 backdrop-blur-sm'
+				: 'left-0 w-12 backdrop-blur-xxs'}"
 		>
-			<svg
-				xmlns="http://www.w3.org/2000/svg"
-				width="24"
-				height="24"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				class="lucide lucide-chevron-left-icon lucide-chevron-left"><path d="m15 18-6-6 6-6" /></svg
+			<button
+				class="flex items-center {desktop.current ? 'h-12.5  ' : 'top-3.5 w-12 h-full'} {disabled
+					? 'cursor-not-allowed'
+					: 'cursor-pointer'} "
+				onclick={previousHour}
+				aria-label="Previous Hour"
 			>
-		</button>
-		<button
-			class="absolute bg-glass/75 backdrop-blur-sm z-50 {desktop.current
-				? '-right-7 h-12.5 w-7 rounded-e-xl'
-				: 'right-[calc(50%-57px)] -top-7 h-7 rounded-tr-lg'} {disabled
-				? 'cursor-not-allowed'
-				: 'cursor-pointer'} "
-			onclick={nextHour}
-			aria-label="Next Hour"
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="24"
+					height="24"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					class="lucide lucide-chevron-left-icon lucide-chevron-left"
+					><path d="m15 18-6-6 6-6" /></svg
+				>
+			</button>
+		</div>
+		<div
+			style={desktop.current
+				? ''
+				: mode.current === 'dark'
+					? 'background: linear-gradient(to left, rgba(15,15,15,1), rgba(15,15,15,0.95), rgba(15,15,15,0.9), rgba(15,15,15,0.5), rgba(15,15,15,0));'
+					: 'background: linear-gradient(to left, rgba(240,240,240,1), rgba(240,240,240,0.95), rgba(240,240,240,0.9), rgba(240,240,240,0.5), rgba(240,240,240,0));'}
+			class="absolute z-50 h-full flex items-center justify-end {desktop.current
+				? '-right-7 w-7 rounded-e-xl bg-glass/75 backdrop-blur-sm'
+				: 'right-0 w-12 h-full backdrop-blur-xxs'}"
 		>
-			<svg
-				xmlns="http://www.w3.org/2000/svg"
-				width="24"
-				height="24"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				class="lucide lucide-chevron-right-icon lucide-chevron-right"
-				><path d="m9 18 6-6-6-6" /></svg
+			<button
+				class="flex items-center justify-end w-7 {desktop.current
+					? '-right-7 h-12.5'
+					: 'right-0 w-12 h-full'} {disabled ? 'cursor-not-allowed' : 'cursor-pointer'} "
+				onclick={nextHour}
+				aria-label="Next Hour"
 			>
-		</button>
-		<div class="time-selector md:px-0 h-12.5 relative bg-glass/75 backdrop-blur-sm duration-500">
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="24"
+					height="24"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					class="lucide lucide-chevron-right-icon lucide-chevron-right"
+					><path d="m9 18 6-6-6-6" /></svg
+				>
+			</button>
+		</div>
+		<div
+			class="time-selector md:px-0 h-20 md:h-12.5 relative bg-glass/75 backdrop-blur-sm duration-500"
+		>
 			{#if hoverX || currentDate.getTime() !== $time.getTime()}
 				<div
 					transition:fade={{ duration: 300 }}
@@ -1057,13 +1070,13 @@
 				{:else}
 					{#each daySteps as dayStep, i (i)}
 						<div
-							class="relative flex h-12.5 {metaFirstResolutionHours === 0.25
+							class="relative flex h-20 md:h-12.5 {metaFirstResolutionHours === 0.25
 								? 'min-w-85'
 								: 'min-w-42.5'}"
 						>
 							<!-- Day Names -->
 							<div
-								class="absolute flex mt-3.25 -translate-x-1/2 left-1/2 items-center justify-center text-center flex-col"
+								class="absolute flex mt-10 md:mt-3.25 -translate-x-1/2 left-1/2 items-center justify-center text-center flex-col"
 							>
 								<div class="">{DAY_NAMES[dayStep.getDay()]}</div>
 								<small class="-mt-2">{formatLocalDate(dayStep)}</small>
@@ -1089,11 +1102,11 @@
 												? 96
 												: 24});"
 											class="h-1.25 {metaFirstResolutionHours !== 0.25 && j % 12 === 0 && j !== 0
-												? 'h-3.25'
+												? 'h-3 md:h-3.25'
 												: ''} {metaFirstResolutionHours !== 0.25 && j % 3 === 0
-												? 'h-2.5'
+												? 'h-2 md:h-2.5'
 												: ''} {metaFirstResolutionHours !== 0.25 && j % 24 === 0 && j !== 0
-												? 'h-6'
+												? 'h-4 md:h-6'
 												: ''} {metaFirstResolutionHours === 0.25 && j % 4 === 0
 												? 'h-2.5'
 												: ''} {metaFirstResolutionHours === 0.25 && j % 16 === 0 && j !== 0

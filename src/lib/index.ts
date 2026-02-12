@@ -271,10 +271,7 @@ export const addHillshadeSources = () => {
 
 	map.addSource('terrainSource', {
 		type: 'raster-dem',
-		tiles: ['https://tiles.mapterhorn.com/{z}/{x}/{y}.webp'],
-		encoding: 'terrarium',
-		tileSize: 512,
-		attribution: '<a href="https://mapterhorn.com/attribution">© Mapterhorn</a>'
+		url: 'https://tiles.mapterhorn.com/tilejson.json'
 	});
 };
 
@@ -382,9 +379,8 @@ export const addVectorLayer = () => {
 		});
 		omVectorSource = map.getSource('omVectorSource' + String(vectorRequests));
 		if (omVectorSource) {
-			omVectorSource.on('error', (e) => {
+			omVectorSource.on('error', () => {
 				clearInterval(checkVectorSourceLoadedInterval);
-				toast.error(e.error.message);
 			});
 		}
 	}
@@ -616,14 +612,18 @@ const checkRasterLoaded = () => {
 	let checked = 0;
 	checkRasterSourceLoadedInterval = setInterval(() => {
 		checked++;
-		if (omRasterSource && omRasterSource.loaded()) {
-			if (checked >= 200) {
-				// Timeout after 10s
-				toast.error('Request timed out');
+		if (omRasterSource) {
+			if (checked === 200) {
+				// Notify user that request is slow
+				toast.warning(
+					'Loading raster data might be limited by bandwidth or upstream server speed.'
+				);
 			}
-			checked = 0;
-			loading.set(false);
-			clearInterval(checkRasterSourceLoadedInterval);
+			if (omRasterSource.loaded()) {
+				checked = 0;
+				loading.set(false);
+				clearInterval(checkRasterSourceLoadedInterval);
+			}
 		}
 	}, 50);
 };
@@ -685,7 +685,7 @@ const fadeVectorLayers = (opacity: number, request: number) => {
 
 export const getStyle = async () => {
 	return await fetch(
-		`https://maptiler.servert.nl/styles/minimal-world-maps${mode.current === 'dark' ? '-dark' : ''}${preferences.clipWater ? '-water-clip' : ''}/style.json`
+		`https://tiles.open-meteo.com/styles/minimal-planet-maps${mode.current === 'dark' ? '-dark' : ''}${preferences.clipWater ? '-water-clip' : ''}.json`
 	)
 		.then((response) => response.json())
 		.then((style) => {
