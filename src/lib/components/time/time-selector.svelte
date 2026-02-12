@@ -18,6 +18,7 @@
 		variableSelectionOpen
 	} from '$lib/stores/variables';
 
+	import PrefetchButton from '$lib/components/time/prefetch-button.svelte';
 	import * as Select from '$lib/components/ui/select';
 
 	import { changeOMfileURL, findTimeStep, getMetaData, throttle, updateUrl } from '$lib';
@@ -824,6 +825,8 @@
 		<div
 			class="-top-4.5 h-4.5 z-10 right-0 absolute flex rounded-t-lg items-center px-2 gap-0.5 bg-glass/65 backdrop-blur-sm"
 		>
+			<PrefetchButton />
+
 			<Select.Root
 				type="single"
 				value={$modelRun ? $modelRun.getTime().toString() : ''}
@@ -889,7 +892,6 @@
 					{/each}
 				</Select.Content>
 			</Select.Root>
-
 			<button
 				class="cursor-pointer w-3.5 -ml-0.5 h-4.5 pr-0.5 flex items-center justify-center"
 				onclick={(e) => {
