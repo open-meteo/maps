@@ -137,7 +137,7 @@ export const prefetchData = async (
 		const uri =
 			domain && domain.startsWith('dwd_icon')
 				? `https://s3.servert.ch`
-				: `https://openmeteo.s3.amazonaws.com`;
+				: `https://map-tiles.open-meteo.com`;
 
 		let successCount = 0;
 		const totalCount = timeSteps.length;

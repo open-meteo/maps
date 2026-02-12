@@ -768,7 +768,7 @@ export const getOMUrl = () => {
 	const uri =
 		domain && domain.startsWith('dwd_icon') && !domain.endsWith('eps')
 			? `https://s3.servert.ch`
-			: `https://openmeteo.s3.amazonaws.com`;
+			: `https://map-tiles.open-meteo.com`;
 
 	let url = `${uri}/data_spatial/${domain}`;
 
@@ -804,7 +804,7 @@ export const getNextOmUrls = (
 	domain: Domain,
 	metaJson: DomainMetaDataJson | undefined
 ): [string | undefined, string | undefined] => {
-	const url = `https:/openmeteo.s3.amazonaws.com/data_spatial/${domain.value}`;
+	const url = `https://map-tiles.open-meteo.com/data_spatial/${domain.value}`;
 
 	const date = get(time);
 	const dateString = formatISOUTCWithZ(date);
@@ -885,7 +885,7 @@ export const getInitialMetaData = async () => {
 	const uri =
 		domain && domain.value.startsWith('dwd_icon') && !domain.value.endsWith('eps')
 			? `https://s3.servert.ch`
-			: `https://openmeteo.s3.amazonaws.com`;
+			: `https://map-tiles.open-meteo.com`;
 
 	const metaJsonResults = await Promise.all([
 		fetch(`${uri}/data_spatial/${domain.value}/latest.json`),
@@ -935,7 +935,7 @@ export const getMetaData = async (): Promise<DomainMetaDataJson> => {
 	const uri =
 		domain && domain.value.startsWith('dwd_icon') && !domain.value.endsWith('eps')
 			? `https://s3.servert.ch`
-			: `https://openmeteo.s3.amazonaws.com`;
+			: `https://map-tiles.open-meteo.com`;
 
 	const metaJsonUrl = `${uri}/data_spatial/${domain.value}/${fmtModelRun(modelRun as Date)}/meta.json`;
 
