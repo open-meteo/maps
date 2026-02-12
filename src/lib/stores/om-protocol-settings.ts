@@ -35,7 +35,7 @@ export const omProtocolSettings: OmProtocolSettings = {
 		cache: browser
 			? new BrowserBlockCache({
 					blockSize: 128 * 1024,
-					cacheName: 'mapbox-layer-cache',
+					cacheName: 'open-meteo-maps-cache-v1',
 					memCacheTtlMs: 1000,
 					maxBytes: 400 * 1024 * 1024 // 400Mb maximum storage
 				})
@@ -45,23 +45,17 @@ export const omProtocolSettings: OmProtocolSettings = {
 	// dynamic (can be changed during runtime)
 	colorScales: { ...defaultOmProtocolSettings.colorScales, ...initialCustomColorScales },
 
-	postReadCallback: (_omFileReader: MapboxLayerFileReader, data: Data, state: OmUrlState) => {
+	postReadCallback: (omFileReader: MapboxLayerFileReader, data: Data, state: OmUrlState) => {
 		// dwd icon models are cached locally on server
 		if (!state.dataOptions.domain.value.startsWith('dwd_icon')) {
-			// const nextOmUrls = getNextOmUrls(state.omFileUrl, get(selectedDomain), get(metaJson));
-			// for (const nextOmUrl of nextOmUrls) {
-			// 	if (nextOmUrl === undefined) continue;
-			// 	if (!omFileReader.hasFileOpen(nextOmUrl)) {
-			// 		fetch(nextOmUrl, {
-			// 			method: 'GET',
-			// 			headers: {
-			// 				Range: 'bytes=0-255' // Just fetch first 256 bytes to trigger caching
-			// 			}
-			// 		}).catch(() => {
-			// 			// Silently ignore errors for prefetches
-			// 		});
-			// 	}
-			// }
+			const nextOmUrls = getNextOmUrls(state.omFileUrl, get(selectedDomain), get(metaJson));
+			for (const nextOmUrl of nextOmUrls) {
+				if (nextOmUrl === undefined) continue;
+				omFileReader.setToOmFile(nextOmUrl);
+				// This will trigger a request to the tail of the file and cache it
+				// Not requesting a real variable ensures that we don't request any additional data.
+				omFileReader.prefetchVariable('not_a_real_variable');
+			}
 		}
 		if (
 			state.dataOptions.domain.value === 'ecmwf_ifs' &&

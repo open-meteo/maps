@@ -4,6 +4,7 @@
 	import { fade } from 'svelte/transition';
 
 	import { closestModelRun, domainStep } from '@openmeteo/mapbox-layer';
+	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
 	import { browser } from '$app/environment';
@@ -16,8 +17,8 @@
 		selectedDomain,
 		variableSelectionOpen
 	} from '$lib/stores/variables';
-	import { domain as domainStore, variable as variableStore } from '$lib/stores/variables';
 
+	import PrefetchButton from '$lib/components/time/prefetch-button.svelte';
 	import * as Select from '$lib/components/ui/select';
 
 	import { changeOMfileURL, findTimeStep, getMetaData, throttle, updateUrl } from '$lib';
@@ -27,12 +28,6 @@
 		MILLISECONDS_PER_HOUR,
 		MILLISECONDS_PER_WEEK
 	} from '$lib/constants';
-	import {
-		type PrefetchMode,
-		getDateRangeForMode,
-		getPrefetchModeLabel,
-		prefetchData
-	} from '$lib/prefetch';
 	import {
 		formatISOWithoutTimezone,
 		formatLocalDate,
@@ -329,6 +324,7 @@
 		const timeStep = findTimeStep(date, timeSteps);
 		if (timeStep) date = new SvelteDate(timeStep);
 		onDateChange(date);
+		isScrolling = true;
 		centerDateButton(date);
 	};
 
@@ -345,81 +341,24 @@
 		}
 	};
 
-	// State to track prefetch progress and mode
-	let isPrefetching = $state(false);
-	let prefetchProgress = $state({ current: 0, total: 0 });
-	let selectedPrefetchMode: PrefetchMode = $state('next24h');
-
-	const prefetchModes: { value: PrefetchMode; label: string }[] = [
-		{ value: 'next24h', label: 'Next 24h' },
-		{ value: 'prev24h', label: 'Prev 24h' },
-		{ value: 'completeModelRun', label: 'Full run' }
-	];
-
-	// Prefetch data using the selected mode
-	const handlePrefetch = async () => {
-		if (!$metaJson || !$modelRun) {
-			toast.warning('No metadata available for prefetching');
-			return;
-		}
-
-		if (isPrefetching) {
-			toast.warning('Prefetch already in progress');
-			return;
-		}
-
-		isPrefetching = true;
-		prefetchProgress = { current: 0, total: 0 };
-
-		const modeLabel = getPrefetchModeLabel(selectedPrefetchMode);
-		toast.info(`Prefetching ${modeLabel}...`);
-
-		const { startDate, endDate } = getDateRangeForMode(selectedPrefetchMode, $time, $metaJson);
-
-		const result = await prefetchData(
-			{
-				startDate,
-				endDate,
-				metaJson: $metaJson,
-				modelRun: $modelRun,
-				domain: $domainStore,
-				variable: $variableStore
-			},
-			(progress) => {
-				prefetchProgress = progress;
-			}
-		);
-
-		isPrefetching = false;
-
-		if (result.success) {
-			toast.success(`Prefetched ${result.successCount}/${result.totalCount} time steps`);
-		} else {
-			toast.error(result.error || 'Prefetch failed');
-		}
-	};
-
 	// throttled versions of the navigation functions
 	const throttledPreviousHour = throttle(previousHour, 150);
 	const throttledNextHour = throttle(nextHour, 150);
 	const throttledPreviousDay = throttle(previousDay, 150);
 	const throttledNextDay = throttle(nextDay, 150);
 
-	let ctrl = $state(false);
 	const keyDownEvent = (event: KeyboardEvent) => {
-		if (event.keyCode == 17 || event.keyCode == 91) ctrl = true;
-
 		const canNavigate = !($domainSelectionOpen || $variableSelectionOpen);
 		if (!canNavigate) return;
 
 		const actions: Record<string, () => void> = {
-			ArrowLeft: ctrl ? previousModel : throttledPreviousHour,
-			ArrowRight: ctrl ? nextModel : throttledNextHour,
+			ArrowLeft: event.ctrlKey ? previousModel : throttledPreviousHour,
+			ArrowRight: event.ctrlKey ? nextModel : throttledNextHour,
 			ArrowDown: throttledPreviousDay,
 			ArrowUp: throttledNextDay,
-			c: ctrl ? () => {} : jumpToCurrentTime,
-			m: ctrl ? () => {} : () => toggleModelRunLock(),
-			n: ctrl ? () => {} : () => setLatestModelRun()
+			c: jumpToCurrentTime,
+			m: () => toggleModelRunLock(),
+			n: () => setLatestModelRun()
 		};
 
 		const action = actions[event.key];
@@ -428,26 +367,18 @@
 		// check if loading
 		if (!disabled || ['m'].includes(event.key)) {
 			action();
-		} else {
-			// toast.warning('Still loading another OM file');
 		}
-	};
-
-	const keyUpEvent = (event: KeyboardEvent) => {
-		if (event.keyCode == 17 || event.keyCode == 91) ctrl = false;
 	};
 
 	onMount(() => {
 		if (browser) {
 			window.addEventListener('keydown', keyDownEvent);
-			window.addEventListener('keyup', keyUpEvent);
 		}
 	});
 
 	onDestroy(() => {
 		if (browser) {
 			window.removeEventListener('keydown', keyDownEvent);
-			window.removeEventListener('keyup', keyUpEvent);
 		}
 	});
 
@@ -853,9 +784,9 @@
 						style="left: clamp(-28px, calc({desktop.current
 							? currentPosition - 33
 							: 0.5 * hoursHoverContainerWidth - 33}px), calc(100% - 38px));"
-						class="absolute bg-glass/75 md:shadow-md backdrop-blur-sm rounded -top-6 {!desktop.current
-							? 'rounded-none!'
-							: ''} p-0.5 w-16.5 text-center"
+						class="absolute md:bg-glass/75 md:shadow-md md:backdrop-blur-sm rounded {!desktop.current
+							? '-top-2 rounded-none!'
+							: '-top-6'} p-0.5 w-16.5 text-center"
 					>
 						<div class="relative duration-500 {!disabled ? 'text-foreground' : ''}">
 							{#if currentTimeStep}
@@ -894,6 +825,8 @@
 		<div
 			class="-top-4.5 h-4.5 z-10 right-0 absolute flex rounded-t-lg items-center px-2 gap-0.5 bg-glass/65 backdrop-blur-sm"
 		>
+			<PrefetchButton />
+
 			<Select.Root
 				type="single"
 				value={$modelRun ? $modelRun.getTime().toString() : ''}
@@ -959,68 +892,6 @@
 					{/each}
 				</Select.Content>
 			</Select.Root>
-
-			<!-- Prefetch Button -->
-			<button
-				class="cursor-pointer w-4 h-4.5 flex items-center justify-center {isPrefetching
-					? 'animate-pulse'
-					: ''}"
-				onclick={(e) => {
-					e.preventDefault();
-					e.stopPropagation();
-					handlePrefetch();
-				}}
-				disabled={isPrefetching}
-				aria-label="Prefetch data"
-				title={isPrefetching
-					? `Prefetching ${prefetchProgress.current}/${prefetchProgress.total}...`
-					: `Prefetch ${getPrefetchModeLabel(selectedPrefetchMode)}`}
-			>
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					width="14"
-					height="14"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2.5"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					class="{isPrefetching
-						? 'text-blue-500'
-						: 'text-foreground/70 hover:text-foreground'} lucide lucide-download-icon"
-				>
-					<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-					<polyline points="7 10 12 15 17 10" />
-					<line x1="12" x2="12" y1="15" y2="3" />
-				</svg>
-			</button>
-
-			<!-- Prefetch Mode Select -->
-			<Select.Root
-				type="single"
-				value={selectedPrefetchMode}
-				onValueChange={(v) => {
-					if (v) {
-						selectedPrefetchMode = v as PrefetchMode;
-					}
-				}}
-			>
-				<Select.Trigger
-					class="h-4.5! text-xs px-1.5 py-0 gap-0.5 border-none bg-transparent shadow-none hover:bg-accent/50 focus-visible:ring-0 focus-visible:ring-offset-0 cursor-pointer min-w-18"
-					aria-label="Select prefetch mode"
-				>
-					{prefetchModes.find((m) => m.value === selectedPrefetchMode)?.label ?? 'Next 24h'}
-				</Select.Trigger>
-				<Select.Content class="border-none bg-glass backdrop-blur-sm" sideOffset={4} align="end">
-					{#each prefetchModes as mode (mode.value)}
-						<Select.Item value={mode.value} label={mode.label} class="cursor-pointer text-xs">
-							{mode.label}
-						</Select.Item>
-					{/each}
-				</Select.Content>
-			</Select.Root>
-
 			<button
 				class="cursor-pointer w-3.5 -ml-0.5 h-4.5 pr-0.5 flex items-center justify-center"
 				onclick={(e) => {
@@ -1065,52 +936,73 @@
 				{/if}
 			</button>
 		</div>
-		<button
-			class="absolute bg-glass/75 backdrop-blur-sm z-50 {desktop.current
-				? '-left-7 h-12.5 w-7 rounded-s-xl'
-				: 'left-[calc(50%-57px)] -top-7 h-7 rounded-tl-lg'} {disabled
-				? 'cursor-not-allowed'
-				: 'cursor-pointer'} "
-			onclick={previousHour}
-			aria-label="Previous Hour"
+		<div
+			style={desktop.current
+				? ''
+				: mode.current === 'dark'
+					? 'background: linear-gradient(to right, rgba(15,15,15,1), rgba(15,15,15,0.95), rgba(15,15,15,0.9), rgba(15,15,15,0.5), rgba(15,15,15,0));'
+					: 'background: linear-gradient(to right, rgba(240,240,240,1), rgba(240,240,240,0.95), rgba(240,240,240,0.9), rgba(240,240,240,0.5), rgba(240,240,240,0));'}
+			class="absolute z-50 h-full flex items-center {desktop.current
+				? '-left-7 w-7 rounded-s-xl bg-glass/75 backdrop-blur-sm'
+				: 'left-0 w-12 backdrop-blur-xxs'}"
 		>
-			<svg
-				xmlns="http://www.w3.org/2000/svg"
-				width="24"
-				height="24"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				class="lucide lucide-chevron-left-icon lucide-chevron-left"><path d="m15 18-6-6 6-6" /></svg
+			<button
+				class="flex items-center {desktop.current ? 'h-12.5  ' : 'top-3.5 w-12 h-full'} {disabled
+					? 'cursor-not-allowed'
+					: 'cursor-pointer'} "
+				onclick={previousHour}
+				aria-label="Previous Hour"
 			>
-		</button>
-		<button
-			class="absolute bg-glass/75 backdrop-blur-sm z-50 {desktop.current
-				? '-right-7 h-12.5 w-7 rounded-e-xl'
-				: 'right-[calc(50%-57px)] -top-7 h-7 rounded-tr-lg'} {disabled
-				? 'cursor-not-allowed'
-				: 'cursor-pointer'} "
-			onclick={nextHour}
-			aria-label="Next Hour"
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="24"
+					height="24"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					class="lucide lucide-chevron-left-icon lucide-chevron-left"
+					><path d="m15 18-6-6 6-6" /></svg
+				>
+			</button>
+		</div>
+		<div
+			style={desktop.current
+				? ''
+				: mode.current === 'dark'
+					? 'background: linear-gradient(to left, rgba(15,15,15,1), rgba(15,15,15,0.95), rgba(15,15,15,0.9), rgba(15,15,15,0.5), rgba(15,15,15,0));'
+					: 'background: linear-gradient(to left, rgba(240,240,240,1), rgba(240,240,240,0.95), rgba(240,240,240,0.9), rgba(240,240,240,0.5), rgba(240,240,240,0));'}
+			class="absolute z-50 h-full flex items-center justify-end {desktop.current
+				? '-right-7 w-7 rounded-e-xl bg-glass/75 backdrop-blur-sm'
+				: 'right-0 w-12 h-full backdrop-blur-xxs'}"
 		>
-			<svg
-				xmlns="http://www.w3.org/2000/svg"
-				width="24"
-				height="24"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				class="lucide lucide-chevron-right-icon lucide-chevron-right"
-				><path d="m9 18 6-6-6-6" /></svg
+			<button
+				class="flex items-center justify-end w-7 {desktop.current
+					? '-right-7 h-12.5'
+					: 'right-0 w-12 h-full'} {disabled ? 'cursor-not-allowed' : 'cursor-pointer'} "
+				onclick={nextHour}
+				aria-label="Next Hour"
 			>
-		</button>
-		<div class="time-selector md:px-0 h-12.5 relative bg-glass/75 backdrop-blur-sm duration-500">
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="24"
+					height="24"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					class="lucide lucide-chevron-right-icon lucide-chevron-right"
+					><path d="m9 18 6-6-6-6" /></svg
+				>
+			</button>
+		</div>
+		<div
+			class="time-selector md:px-0 h-20 md:h-12.5 relative bg-glass/75 backdrop-blur-sm duration-500"
+		>
 			{#if hoverX || currentDate.getTime() !== $time.getTime()}
 				<div
 					transition:fade={{ duration: 300 }}
@@ -1178,13 +1070,13 @@
 				{:else}
 					{#each daySteps as dayStep, i (i)}
 						<div
-							class="relative flex h-12.5 {metaFirstResolutionHours === 0.25
+							class="relative flex h-20 md:h-12.5 {metaFirstResolutionHours === 0.25
 								? 'min-w-85'
 								: 'min-w-42.5'}"
 						>
 							<!-- Day Names -->
 							<div
-								class="absolute flex mt-3.25 -translate-x-1/2 left-1/2 items-center justify-center text-center flex-col"
+								class="absolute flex mt-10 md:mt-3.25 -translate-x-1/2 left-1/2 items-center justify-center text-center flex-col"
 							>
 								<div class="">{DAY_NAMES[dayStep.getDay()]}</div>
 								<small class="-mt-2">{formatLocalDate(dayStep)}</small>
@@ -1210,11 +1102,11 @@
 												? 96
 												: 24});"
 											class="h-1.25 {metaFirstResolutionHours !== 0.25 && j % 12 === 0 && j !== 0
-												? 'h-3.25'
+												? 'h-3 md:h-3.25'
 												: ''} {metaFirstResolutionHours !== 0.25 && j % 3 === 0
-												? 'h-2.5'
+												? 'h-2 md:h-2.5'
 												: ''} {metaFirstResolutionHours !== 0.25 && j % 24 === 0 && j !== 0
-												? 'h-6'
+												? 'h-4 md:h-6'
 												: ''} {metaFirstResolutionHours === 0.25 && j % 4 === 0
 												? 'h-2.5'
 												: ''} {metaFirstResolutionHours === 0.25 && j % 16 === 0 && j !== 0

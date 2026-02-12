@@ -11,7 +11,7 @@ import { selectedDomain } from './stores/variables';
 
 import type { DomainMetaDataJson } from '@openmeteo/mapbox-layer';
 
-export type PrefetchMode = 'next24h' | 'prev24h' | 'completeModelRun';
+export type PrefetchMode = 'today' | 'next24h' | 'prev24h' | 'completeModelRun';
 
 export interface PrefetchOptions {
 	startDate: Date;
@@ -35,22 +35,6 @@ export interface PrefetchProgress {
 }
 
 /**
- * Get a human-readable label for the prefetch mode
- */
-export const getPrefetchModeLabel = (mode: PrefetchMode): string => {
-	switch (mode) {
-		case 'next24h':
-			return 'Next 24 hours';
-		case 'prev24h':
-			return 'Previous 24 hours';
-		case 'completeModelRun':
-			return 'Complete model run';
-		default:
-			return 'Unknown';
-	}
-};
-
-/**
  * Calculate the start and end dates for a given prefetch mode
  *
  * @param mode - The prefetch mode
@@ -64,6 +48,12 @@ export const getDateRangeForMode = (
 	metaJson: DomainMetaDataJson
 ): { startDate: Date; endDate: Date } => {
 	switch (mode) {
+		case 'today': {
+			const startDate = new Date();
+			startDate.setHours(0, 0, 0, 0);
+			const endDate = new Date(startDate.getTime() + MILLISECONDS_PER_DAY);
+			return { startDate, endDate };
+		}
 		case 'next24h': {
 			const startDate = new Date(currentTime.getTime());
 			const endDate = new Date(currentTime.getTime() + MILLISECONDS_PER_DAY);
@@ -134,28 +124,60 @@ export const prefetchData = async (
 		const omFileReader = instance.omFileReader;
 
 		// Build base URL
-		const uri = `https://openmeteo.s3.amazonaws.com`;
+		const uri =
+			domain && domain.startsWith('dwd_icon')
+				? `https://s3.servert.ch`
+				: `https://map-tiles.open-meteo.com`;
 
 		let successCount = 0;
 		const totalCount = timeSteps.length;
 
-		for (let i = 0; i < timeSteps.length; i++) {
-			const timeStep = timeSteps[i];
-			const url = `${uri}/data_spatial/${domain}/${fmtModelRun(modelRun)}/${fmtSelectedTime(timeStep)}.om`;
+		// Helper to prefetch a single time step
+		const prefetchSingle = async (timeStep: Date): Promise<boolean> => {
+			const url = `${uri}/data_spatial/${domain}/${fmtModelRun(modelRun)}/${fmtSelectedTime(
+				timeStep
+			)}.om`;
 
 			try {
 				await omFileReader.setToOmFile(url);
 				await omFileReader.prefetchVariable(variable, ranges);
-				successCount++;
+				return true;
 			} catch {
 				// Silently continue on errors
+				return false;
 			}
+		};
 
-			// Report progress
-			if (onProgress) {
-				onProgress({ current: i + 1, total: totalCount });
+		// Prefetch multiple time steps in parallel with a simple concurrency limit
+		const concurrency = 8;
+		let index = 0;
+
+		const worker = async () => {
+			let localSuccess = 0;
+			while (true) {
+				const i = index++;
+				if (i >= timeSteps.length) break;
+
+				const succeeded = await prefetchSingle(timeSteps[i]);
+				if (succeeded) {
+					localSuccess++;
+				}
+
+				if (onProgress) {
+					onProgress({ current: i + 1, total: totalCount });
+				}
 			}
+			return localSuccess;
+		};
+
+		const workersCount = Math.min(concurrency, timeSteps.length);
+		const workerPromises: Promise<number>[] = [];
+		for (let w = 0; w < workersCount; w++) {
+			workerPromises.push(worker());
 		}
+
+		const results = await Promise.all(workerPromises);
+		successCount = results.reduce((sum, v) => sum + v, 0);
 
 		return {
 			success: true,
