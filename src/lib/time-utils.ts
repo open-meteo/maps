@@ -10,5 +10,14 @@ export const findTimeStep = (
 	date: Date | SvelteDate,
 	timeSteps: Date[] | SvelteDate[] | undefined
 ): Date | SvelteDate | undefined => {
-	return timeSteps?.findLast((tS) => tS.getTime() <= date.getTime());
+	if (!timeSteps || timeSteps.length === 0) {
+		return undefined;
+	}
+
+	const targetTime = date.getTime();
+	return timeSteps.reduce((closest, current) => {
+		const closestDelta = Math.abs(closest.getTime() - targetTime);
+		const currentDelta = Math.abs(current.getTime() - targetTime);
+		return currentDelta < closestDelta ? current : closest;
+	});
 };
