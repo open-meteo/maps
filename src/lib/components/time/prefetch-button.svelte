@@ -12,17 +12,15 @@
 	let isPrefetching = $state(false);
 	let prefetchProgress = $state({ current: 0, total: 0 });
 	let selectedPrefetchMode: PrefetchMode = $state('today');
-	const prefetchModes: { value: PrefetchMode; label: string }[] = [
-		{ value: 'today', label: 'Today' },
-		{ value: 'next24h', label: 'Next 24h' },
-		{ value: 'prev24h', label: 'Prev 24h' },
-		{ value: 'completeModelRun', label: 'Full run' }
-	];
-	let prefetchModeLabel: string = $derived(
-		prefetchModes.find((p) => {
-			return p.value === selectedPrefetchMode;
-		})?.label ?? 'Today'
-	);
+
+	const prefetchModes = new Map<PrefetchMode, string>([
+		['today', 'Today'],
+		['next24h', 'Next 24h'],
+		['prev24h', 'Prev 24h'],
+		['completeModelRun', 'Full run']
+	]);
+
+	let prefetchModeLabel: string = $derived(prefetchModes.get(selectedPrefetchMode) ?? 'Today');
 
 	const handlePrefetch = async () => {
 		if (!$metaJson || !$modelRun) {
@@ -80,16 +78,16 @@
 		class="h-4.5! text-xs pl-1.5 pr-0.75 py-0 gap-1 border-none bg-transparent shadow-none hover:bg-accent/50 focus-visible:ring-0 focus-visible:ring-offset-0 cursor-pointer"
 		aria-label="Select prefetch mode"
 	>
-		{prefetchModes.find((m) => m.value === selectedPrefetchMode)?.label ?? 'Today'}
+		{prefetchModes.get(selectedPrefetchMode) ?? 'Today'}
 	</Select.Trigger>
 	<Select.Content
 		class="left-5 border-none max-h-60 bg-glass/65 backdrop-blur-sm"
 		sideOffset={4}
 		align="end"
 	>
-		{#each prefetchModes as mode (mode.value)}
-			<Select.Item value={mode.value} label={mode.label} class="cursor-pointer text-xs">
-				{mode.label}
+		{#each Array.from(prefetchModes.entries()) as [value, label] (value)}
+			<Select.Item {value} {label} class="cursor-pointer text-xs">
+				{label}
 			</Select.Item>
 		{/each}
 	</Select.Content>
