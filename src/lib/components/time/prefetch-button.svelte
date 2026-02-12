@@ -7,22 +7,22 @@
 
 	import * as Select from '$lib/components/ui/select';
 
-	import {
-		type PrefetchMode,
-		getDateRangeForMode,
-		getPrefetchModeLabel,
-		prefetchData
-	} from '$lib/prefetch';
+	import { type PrefetchMode, getDateRangeForMode, prefetchData } from '$lib/prefetch';
 
 	let isPrefetching = $state(false);
 	let prefetchProgress = $state({ current: 0, total: 0 });
-	let selectedPrefetchMode: PrefetchMode = $state('next24h');
-
+	let selectedPrefetchMode: PrefetchMode = $state('today');
 	const prefetchModes: { value: PrefetchMode; label: string }[] = [
+		{ value: 'today', label: 'Today' },
 		{ value: 'next24h', label: 'Next 24h' },
 		{ value: 'prev24h', label: 'Prev 24h' },
 		{ value: 'completeModelRun', label: 'Full run' }
 	];
+	let prefetchModeLabel: string = $derived(
+		prefetchModes.find((p) => {
+			return p.value === selectedPrefetchMode;
+		})?.label ?? 'Today'
+	);
 
 	const handlePrefetch = async () => {
 		if (!$metaJson || !$modelRun) {
@@ -38,8 +38,7 @@
 		isPrefetching = true;
 		prefetchProgress = { current: 0, total: 0 };
 
-		const modeLabel = getPrefetchModeLabel(selectedPrefetchMode);
-		toast.info(`Prefetching ${modeLabel}...`);
+		toast.info(`Prefetching ${prefetchModeLabel}...`);
 
 		const { startDate, endDate } = getDateRangeForMode(selectedPrefetchMode, $time, $metaJson);
 
@@ -81,7 +80,7 @@
 		class="h-4.5! text-xs pl-1.5 pr-0.75 py-0 gap-1 border-none bg-transparent shadow-none hover:bg-accent/50 focus-visible:ring-0 focus-visible:ring-offset-0 cursor-pointer"
 		aria-label="Select prefetch mode"
 	>
-		{prefetchModes.find((m) => m.value === selectedPrefetchMode)?.label ?? 'Next 24h'}
+		{prefetchModes.find((m) => m.value === selectedPrefetchMode)?.label ?? 'Today'}
 	</Select.Trigger>
 	<Select.Content
 		class="left-5 border-none max-h-60 bg-glass/65 backdrop-blur-sm"
@@ -109,7 +108,7 @@
 	aria-label="Prefetch data"
 	title={isPrefetching
 		? `Prefetching ${prefetchProgress.current}/${prefetchProgress.total}...`
-		: `Prefetch ${getPrefetchModeLabel(selectedPrefetchMode)}`}
+		: `Prefetch ${prefetchModeLabel}`}
 >
 	<svg
 		xmlns="http://www.w3.org/2000/svg"

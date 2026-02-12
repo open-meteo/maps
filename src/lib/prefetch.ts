@@ -11,7 +11,7 @@ import { selectedDomain } from './stores/variables';
 
 import type { DomainMetaDataJson } from '@openmeteo/mapbox-layer';
 
-export type PrefetchMode = 'next24h' | 'prev24h' | 'completeModelRun';
+export type PrefetchMode = 'today' | 'next24h' | 'prev24h' | 'completeModelRun';
 
 export interface PrefetchOptions {
 	startDate: Date;
@@ -35,22 +35,6 @@ export interface PrefetchProgress {
 }
 
 /**
- * Get a human-readable label for the prefetch mode
- */
-export const getPrefetchModeLabel = (mode: PrefetchMode): string => {
-	switch (mode) {
-		case 'next24h':
-			return 'Next 24 hours';
-		case 'prev24h':
-			return 'Previous 24 hours';
-		case 'completeModelRun':
-			return 'Complete model run';
-		default:
-			return 'Unknown';
-	}
-};
-
-/**
  * Calculate the start and end dates for a given prefetch mode
  *
  * @param mode - The prefetch mode
@@ -64,6 +48,12 @@ export const getDateRangeForMode = (
 	metaJson: DomainMetaDataJson
 ): { startDate: Date; endDate: Date } => {
 	switch (mode) {
+		case 'today': {
+			const startDate = new Date();
+			startDate.setHours(0, 0, 0, 0);
+			const endDate = new Date(startDate.getTime() + MILLISECONDS_PER_DAY);
+			return { startDate, endDate };
+		}
 		case 'next24h': {
 			const startDate = new Date(currentTime.getTime());
 			const endDate = new Date(currentTime.getTime() + MILLISECONDS_PER_DAY);
