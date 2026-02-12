@@ -35,7 +35,7 @@ export const omProtocolSettings: OmProtocolSettings = {
 		cache: browser
 			? new BrowserBlockCache({
 					blockSize: 128 * 1024,
-					cacheName: 'mapbox-layer-cache',
+					cacheName: 'open-maps-cache-v2',
 					memCacheTtlMs: 1000,
 					maxBytes: 400 * 1024 * 1024 // 400Mb maximum storage
 				})
