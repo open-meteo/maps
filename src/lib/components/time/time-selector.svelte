@@ -825,49 +825,8 @@
 		<div
 			class="-top-4.5 h-4.5 z-10 right-0 absolute flex rounded-t-lg items-center px-2 gap-0.5 bg-glass/65 backdrop-blur-sm"
 		>
-			<button
-				class="cursor-pointer w-3.5 -ml-0.5 h-4.5 pr-0.5 flex items-center justify-center"
-				onclick={(e) => {
-					e.preventDefault();
-					e.stopPropagation();
-					toggleModelRunLock();
-				}}
-				aria-label="Model Run Lock"
-			>
-				{#if $modelRunLocked}
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						width="14"
-						height="14"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						class="text-red-800 dark:text-red-500 lucide lucide-lock-icon lucide-lock"
-						><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path
-							d="M7 11V7a5 5 0 0 1 10 0v4"
-						/></svg
-					>
-				{:else}
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						width="14"
-						height="14"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						class="text-green-800 dark:text-green-600 lucide lucide-lock-open-icon lucide-lock-open"
-						><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path
-							d="M7 11V7a5 5 0 0 1 9.9-1"
-						/></svg
-					>
-				{/if}
-			</button>
+			<PrefetchButton />
+
 			<Select.Root
 				type="single"
 				value={$modelRun ? $modelRun.getTime().toString() : ''}
@@ -933,8 +892,49 @@
 					{/each}
 				</Select.Content>
 			</Select.Root>
-
-			<PrefetchButton />
+			<button
+				class="cursor-pointer w-3.5 -ml-0.5 h-4.5 pr-0.5 flex items-center justify-center"
+				onclick={(e) => {
+					e.preventDefault();
+					e.stopPropagation();
+					toggleModelRunLock();
+				}}
+				aria-label="Model Run Lock"
+			>
+				{#if $modelRunLocked}
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="14"
+						height="14"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						class="text-red-800 dark:text-red-500 lucide lucide-lock-icon lucide-lock"
+						><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path
+							d="M7 11V7a5 5 0 0 1 10 0v4"
+						/></svg
+					>
+				{:else}
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="14"
+						height="14"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						class="text-green-800 dark:text-green-600 lucide lucide-lock-open-icon lucide-lock-open"
+						><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path
+							d="M7 11V7a5 5 0 0 1 9.9-1"
+						/></svg
+					>
+				{/if}
+			</button>
 		</div>
 		<div
 			style={desktop.current

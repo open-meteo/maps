@@ -67,6 +67,34 @@
 	};
 </script>
 
+<!-- Prefetch Mode Select -->
+<Select.Root
+	type="single"
+	value={selectedPrefetchMode}
+	onValueChange={(v) => {
+		if (v) {
+			selectedPrefetchMode = v as PrefetchMode;
+		}
+	}}
+>
+	<Select.Trigger
+		class="h-4.5! text-xs pl-1.5 pr-0.75 py-0 gap-1 border-none bg-transparent shadow-none hover:bg-accent/50 focus-visible:ring-0 focus-visible:ring-offset-0 cursor-pointer"
+		aria-label="Select prefetch mode"
+	>
+		{prefetchModes.find((m) => m.value === selectedPrefetchMode)?.label ?? 'Next 24h'}
+	</Select.Trigger>
+	<Select.Content
+		class="left-5 border-none max-h-60 bg-glass/65 backdrop-blur-sm"
+		sideOffset={4}
+		align="end"
+	>
+		{#each prefetchModes as mode (mode.value)}
+			<Select.Item value={mode.value} label={mode.label} class="cursor-pointer text-xs">
+				{mode.label}
+			</Select.Item>
+		{/each}
+	</Select.Content>
+</Select.Root>
 <!-- Prefetch Button -->
 <button
 	class="cursor-pointer w-4 h-4.5 flex items-center justify-center {isPrefetching
@@ -102,28 +130,3 @@
 		<line x1="12" x2="12" y1="15" y2="3" />
 	</svg>
 </button>
-
-<!-- Prefetch Mode Select -->
-<Select.Root
-	type="single"
-	value={selectedPrefetchMode}
-	onValueChange={(v) => {
-		if (v) {
-			selectedPrefetchMode = v as PrefetchMode;
-		}
-	}}
->
-	<Select.Trigger
-		class="h-4.5! text-xs px-1.5 py-0 gap-0.5 border-none bg-transparent shadow-none hover:bg-accent/50 focus-visible:ring-0 focus-visible:ring-offset-0 cursor-pointer min-w-18"
-		aria-label="Select prefetch mode"
-	>
-		{prefetchModes.find((m) => m.value === selectedPrefetchMode)?.label ?? 'Next 24h'}
-	</Select.Trigger>
-	<Select.Content class="border-none bg-glass backdrop-blur-sm" sideOffset={4} align="end">
-		{#each prefetchModes as mode (mode.value)}
-			<Select.Item value={mode.value} label={mode.label} class="cursor-pointer text-xs">
-				{mode.label}
-			</Select.Item>
-		{/each}
-	</Select.Content>
-</Select.Root>
