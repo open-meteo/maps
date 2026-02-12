@@ -132,23 +132,52 @@ export const prefetchData = async (
 		let successCount = 0;
 		const totalCount = timeSteps.length;
 
-		for (let i = 0; i < timeSteps.length; i++) {
-			const timeStep = timeSteps[i];
-			const url = `${uri}/data_spatial/${domain}/${fmtModelRun(modelRun)}/${fmtSelectedTime(timeStep)}.om`;
+		// Helper to prefetch a single time step
+		const prefetchSingle = async (timeStep: Date): Promise<boolean> => {
+			const url = `${uri}/data_spatial/${domain}/${fmtModelRun(modelRun)}/${fmtSelectedTime(
+				timeStep
+			)}.om`;
 
 			try {
 				await omFileReader.setToOmFile(url);
 				await omFileReader.prefetchVariable(variable, ranges);
-				successCount++;
+				return true;
 			} catch {
 				// Silently continue on errors
+				return false;
 			}
+		};
 
-			// Report progress
-			if (onProgress) {
-				onProgress({ current: i + 1, total: totalCount });
+		// Prefetch multiple time steps in parallel with a simple concurrency limit
+		const concurrency = 8;
+		let index = 0;
+
+		const worker = async () => {
+			let localSuccess = 0;
+			while (true) {
+				const i = index++;
+				if (i >= timeSteps.length) break;
+
+				const succeeded = await prefetchSingle(timeSteps[i]);
+				if (succeeded) {
+					localSuccess++;
+				}
+
+				if (onProgress) {
+					onProgress({ current: i + 1, total: totalCount });
+				}
 			}
+			return localSuccess;
+		};
+
+		const workersCount = Math.min(concurrency, timeSteps.length);
+		const workerPromises: Promise<number>[] = [];
+		for (let w = 0; w < workersCount; w++) {
+			workerPromises.push(worker());
 		}
+
+		const results = await Promise.all(workerPromises);
+		successCount = results.reduce((sum, v) => sum + v, 0);
 
 		return {
 			success: true,
