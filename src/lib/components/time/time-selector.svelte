@@ -938,8 +938,8 @@
 			style={desktop.current
 				? ''
 				: mode.current === 'dark'
-					? 'background: linear-gradient(to right, rgba(15,15,15,1), rgba(15,15,15,1), rgba(15,15,15,0.5), rgba(15,15,15,0));'
-					: 'background: linear-gradient(to right, rgba(240,240,240,1), rgba(240,240,240,1), rgba(240,240,240,0.5), rgba(240,240,240,0));'}
+					? 'background: linear-gradient(to right, rgba(15,15,15,1), rgba(15,15,15,0.9), rgba(15,15,15,0.5), rgba(15,15,15,0));'
+					: 'background: linear-gradient(to right, rgba(240,240,240,1), rgba(240,240,240,0.9), rgba(240,240,240,0.5), rgba(240,240,240,0));'}
 			class="absolute z-50 h-full flex items-center {desktop.current
 				? '-left-7 w-7 rounded-s-xl bg-glass/75 backdrop-blur-sm'
 				: 'left-0 w-14 backdrop-blur-xxs'}"
@@ -970,8 +970,8 @@
 			style={desktop.current
 				? ''
 				: mode.current === 'dark'
-					? 'background: linear-gradient(to left, rgba(15,15,15,1), rgba(15,15,15,1), rgba(15,15,15,0.5), rgba(15,15,15,0));'
-					: 'background: linear-gradient(to left, rgba(240,240,240,1), rgba(240,240,240,1), rgba(240,240,240,0.5), rgba(240,240,240,0));'}
+					? 'background: linear-gradient(to left, rgba(15,15,15,1), rgba(15,15,15,0.9), rgba(15,15,15,0.5), rgba(15,15,15,0));'
+					: 'background: linear-gradient(to left, rgba(240,240,240,1), rgba(240,240,240,0.9), rgba(240,240,240,0.5), rgba(240,240,240,0));'}
 			class="absolute z-50 h-full flex items-center justify-end {desktop.current
 				? '-right-7 w-7 rounded-e-xl bg-glass/75 backdrop-blur-sm'
 				: 'right-0 w-14'}"
