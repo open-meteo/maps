@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
 
-	import { metaJson } from '$lib/stores/time';
+	import { fullRunCached, metaJson } from '$lib/stores/time';
 	import { modelRun, time } from '$lib/stores/time';
 	import { domain as domainStore, variable as variableStore } from '$lib/stores/variables';
 
@@ -57,6 +57,7 @@
 		isPrefetching = false;
 
 		if (result.success) {
+			fullRunCached.set(true);
 			toast.success(`Prefetched ${result.successCount}/${result.totalCount} time steps`);
 		} else {
 			toast.error(result.error || 'Prefetch failed');

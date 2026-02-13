@@ -14,3 +14,5 @@ export const modelRunLocked = writable(false);
 export const latest: Writable<DomainMetaDataJson | undefined> = writable(undefined);
 export const inProgress: Writable<DomainMetaDataJson | undefined> = writable(undefined);
 export const metaJson: Writable<DomainMetaDataJson | undefined> = writable(undefined);
+
+export const fullRunCached: Writable<boolean> = writable(false);

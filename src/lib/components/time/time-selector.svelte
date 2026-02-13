@@ -10,7 +10,7 @@
 	import { browser } from '$app/environment';
 
 	import { desktop, loading, preferences } from '$lib/stores/preferences';
-	import { metaJson, modelRunLocked } from '$lib/stores/time';
+	import { fullRunCached, metaJson, modelRunLocked } from '$lib/stores/time';
 	import { inProgress, latest, modelRun, now, time } from '$lib/stores/time';
 	import {
 		domainSelectionOpen,
@@ -290,6 +290,7 @@
 
 	// changes the selected model run and updates available time steps
 	const onModelRunChange = async (step: Date) => {
+		$fullRunCached = false;
 		$loading = true;
 		$modelRunLocked = true;
 		$modelRun = step;
@@ -423,6 +424,14 @@
 		centerDateButton($time, false);
 	});
 
+	modelRun.subscribe(() => {
+		$fullRunCached = false;
+	});
+
+	fullRunCached.subscribe(() => {
+		console.log($fullRunCached);
+	});
+
 	// unique days from available time steps
 	const daySteps = $derived.by(() => {
 		const days = [];
@@ -546,12 +555,18 @@
 	let resizeTimeout: ReturnType<typeof setTimeout> | undefined;
 	const horizontalScrollSpeed = 1;
 
+	const throttledOnDateChange = async (date: Date) => throttle(onDateChange(date), 100);
+
 	const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 	onMount(() => {
 		if (hoursHoverContainer) {
 			hoursHoverContainer.addEventListener('mousemove', (e) => {
-				if (hoursHoverContainerWidth)
+				if (hoursHoverContainerWidth) {
 					hoverX = e.layerX + (isSafari ? hoursHoverContainerWidth / 2 : 0);
+				}
+				if ($fullRunCached) {
+					throttledOnDateChange(hoveredHour);
+				}
 			});
 			hoursHoverContainer.addEventListener('mouseout', () => {
 				hoverX = 0;
@@ -623,11 +638,11 @@
 			if (isScrolling) return;
 
 			const target = e.target as Element;
-			const left = target.scrollLeft;
+			//const left = target.scrollLeft;
 
-			if (left === 0) {
-				currentDate.setHours(0);
-			}
+			// if (left === 0) {
+			// 	currentDate.setHours(0);
+			// }
 			let timeStep =
 				timeStepsComplete[
 					Math.round(
@@ -635,6 +650,9 @@
 					)
 				];
 			if (timeStep) currentDate = new SvelteDate(timeStep);
+			if ($fullRunCached) {
+				throttledOnDateChange(hoveredHour);
+			}
 		};
 
 		const onScrollEndEvent = () => {
@@ -1101,7 +1119,10 @@
 											style="width: calc({dayWidth}px/{metaFirstResolutionHours === 0.25
 												? 96
 												: 24});"
-											class="h-1.25 {metaFirstResolutionHours !== 0.25 && j % 12 === 0 && j !== 0
+											class="h-1.25 {$fullRunCached &&
+											timeSteps?.find((tS) => timeStep.getTime() === tS.getTime())
+												? 'border-green-500!'
+												: ''} {metaFirstResolutionHours !== 0.25 && j % 12 === 0 && j !== 0
 												? 'h-3 md:h-3.25'
 												: ''} {metaFirstResolutionHours !== 0.25 && j % 3 === 0
 												? 'h-2 md:h-2.5'
