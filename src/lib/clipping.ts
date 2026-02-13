@@ -1,7 +1,12 @@
 import { flatten, simplify } from '@turf/turf';
 
 import type { Country } from '$lib/components/selection/country-selector.svelte';
-import type { ClippingOptions } from '@openmeteo/mapbox-layer';
+import type {
+	ClippingOptions,
+	GeoJson,
+	GeoJsonGeometry,
+	GeoJsonPosition
+} from '@openmeteo/mapbox-layer';
 import type { FeatureCollection, Geometry } from 'geojson';
 
 export const buildCountryClippingOptions = (countries: Country[]): ClippingOptions | undefined => {
@@ -24,6 +29,49 @@ export const buildCountryClippingOptions = (countries: Country[]): ClippingOptio
 	});
 
 	return { geojson: simplifiedGeoJSON };
+};
+
+type PolygonCoordinates = GeoJsonPosition[][];
+type MultiPolygonCoordinates = GeoJsonPosition[][][];
+
+export const toClippingGeometry = (geojson: GeoJson | undefined): GeoJsonGeometry | null => {
+	if (!geojson) return null;
+
+	const polygons: MultiPolygonCoordinates = [];
+
+	const addGeometry = (geometry: GeoJsonGeometry | null) => {
+		if (!geometry) return;
+		if (geometry.type === 'Polygon') {
+			polygons.push(geometry.coordinates as PolygonCoordinates);
+			return;
+		}
+		if (geometry.type === 'MultiPolygon') {
+			polygons.push(...(geometry.coordinates as MultiPolygonCoordinates));
+			return;
+		}
+		if (geometry.type === 'GeometryCollection') {
+			for (const child of geometry.geometries) {
+				addGeometry(child);
+			}
+		}
+	};
+
+	if (geojson.type === 'FeatureCollection') {
+		for (const feature of geojson.features) {
+			addGeometry(feature.geometry);
+		}
+	} else if (geojson.type === 'Feature') {
+		addGeometry(geojson.geometry);
+	} else {
+		addGeometry(geojson);
+	}
+
+	if (polygons.length === 0) return null;
+	if (polygons.length === 1) {
+		return { type: 'Polygon', coordinates: polygons[0] } as GeoJsonGeometry;
+	}
+
+	return { type: 'MultiPolygon', coordinates: polygons } as GeoJsonGeometry;
 };
 
 export const CLIP_COUNTRIES_PARAM = 'clip_countries';

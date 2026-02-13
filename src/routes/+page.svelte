@@ -30,6 +30,7 @@
 	} from '$lib/stores/preferences';
 	import { metaJson, modelRun, time } from '$lib/stores/time';
 	import { domain, selectedDomain, selectedVariable, variable } from '$lib/stores/variables';
+	import { vectorOptions } from '$lib/stores/vector';
 
 	import {
 		DarkModeButton,
@@ -48,8 +49,9 @@
 
 	import {
 		addHillshadeSources,
-		addOmFileLayers,
+		addOmRasterLayers,
 		addPopup,
+		addVectorLayers,
 		changeOMfileURL,
 		checkHighDefinition,
 		findTimeStep,
@@ -58,6 +60,8 @@
 		getStyle,
 		hashValue,
 		matchVariableOrFirst,
+		removeOldVectorLayers,
+		removeOmRasterLayers,
 		setMapControlSettings,
 		throttle,
 		updateUrl,
@@ -147,7 +151,10 @@
 
 			if (getInitialMetaDataPromise) await getInitialMetaDataPromise;
 
-			addOmFileLayers();
+			addOmRasterLayers();
+			if ($vectorOptions.contours || $vectorOptions.arrows || $vectorOptions.grid) {
+				addVectorLayers();
+			}
 			addHillshadeSources();
 			$map.addControl(new HillshadeButton());
 
@@ -215,11 +222,13 @@
 		const nextClipping = buildCountryClippingOptions(countries);
 		if ($omProtocolSettings.clippingOptions !== nextClipping) {
 			$omProtocolSettings.clippingOptions = nextClipping;
+			removeOmRasterLayers();
+			removeOldVectorLayers();
 			await tick();
+			addOmRasterLayers();
+			addVectorLayers();
 			changeOMfileURL();
-			// setTimeout(() => {
-			// 	$map.fire('dataloading');
-			// }, 500);
+			$map.fire('dataloading');
 		}
 	};
 

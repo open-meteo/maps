@@ -14,7 +14,7 @@ import {
 import {
 	addHillshadeLayer,
 	addHillshadeSources,
-	addOmFileLayers,
+	addOmRasterLayers,
 	getStyle,
 	terrainHandler,
 	updateUrl
@@ -52,7 +52,7 @@ export const reloadStyles = () => {
 		map.setStyle(style);
 		map.once('styledata', () => {
 			setTimeout(() => {
-				addOmFileLayers();
+				addOmRasterLayers();
 				addHillshadeSources();
 				if (preferences.hillshade) {
 					addHillshadeLayer();

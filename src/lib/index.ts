@@ -9,7 +9,7 @@ import {
 	getColorScale,
 	getValueFromLatLong
 } from '@openmeteo/mapbox-layer';
-import { booleanPointInPolygon, multiPolygon } from '@turf/turf';
+import { booleanPointInPolygon } from '@turf/turf';
 import maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
 import { toast } from 'svelte-sonner';
@@ -51,7 +51,8 @@ import {
 import {
 	CLIP_COUNTRIES_PARAM,
 	parseClipCountriesParam,
-	serializeClipCountriesParam
+	serializeClipCountriesParam,
+	toClippingGeometry
 } from './clipping';
 import { formatISOUTCWithZ, parseISOWithoutTimezone } from './time-format';
 
@@ -329,18 +330,18 @@ export const checkHighDefinition = () => {
 };
 
 let omRasterSource: RasterTileSource | undefined;
-export const addOmFileLayers = () => {
+export const addOmRasterLayers = () => {
 	if (!map) return;
-	// when (re)-adding the om-file layers, we need to reset the vectorRequests to fix set the opacity correctly on the first request
-	vectorRequests = 0;
 
 	omUrl = getOMUrl();
-	map.addSource('omRasterSource', {
-		url: 'om://' + omUrl,
-		type: 'raster',
-		tileSize: 256,
-		maxzoom: 14
-	});
+	if (!map.getSource('omRasterSource')) {
+		map.addSource('omRasterSource', {
+			url: 'om://' + omUrl,
+			type: 'raster',
+			tileSize: 256,
+			maxzoom: 14
+		});
+	}
 
 	omRasterSource = map.getSource('omRasterSource');
 	if (omRasterSource) {
@@ -352,26 +353,41 @@ export const addOmFileLayers = () => {
 	}
 
 	const opacityValue = get(opacity);
-	map.addLayer(
-		{
-			id: 'omRasterLayer',
-			type: 'raster',
-			source: 'omRasterSource',
-			paint: {
-				'raster-opacity': mode.current === 'dark' ? (opacityValue - 10) / 100 : opacityValue / 100
-			}
-		},
-		beforeLayerRaster
-	);
-
-	if (vectorOptions.contours || vectorOptions.arrows) {
-		addVectorLayer();
+	if (!map.getLayer('omRasterLayer')) {
+		map.addLayer(
+			{
+				id: 'omRasterLayer',
+				type: 'raster',
+				source: 'omRasterSource',
+				paint: {
+					'raster-opacity': mode.current === 'dark' ? (opacityValue - 10) / 100 : opacityValue / 100
+				}
+			},
+			beforeLayerRaster
+		);
 	}
 };
 
+export const removeOmRasterLayers = () => {
+	if (!map) return;
+
+	if (map.getLayer('omRasterLayer')) {
+		map.removeLayer('omRasterLayer');
+	}
+
+	if (map.getSource('omRasterSource')) {
+		map.removeSource('omRasterSource');
+	}
+
+	omRasterSource = undefined;
+};
+
 let omVectorSource: VectorTileSource | undefined;
-export const addVectorLayer = () => {
+export const addVectorLayers = () => {
 	if (!map || !map.style) return;
+	// when (re)-adding the om-file layers, we need to reset the vectorRequests to fix set the opacity correctly on the first request
+	vectorRequests = 0;
+
 	if (!map.getSource('omVectorSource' + String(vectorRequests))) {
 		map.addSource('omVectorSource' + String(vectorRequests), {
 			url: 'om://' + omUrl,
@@ -661,7 +677,7 @@ export const changeOMfileURL = (vectorOnly = false, rasterOnly = false) => {
 	}
 	if (!rasterOnly && omVectorSource) {
 		vectorRequests++;
-		addVectorLayer();
+		addVectorLayers();
 		checkVectorLoaded(vectorRequests);
 	}
 };
@@ -746,7 +762,11 @@ export const addPopup = () => {
 			const omProtocolSettingsState = get(omProtocolSettings);
 			const clippingOptions = omProtocolSettingsState.clippingOptions;
 			if (clippingOptions) {
-				if (!booleanPointInPolygon(coordinates.toArray(), multiPolygon(clippingOptions.polygons))) {
+				const clippingGeometry = toClippingGeometry(clippingOptions.geojson);
+				if (
+					clippingGeometry &&
+					!booleanPointInPolygon([coordinates.lng, coordinates.lat], clippingGeometry)
+				) {
 					popup
 						.setLngLat(coordinates)
 						.setHTML(`<span style="padding: 3px 5px;" class="popup-string">Outside clip</span>`);
