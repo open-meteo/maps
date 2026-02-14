@@ -92,15 +92,14 @@
 </script>
 
 {#if $preferences.showScale}
-	<div class="absolute bottom-2.5 left-2.5 z-10" style="max-height: {totalHeight + 100}px;">
-		<div
-			style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
-			class="flex flex-col-reverse overflow-hidden rounded-[4px]"
-		>
-			<div
-				class="flex flex-col-reverse"
-				style="{isDark ? 'background:black;' : 'background:white;'} height: {totalHeight}px;"
-			>
+	<div
+		class="absolute {$preferences.timeSelector && !desktop.current
+			? 'bottom-22.5'
+			: 'bottom-2.5'} duration-500 left-2.5 z-10 select-none"
+		style="max-height: {totalHeight + 100}px;"
+	>
+		<div class="flex flex-col-reverse overflow-hidden rounded shadow-md">
+			<div class="flex flex-col-reverse bg-glass/30 backdrop-blur-sm">
 				{#each labeledColors as lc, i (lc)}
 					{@const alphaValue = getAlpha(lc.color)}
 					<button
@@ -126,7 +125,7 @@
 					{#if editingIndex === i}
 						<ColorPicker
 							color={rgbaToHex(lc.color)}
-							initialAlpha={alphaValue}
+							alpha={alphaValue}
 							onchange={handleColorChange}
 							onclose={closePicker}
 						/>
@@ -151,7 +150,7 @@
 
 			{#if colorScale.unit}
 				<div
-					class="bg-background/90 dark:bg-background/70 h-[23px] w-full overflow-hidden py-1 text-center text-xs"
+					class="bg-glass/75 backdrop-blur-sm shadow-md h-[23px] w-full overflow-hidden py-1 text-center text-xs"
 				>
 					{colorScale.unit}
 				</div>

@@ -1,13 +1,9 @@
 import { tick } from 'svelte';
-import { SvelteDate } from 'svelte/reactivity';
 import { get } from 'svelte/store';
 
 import {
-	GridFactory,
-	TIME_SELECTED_REGEX,
 	VARIABLE_PREFIX,
 	closestModelRun,
-	domainOptions,
 	domainStep,
 	getColor,
 	getColorScale,
@@ -20,114 +16,113 @@ import { toast } from 'svelte-sonner';
 import { browser } from '$app/environment';
 import { pushState } from '$app/navigation';
 
+import { map as m } from '$lib/stores/map';
+import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 import {
-	map as m,
-	mapBounds as mB,
-	paddedBounds as pB,
-	paddedBoundsSource as pBS,
-	paddedBoundsGeoJSON,
-	paddedBoundsLayer
-} from '$lib/stores/map';
-import { abortController, omProtocolSettings } from '$lib/stores/om-protocol-settings';
-import {
+	type Preferences,
 	completeDefaultValues,
 	defaultPreferences,
 	loading,
-	metaJson as mJ,
-	modelRun as mR,
 	opacity,
 	preferences as p,
 	resolution as r,
 	tileSize as tS,
-	time,
 	url as u
 } from '$lib/stores/preferences';
+import {
+	inProgress as iP,
+	latest as l,
+	metaJson as mJ,
+	modelRun as mR,
+	modelRunLocked as mRL,
+	time
+} from '$lib/stores/time';
 import { domain as d, selectedDomain, variable as v } from '$lib/stores/variables';
-import { vectorOptions as vO } from '$lib/stores/vector';
+import { type VectorOptions, vectorOptions as vO } from '$lib/stores/vector';
+
+import {
+	BEFORE_LAYER_RASTER,
+	BEFORE_LAYER_VECTOR,
+	BEFORE_LAYER_VECTOR_WATER_CLIP
+} from '$lib/constants';
+
+import { formatISOUTCWithZ, parseISOWithoutTimezone } from './time-format';
 
 import type { Domain, DomainMetaDataJson } from '@openmeteo/mapbox-layer';
 
-let url = get(u);
-u.subscribe((newUrl) => {
-	url = newUrl;
-});
+export { findTimeStep } from '$lib/time-utils';
 
-let map = get(m);
-m.subscribe((newMap) => {
-	map = newMap;
-});
+let url: URL;
+let map: maplibregl.Map | undefined;
+let preferences: Preferences;
+let metaJson: DomainMetaDataJson | undefined;
+let vectorOptions: VectorOptions;
 
-let preferences = get(p);
-p.subscribe((newPreferences) => {
-	preferences = newPreferences;
-});
+// Initialize store subscriptions only once on first access
+let storesInitialized = false;
+const initializeStores = () => {
+	if (storesInitialized) return;
+	storesInitialized = true;
 
-let metaJson = get(mJ);
-mJ.subscribe((newMetaJson) => {
-	metaJson = newMetaJson;
-});
+	url = get(u);
+	u.subscribe((newUrl) => {
+		url = newUrl;
+	});
 
-let vectorOptions = get(vO);
-vO.subscribe((newVectorOptions) => {
-	vectorOptions = newVectorOptions;
-});
+	map = get(m);
+	m.subscribe((newMap) => {
+		map = newMap;
+	});
 
-const beforeLayerRaster = 'waterway-tunnel';
-const beforeLayerVector = 'place_label_other';
-const beforeLayerVectorWaterClip = 'water-clip';
+	preferences = get(p);
+	p.subscribe((newPreferences) => {
+		preferences = newPreferences;
+	});
 
-const now = new SvelteDate();
-now.setHours(now.getHours() + 1, 0, 0, 0);
+	metaJson = get(mJ);
+	mJ.subscribe((newMetaJson) => {
+		metaJson = newMetaJson;
+	});
+
+	vectorOptions = get(vO);
+	vO.subscribe((newVectorOptions) => {
+		vectorOptions = newVectorOptions;
+	});
+};
+
+const beforeLayerRaster = BEFORE_LAYER_RASTER;
+const beforeLayerVector = BEFORE_LAYER_VECTOR;
+const beforeLayerVectorWaterClip = BEFORE_LAYER_VECTOR_WATER_CLIP;
 
 let omUrl: string;
 
-export const pad = (n: string | number) => {
-	return ('0' + n).slice(-2);
-};
+/**
+ * Pads a number with leading zeros to ensure 2 digits
+ */
+export const pad = (num: number | string): string => String(num).padStart(2, '0');
 
 export const urlParamsToPreferences = () => {
+	initializeStores();
 	const params = new URLSearchParams(url.search);
 
 	const urlModelTime = params.get('model_run');
 	if (urlModelTime && urlModelTime.length == 15) {
-		const year = parseInt(urlModelTime.slice(0, 4));
-		const month = parseInt(urlModelTime.slice(5, 7)) - 1;
-		const day = parseInt(urlModelTime.slice(8, 10));
-		const hour = parseInt(urlModelTime.slice(11, 13));
-		const minute = parseInt(urlModelTime.slice(13, 15));
-		// Parse Date from UTC components (urlTime is in UTC)
-		mR.set(new SvelteDate(Date.UTC(year, month, day, hour, minute, 0, 0)));
-	} else {
-		const modelRun = get(mR);
-		modelRun.setUTCHours(0, 0, 0, 0);
-		mR.set(modelRun);
+		const parsedModelTime = parseISOWithoutTimezone(urlModelTime);
+		mR.set(parsedModelTime);
+		mRL.set(true);
 	}
 
 	const urlTime = params.get('time');
 	if (urlTime && urlTime.length == 15) {
-		const year = parseInt(urlTime.slice(0, 4));
-		const month = parseInt(urlTime.slice(5, 7)) - 1;
-		const day = parseInt(urlTime.slice(8, 10));
-		const hour = parseInt(urlTime.slice(11, 13));
-		const minute = parseInt(urlTime.slice(13, 15));
-		// Parse Date from UTC components (urlTime is in UTC)
-		time.set(new SvelteDate(Date.UTC(year, month, day, hour, minute, 0, 0)));
+		const parsedUrlTime = parseISOWithoutTimezone(urlTime);
+		time.set(parsedUrlTime);
 	}
-	checkClosestDomainInterval();
 
 	if (params.get('globe')) {
 		preferences.globe = params.get('globe') === 'true';
 	} else {
 		if (preferences.globe) {
 			url.searchParams.set('globe', String(preferences.globe));
-		}
-	}
-
-	if (params.get('partial')) {
-		preferences.partial = params.get('partial') === 'true';
-	} else {
-		if (preferences.partial) {
-			url.searchParams.set('partial', String(preferences.partial));
 		}
 	}
 
@@ -209,82 +204,6 @@ export const urlParamsToPreferences = () => {
 	p.set(preferences);
 };
 
-/** "YYYY-MM-DDTHHMM" */
-export const fmtISOWithoutTimezone = (d: Date) => d.toISOString().replace(/[:Z]/g, '').slice(0, 15);
-
-export const checkClosestDomainInterval = () => {
-	const t = get(time);
-	const domain = get(selectedDomain);
-	const closestTime = domainStep(t, domain.time_interval, 'floor');
-	updateUrl('time', fmtISOWithoutTimezone(closestTime));
-	time.set(closestTime);
-};
-
-export const checkClosestModelRun = () => {
-	let timeStep = get(time);
-	const domain = get(selectedDomain);
-
-	// other than seasonal models, data is not available longer than 7 days
-	if (domain.model_interval !== 'monthly') {
-		// check that requested timeStep is not older than 7 days
-		const _7daysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-		if (timeStep.getTime() < _7daysAgo) {
-			toast.warning('Date selected too old, using 7 days ago time');
-			const nowTimeStep = domainStep(new Date(_7daysAgo), domain.time_interval, 'floor');
-			time.set(nowTimeStep);
-			timeStep = nowTimeStep;
-		}
-	}
-	// check that requested time is not newer than the latest valid_times in the DomainMetaData
-	if (metaJson) {
-		const latestTimeStep = new Date(metaJson.valid_times[metaJson.valid_times.length - 1]);
-		if (timeStep.getTime() > latestTimeStep.getTime()) {
-			toast.warning('Date selected too new, using latest available time');
-			time.set(latestTimeStep);
-			timeStep = latestTimeStep;
-		}
-	}
-
-	const nearestModelRun = closestModelRun(timeStep, domain.model_interval);
-	const modelRun = get(mR);
-
-	let setToModelRun = new SvelteDate(modelRun);
-
-	const latestReferenceTime = metaJson?.reference_time
-		? new Date(metaJson.reference_time)
-		: undefined;
-
-	if (latestReferenceTime && nearestModelRun.getTime() > latestReferenceTime.getTime()) {
-		setToModelRun = new SvelteDate(latestReferenceTime);
-	} else if (timeStep.getTime() < modelRun.getTime()) {
-		setToModelRun = new SvelteDate(nearestModelRun);
-	} else {
-		if (latestReferenceTime) {
-			if (latestReferenceTime.getTime() === modelRun.getTime()) {
-				updateUrl('model_run', undefined);
-			} else if (
-				timeStep.getTime() > latestReferenceTime.getTime() &&
-				latestReferenceTime.getTime() > modelRun.getTime()
-			) {
-				setToModelRun = new SvelteDate(latestReferenceTime);
-			} else if (timeStep.getTime() < latestReferenceTime.getTime() - 24 * 60 * 60 * 1000) {
-				// Atleast yesterday, always update to nearest modelRun
-				if (modelRun.getTime() < nearestModelRun.getTime()) {
-					setToModelRun = new SvelteDate(nearestModelRun);
-				}
-			}
-		}
-	}
-
-	if (setToModelRun.getTime() !== modelRun.getTime()) {
-		mR.set(setToModelRun);
-		updateUrl('model_run', fmtISOWithoutTimezone(setToModelRun));
-		toast.info('Model run set to: ' + fmtISOWithoutTimezone(setToModelRun));
-	} else {
-		updateUrl();
-	}
-};
-
 export const setMapControlSettings = () => {
 	if (!map) return;
 
@@ -331,10 +250,7 @@ export const addHillshadeSources = () => {
 
 	map.addSource('terrainSource', {
 		type: 'raster-dem',
-		tiles: ['mapterhorn://{z}/{x}/{y}'],
-		encoding: 'terrarium',
-		tileSize: 512,
-		attribution: '<a href="https://mapterhorn.com/attribution">© Mapterhorn</a>'
+		url: 'https://tiles.mapterhorn.com/tilejson.json'
 	});
 };
 
@@ -394,6 +310,8 @@ export const checkHighDefinition = () => {
 let omRasterSource: maplibregl.RasterTileSource | undefined;
 export const addOmFileLayers = () => {
 	if (!map) return;
+	// when (re)-adding the om-file layers, we need to reset the vectorRequests to fix set the opacity correctly on the first request
+	vectorRequests = 0;
 
 	omUrl = getOMUrl();
 	map.addSource('omRasterSource', {
@@ -406,9 +324,8 @@ export const addOmFileLayers = () => {
 	omRasterSource = map.getSource('omRasterSource');
 	if (omRasterSource) {
 		omRasterSource.on('error', (e) => {
-			checked = 0;
 			loading.set(false);
-			clearInterval(checkSourceLoadedInterval);
+			clearInterval(checkRasterSourceLoadedInterval);
 			toast.error(e.error.message);
 		});
 	}
@@ -433,75 +350,30 @@ export const addOmFileLayers = () => {
 
 let omVectorSource: maplibregl.VectorTileSource | undefined;
 export const addVectorLayer = () => {
-	if (!map) return;
-	if (!map.getSource('omVectorSource')) {
-		map.addSource('omVectorSource', {
+	if (!map || !map.style) return;
+	if (!map.getSource('omVectorSource' + String(vectorRequests))) {
+		map.addSource('omVectorSource' + String(vectorRequests), {
 			url: 'om://' + omUrl,
 			type: 'vector'
 		});
-		omVectorSource = map.getSource('omVectorSource');
+		omVectorSource = map.getSource('omVectorSource' + String(vectorRequests));
 		if (omVectorSource) {
-			omVectorSource.on('error', (e) => {
-				toast.error(e.error.message);
+			omVectorSource.on('error', () => {
+				clearInterval(checkVectorSourceLoadedInterval);
 			});
 		}
 	}
 
-	if (!map.getLayer('omVectorContourLayer')) {
+	if (vectorOptions.arrows && !map.getLayer('omVectorArrowLayer' + String(vectorRequests))) {
 		map.addLayer(
 			{
-				id: 'omVectorContourLayer',
+				id: 'omVectorArrowLayer' + String(vectorRequests),
 				type: 'line',
-				source: 'omVectorSource',
-				'source-layer': 'contours',
-				paint: {
-					'line-color': [
-						'case',
-						['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
-						mode.current === 'dark' ? 'rgba(255,255,255, 0.8)' : 'rgba(0,0,0, 0.6)',
-						[
-							'case',
-							['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
-							mode.current === 'dark' ? 'rgba(255,255,255, 0.7)' : 'rgba(0,0,0, 0.5)',
-
-							[
-								'case',
-								['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
-								mode.current === 'dark' ? 'rgba(255,255,255, 0.6)' : 'rgba(0,0,0, 0.4)',
-								mode.current === 'dark' ? 'rgba(255,255,255, 0.5)' : 'rgba(0,0,0, 0.3)'
-							]
-						]
-					],
-					'line-width': [
-						'case',
-						['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
-						3,
-						[
-							'case',
-							['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
-							2.5,
-							[
-								'case',
-								['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
-								2,
-								1
-							]
-						]
-					]
-				}
-			},
-			preferences.clipWater ? beforeLayerVectorWaterClip : beforeLayerVector
-		);
-	}
-
-	if (!map.getLayer('omVectorArrowLayer')) {
-		map.addLayer(
-			{
-				id: 'omVectorArrowLayer',
-				type: 'line',
-				source: 'omVectorSource',
+				source: 'omVectorSource' + String(vectorRequests),
 				'source-layer': 'wind-arrows',
 				paint: {
+					'line-opacity': vectorRequests === 0 ? 1 : 0,
+					'line-opacity-transition': { duration: 300, delay: 0 },
 					'line-color': [
 						'case',
 						['boolean', ['>', ['to-number', ['get', 'value']], 9], false],
@@ -560,14 +432,16 @@ export const addVectorLayer = () => {
 		);
 	}
 
-	if (!map.getLayer('omVectorGridLayer')) {
+	if (vectorOptions.grid && !map.getLayer('omVectorGridLayer' + String(vectorRequests))) {
 		map.addLayer(
 			{
-				id: 'omVectorGridLayer',
+				id: 'omVectorGridLayer' + String(vectorRequests),
 				type: 'circle',
-				source: 'omVectorSource',
+				source: 'omVectorSource' + String(vectorRequests),
 				'source-layer': 'grid',
 				paint: {
+					'circle-opacity': vectorRequests === 0 ? 1 : 0,
+					'circle-opacity-transition': { duration: 300, delay: 0 },
 					'circle-radius': [
 						'interpolate',
 						['exponential', 1.5],
@@ -586,12 +460,64 @@ export const addVectorLayer = () => {
 		);
 	}
 
-	if (!map.getLayer('omVectorContourLayerLabels')) {
+	if (vectorOptions.contours && !map.getLayer('omVectorContourLayer' + String(vectorRequests))) {
 		map.addLayer(
 			{
-				id: 'omVectorContourLayerLabels',
+				id: 'omVectorContourLayer' + String(vectorRequests),
+				type: 'line',
+				source: 'omVectorSource' + String(vectorRequests),
+				'source-layer': 'contours',
+				paint: {
+					'line-opacity': vectorRequests === 0 ? 1 : 0,
+					'line-opacity-transition': { duration: 300, delay: 0 },
+					'line-color': [
+						'case',
+						['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
+						mode.current === 'dark' ? 'rgba(255,255,255, 0.8)' : 'rgba(0,0,0, 0.6)',
+						[
+							'case',
+							['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
+							mode.current === 'dark' ? 'rgba(255,255,255, 0.7)' : 'rgba(0,0,0, 0.5)',
+
+							[
+								'case',
+								['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
+								mode.current === 'dark' ? 'rgba(255,255,255, 0.6)' : 'rgba(0,0,0, 0.4)',
+								mode.current === 'dark' ? 'rgba(255,255,255, 0.5)' : 'rgba(0,0,0, 0.3)'
+							]
+						]
+					],
+					'line-width': [
+						'case',
+						['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
+						3,
+						[
+							'case',
+							['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
+							2.5,
+							[
+								'case',
+								['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
+								2,
+								1
+							]
+						]
+					]
+				}
+			},
+			preferences.clipWater ? beforeLayerVectorWaterClip : beforeLayerVector
+		);
+	}
+
+	if (
+		vectorOptions.contours &&
+		!map.getLayer('omVectorContourLayerLabels' + String(vectorRequests))
+	) {
+		map.addLayer(
+			{
+				id: 'omVectorContourLayerLabels' + String(vectorRequests),
 				type: 'symbol',
-				source: 'omVectorSource',
+				source: 'omVectorSource' + String(vectorRequests),
 				'source-layer': 'contours',
 				layout: {
 					'symbol-placement': 'line-center',
@@ -602,6 +528,8 @@ export const addVectorLayer = () => {
 					'text-offset': [0, -0.6]
 				},
 				paint: {
+					'text-opacity': vectorRequests === 0 ? 1 : 0,
+					'text-opacity-transition': { duration: 300, delay: 0 },
 					'text-color': mode.current === 'dark' ? 'rgba(255,255,255, 0.8)' : 'rgba(0,0,0, 0.7)'
 				}
 			},
@@ -610,25 +538,37 @@ export const addVectorLayer = () => {
 	}
 };
 
-export const removeVectorLayer = () => {
+export const removeOldVectorLayers = (untilCounter: number) => {
 	if (!map) return;
 
-	if (!vectorOptions.grid) {
-		if (map.getLayer('omVectorGridLayer')) {
-			map.removeLayer('omVectorGridLayer');
+	const layersOrder = map.getLayersOrder();
+
+	const extractIndex = (layerId: string): number | null => {
+		const match = layerId.match(/(\d+)$/);
+		return match ? Number(match[1]) : null;
+	};
+
+	for (const layer of layersOrder) {
+		const index = extractIndex(layer);
+		if (index === null) continue;
+
+		// Only touch layers up to (and including) untilCounter
+		if (index > untilCounter) continue;
+
+		if (layer.startsWith('omVectorGridLayer')) {
+			map.removeLayer(layer);
 		}
-	}
-	if (!vectorOptions.arrows) {
-		if (map.getLayer('omVectorArrowLayer')) {
-			map.removeLayer('omVectorArrowLayer');
+
+		if (layer.startsWith('omVectorArrowLayer')) {
+			map.removeLayer(layer);
 		}
-	}
-	if (!vectorOptions.contours) {
-		if (map.getLayer('omVectorContourLayerLabels')) {
-			map.removeLayer('omVectorContourLayerLabels');
+
+		if (layer.startsWith('omVectorContourLayerLabels')) {
+			if (map.getLayer(layer)) map.removeLayer(layer);
 		}
-		if (map.getLayer('omVectorContourLayer')) {
-			map.removeLayer('omVectorContourLayer');
+
+		if (layer.startsWith('omVectorContourLayer')) {
+			map.removeLayer(layer);
 		}
 	}
 };
@@ -645,72 +585,86 @@ export const globeHandler = () => {
 	updateUrl('globe', String(preferences.globe), String(defaultPreferences.globe));
 };
 
-let checked = 0;
-let checkSourceLoadedInterval: ReturnType<typeof setInterval>;
-export const changeOMfileURL = (resetBounds = true, vectorOnly = false, rasterOnly = false) => {
-	if (!map || !omRasterSource) return;
-
-	// needs more testing
-	// if (map.style.tileManagers.omRasterSource) {
-	// 	const tileManager = map.style.tileManagers.omRasterSource;
-	// 	if (tileManager._tiles) {
-	// 		for (const tileId in tileManager._tiles) {
-	// 			const tile = tileManager._tiles[tileId];
-	// 			tile.unloadVectorData();
-	// 		}
-	// 		tileManager._tiles = {};
-	// 	}
-	// 	tileManager._cache.reset();
-	// 	// tileManager.update(map.transform);
-	// 	// map.triggerRepaint();
-	// }
-
-	loading.set(true);
-	if (popup) {
-		popup.remove();
-	}
-	mB.set(map.getBounds());
-	if (resetBounds) {
-		pB.set(map.getBounds());
-	}
-	getPaddedBounds();
-
-	checkClosestModelRun();
-
-	omUrl = getOMUrl();
-	if (!vectorOnly) {
-		if (!omRasterSource.loaded()) {
-			get(abortController).abort();
-			abortController.set(new AbortController());
-		}
-		omRasterSource.setUrl('om://' + omUrl);
-	}
-
-	if (!rasterOnly && omVectorSource) {
-		if (!omVectorSource.loaded()) {
-			get(abortController).abort();
-			abortController.set(new AbortController());
-		}
-		omVectorSource.setUrl('om://' + omUrl);
-	}
-
-	checkSourceLoadedInterval = setInterval(() => {
+let checkRasterSourceLoadedInterval: ReturnType<typeof setInterval>;
+const checkRasterLoaded = () => {
+	if (checkRasterSourceLoadedInterval) clearInterval(checkRasterSourceLoadedInterval);
+	let checked = 0;
+	checkRasterSourceLoadedInterval = setInterval(() => {
 		checked++;
-		if ((omRasterSource && omRasterSource.loaded()) || checked >= 200) {
-			if (checked >= 200) {
-				// Timeout after 10s
-				toast.error('Request timed out');
+		if (omRasterSource) {
+			if (checked === 200) {
+				// Notify user that request is slow
+				toast.warning(
+					'Loading raster data might be limited by bandwidth or upstream server speed.'
+				);
 			}
-			checked = 0;
-			loading.set(false);
-			clearInterval(checkSourceLoadedInterval);
+			if (omRasterSource.loaded()) {
+				checked = 0;
+				loading.set(false);
+				clearInterval(checkRasterSourceLoadedInterval);
+			}
 		}
 	}, 50);
 };
 
+let checkVectorSourceLoadedInterval: ReturnType<typeof setInterval>;
+const checkVectorLoaded = (requestNumber: number) => {
+	if (checkVectorSourceLoadedInterval) clearInterval(checkVectorSourceLoadedInterval);
+	checkVectorSourceLoadedInterval = setInterval(() => {
+		if (omVectorSource && omVectorSource.loaded()) {
+			loading.set(false);
+			clearInterval(checkVectorSourceLoadedInterval);
+			fadeVectorLayers(0, requestNumber - 1);
+			fadeVectorLayers(1, requestNumber);
+
+			// this timeout should be slightly longer than the opacity transition
+			setTimeout(() => removeOldVectorLayers(requestNumber - 1), 500);
+		}
+	}, 50);
+};
+
+let vectorRequests = 0;
+export const changeOMfileURL = (vectorOnly = false, rasterOnly = false) => {
+	if (!map || !omRasterSource) return;
+	loading.set(true);
+
+	if (popup) {
+		popup.remove();
+	}
+
+	omUrl = getOMUrl();
+
+	if (!vectorOnly) {
+		omRasterSource.setUrl('om://' + omUrl);
+		checkRasterLoaded();
+	}
+	if (!rasterOnly && omVectorSource) {
+		vectorRequests++;
+		addVectorLayer();
+		checkVectorLoaded(vectorRequests);
+	}
+};
+
+const fadeVectorLayers = (opacity: number, request: number) => {
+	if (!map) return;
+
+	if (map.getLayer('omVectorContourLayer' + String(request))) {
+		map.setPaintProperty('omVectorContourLayer' + String(request), 'line-opacity', opacity);
+	}
+	if (map.getLayer('omVectorArrowLayer' + String(request))) {
+		map.setPaintProperty('omVectorArrowLayer' + String(request), 'line-opacity', opacity);
+	}
+	if (map.getLayer('omVectorGridLayer' + String(request))) {
+		map.setPaintProperty('omVectorGridLayer' + String(request), 'circle-opacity', opacity);
+	}
+	if (map.getLayer('omVectorContourLayerLabels' + String(request))) {
+		map.setPaintProperty('omVectorContourLayerLabels' + String(request), 'text-opacity', opacity);
+	}
+};
+
 export const getStyle = async () => {
 	return await fetch(
-		`https://maptiler.servert.nl/styles/minimal-world-maps${mode.current === 'dark' ? '-dark' : ''}${preferences.clipWater ? '-water-clip' : ''}/style.json`
+		`https://tiles.open-meteo.com/styles/minimal-planet-maps${mode.current === 'dark' ? '-dark' : ''}${preferences.clipWater ? '-water-clip' : ''}.json`
 	)
 		.then((response) => response.json())
 		.then((style) => {
@@ -750,7 +704,7 @@ export const addPopup = () => {
 	if (!map) return;
 
 	const updatePopup = (e: maplibregl.MapMouseEvent) => {
-		if (!showPopup) return;
+		if (!showPopup || !map) return;
 
 		const coordinates = e.lngLat;
 		if (!popup) {
@@ -786,6 +740,7 @@ export const addPopup = () => {
 
 	map.on('mousemove', updatePopup);
 	map.on('click', (e: maplibregl.MapMouseEvent) => {
+		if (!map) return;
 		showPopup = !showPopup;
 		if (!showPopup && popup) {
 			popup.remove();
@@ -798,149 +753,26 @@ export const addPopup = () => {
 	});
 };
 
-const padding = 25; //%
-export const checkBounds = () => {
-	if (!map) return;
-
-	const domain = get(d);
-	const domainObject = domainOptions.find(({ value }) => value === domain);
-
-	const geojson = get(paddedBoundsGeoJSON);
-	const paddedBounds = get(pB);
-	const mapBounds = map.getBounds();
-	const paddedBoundsSource = get(pBS);
-
-	mB.set(mapBounds);
-
-	if (domainObject && paddedBounds && preferences.partial) {
-		let exceededPadding = false;
-
-		if (geojson) {
-			// @ts-expect-error stupid conflicting types from geojson
-			geojson.features[0].geometry.coordinates = [
-				[paddedBounds?.getSouthWest()['lng'], paddedBounds?.getSouthWest()['lat']],
-				[paddedBounds?.getNorthWest()['lng'], paddedBounds?.getNorthWest()['lat']],
-				[paddedBounds?.getNorthEast()['lng'], paddedBounds?.getNorthEast()['lat']],
-				[paddedBounds?.getSouthEast()['lng'], paddedBounds?.getSouthEast()['lat']],
-				[paddedBounds?.getSouthWest()['lng'], paddedBounds?.getSouthWest()['lat']]
-			];
-			paddedBoundsSource?.setData(geojson);
-		}
-
-		const gridBounds = GridFactory.create(domainObject.grid).getBounds();
-
-		if (mapBounds.getSouth() < paddedBounds.getSouth() && paddedBounds.getSouth() > gridBounds[1]) {
-			exceededPadding = true;
-		}
-		if (mapBounds.getWest() < paddedBounds.getWest() && paddedBounds.getWest() > gridBounds[0]) {
-			exceededPadding = true;
-		}
-		if (mapBounds.getNorth() > paddedBounds.getNorth() && paddedBounds.getNorth() < gridBounds[3]) {
-			exceededPadding = true;
-		}
-		if (mapBounds.getEast() > paddedBounds.getEast() && paddedBounds.getEast() < gridBounds[2]) {
-			exceededPadding = true;
-		}
-		if (exceededPadding) {
-			changeOMfileURL(false);
-		}
-	}
-};
-
-export const getPaddedBounds = () => {
-	if (!map) return;
-
-	const domain = get(d);
-	const domainObject = domainOptions.find(({ value }) => value === domain);
-
-	const mapBounds = get(mB);
-	const paddedBounds = get(pB);
-	const paddedBoundsSource = get(pBS);
-
-	if (domainObject && mapBounds && preferences.partial) {
-		const gridBounds = GridFactory.create(domainObject.grid).getBounds();
-
-		if (!paddedBoundsSource) {
-			paddedBoundsGeoJSON.set({
-				type: 'FeatureCollection',
-				features: [
-					{
-						type: 'Feature',
-						geometry: {
-							type: 'LineString',
-							// @ts-expect-error stupid conflicting types from geojson
-							properties: {},
-							coordinates: [
-								[gridBounds[0], gridBounds[1]],
-								[gridBounds[0], gridBounds[3]],
-								[gridBounds[2], gridBounds[3]],
-								[gridBounds[2], gridBounds[1]],
-								[gridBounds[0], gridBounds[1]]
-							]
-						}
-					}
-				]
-			});
-
-			map.addSource('paddedBoundsSource', {
-				type: 'geojson',
-				data: get(paddedBoundsGeoJSON) as GeoJSON.GeoJSON
-			});
-			pBS.set(map.getSource('paddedBoundsSource'));
-
-			map.addLayer({
-				id: 'paddedBoundsLayer',
-				type: 'line',
-				source: 'paddedBoundsSource',
-				layout: {
-					'line-join': 'round',
-					'line-cap': 'round'
-				},
-				paint: {
-					'line-color': 'orange',
-					'line-width': 5
-				}
-			});
-			paddedBoundsLayer.set(map.getLayer('paddedBoundsLayer'));
-		}
-
-		const mapBoundsSW = mapBounds.getSouthWest();
-		const mapBoundsNE = mapBounds.getNorthEast();
-		const dLat = mapBoundsNE['lat'] - mapBoundsSW['lat'];
-		const dLon = mapBoundsNE['lng'] - mapBoundsSW['lng'];
-
-		paddedBounds?.setSouthWest([
-			Math.max(Math.max(mapBoundsSW['lng'] - (dLon * padding) / 100, gridBounds[0]), -180),
-			Math.max(Math.max(mapBoundsSW['lat'] - (dLat * padding) / 100, gridBounds[1]), -90)
-		]);
-		paddedBounds?.setNorthEast([
-			Math.min(Math.min(mapBoundsNE['lng'] + (dLon * padding) / 100, gridBounds[2]), 180),
-			Math.min(Math.min(mapBoundsNE['lat'] + (dLat * padding) / 100, gridBounds[3]), 90)
-		]);
-		pB.set(paddedBounds);
-	}
-};
-
 /** e.g. /2025/06/06/1200Z/ */
-const fmtModelRun = (modelRun: Date) => {
+export const fmtModelRun = (modelRun: Date) => {
 	return `${modelRun.getUTCFullYear()}/${pad(modelRun.getUTCMonth() + 1)}/${pad(modelRun.getUTCDate())}/${pad(modelRun.getUTCHours())}${pad(modelRun.getUTCMinutes())}Z`;
 };
 
 /** e.g. 2025-06-06-1200 */
-const fmtSelectedTime = (time: Date) => {
+export const fmtSelectedTime = (time: Date) => {
 	return `${time.getUTCFullYear()}-${pad(time.getUTCMonth() + 1)}-${pad(time.getUTCDate())}T${pad(time.getUTCHours())}${pad(time.getUTCMinutes())}`;
 };
 
 export const getOMUrl = () => {
 	const domain = get(d);
 	const uri =
-		domain && domain.startsWith('dwd_icon')
+		domain && domain.startsWith('dwd_icon') && !domain.endsWith('eps')
 			? `https://s3.servert.ch`
 			: `https://map-tiles.open-meteo.com`;
 
 	let url = `${uri}/data_spatial/${domain}`;
 
-	const modelRun = get(mR);
+	const modelRun = get(mR) as Date;
 	const selectedTime = get(time);
 	url += `/${fmtModelRun(modelRun)}/${fmtSelectedTime(selectedTime)}.om`;
 
@@ -948,7 +780,6 @@ export const getOMUrl = () => {
 	url += `?variable=${variable}`;
 
 	if (mode.current === 'dark') url += `&dark=true`;
-	if (preferences.partial) url += `&partial=true`;
 	if (vectorOptions.grid) url += `&grid=true`;
 	if (vectorOptions.arrows) url += `&arrows=true`;
 	if (vectorOptions.contours) url += `&contours=true`;
@@ -966,46 +797,48 @@ export const getOMUrl = () => {
 		url += `&resolution_factor=${resolution}`;
 	}
 
-	const paddedBounds = get(pB);
-	if (paddedBounds && preferences.partial) {
-		url += `&bounds=${paddedBounds.getSouth()},${paddedBounds.getWest()},${paddedBounds.getNorth()},${paddedBounds.getEast()}`;
-	}
-
 	return url;
 };
-
 export const getNextOmUrls = (
-	omUrl: string,
+	_omUrl: string,
 	domain: Domain,
 	metaJson: DomainMetaDataJson | undefined
-) => {
-	let nextUrl, prevUrl;
-
+): [string | undefined, string | undefined] => {
 	const url = `https://map-tiles.open-meteo.com/data_spatial/${domain.value}`;
 
-	const matches = omUrl.match(TIME_SELECTED_REGEX);
-	if (matches) {
-		const date = new Date('20' + matches[0].substring(0, matches[0].length - 2) + ':00Z');
-		const prevUrlDate = domainStep(date, domain.time_interval, 'backward');
-		const nextUrlDate = domainStep(date, domain.time_interval, 'forward');
-		let currentModelRun;
-		if (metaJson) {
-			currentModelRun = new Date(metaJson.reference_time);
-		}
-		let prevUrlModelRun = closestModelRun(prevUrlDate, domain.model_interval);
-		if (currentModelRun && prevUrlModelRun > currentModelRun) {
-			prevUrlModelRun = currentModelRun;
-		}
-		let nextUrlModelRun = closestModelRun(nextUrlDate, domain.model_interval);
-		if (currentModelRun && nextUrlModelRun > currentModelRun) {
-			nextUrlModelRun = currentModelRun;
-		}
-		prevUrl = url + `/${fmtModelRun(prevUrlModelRun)}/${fmtSelectedTime(prevUrlDate)}.om`;
-		nextUrl = url + `/${fmtModelRun(nextUrlModelRun)}/${fmtSelectedTime(nextUrlDate)}.om`;
-		return [prevUrl, nextUrl];
+	const date = get(time);
+	const dateString = formatISOUTCWithZ(date);
+	let prevUrlDate: Date;
+	let nextUrlDate: Date;
+	if (metaJson) {
+		const currentIndex = metaJson.valid_times.findIndex((vDateString) => {
+			return dateString === vDateString;
+		});
+		prevUrlDate = new Date(metaJson.valid_times[currentIndex + 1]);
+		nextUrlDate = new Date(metaJson.valid_times[currentIndex - 1]);
 	} else {
-		return undefined;
+		prevUrlDate = domainStep(date, domain.time_interval, 'backward');
+		nextUrlDate = domainStep(date, domain.time_interval, 'forward');
 	}
+	let currentModelRun;
+	if (metaJson) {
+		currentModelRun = new Date(metaJson.reference_time);
+	}
+	let prevUrlModelRun = closestModelRun(prevUrlDate, domain.model_interval);
+	if (currentModelRun && prevUrlModelRun > currentModelRun) {
+		prevUrlModelRun = currentModelRun;
+	}
+	let nextUrlModelRun = closestModelRun(nextUrlDate, domain.model_interval);
+	if (currentModelRun && nextUrlModelRun > currentModelRun) {
+		nextUrlModelRun = currentModelRun;
+	}
+	const prevUrl = !isNaN(prevUrlDate.getTime())
+		? url + `/${fmtModelRun(prevUrlModelRun)}/${fmtSelectedTime(prevUrlDate)}.om`
+		: undefined;
+	const nextUrl = !isNaN(nextUrlDate.getTime())
+		? url + `/${fmtModelRun(nextUrlModelRun)}/${fmtSelectedTime(nextUrlDate)}.om`
+		: undefined;
+	return [prevUrl, nextUrl];
 };
 
 export const hashValue = (val: string) =>
@@ -1039,21 +872,73 @@ export const updateUrl = async (
 	}
 
 	await tick();
-	if (map && map._hash) {
-		pushState(url + map._hash.getHashString(), {});
-	} else {
+	try {
+		if (map) pushState(url + map._hash.getHashString(), {});
+	} catch {
 		pushState(url, {});
 	}
 };
 
-export const getMetaData = async (inProgress = false): Promise<DomainMetaDataJson> => {
+export const getInitialMetaData = async () => {
 	const domain = get(selectedDomain);
+
 	const uri =
-		domain && domain.value.startsWith('dwd_icon')
+		domain && domain.value.startsWith('dwd_icon') && !domain.value.endsWith('eps')
 			? `https://s3.servert.ch`
 			: `https://map-tiles.open-meteo.com`;
 
-	const metaJsonUrl = `${uri}/data_spatial/${domain.value}/${inProgress ? 'in-progress' : 'latest'}.json`;
+	const metaJsonResults = await Promise.all([
+		fetch(`${uri}/data_spatial/${domain.value}/latest.json`),
+		fetch(`${uri}/data_spatial/${domain.value}/in-progress.json`)
+	]);
+
+	for (const metaResult of metaJsonResults) {
+		if (!metaResult.ok) {
+			loading.set(false);
+			throw new Error(`HTTP ${metaResult.status}`);
+		}
+		if (metaResult.url.includes('latest.json')) {
+			l.set(await metaResult.json());
+		}
+		if (metaResult.url.includes('in-progress.json')) {
+			iP.set(await metaResult.json());
+		}
+	}
+};
+
+export const getMetaData = async (): Promise<DomainMetaDataJson> => {
+	const domain = get(selectedDomain);
+	let modelRun = get(mR);
+
+	const latest = get(l);
+	const latestReferenceTime = latest?.reference_time ? new Date(latest?.reference_time) : undefined;
+	if (modelRun === undefined) {
+		mR.set(latestReferenceTime);
+		modelRun = get(mR) as Date;
+	}
+	if (latestReferenceTime) {
+		if (modelRun.getTime() === latestReferenceTime?.getTime()) {
+			return latest as DomainMetaDataJson;
+		}
+	}
+
+	const inProgress = get(iP);
+	const inProgressReferenceTime = inProgress?.reference_time
+		? new Date(inProgress?.reference_time)
+		: undefined;
+	if (inProgressReferenceTime) {
+		if (modelRun && modelRun.getTime() === inProgressReferenceTime?.getTime()) {
+			return inProgress as DomainMetaDataJson;
+		}
+	}
+
+	const uri =
+		domain && domain.value.startsWith('dwd_icon') && !domain.value.endsWith('eps')
+			? `https://s3.servert.ch`
+			: `https://map-tiles.open-meteo.com`;
+
+	const metaJsonUrl = `${uri}/data_spatial/${domain.value}/${fmtModelRun(modelRun as Date)}/meta.json`;
+
 	const metaJsonResult = await fetch(metaJsonUrl);
 	if (!metaJsonResult.ok) {
 		loading.set(false);
@@ -1085,4 +970,21 @@ export const matchVariableOrFirst = () => {
 	if (matchedVariable) {
 		v.set(matchedVariable);
 	}
+};
+
+export const throttle = <T extends unknown[]>(callback: (...args: T) => void, delay: number) => {
+	let waiting = false;
+
+	return (...args: T) => {
+		if (waiting) {
+			return;
+		}
+
+		callback(...args);
+		waiting = true;
+
+		setTimeout(() => {
+			waiting = false;
+		}, delay);
+	};
 };

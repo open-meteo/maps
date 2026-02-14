@@ -29,15 +29,17 @@
 		}
 	});
 
-	const desktop = new MediaQuery('min-width: 640px');
+	const smallerDesktop = new MediaQuery('min-width: 640px');
 </script>
 
 <Dialog.Root bind:open={$helpOpen}>
-	<Dialog.Content class="min-h-1/4 max-h-[90vh] overflow-y-scroll pb-18 border-none">
+	<Dialog.Content
+		class="bg-glass/80 backdrop-blur-sm shaded-md min-h-1/4 max-h-[90vh] overflow-y-scroll pb-18 border-none"
+	>
 		<Dialog.Header>
 			<Dialog.Title class="text-2xl">Help</Dialog.Title>
 		</Dialog.Header>
-		{#if desktop.current}
+		{#if smallerDesktop.current}
 			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 				<div class="flex flex-col">
 					<div class="flex items-center mb-2 gap-1.25 -ml-0.5">
@@ -72,6 +74,23 @@
 						</div>
 						<div class="flex items-center gap-2">
 							<Kbd.Root>→</Kbd.Root> Next Hour
+						</div>
+						<div class="flex items-center gap-2">
+							<Kbd.Root>c</Kbd.Root> Jump to Current Time
+						</div>
+						<div class="flex items-center gap-2">
+							<Kbd.Root>m</Kbd.Root> Lock Model Run
+						</div>
+						<div class="flex items-center gap-2">
+							<Kbd.Root>n</Kbd.Root> Latest Model Run
+						</div>
+						<div class="mt-3 flex items-center gap-2">
+							<Kbd.Root>ctrl</Kbd.Root> +
+							<Kbd.Root>←</Kbd.Root> Previous Model Run
+						</div>
+						<div class="flex items-center gap-2">
+							<Kbd.Root>ctrl</Kbd.Root> +
+							<Kbd.Root>→</Kbd.Root> Next Model Run
 						</div>
 					</div>
 				</div>
@@ -319,8 +338,7 @@
 
 					<div class="flex items-center gap-2">
 						<button
-							style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
-							class="bg-background/90 dark:bg-background/70 hover:!bg-background flex h-7.25 w-7.25 cursor-pointer items-center rounded-[4px] p-0"
+							class="bg-glass/80 hover:bg-glass flex h-7.25 w-7.25 cursor-pointer items-center rounded p-0"
 							aria-label="Hide Variable Selection"
 							><svg
 								opacity="0.75"

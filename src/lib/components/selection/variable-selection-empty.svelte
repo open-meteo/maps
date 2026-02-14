@@ -15,8 +15,7 @@
 <div class="flex flex-col gap-2.5">
 	<Button
 		variant="outline"
-		style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
-		class="bg-background/90 dark:bg-background/70 hover:!bg-background h-7.25 w-[180px] cursor-pointer justify-between rounded-[4px] border-none !p-1.5"
+		class="bg-glass/75 dark:bg-glass/75 backdrop-blur-sm shadow-md hover:bg-background! h-7.25 w-45 cursor-pointer justify-between rounded border-none p-1.5!"
 		role="combobox"
 	>
 		<div class="truncate">
@@ -27,8 +26,7 @@
 
 	<Button
 		variant="outline"
-		style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
-		class="bg-background/90 dark:bg-background/70 hover:!bg-background h-7.25 w-[180px] cursor-pointer justify-between rounded-[4px] border-none !p-1.5"
+		class="bg-glass/75 dark:bg-glass/75 backdrop-blur-sm shadow-md hover:bg-background! h-7.25 w-45 cursor-pointer justify-between rounded border-none p-1.5!"
 		role="combobox"
 	>
 		<div class="truncate">
@@ -42,8 +40,7 @@
 	{#if $levelGroupSelected}
 		<Button
 			variant="outline"
-			style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
-			class="bg-background/90 dark:bg-background/70 hover:!bg-background h-7.25 w-[180px] cursor-pointer justify-between rounded-[4px] border-none !p-1.5"
+			class="bg-glass/75 dark:bg-glass/75 backdrop-blur-sm shadow-md hover:bg-background! h-7.25 w-45 cursor-pointer justify-between rounded border-none p-1.5!"
 			role="combobox"
 		>
 			<div class="truncate">{$level + ' ' + $unit || 'Select a domain...'}</div>

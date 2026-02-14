@@ -7,7 +7,6 @@
 	import ContourSettings from './contour-settings.svelte';
 	import GridSettings from './grid-settings.svelte';
 	import OpacitySetting from './opacity-setting.svelte';
-	import PartialSettings from './partial-settings.svelte';
 	import ResolutionSettings from './resolution-settings.svelte';
 	import StateSettings from './state-settings.svelte';
 	import UnitSettings from './unit-settings.svelte';
@@ -15,14 +14,13 @@
 </script>
 
 <Sheet.Root bind:open={$sheet}>
-	<Sheet.Content class="max-h-screen border-none">
+	<Sheet.Content class="bg-glass/80 backdrop-blur-sm max-h-screen w-96 border-none">
 		<div class="flex flex-col px-6 pt-12 pb-18 gap-6 min-h-full overflow-y-scroll">
 			<UnitSettings />
 			<GridSettings />
 			<ArrowsSettings />
 			<ContourSettings />
 			<ResolutionSettings />
-			<PartialSettings />
 			<WaterClipSetting />
 			<OpacitySetting />
 			<StateSettings />

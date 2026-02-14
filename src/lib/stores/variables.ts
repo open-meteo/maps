@@ -9,10 +9,12 @@ import {
 } from '@openmeteo/mapbox-layer';
 import { type Persisted, persisted } from 'svelte-persisted-store';
 
-export const defaultDomain = 'dwd_icon';
+import { DEFAULT_DOMAIN, DEFAULT_VARIABLE } from '$lib/constants';
+
+export const defaultDomain = DEFAULT_DOMAIN;
 export const domain = persisted('domain', defaultDomain);
 
-export const defaultVariable = 'temperature_2m';
+export const defaultVariable = DEFAULT_VARIABLE;
 export const variable = persisted('variable', defaultVariable);
 
 export const selectedDomain = derived(domain, ($domain) => {

@@ -1,6 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-
 	import {
 		alphaToPercent,
 		hexToRgb,
@@ -15,16 +13,15 @@
 		color: string;
 		onchange: (color: string, alpha: number) => void;
 		onclose: () => void;
-		initialAlpha?: number;
+		alpha?: number;
 	}
 
-	let { color, onchange, onclose, initialAlpha = 1 }: Props = $props();
+	let { color, onchange, onclose, alpha = 1 }: Props = $props();
 
 	let hue = $state(0);
 	let saturation = $state(100);
 	let brightness = $state(100);
-	let alpha = $state(initialAlpha);
-	let hexInput = $state(color.slice(0, 7));
+	let hexInput = $derived(color.slice(0, 7));
 
 	let satBrightRef: HTMLDivElement | null = $state(null);
 	let hueRef: HTMLDivElement | null = $state(null);
@@ -33,7 +30,7 @@
 	type DragTarget = 'satBright' | 'hue' | 'alpha' | null;
 	let dragging: DragTarget = $state(null);
 
-	onMount(() => {
+	$effect(() => {
 		const rgb = hexToRgb(color);
 		if (rgb) {
 			const hsv = rgbToHsv(rgb.r, rgb.g, rgb.b);
@@ -41,7 +38,6 @@
 			saturation = hsv.s;
 			brightness = hsv.v;
 		}
-		alpha = initialAlpha;
 	});
 
 	const currentRgb = $derived(hsvToRgb(hue, saturation, brightness));
@@ -69,13 +65,13 @@
 		const { x, y } = getNormalizedPosition(e, satBrightRef);
 		saturation = x * 100;
 		brightness = (1 - y) * 100;
-		hexInput = currentHex;
+		color = currentHex;
 	};
 
 	const handleHueMove = (e: MouseEvent | TouchEvent) => {
 		const { x } = getNormalizedPosition(e, hueRef);
 		hue = x * 360;
-		hexInput = currentHex;
+		color = currentHex;
 	};
 
 	const handleAlphaMove = (e: MouseEvent | TouchEvent) => {
@@ -108,7 +104,7 @@
 
 	const handleHexInput = (e: Event) => {
 		const value = (e.target as HTMLInputElement).value;
-		hexInput = value;
+		color = value;
 
 		if (isValidHex(value)) {
 			const rgb = hexToRgb(value);
@@ -151,7 +147,7 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-	class="color-picker-content absolute left-full ml-2 z-50 bg-popover border border-border rounded-lg shadow-xl p-3 w-60"
+	class="color-picker-content absolute left-full ml-2 z-50 bg-glass/90 backdrop-blur shadow-md border border-border rounded-lg shadow-xl p-3 w-60"
 	onclick={(e) => e.stopPropagation()}
 	onkeydown={(e) => e.key === 'Escape' && onclose()}
 >

@@ -5,36 +5,33 @@
 	import {
 		GridFactory,
 		type RenderableColorScale,
-		closestModelRun,
 		domainOptions,
-		domainStep,
-		omProtocol
+		omProtocol,
+		updateCurrentBounds
 	} from '@openmeteo/mapbox-layer';
 	import { type RequestParameters } from 'maplibre-gl';
 	import * as maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
-	import { Protocol } from 'pmtiles';
 	import { toast } from 'svelte-sonner';
 
 	import { version } from '$app/environment';
 
-	import { map, mapBounds, paddedBounds } from '$lib/stores/map';
 	import {
 		abortController,
 		defaultColorHash,
 		omProtocolSettings
 	} from '$lib/stores/om-protocol-settings';
+	import { map } from '$lib/stores/map';
 	import {
 		loading,
 		localStorageVersion,
-		metaJson,
-		modelRun,
+		preferences,
 		resetStates,
 		resolution,
 		resolutionSet,
-		time,
 		url
 	} from '$lib/stores/preferences';
+	import { metaJson, modelRun, time } from '$lib/stores/time';
 	import { domain, selectedDomain, selectedVariable, variable } from '$lib/stores/variables';
 
 	import {
@@ -56,12 +53,10 @@
 		addOmFileLayers,
 		addPopup,
 		changeOMfileURL,
-		checkBounds,
-		checkClosestDomainInterval,
-		checkClosestModelRun,
 		checkHighDefinition,
+		findTimeStep,
+		getInitialMetaData,
 		getMetaData,
-		getPaddedBounds,
 		getStyle,
 		hashValue,
 		matchVariableOrFirst,
@@ -69,6 +64,7 @@
 		updateUrl,
 		urlParamsToPreferences
 	} from '$lib';
+	import { formatISOWithoutTimezone } from '$lib/time-format';
 
 	import '../styles.css';
 
@@ -85,28 +81,19 @@
 			}
 			resolutionSet.set(true);
 		}
+	});
 
+	onMount(async () => {
 		// resets all the states when a new version is set in 'package.json' and version already set before
 		if (version !== $localStorageVersion) {
 			if ($localStorageVersion) {
-				resetStates();
+				await resetStates();
 			}
 			$localStorageVersion = version;
 		}
 	});
 
 	onMount(async () => {
-		const protocol = new Protocol({ metadata: true });
-		maplibregl.addProtocol(
-			'mapterhorn',
-			async (params: RequestParameters, abortController: AbortController) => {
-				const [z, x, y] = params.url.replace('mapterhorn://', '').split('/').map(Number);
-				const name = z <= 12 ? 'planet' : `6-${x >> (z - 6)}-${y >> (z - 6)}`;
-				const url = `pmtiles://https://mapterhorn.servert.ch/${name}.pmtiles/${z}/${x}/${y}.webp`;
-				return await protocol.tile({ ...params, url }, abortController);
-			}
-		);
-
 		maplibregl.addProtocol('om', (params: RequestParameters) =>
 			omProtocol(params, get(abortController), omProtocolSettings)
 		);
@@ -140,61 +127,66 @@
 
 		setMapControlSettings();
 
-		$map.on('load', async () => {
-			mapBounds.set($map.getBounds());
-			paddedBounds.set($map.getBounds());
-			getPaddedBounds();
+		$map.on('dataloading', () => {
+			updateCurrentBounds($map.getBounds());
+		});
 
+		$map.on('load', async () => {
 			$map.addControl(new DarkModeButton());
 			$map.addControl(new SettingsButton());
 			$map.addControl(new TimeButton());
 			$map.addControl(new HelpButton());
-			$metaJson = await getMetaData();
+
+			if (getInitialMetaDataPromise) await getInitialMetaDataPromise;
 
 			addOmFileLayers();
 			addHillshadeSources();
 			$map.addControl(new HillshadeButton());
 
 			addPopup();
-		});
-
-		$map.on('zoomend', () => {
-			checkBounds();
-		});
-
-		$map.on('dragend', () => {
-			checkBounds();
+			changeOMfileURL();
 		});
 	});
 
+	let getInitialMetaDataPromise: Promise<void> | undefined;
 	const domainSubscription = domain.subscribe(async (newDomain) => {
-		await tick(); // await the selectedDomain to be set
-		updateUrl('domain', newDomain);
+		if ($domain !== newDomain) {
+			await tick(); // await the selectedDomain to be set
+			updateUrl('domain', newDomain);
+			$modelRun = undefined;
+			toast('Domain set to: ' + $selectedDomain.label);
+		}
 
+		getInitialMetaDataPromise = getInitialMetaData();
+		await getInitialMetaDataPromise;
 		$metaJson = await getMetaData();
 
-		checkClosestDomainInterval();
-		// align model run with new model_interval on domain change
-		$modelRun = closestModelRun($modelRun, $selectedDomain.model_interval);
-		checkClosestModelRun(); // checks and updates time and model run to fit the current domain selection
-
-		if ($modelRun.getTime() - $time.getTime() > 0) {
-			$time = domainStep($modelRun, $selectedDomain.time_interval, 'forward');
+		const timeSteps = $metaJson?.valid_times.map((validTime: string) => new Date(validTime));
+		const timeStep = findTimeStep($time, timeSteps);
+		// clamp time to valid times in meta data
+		if (timeStep) {
+			$time = timeStep;
+			updateUrl('time', formatISOWithoutTimezone($time));
+		} else {
+			// otherwise use first valid time
+			$time = timeSteps[0];
+			updateUrl('time', formatISOWithoutTimezone($time));
 		}
 
 		matchVariableOrFirst();
-
 		changeOMfileURL();
-		toast('Domain set to: ' + $selectedDomain.label);
 	});
 
 	const variableSubscription = variable.subscribe(async (newVar) => {
-		await tick(); // await the selectedVariable to be set
-		updateUrl('variable', newVar);
+		if ($variable !== newVar) {
+			await tick(); // await the selectedVariable to be set
+			updateUrl('variable', newVar);
+			toast('Variable set to: ' + $selectedVariable.label);
+		}
+
 		if (!$loading) {
 			changeOMfileURL();
 		}
-		toast('Variable set to: ' + $selectedVariable.label);
 	});
 
 	onDestroy(() => {
@@ -214,7 +206,11 @@
 	<Spinner />
 {/if}
 
-<div class="map" id="#map_container" bind:this={mapContainer}></div>
+<div
+	class="map maplibregl-map {$preferences.timeSelector ? 'time-selector-open' : ''}"
+	id="#map_container"
+	bind:this={mapContainer}
+></div>
 
 <Scale
 	afterColorScaleChange={async (variable: string, colorScale: RenderableColorScale) => {

@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
-	import { MediaQuery } from 'svelte/reactivity';
 	import { get } from 'svelte/store';
 
 	import CheckIcon from '@lucide/svelte/icons/check';
@@ -14,10 +13,12 @@
 		levelGroupVariables,
 		variableOptions
 	} from '@openmeteo/mapbox-layer';
+	import { toast } from 'svelte-sonner';
 
 	import { browser } from '$app/environment';
 
-	import { loading, metaJson } from '$lib/stores/preferences';
+	import { desktop, loading } from '$lib/stores/preferences';
+	import { metaJson } from '$lib/stores/time';
 	import {
 		domainSelectionOpen as dSO,
 		domain,
@@ -105,7 +106,9 @@
 		variableSelectionExtended = vE;
 	});
 
-	const keydownEvent = (event: KeyboardEvent) => {
+	let ctrl = $state(false);
+	const keyDownEvent = (event: KeyboardEvent) => {
+		if (event.keyCode == 17 || event.keyCode == 91) ctrl = true;
 		if (
 			variableSelectionExtended &&
 			!variableSelectionOpen &&
@@ -114,32 +117,39 @@
 		) {
 			switch (event.key) {
 				case 'v':
-					vSO.set(true);
+					if (!ctrl) vSO.set(true);
 					break;
 				case 'd':
-					dSO.set(true);
+					if (!ctrl) dSO.set(true);
 					break;
 				case 'l':
-					pLSO.set(true);
+					if (!ctrl) pLSO.set(true);
+					break;
+				case 'Escape':
+					toast.dismiss();
 					break;
 			}
 		}
 	};
+	const keyUpEvent = (event: KeyboardEvent) => {
+		if (event.keyCode == 17 || event.keyCode == 91) ctrl = false;
+	};
 
-	const desktop = new MediaQuery('min-width: 768px');
 	onMount(() => {
 		if (desktop.current && typeof get(vSE) === 'undefined') {
 			vSE.set(true);
 		}
 
 		if (browser) {
-			window.addEventListener('keydown', keydownEvent);
+			window.addEventListener('keydown', keyDownEvent);
+			window.addEventListener('keyup', keyUpEvent);
 		}
 	});
 
 	onDestroy(() => {
 		if (browser) {
-			window.removeEventListener('keydown', keydownEvent);
+			window.removeEventListener('keydown', keyDownEvent);
+			window.removeEventListener('keyup', keyUpEvent);
 		}
 	});
 
@@ -165,9 +175,9 @@
 </script>
 
 <div
-	class="absolute top-[10px] flex max-h-[300px] gap-2.5 duration-300 {variableSelectionExtended
+	class="absolute top-2.5 flex max-h-75 gap-2.5 z-30 duration-300 {variableSelectionExtended
 		? 'left-2.5'
-		: '-left-[182px]'} "
+		: '-left-45.5'} "
 >
 	{#if $loading || !$metaJson}
 		<VariableSelectionEmpty />
@@ -182,8 +192,9 @@
 				<Popover.Trigger>
 					<Button
 						variant="outline"
-						style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
-						class="bg-background/90 dark:bg-background/70 hover:!bg-background h-7.25 w-[180px] cursor-pointer justify-between rounded-[4px] border-none !p-1.5"
+						class="bg-glass/75 dark:bg-glass/75 backdrop-blur-sm shadow-md {domainSelectionOpen
+							? 'bg-glass/95!'
+							: ''} hover:bg-glass/95! border-none h-7.25 w-45 cursor-pointer justify-between rounded p-1.5!"
 						role="combobox"
 						aria-expanded={domainSelectionOpen}
 					>
@@ -210,7 +221,7 @@
 							}, 10);
 						}
 					}}
-					class="ml-2.5 w-[250px] rounded-[4px] border-none bg-transparent p-0"
+					class="bg-transparent! ml-2.5 w-62.5 rounded border-none! p-0"
 				>
 					<Popover.Close
 						class="absolute right-0.5 top-0.5 flex h-5 w-5 cursor-pointer items-center justify-center"
@@ -231,11 +242,8 @@
 							></button
 						></Popover.Close
 					>
-					<Command.Root
-						style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
-						class="rounded-[3px]"
-					>
-						<Command.Input placeholder="Search domains..." />
+					<Command.Root class="bg-glass/85! backdrop-blur-sm rounded">
+						<Command.Input class="border-none ring-0" placeholder="Search domains..." />
 						<Command.List>
 							<Command.Empty>No domains found.</Command.Empty>
 							{#each domainGroups as { value: group, label: groupLabel } (group)}
@@ -244,8 +252,8 @@
 										{#if value.startsWith(group)}
 											<Command.Item
 												{value}
-												class="hover:!bg-primary/25 cursor-pointer {$selectedDomain.value === value
-													? '!bg-primary/15'
+												class="hover:bg-primary/25! cursor-pointer {$selectedDomain.value === value
+													? 'bg-primary/10!'
 													: ''}"
 												onSelect={() => {
 													$loading = true;
@@ -280,8 +288,9 @@
 				<Popover.Trigger class={domainSelectionOpen ? 'hidden' : ''}>
 					<Button
 						variant="outline"
-						style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
-						class="bg-background/90 dark:bg-background/70 hover:!bg-background h-7.25 w-[180px] cursor-pointer justify-between rounded-[4px] border-none !p-1.5"
+						class="bg-glass/75 dark:bg-glass/75 backdrop-blur-sm shadow-md  {variableSelectionOpen
+							? 'bg-glass/95!'
+							: ''} hover:bg-glass/95! h-7.25 w-45 cursor-pointer justify-between rounded border-none p-1.5!"
 						role="combobox"
 						aria-expanded={variableSelectionOpen}
 					>
@@ -310,7 +319,7 @@
 							firstChild.focus();
 						}
 					}}
-					class="ml-2.5 w-[250px] rounded-[4px] border-none bg-transparent p-0"
+					class="ml-2.5 w-62.5 rounded border-none bg-transparent! p-0"
 				>
 					<Popover.Close
 						class="absolute right-0.5 top-0.5 flex h-5 w-5 cursor-pointer items-center justify-center"
@@ -331,11 +340,8 @@
 							></button
 						></Popover.Close
 					>
-					<Command.Root
-						style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
-						class="rounded-[3px]"
-					>
-						<Command.Input placeholder="Search variables..." />
+					<Command.Root class="bg-glass/85! backdrop-blur-sm rounded">
+						<Command.Input class="border-none ring-0" placeholder="Search variables..." />
 						<Command.List>
 							<Command.Empty>No variables found.</Command.Empty>
 							<Command.Group>
@@ -346,9 +352,9 @@
 									{#if levelGroupVariables.includes(vr)}
 										<Command.Item
 											value={v?.value}
-											class="hover:!bg-primary/25 cursor-pointer {$levelGroupSelected &&
+											class="hover:bg-primary/15 cursor-pointer {$levelGroupSelected &&
 											$levelGroupSelected.value === v?.value
-												? '!bg-primary/15'
+												? 'bg-primary/10'
 												: ''}"
 											onSelect={() => {
 												$levelGroupSelected = v;
@@ -373,9 +379,9 @@
 
 										<Command.Item
 											value={v?.value}
-											class="hover:!bg-primary/25 cursor-pointer {$selectedVariable.value ===
+											class="hover:bg-primary/20! cursor-pointer {$selectedVariable.value ===
 											v?.value
-												? '!bg-primary/15'
+												? 'bg-primary/10!'
 												: ''}"
 											onSelect={() => {
 												$levelGroupSelected = undefined;
@@ -409,8 +415,9 @@
 					<Popover.Trigger class={domainSelectionOpen || variableSelectionOpen ? 'hidden' : ''}>
 						<Button
 							variant="outline"
-							style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
-							class="bg-background/90 dark:bg-background/70 hover:!bg-background h-7.25 w-[180px] cursor-pointer justify-between rounded-[4px] border-none !p-1.5"
+							class="bg-glass/75 dark:bg-glass/75 backdrop-blur-sm shadow-md {pressureLevelSelectionOpen
+								? 'bg-glass/95!'
+								: ''} hover:bg-glass/95! h-7.25 w-45 cursor-pointer justify-between rounded border-none p-1.5!"
 							role="combobox"
 							aria-expanded={pressureLevelSelectionOpen}
 						>
@@ -422,7 +429,7 @@
 					</Popover.Trigger>
 					<Popover.Content
 						tabindex={0}
-						class="ml-2.5 w-[250px] rounded-[4px] border-none bg-transparent p-0"
+						class="ml-2.5 w-62.5 rounded border-none bg-transparent! p-0"
 					>
 						<Popover.Close
 							class="absolute right-0.5 top-0.5 flex h-5 w-5 cursor-pointer items-center justify-center"
@@ -443,11 +450,8 @@
 								></button
 							></Popover.Close
 						>
-						<Command.Root
-							style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
-							class="rounded-[3px]"
-						>
-							<Command.Input placeholder="Search levels..." />
+						<Command.Root class="bg-glass/85! backdrop-blur-sm rounded">
+							<Command.Input class="border-none ring-0" placeholder="Search levels..." />
 							<Command.List>
 								<Command.Empty>No levels found.</Command.Empty>
 								<Command.Group>
@@ -458,8 +462,8 @@
 										{#if !value.includes('v_component') && !value.includes('_direction')}
 											<Command.Item
 												{value}
-												class="hover:!bg-primary/25 cursor-pointer {lvl === $level && u === $unit
-													? '!bg-primary/15'
+												class="hover:bg-primary/20! cursor-pointer {lvl === $level && u === $unit
+													? 'bg-primary/10!'
 													: ''}"
 												onSelect={() => {
 													$variable = value;
@@ -485,8 +489,7 @@
 	{/if}
 
 	<button
-		style="box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 2px;"
-		class="bg-background/90 dark:bg-background/70 hover:!bg-background h-7.25 w-7.25 flex cursor-pointer items-center rounded-[4px] p-0 z-20"
+		class="bg-glass/75 backdrop-blur-sm shadow-md hover:bg-glass/95 duration-200 h-7.25 w-7.25 flex cursor-pointer items-center rounded p-0 z-20"
 		onclick={() => {
 			vSE.set(!get(vSE));
 		}}
