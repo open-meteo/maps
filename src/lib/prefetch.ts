@@ -2,7 +2,7 @@ import { get } from 'svelte/store';
 
 import { currentBounds, getProtocolInstance, getRanges } from '@openmeteo/mapbox-layer';
 
-import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
+import { abortController, omProtocolSettings } from '$lib/stores/om-protocol-settings';
 
 import { fmtModelRun, fmtSelectedTime } from '$lib';
 
@@ -119,7 +119,7 @@ export const prefetchData = async (
 	}
 
 	try {
-		const instance = getProtocolInstance(omProtocolSettings);
+		const instance = getProtocolInstance(get(abortController), omProtocolSettings);
 		const ranges = getRanges(get(selectedDomain).grid, currentBounds);
 		const omFileReader = instance.omFileReader;
 
