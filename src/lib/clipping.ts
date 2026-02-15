@@ -1,6 +1,6 @@
 import { flatten, simplify } from '@turf/turf';
 
-import type { Country } from '$lib/components/selection/country-selector.svelte';
+import type { Country } from '$lib/components/clipping/country-selector.svelte';
 import type {
 	ClippingOptions,
 	GeoJson,
@@ -8,6 +8,27 @@ import type {
 	GeoJsonPosition
 } from '@openmeteo/mapbox-layer';
 import type { FeatureCollection, Geometry } from 'geojson';
+
+/** Ensure every polygon ring is properly closed (first coord === last coord). */
+const closeRings = (features: FeatureCollection<Geometry>): void => {
+	for (const feature of features.features) {
+		const geom = feature.geometry;
+		const rings =
+			geom.type === 'Polygon'
+				? (geom.coordinates as number[][][])
+				: geom.type === 'MultiPolygon'
+					? (geom.coordinates as number[][][][]).flat()
+					: [];
+		for (const ring of rings) {
+			if (ring.length < 2) continue;
+			const first = ring[0];
+			const last = ring[ring.length - 1];
+			if (first[0] !== last[0] || first[1] !== last[1]) {
+				ring.push([...first]);
+			}
+		}
+	}
+};
 
 export const buildCountryClippingOptions = (countries: Country[]): ClippingOptions | undefined => {
 	if (countries.length === 0) return undefined;
@@ -23,10 +44,16 @@ export const buildCountryClippingOptions = (countries: Country[]): ClippingOptio
 		features: allFeatures
 	};
 
+	// Some country GeoJSON files have unclosed rings — fix before simplify
+	closeRings(mergedGeojson);
+
 	const simplifiedGeoJSON = simplify(mergedGeojson, {
 		tolerance: 0.00025,
 		highQuality: true
 	});
+
+	// simplify can also produce unclosed rings — fix again after
+	closeRings(simplifiedGeoJSON);
 
 	return { geojson: simplifiedGeoJSON };
 };

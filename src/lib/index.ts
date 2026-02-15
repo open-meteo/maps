@@ -17,7 +17,7 @@ import { toast } from 'svelte-sonner';
 import { browser } from '$app/environment';
 import { pushState } from '$app/navigation';
 
-import { clippingCountryCodes } from '$lib/stores/clipping';
+import { clippingCountryCodes, clippingPanelOpen, terraDrawActive } from '$lib/stores/clipping';
 import { map as m } from '$lib/stores/map';
 import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 import {
@@ -741,7 +741,7 @@ export const addPopup = () => {
 	if (!map) return;
 
 	const updatePopup = (e: MapMouseEvent) => {
-		if (!showPopup || !map) return;
+		if (!showPopup || !map || get(terraDrawActive) || get(clippingPanelOpen)) return;
 
 		const coordinates = e.lngLat;
 		if (!popup) {
@@ -791,7 +791,7 @@ export const addPopup = () => {
 
 	map.on('mousemove', updatePopup);
 	map.on('click', (e: MapMouseEvent) => {
-		if (!map) return;
+		if (!map || get(terraDrawActive) || get(clippingPanelOpen)) return;
 		showPopup = !showPopup;
 		if (!showPopup && popup) {
 			popup.remove();
@@ -851,9 +851,6 @@ export const getOMUrl = () => {
 	const omProtocolSettingsState = get(omProtocolSettings);
 	hashValue(JSON.stringify(omProtocolSettingsState.clippingOptions)).then((hash) => {
 		url += `&clipping_options_hash=${hash}`;
-	});
-	hashValue(JSON.stringify(omProtocolSettingsState.clippingOptions)).then((hash) => {
-		console.log(hash);
 	});
 
 	return url;

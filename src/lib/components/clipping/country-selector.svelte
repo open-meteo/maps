@@ -590,82 +590,77 @@
 	}
 </script>
 
-<div class="w-48 absolute left-2.5 top-32 z-50">
-	<Popover.Root bind:open>
-		<Popover.Trigger>
-			<Button
-				variant="outline"
-				class="bg-glass/75 dark:bg-glass/75 backdrop-blur-sm shadow-md {open
-					? 'bg-glass/95!'
-					: ''} hover:bg-glass/95! border-none h-7.25 w-45 cursor-pointer justify-between rounded p-1.5!"
-				role="combobox"
-				aria-expanded={open}
-			>
-				<div class="truncate">
-					{#if selectedCountries.length === 0}
-						Clip: Select countries...
-					{:else if totalCountriesCount === 1}
-						Clip: {selectedCountryObjs[0]?.name}
-					{:else}
-						Clip: {totalCountriesCount} countries
-					{/if}
-				</div>
-				<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
-			</Button>
-		</Popover.Trigger>
-		<Popover.Content class="bg-transparent! ml-2.5 w-62.5 rounded border-none! p-0">
-			<Command.Root class="bg-glass/85! backdrop-blur-sm rounded" shouldFilter={false}>
-				<div class="flex flex-col gap-1 bg-transparent">
-					<div class="flex items-center gap-2">
-						<Command.Input
-							class="flex-1 border-none ring-0"
-							placeholder="Search countries..."
-							bind:value={searchValue}
-						/>
-						{#if searchValue.length > 0}
-							<button
-								transition:fade
-								onclick={() => (searchValue = '')}
-								class="px-2 py-1 bg-none absolute right-2 top-1 cursor-pointer text-sm rounded text-muted-foreground hover:text-foreground transition-colors"
-							>
-								Clear
-							</button>
-						{/if}
-					</div>
-					{#if selectedCountries.length > 0}
-						<div
-							class="flex items-center justify-between px-3 py-1 text-xs border-t border-muted/50"
+<Popover.Root bind:open>
+	<Popover.Trigger>
+		<Button
+			variant="outline"
+			class="bg-glass/75 dark:bg-glass/75 backdrop-blur-sm shadow-md {open
+				? 'bg-glass/95!'
+				: ''} hover:bg-glass/95! border-none h-7.25 w-48 cursor-pointer justify-between rounded p-1.5!"
+			role="combobox"
+			aria-expanded={open}
+		>
+			<div class="truncate">
+				{#if selectedCountries.length === 0}
+					Clip: Select countries...
+				{:else if totalCountriesCount === 1}
+					Clip: {selectedCountryObjs[0]?.name}
+				{:else}
+					Clip: {totalCountriesCount} countries
+				{/if}
+			</div>
+			<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
+		</Button>
+	</Popover.Trigger>
+	<Popover.Content class="bg-transparent! ml-2.5 w-62.5 rounded border-none! p-0">
+		<Command.Root class="bg-glass/85! backdrop-blur-sm rounded" shouldFilter={false}>
+			<div class="flex flex-col gap-1 bg-transparent">
+				<div class="flex items-center gap-2">
+					<Command.Input
+						class="flex-1 border-none ring-0"
+						placeholder="Search countries..."
+						bind:value={searchValue}
+					/>
+					{#if searchValue.length > 0}
+						<button
+							transition:fade
+							onclick={() => (searchValue = '')}
+							class="px-2 py-1 bg-none absolute right-2 top-1 cursor-pointer text-sm rounded text-muted-foreground hover:text-foreground transition-colors"
 						>
-							<span class="text-muted-foreground">{totalCountriesCount} selected</span>
-							<button
-								onclick={clearAll}
-								class="px-2 py-0.5 cursor-pointer hover:bg-muted/80 rounded text-muted-foreground hover:text-foreground transition-colors"
-							>
-								Clear All
-							</button>
-						</div>
+							Clear
+						</button>
 					{/if}
 				</div>
-				<Command.List>
-					<Command.Empty>No country found.</Command.Empty>
-					<Command.Group>
-						{#each filteredCountries as country (country.code)}
-							<Command.Item
-								value={`${country.name} ${country.code}`}
-								onSelect={() => handleSelect(country)}
-								class="cursor-pointer"
-							>
-								<span class="truncate">{country.name}</span>
-								<span class="ml-auto text-xs text-muted-foreground text-nowrap">{country.code}</span
-								>
-								<CheckIcon
-									class={`mr-2 h-4 w-4 ${isSelected(country.code) ? 'opacity-100' : 'opacity-0'}`}
-								/>
-							</Command.Item>
-						{/each}
-					</Command.Group>
-				</Command.List>
-			</Command.Root>
-		</Popover.Content>
-	</Popover.Root>
-</div>
+				{#if selectedCountries.length > 0}
+					<div class="flex items-center justify-between px-3 py-1 text-xs border-t border-muted/50">
+						<span class="text-muted-foreground">{totalCountriesCount} selected</span>
+						<button
+							onclick={clearAll}
+							class="px-2 py-0.5 cursor-pointer hover:bg-muted/80 rounded text-muted-foreground hover:text-foreground transition-colors"
+						>
+							Clear All
+						</button>
+					</div>
+				{/if}
+			</div>
+			<Command.List>
+				<Command.Empty>No country found.</Command.Empty>
+				<Command.Group>
+					{#each filteredCountries as country (country.code)}
+						<Command.Item
+							value={`${country.name} ${country.code}`}
+							onSelect={() => handleSelect(country)}
+							class="cursor-pointer"
+						>
+							<span class="truncate">{country.name}</span>
+							<span class="ml-auto text-xs text-muted-foreground text-nowrap">{country.code}</span>
+							<CheckIcon
+								class={`mr-2 h-4 w-4 ${isSelected(country.code) ? 'opacity-100' : 'opacity-0'}`}
+							/>
+						</Command.Item>
+					{/each}
+				</Command.Group>
+			</Command.List>
+		</Command.Root>
+	</Popover.Content>
+</Popover.Root>

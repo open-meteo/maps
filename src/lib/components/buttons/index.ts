@@ -3,7 +3,9 @@ import { get } from 'svelte/store';
 import maplibregl from 'maplibre-gl';
 import { mode, setMode } from 'mode-watcher';
 
+import { clippingPanelOpen } from '$lib/stores/clipping';
 import { map as m } from '$lib/stores/map';
+import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 import {
 	defaultPreferences,
 	helpOpen as hO,
@@ -225,6 +227,49 @@ export class HelpButton {
 		div.addEventListener('click', () => {
 			const helpOpen = get(hO);
 			hO.set(!helpOpen);
+		});
+		return div;
+	}
+	onRemove() {}
+}
+
+export class ClippingButton {
+	onAdd() {
+		const div = document.createElement('div');
+		div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+		div.title = 'Clipping';
+
+		const clippingSVG = `<button style="display:flex;justify-content:center;align-items:center;">
+			<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" stroke-width="1.2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-scissors-icon lucide-scissors"><circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/></svg>
+			</button>`;
+		const clippingActiveSVG = `<button style="display:flex;justify-content:center;align-items:center;color:rgb(51,181,229);">
+			<svg xmlns="http://www.w3.org/2000/svg" opacity="1" stroke-width="1.2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-scissors-icon lucide-scissors"><circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/></svg>
+			</button>`;
+		const clippingWarningClosedSVG = `<button style="display:flex;justify-content:center;align-items:center;color:rgb(239,68,68);">
+			<svg xmlns="http://www.w3.org/2000/svg" opacity="1" stroke-width="1.2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-scissors-icon lucide-scissors"><circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/></svg>
+			</button>`;
+
+		div.innerHTML = clippingSVG;
+
+		const updateIcon = () => {
+			const open = get(clippingPanelOpen);
+			const hasClipping = get(omProtocolSettings).clippingOptions !== undefined;
+			if (open) {
+				div.innerHTML = clippingActiveSVG;
+			} else if (hasClipping) {
+				div.innerHTML = clippingWarningClosedSVG;
+			} else {
+				div.innerHTML = clippingSVG;
+			}
+		};
+
+		clippingPanelOpen.subscribe(updateIcon);
+		omProtocolSettings.subscribe(updateIcon);
+
+		div.addEventListener('contextmenu', (e) => e.preventDefault());
+		div.addEventListener('click', () => {
+			const open = get(clippingPanelOpen);
+			clippingPanelOpen.set(!open);
 		});
 		return div;
 	}

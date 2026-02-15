@@ -33,16 +33,17 @@
 	import { vectorOptions } from '$lib/stores/vector';
 
 	import {
+		ClippingButton,
 		DarkModeButton,
 		HelpButton,
 		HillshadeButton,
 		SettingsButton,
 		TimeButton
 	} from '$lib/components/buttons';
+	import ClippingPanel from '$lib/components/clipping/clipping-panel.svelte';
 	import HelpDialog from '$lib/components/help/help-dialog.svelte';
 	import Spinner from '$lib/components/loading/spinner.svelte';
 	import Scale from '$lib/components/scale/scale.svelte';
-	import CountrySelector, { type Country } from '$lib/components/selection/country-selector.svelte';
 	import VariableSelection from '$lib/components/selection/variable-selection.svelte';
 	import Settings from '$lib/components/settings/settings.svelte';
 	import TimeSelector from '$lib/components/time/time-selector.svelte';
@@ -77,7 +78,10 @@
 
 	import '../styles.css';
 
+	import type { Country } from '$lib/components/clipping/country-selector.svelte';
 	import type { RequestParameters } from 'maplibre-gl';
+
+	let clippingPanel: ReturnType<typeof ClippingPanel>;
 
 	let mapContainer: HTMLElement | null;
 
@@ -148,6 +152,7 @@
 			$map.addControl(new SettingsButton());
 			$map.addControl(new TimeButton());
 			$map.addControl(new HelpButton());
+			$map.addControl(new ClippingButton());
 
 			if (getInitialMetaDataPromise) await getInitialMetaDataPromise;
 
@@ -157,6 +162,7 @@
 			}
 			addHillshadeSources();
 			$map.addControl(new HillshadeButton());
+			clippingPanel?.initTerraDraw();
 
 			addPopup();
 			changeOMfileURL();
@@ -213,23 +219,15 @@
 	});
 
 	let selectedCountries = $state<string[]>([]);
-	const handleCountrySelect = async (countries: Country[]) => {
+	const handleCountrySelect = (countries: Country[]) => {
 		if (!isSameCountrySelection(selectedCountries, $clippingCountryCodes)) {
 			clippingCountryCodes.set(selectedCountries);
 			updateUrl(CLIP_COUNTRIES_PARAM, serializeClipCountriesParam(selectedCountries));
 		}
 
 		const nextClipping = buildCountryClippingOptions(countries);
-		if ($omProtocolSettings.clippingOptions !== nextClipping) {
-			$omProtocolSettings.clippingOptions = nextClipping;
-			removeOmRasterLayers();
-			removeOldVectorLayers();
-			await tick();
-			addOmRasterLayers();
-			addVectorLayers();
-			changeOMfileURL();
-			$map.fire('dataloading');
-		}
+		// Let the clipping panel merge country + drawn features
+		clippingPanel?.setCountryClipping(nextClipping);
 	};
 
 	onMount(() => {
@@ -263,7 +261,18 @@
 	}}
 />
 <VariableSelection />
-<CountrySelector bind:selectedCountries onselect={handleCountrySelect} />
+<ClippingPanel
+	bind:this={clippingPanel}
+	bind:selectedCountries
+	onselect={handleCountrySelect}
+	onclippingchange={async () => {
+		removeOmRasterLayers();
+		await tick();
+		addOmRasterLayers();
+		changeOMfileURL();
+		if ($map) $map.fire('dataloading');
+	}}
+/>
 <TimeSelector />
 <Settings />
 <HelpDialog />

@@ -1,0 +1,325 @@
+<script lang="ts">
+	import { onDestroy, onMount } from 'svelte';
+
+	import MousePointerIcon from '@lucide/svelte/icons/mouse-pointer';
+	import PentagonIcon from '@lucide/svelte/icons/pentagon';
+	import SplineIcon from '@lucide/svelte/icons/spline';
+	import SquareIcon from '@lucide/svelte/icons/square';
+	import Trash2Icon from '@lucide/svelte/icons/trash-2';
+	import {
+		TerraDraw,
+		TerraDrawFreehandMode,
+		TerraDrawPolygonMode,
+		TerraDrawRectangleMode,
+		TerraDrawRenderMode,
+		TerraDrawSelectMode
+	} from 'terra-draw';
+	import { TerraDrawMapLibreGLAdapter } from 'terra-draw-maplibre-gl-adapter';
+
+	import { browser } from '$app/environment';
+
+	import { clippingPanelOpen, terraDrawActive } from '$lib/stores/clipping';
+	import { map } from '$lib/stores/map';
+	import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
+
+	import CountrySelector, { type Country } from './country-selector.svelte';
+
+	interface Props {
+		selectedCountries?: string[];
+		onselect?: (countries: Country[]) => void;
+		onclippingchange?: () => void;
+	}
+
+	let { selectedCountries = $bindable([]), onselect, onclippingchange }: Props = $props();
+
+	const DRAWN_FEATURES_KEY = 'om-clipping-drawn-features';
+
+	let draw: TerraDraw | undefined = $state(undefined);
+	let activeMode = $state<string>('');
+	/** Accumulated drawn features that have been finalized. */
+	let drawnFeatures: any[] = $state(loadDrawnFeatures());
+	/** Country clipping set by the country selector (kept separately so draws don't erase it). */
+	let countryClipping: any = $state(undefined);
+
+	function loadDrawnFeatures(): any[] {
+		if (!browser) return [];
+		try {
+			const raw = localStorage.getItem(DRAWN_FEATURES_KEY);
+			return raw ? JSON.parse(raw) : [];
+		} catch {
+			return [];
+		}
+	}
+
+	function saveDrawnFeatures() {
+		if (!browser) return;
+		if (drawnFeatures.length === 0) {
+			localStorage.removeItem(DRAWN_FEATURES_KEY);
+		} else {
+			localStorage.setItem(DRAWN_FEATURES_KEY, JSON.stringify(drawnFeatures));
+		}
+	}
+
+	export const initTerraDraw = () => {
+		if (!$map || draw) return;
+
+		draw = new TerraDraw({
+			adapter: new TerraDrawMapLibreGLAdapter({ map: $map }),
+			modes: [
+				new TerraDrawPolygonMode({
+					styles: {
+						fillColor: '#3b82f6',
+						fillOpacity: 0.15,
+						outlineColor: '#3b82f6',
+						outlineWidth: 2
+					}
+				}),
+				new TerraDrawFreehandMode({
+					styles: {
+						fillColor: '#8b5cf6',
+						fillOpacity: 0.15,
+						outlineColor: '#8b5cf6',
+						outlineWidth: 2
+					}
+				}),
+				new TerraDrawRectangleMode({
+					styles: {
+						fillColor: '#06b6d4',
+						fillOpacity: 0.15,
+						outlineColor: '#06b6d4',
+						outlineWidth: 2
+					}
+				}),
+				new TerraDrawSelectMode({
+					flags: {
+						polygon: {
+							feature: {
+								draggable: true,
+								coordinates: {
+									midpoints: true,
+									draggable: true,
+									deletable: true
+								}
+							}
+						},
+						freehand: {
+							feature: {
+								draggable: true,
+								coordinates: {
+									midpoints: true,
+									draggable: true,
+									deletable: true
+								}
+							}
+						},
+						rectangle: {
+							feature: {
+								draggable: true,
+								coordinates: {
+									midpoints: true,
+									draggable: true,
+									deletable: true
+								}
+							}
+						}
+					}
+				}),
+				new TerraDrawRenderMode({
+					modeName: 'static',
+					styles: {
+						polygonFillColor: '#9ca3af',
+						polygonFillOpacity: 0.1,
+						polygonOutlineColor: '#9ca3af',
+						polygonOutlineWidth: 1
+					}
+				})
+			]
+		});
+
+		draw.start();
+
+		draw.on('finish', () => {
+			mergeDrawnGeometry();
+		});
+	};
+
+	/** Merge drawn polygons into the current clippingOptions and notify the parent. */
+	const mergeDrawnGeometry = () => {
+		if (!draw) return;
+		const snapshot = draw.getSnapshot();
+		const newPolygons = snapshot
+			.filter((f) => f.geometry.type === 'Polygon')
+			.map((f) => ({
+				type: 'Feature' as const,
+				properties: {} as Record<string, unknown>,
+				geometry: f.geometry
+			}));
+		if (newPolygons.length === 0) return;
+
+		drawnFeatures = [...drawnFeatures, ...newPolygons];
+		saveDrawnFeatures();
+
+		draw.clear();
+		activeMode = '';
+		terraDrawActive.set(false);
+		rebuildClippingOptions();
+	};
+
+	/**
+	 * Rebuild clippingOptions from both country geojson and drawn features.
+	 * Called when either source changes.
+	 */
+	export const rebuildClippingOptions = () => {
+		// Collect country features from the stored country clipping
+		let countryFeatures: any[] = [];
+		const cg = (countryClipping as any)?.geojson;
+		if (cg) {
+			if ('features' in cg) {
+				countryFeatures = cg.features;
+			} else if (cg.type === 'Feature') {
+				countryFeatures = [cg];
+			} else {
+				countryFeatures = [{ type: 'Feature', properties: null, geometry: cg }];
+			}
+		}
+
+		const allFeatures = [...countryFeatures, ...drawnFeatures];
+		if (allFeatures.length === 0) {
+			($omProtocolSettings as any).clippingOptions = undefined;
+		} else {
+			($omProtocolSettings as any).clippingOptions = {
+				geojson: {
+					type: 'FeatureCollection',
+					features: allFeatures
+				}
+			};
+		}
+
+		onclippingchange?.();
+	};
+
+	/** Called by the parent when country selection produces new clipping. */
+	export const setCountryClipping = (clipping: any) => {
+		countryClipping = clipping;
+		rebuildClippingOptions();
+	};
+
+	const setMode = (mode: string) => {
+		if (!draw) return;
+		if (activeMode === mode) {
+			draw.setMode('static');
+			activeMode = '';
+			terraDrawActive.set(false);
+		} else {
+			draw.setMode(mode);
+			activeMode = mode;
+			terraDrawActive.set(true);
+		}
+	};
+
+	const clearDrawings = () => {
+		if (!draw) return;
+		draw.clear();
+		drawnFeatures = [];
+		saveDrawnFeatures();
+		activeMode = '';
+		terraDrawActive.set(false);
+		rebuildClippingOptions();
+	};
+
+	const handleKeyup = (e: KeyboardEvent) => {
+		if (e.key === 'Escape' && activeMode && draw) {
+			// Terra-draw already handled Escape (cleanUp removes the in-progress
+			// feature), but the mode is still active with its crosshair cursor.
+			// Switch to static to reset the cursor.
+			draw.setMode('static');
+			activeMode = '';
+			terraDrawActive.set(false);
+		}
+	};
+
+	onMount(() => {
+		if (browser) {
+			window.addEventListener('keyup', handleKeyup);
+			// Restore persisted drawn features into clipping on load
+			if (drawnFeatures.length > 0) {
+				rebuildClippingOptions();
+			}
+		}
+	});
+
+	onDestroy(() => {
+		if (browser) {
+			window.removeEventListener('keyup', handleKeyup);
+		}
+		if (draw) {
+			draw.stop();
+			draw = undefined;
+		}
+		terraDrawActive.set(false);
+	});
+</script>
+
+{#if $clippingPanelOpen}
+	<div
+		class="fixed top-2.5 right-12.5 z-10 flex flex-col gap-2 rounded-sm bg-glass/80 p-3 shadow-lg backdrop-blur-sm"
+	>
+		<p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Clipping</p>
+
+		<div class="mt-1 flex flex-col gap-1.5">
+			<p class="text-xs text-muted-foreground">Draw region</p>
+			<div class="flex gap-1">
+				<button
+					class="inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors
+						{activeMode === 'polygon'
+						? 'bg-primary text-primary-foreground'
+						: 'bg-secondary text-secondary-foreground hover:bg-accent'}"
+					title="Draw polygon"
+					onclick={() => setMode('polygon')}
+				>
+					<PentagonIcon class="h-4 w-4" />
+				</button>
+				<button
+					class="inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors
+						{activeMode === 'rectangle'
+						? 'bg-primary text-primary-foreground'
+						: 'bg-secondary text-secondary-foreground hover:bg-accent'}"
+					title="Draw rectangle"
+					onclick={() => setMode('rectangle')}
+				>
+					<SquareIcon class="h-4 w-4" />
+				</button>
+				<button
+					class="inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors
+						{activeMode === 'freehand'
+						? 'bg-primary text-primary-foreground'
+						: 'bg-secondary text-secondary-foreground hover:bg-accent'}"
+					title="Draw freehand"
+					onclick={() => setMode('freehand')}
+				>
+					<SplineIcon class="h-4 w-4" />
+				</button>
+				<button
+					class="inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors
+						{activeMode === 'select'
+						? 'bg-primary text-primary-foreground'
+						: 'bg-secondary text-secondary-foreground hover:bg-accent'}"
+					title="Select & edit"
+					onclick={() => setMode('select')}
+				>
+					<MousePointerIcon class="h-4 w-4" />
+				</button>
+				<button
+					class="inline-flex h-8 w-8 items-center justify-center rounded-md text-destructive transition-colors hover:bg-destructive/10"
+					title="Clear drawings"
+					onclick={clearDrawings}
+				>
+					<Trash2Icon class="h-4 w-4" />
+				</button>
+			</div>
+		</div>
+	</div>
+	<div class="top-32.5 right-12.5 z-10 absolute">
+		<CountrySelector bind:selectedCountries {onselect} />
+	</div>
+{/if}
