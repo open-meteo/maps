@@ -1,6 +1,6 @@
 import { flatten, simplify } from '@turf/turf';
 
-import type { Country } from '$lib/components/clipping/country-selector.svelte';
+import type { Country } from '$lib/components/clipping/country-data';
 import type {
 	ClippingOptions,
 	GeoJson,

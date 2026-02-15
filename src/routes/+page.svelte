@@ -78,7 +78,8 @@
 
 	import '../styles.css';
 
-	import type { Country } from '$lib/components/clipping/country-selector.svelte';
+	import { loadCountriesFromCodes } from '$lib/components/clipping/country-data';
+	import type { Country } from '$lib/components/clipping/country-data';
 	import type { RequestParameters } from 'maplibre-gl';
 
 	let clippingPanel: ReturnType<typeof ClippingPanel>;
@@ -230,9 +231,14 @@
 		clippingPanel?.setCountryClipping(nextClipping);
 	};
 
-	onMount(() => {
+	onMount(async () => {
 		if (!isSameCountrySelection(selectedCountries, $clippingCountryCodes)) {
 			selectedCountries = $clippingCountryCodes;
+		}
+		// Apply country clipping on load even if the panel isn't open
+		if (selectedCountries.length > 0) {
+			const countries = await loadCountriesFromCodes(selectedCountries);
+			handleCountrySelect(countries);
 		}
 	});
 </script>
