@@ -12,6 +12,7 @@
 	let isPrefetching = $state(false);
 	let prefetchProgress = $state({ current: 0, total: 0 });
 	let selectedPrefetchMode: PrefetchMode = $state('today');
+	let abortController: AbortController | null = null;
 
 	const prefetchModes = new Map<PrefetchMode, string>([
 		['today', 'Today'],
@@ -23,18 +24,19 @@
 	let prefetchModeLabel: string = $derived(prefetchModes.get(selectedPrefetchMode) ?? 'Today');
 
 	const handlePrefetch = async () => {
+		if (isPrefetching) {
+			abortController?.abort();
+			return;
+		}
+
 		if (!$metaJson || !$modelRun) {
 			toast.warning('No metadata available for prefetching');
 			return;
 		}
 
-		if (isPrefetching) {
-			toast.warning('Prefetch already in progress');
-			return;
-		}
-
 		isPrefetching = true;
 		prefetchProgress = { current: 0, total: 0 };
+		abortController = new AbortController();
 
 		toast.info(`Prefetching ${prefetchModeLabel}...`);
 
@@ -47,7 +49,8 @@
 				metaJson: $metaJson,
 				modelRun: $modelRun,
 				domain: $domainStore,
-				variable: $variableStore
+				variable: $variableStore,
+				signal: abortController.signal
 			},
 			(progress) => {
 				prefetchProgress = progress;
@@ -55,9 +58,12 @@
 		);
 
 		isPrefetching = false;
+		abortController = null;
 
 		if (result.success) {
 			toast.success(`Prefetched ${result.successCount}/${result.totalCount} time steps`);
+		} else if (result.aborted) {
+			toast.info(`Prefetch cancelled (${result.successCount}/${result.totalCount} completed)`);
 		} else {
 			toast.error(result.error || 'Prefetch failed');
 		}
@@ -77,6 +83,7 @@
 	<Select.Trigger
 		class="h-4.5! text-xs pl-1.5 pr-0.75 py-0 gap-1 border-none bg-transparent shadow-none hover:bg-accent/50 focus-visible:ring-0 focus-visible:ring-offset-0 cursor-pointer"
 		aria-label="Select prefetch mode"
+		disabled={isPrefetching}
 	>
 		{prefetchModes.get(selectedPrefetchMode) ?? 'Today'}
 	</Select.Trigger>
@@ -102,10 +109,9 @@
 		e.stopPropagation();
 		handlePrefetch();
 	}}
-	disabled={isPrefetching}
-	aria-label="Prefetch data"
+	aria-label={isPrefetching ? 'Cancel prefetch' : 'Prefetch data'}
 	title={isPrefetching
-		? `Prefetching ${prefetchProgress.current}/${prefetchProgress.total}...`
+		? `Prefetching ${prefetchProgress.current}/${prefetchProgress.total}. Click to cancel.`
 		: `Prefetch ${prefetchModeLabel}`}
 >
 	<svg
