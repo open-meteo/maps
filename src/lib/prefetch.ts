@@ -2,7 +2,7 @@ import { get } from 'svelte/store';
 
 import { currentBounds, getProtocolInstance, getRanges } from '@openmeteo/mapbox-layer';
 
-import { abortController, omProtocolSettings } from '$lib/stores/om-protocol-settings';
+import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 
 import { fmtModelRun, fmtSelectedTime } from '$lib';
 

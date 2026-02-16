@@ -1,4 +1,4 @@
-import { get, writable } from 'svelte/store';
+import { get } from 'svelte/store';
 
 import { BrowserBlockCache } from '@openmeteo/file-reader';
 import { type MapboxLayerFileReader, defaultOmProtocolSettings } from '@openmeteo/mapbox-layer';
@@ -67,5 +67,3 @@ export const omProtocolSettings: OmProtocolSettings = {
 		}
 	}
 };
-
-export const abortController = writable(new AbortController());
