@@ -19,7 +19,7 @@
 			String(defaultVectorOptions.contourInterval) // different urlParam and key
 		);
 		if (contours) {
-			changeOMfileURL(false, true);
+			changeOMfileURL();
 		}
 	};
 </script>
