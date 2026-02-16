@@ -119,7 +119,7 @@ export const prefetchData = async (
 	}
 
 	try {
-		const instance = getProtocolInstance(omProtocolSettings);
+		const instance = getProtocolInstance(get(omProtocolSettings));
 		const ranges = getRanges(get(selectedDomain).grid, currentBounds);
 		const omFileReader = instance.omFileReader;
 

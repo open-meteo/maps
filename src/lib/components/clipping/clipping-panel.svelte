@@ -228,11 +228,11 @@
 	};
 
 	const handleKeyup = (e: KeyboardEvent) => {
-		if (e.key === 'Escape' && activeMode && draw) {
+		if (e.key === 'Escape') {
 			// Terra-draw already handled Escape (cleanUp removes the in-progress
 			// feature), but the mode is still active with its crosshair cursor.
 			// Switch to static to reset the cursor.
-			draw.setMode('static');
+			if (draw) draw.setMode('static');
 			activeMode = '';
 			terraDrawActive.set(false);
 		}
@@ -267,7 +267,6 @@
 		<p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Clipping</p>
 
 		<div class="mt-1 flex flex-col gap-1.5">
-			<p class="text-xs text-muted-foreground">Draw region</p>
 			<div class="flex gap-1">
 				<button
 					class="inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors
@@ -318,8 +317,6 @@
 				</button>
 			</div>
 		</div>
-	</div>
-	<div class="top-32.5 right-12.5 z-10 absolute">
 		<CountrySelector bind:selectedCountries {onselect} />
 	</div>
 {/if}
