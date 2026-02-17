@@ -52,6 +52,11 @@ import type { Domain, DomainMetaDataJson } from '@openmeteo/mapbox-layer';
 
 export { findTimeStep } from '$lib/time-utils';
 
+type MaplibreNoBackgroundLayer = Exclude<
+	maplibregl.LayerSpecification,
+	maplibregl.BackgroundLayerSpecification
+>;
+
 let url: URL;
 let map: maplibregl.Map | undefined;
 let preferences: Preferences;
@@ -568,8 +573,12 @@ const addSlotLayers = (slot: VectorSlot, visible: boolean) => {
 
 	if (!needsSource) {
 		// If no vector features are wanted, ensure the source is gone so we don't fetch tiles.
-		if (map.getSource(srcId)) {
-			map.removeSource(srcId);
+		// MapLibre requires all layers using a source to be removed before the source itself.
+		const style = map.getStyle();
+		for (const layer of style.layers as Array<MaplibreNoBackgroundLayer>) {
+			if (layer.source === srcId && map.getLayer(layer.id)) {
+				map.removeLayer(layer.id);
+			}
 		}
 	}
 };
@@ -599,6 +608,7 @@ const requestVectorUpdate = () => {
 	// We should just clean up activeSlot (fade it out) and stop.
 	const source = map.getSource(slotSourceId(nextSlot)) as maplibregl.VectorTileSource | undefined;
 
+	console.log('Actor Task queue:', source?.dispatcher);
 	if (!source) {
 		// Fade out current active slot if exists
 		if (activeSlot) setSlotOpacity(activeSlot, 0);
