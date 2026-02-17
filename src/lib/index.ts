@@ -360,13 +360,8 @@ const addSlotLayers = (slot: VectorSlot) => {
 	const initialOpacity = 0;
 	const beforeLayer = preferences.clipWater ? beforeLayerVectorWaterClip : beforeLayerVector;
 
-	// If at least one vector option is enabled, we need the source.
-	const needsSource = vectorOptions.contours || vectorOptions.arrows || vectorOptions.grid;
-
-	if (needsSource) {
-		if (!map.getSource(srcId)) {
-			map.addSource(srcId, { url: 'om://' + omUrl, type: 'vector' });
-		}
+	if (!map.getSource(srcId)) {
+		map.addSource(srcId, { url: 'om://' + omUrl, type: 'vector' });
 	}
 
 	if (vectorOptions.arrows) {
@@ -650,7 +645,6 @@ const requestVectorUpdate = () => {
 		return;
 	}
 
-	// 6. Wait for load, then fade
 	waitForSourceLoad(nextSlot, sourceId, activeSlot);
 };
 
