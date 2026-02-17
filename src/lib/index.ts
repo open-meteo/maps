@@ -400,7 +400,7 @@ const addSlotLayers = (slot: VectorSlot, visible: boolean) => {
 					'source-layer': 'wind-arrows',
 					paint: {
 						'line-opacity': initialOpacity,
-						'line-opacity-transition': { duration: 100, delay: 0 },
+						'line-opacity-transition': { duration: 200, delay: 0 },
 						'line-color': [
 							'case',
 							['boolean', ['>', ['to-number', ['get', 'value']], 9], false],
@@ -475,7 +475,7 @@ const addSlotLayers = (slot: VectorSlot, visible: boolean) => {
 					'source-layer': 'grid',
 					paint: {
 						'circle-opacity': initialOpacity,
-						'circle-opacity-transition': { duration: 100, delay: 0 },
+						'circle-opacity-transition': { duration: 200, delay: 0 },
 						'circle-radius': ['interpolate', ['exponential', 1.5], ['zoom'], 0, 0.1, 12, 10],
 						'circle-color': 'orange'
 					}
@@ -499,7 +499,7 @@ const addSlotLayers = (slot: VectorSlot, visible: boolean) => {
 					'source-layer': 'contours',
 					paint: {
 						'line-opacity': initialOpacity,
-						'line-opacity-transition': { duration: 100, delay: 0 },
+						'line-opacity-transition': { duration: 200, delay: 0 },
 						'line-color': [
 							'case',
 							['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
@@ -556,7 +556,7 @@ const addSlotLayers = (slot: VectorSlot, visible: boolean) => {
 					},
 					paint: {
 						'text-opacity': initialOpacity,
-						'text-opacity-transition': { duration: 100, delay: 0 },
+						'text-opacity-transition': { duration: 200, delay: 0 },
 						'text-color': mode.current === 'dark' ? 'rgba(255,255,255, 0.8)' : 'rgba(0,0,0, 0.7)'
 					}
 				},
@@ -618,7 +618,7 @@ const requestVectorUpdate = () => {
 		if (previousSlot) {
 			setTimeout(() => {
 				removeSlot(previousSlot);
-			}, 350);
+			}, 250);
 		}
 
 		activeSlot = null;
@@ -670,7 +670,7 @@ const requestVectorUpdate = () => {
 			activeSlot = nextSlot;
 			pendingSlot = null;
 
-			// D. Cleanup old slot after transition (350ms)
+			// D. Cleanup old slot after transition (250ms)
 			if (previousSlot) {
 				setTimeout(() => {
 					// Guard inside timeout: Ensure the slot we are removing hasn't
@@ -678,7 +678,7 @@ const requestVectorUpdate = () => {
 					// The removeSlot function has internal checks for this,
 					// but we call it here explicitly.
 					removeSlot(previousSlot);
-				}, 350);
+				}, 250);
 			}
 		}
 	}, 50);
