@@ -623,7 +623,6 @@ const requestVectorUpdate = () => {
 
 		activeSlot = null;
 		pendingSlot = null;
-		loading.set(false);
 		return;
 	}
 
@@ -632,7 +631,6 @@ const requestVectorUpdate = () => {
 			clearInterval(vectorLoadInterval);
 			vectorLoadInterval = undefined;
 		}
-		loading.set(false);
 	});
 
 	// If this is the very first load, we don't need to fade or wait
@@ -658,7 +656,6 @@ const requestVectorUpdate = () => {
 			if (vectorLoadInterval === intervalId) {
 				vectorLoadInterval = undefined;
 			}
-			loading.set(false);
 
 			// A. Fade IN new slot
 			setSlotOpacity(nextSlot, 1);
