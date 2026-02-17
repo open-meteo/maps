@@ -52,11 +52,6 @@ import type { Domain, DomainMetaDataJson } from '@openmeteo/mapbox-layer';
 
 export { findTimeStep } from '$lib/time-utils';
 
-type MaplibreNoBackgroundLayer = Exclude<
-	maplibregl.LayerSpecification,
-	maplibregl.BackgroundLayerSpecification
->;
-
 let url: URL;
 let map: maplibregl.Map | undefined;
 let preferences: Preferences;
@@ -320,66 +315,51 @@ type VectorSlot = 'A' | 'B';
 
 let activeSlot: VectorSlot | null = null;
 let pendingSlot: VectorSlot | null = null;
-let vectorLoadInterval: ReturnType<typeof setInterval> | undefined;
+// We store a reference to the cleanup function for the current active listener
+let cleanupSourceListener: (() => void) | null = null;
 
-const VECTOR_LAYER_PREFIXES = [
-	'omVectorArrowLayer',
-	'omVectorGridLayer',
-	'omVectorContourLayerLabels',
-	'omVectorContourLayer'
+const LAYER_CONFIGS = [
+	{ prefix: 'omVectorArrowLayer', prop: 'line-opacity', type: 'line' },
+	{ prefix: 'omVectorGridLayer', prop: 'circle-opacity', type: 'circle' },
+	{ prefix: 'omVectorContourLayer', prop: 'line-opacity', type: 'line' },
+	{ prefix: 'omVectorContourLayerLabels', prop: 'text-opacity', type: 'symbol' }
 ];
 
 const slotSourceId = (slot: VectorSlot) => `omVectorSource_${slot}`;
 const slotLayerId = (prefix: string, slot: VectorSlot) => `${prefix}_${slot}`;
 
-const getOpacityProperty = (prefix: string): string => {
-	if (prefix === 'omVectorGridLayer') return 'circle-opacity';
-	if (prefix === 'omVectorContourLayerLabels') return 'text-opacity';
-	return 'line-opacity';
-};
-
 const setSlotOpacity = (slot: VectorSlot, value: number) => {
 	if (!map) return;
-	for (const prefix of VECTOR_LAYER_PREFIXES) {
+	for (const { prefix, prop } of LAYER_CONFIGS) {
 		const id = slotLayerId(prefix, slot);
-		if (map.getLayer(id)) {
-			map.setPaintProperty(id, getOpacityProperty(prefix), value);
-		}
+		if (map.getLayer(id)) map.setPaintProperty(id, prop, value);
 	}
 };
 
 /**
  * Safely removes a slot's layers and source.
- * GUARANTEED to abort if the slot is currently Active or Pending.
+ * Guaranteed to abort if the slot is currently Active or Pending.
  */
 const removeSlot = (slot: VectorSlot) => {
 	if (!map) return;
-
-	// CRITICAL GUARD: Never remove a slot that is currently in use or loading.
-	// This handles the race condition where a slot is scheduled for removal,
-	// but the user quickly switches back to it before the timeout fires.
+	// Safety: Don't remove if it became active or pending while waiting
 	if (slot === activeSlot || slot === pendingSlot) return;
 
-	for (const prefix of VECTOR_LAYER_PREFIXES) {
+	for (const { prefix } of LAYER_CONFIGS) {
 		const id = slotLayerId(prefix, slot);
-		if (map.getLayer(id)) {
-			map.removeLayer(id);
-		}
+		if (map.getLayer(id)) map.removeLayer(id);
 	}
 	const srcId = slotSourceId(slot);
-	if (map.getSource(srcId)) {
-		map.removeSource(srcId);
-	}
+	if (map.getSource(srcId)) map.removeSource(srcId);
 };
 
-const addSlotLayers = (slot: VectorSlot, visible: boolean) => {
+const addSlotLayers = (slot: VectorSlot) => {
 	if (!map) return;
 
 	const srcId = slotSourceId(slot);
-	const initialOpacity = visible ? 1 : 0;
+	const initialOpacity = 0;
 	const beforeLayer = preferences.clipWater ? beforeLayerVectorWaterClip : beforeLayerVector;
 
-	// 1. Setup/Cleanup Source
 	// If at least one vector option is enabled, we need the source.
 	const needsSource = vectorOptions.contours || vectorOptions.arrows || vectorOptions.grid;
 
@@ -459,9 +439,6 @@ const addSlotLayers = (slot: VectorSlot, visible: boolean) => {
 				beforeLayer
 			);
 		}
-	} else {
-		const id = slotLayerId('omVectorArrowLayer', slot);
-		if (map.getLayer(id)) map.removeLayer(id);
 	}
 
 	if (vectorOptions.grid) {
@@ -483,9 +460,6 @@ const addSlotLayers = (slot: VectorSlot, visible: boolean) => {
 				beforeLayer
 			);
 		}
-	} else {
-		const id = slotLayerId('omVectorGridLayer', slot);
-		if (map.getLayer(id)) map.removeLayer(id);
 	}
 
 	if (vectorOptions.contours) {
@@ -563,57 +537,106 @@ const addSlotLayers = (slot: VectorSlot, visible: boolean) => {
 				beforeLayer
 			);
 		}
-	} else {
-		const id = slotLayerId('omVectorContourLayer', slot);
-		if (map.getLayer(id)) map.removeLayer(id);
+	}
+};
 
-		const labelsId = slotLayerId('omVectorContourLayerLabels', slot);
-		if (map.getLayer(labelsId)) map.removeLayer(labelsId);
+const commitSlotSwap = (nextSlot: VectorSlot, previousSlot: VectorSlot | null) => {
+	// loading.set(false);
+
+	setSlotOpacity(nextSlot, 1);
+	if (previousSlot) setSlotOpacity(previousSlot, 0);
+
+	// Update state
+	activeSlot = nextSlot;
+	pendingSlot = null;
+
+	// Cleanup old slot after transition (250ms)
+	if (previousSlot) {
+		setTimeout(() => removeSlot(previousSlot), 250);
+	}
+};
+
+const waitForSourceLoad = (
+	nextSlot: VectorSlot,
+	sourceId: string,
+	previousSlot: VectorSlot | null
+) => {
+	if (!map) return;
+
+	// Check if already loaded (e.g. from cache)
+	const source = map.getSource(sourceId);
+	if (source?.loaded()) {
+		commitSlotSwap(nextSlot, previousSlot);
+		return;
 	}
 
-	if (!needsSource) {
-		// If no vector features are wanted, ensure the source is gone so we don't fetch tiles.
-		// MapLibre requires all layers using a source to be removed before the source itself.
-		const style = map.getStyle();
-		for (const layer of style.layers as Array<MaplibreNoBackgroundLayer>) {
-			if (layer.source === srcId && map.getLayer(layer.id)) {
-				map.removeLayer(layer.id);
-			}
+	// Event handlers
+	const onSourceData = (e: maplibregl.MapSourceDataEvent) => {
+		// Only care about our specific source and about actual data loads, not metadata
+		if (e.sourceId !== sourceId || !e.isSourceLoaded || e.dataType !== 'source') return;
+
+		// Guard: If a newer request has already superseded us, stop.
+		if (pendingSlot !== nextSlot) {
+			cleanup();
+			return;
 		}
-	}
+
+		// Double-check the source object state
+		if (map?.getSource(sourceId)?.loaded()) {
+			cleanup();
+			commitSlotSwap(nextSlot, previousSlot);
+		}
+	};
+
+	const onError = (e: maplibregl.MapSourceDataEvent) => {
+		if (e.sourceId !== sourceId) return;
+		cleanup();
+		// loading.set(false);
+	};
+
+	const cleanup = () => {
+		map?.off('sourcedata', onSourceData);
+		map?.off('error', onError);
+		cleanupSourceListener = null;
+	};
+
+	map.on('sourcedata', onSourceData);
+	map.on('error', onError);
+
+	// Store cleanup reference so requestVectorUpdate can cancel us if needed
+	cleanupSourceListener = cleanup;
 };
 
 const requestVectorUpdate = () => {
 	if (!map) return;
 
-	if (vectorLoadInterval) {
-		clearInterval(vectorLoadInterval);
-		vectorLoadInterval = undefined;
+	// Cleanup any previous pending listener
+	if (cleanupSourceListener) {
+		cleanupSourceListener();
+		cleanupSourceListener = null;
 	}
 
+	// Cleanup stale pending slot
 	const stalePendingSlot = pendingSlot;
 	if (stalePendingSlot && stalePendingSlot !== activeSlot) {
 		pendingSlot = null;
 		removeSlot(stalePendingSlot);
 	}
 
-	// 2. Determine the next slot (swap A <-> B)
+	// Determine the next slot (swap A <-> B)
 	const nextSlot: VectorSlot = activeSlot === 'A' ? 'B' : 'A';
 	pendingSlot = nextSlot;
 
-	// 3. Set up the next slot
-	const isFirstRequest = activeSlot === null;
-	addSlotLayers(nextSlot, isFirstRequest);
-	// If all vector options are off, addSlotLayers removed the source.
-	// We should just clean up activeSlot (fade it out) and stop.
-	const source = map.getSource(slotSourceId(nextSlot)) as maplibregl.VectorTileSource | undefined;
+	// Set up the next slot
+	addSlotLayers(nextSlot);
 
-	console.log('Actor Task queue:', source?.dispatcher);
+	const sourceId = slotSourceId(nextSlot);
+	const source = map.getSource(sourceId);
+
 	if (!source) {
-		// Fade out current active slot if exists
+		// If no source (all vector options off), clean up gracefully
 		if (activeSlot) setSlotOpacity(activeSlot, 0);
 
-		// Clean up previous slot after fade
 		const previousSlot = activeSlot;
 		if (previousSlot) {
 			setTimeout(() => {
@@ -623,63 +646,12 @@ const requestVectorUpdate = () => {
 
 		activeSlot = null;
 		pendingSlot = null;
+		loading.set(false);
 		return;
 	}
 
-	source.on('error', () => {
-		if (vectorLoadInterval) {
-			clearInterval(vectorLoadInterval);
-			vectorLoadInterval = undefined;
-		}
-	});
-
-	// If this is the very first load, we don't need to fade or wait
-	if (isFirstRequest) {
-		activeSlot = nextSlot;
-		pendingSlot = null;
-		return;
-	}
-
-	// 4. Wait for load, then fade
-	const intervalId = setInterval(() => {
-		// Guard: If a new request came in (pendingSlot changed), stop working on this one.
-		if (pendingSlot !== nextSlot) {
-			clearInterval(vectorLoadInterval);
-			if (vectorLoadInterval === intervalId) {
-				vectorLoadInterval = undefined;
-			}
-			return;
-		}
-
-		if (source.loaded()) {
-			clearInterval(vectorLoadInterval);
-			if (vectorLoadInterval === intervalId) {
-				vectorLoadInterval = undefined;
-			}
-
-			// A. Fade IN new slot
-			setSlotOpacity(nextSlot, 1);
-			// B. Fade OUT old slot
-			const previousSlot = activeSlot;
-			if (previousSlot) setSlotOpacity(previousSlot, 0);
-
-			// C. Update state
-			activeSlot = nextSlot;
-			pendingSlot = null;
-
-			// D. Cleanup old slot after transition (250ms)
-			if (previousSlot) {
-				setTimeout(() => {
-					// Guard inside timeout: Ensure the slot we are removing hasn't
-					// been reclaimed as the new pending/active slot in the meantime.
-					// The removeSlot function has internal checks for this,
-					// but we call it here explicitly.
-					removeSlot(previousSlot);
-				}, 250);
-			}
-		}
-	}, 50);
-	vectorLoadInterval = intervalId;
+	// 6. Wait for load, then fade
+	waitForSourceLoad(nextSlot, sourceId, activeSlot);
 };
 
 // =============================================================================
