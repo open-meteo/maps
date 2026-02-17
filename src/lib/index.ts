@@ -311,8 +311,7 @@ export const checkHighDefinition = () => {
 // Vector layer management: double-buffered A/B slot system
 // =============================================================================
 
-const VECTOR_SLOTS = ['A', 'B'] as const;
-type VectorSlot = (typeof VECTOR_SLOTS)[number];
+type VectorSlot = 'A' | 'B';
 
 let activeSlot: VectorSlot | null = null;
 let pendingSlot: VectorSlot | null = null;
@@ -623,6 +622,7 @@ const requestVectorUpdate = () => {
 			clearInterval(vectorLoadInterval);
 			vectorLoadInterval = undefined;
 		}
+		loading.set(false);
 	});
 
 	// If this is the very first load, we don't need to fade or wait
@@ -633,27 +633,28 @@ const requestVectorUpdate = () => {
 	}
 
 	// 4. Wait for load, then fade
-	vectorLoadInterval = setInterval(() => {
+	const intervalId = setInterval(() => {
 		// Guard: If a new request came in (pendingSlot changed), stop working on this one.
 		if (pendingSlot !== nextSlot) {
 			clearInterval(vectorLoadInterval);
-			vectorLoadInterval = undefined;
+			if (vectorLoadInterval === intervalId) {
+				vectorLoadInterval = undefined;
+			}
 			return;
 		}
 
 		if (source.loaded()) {
 			clearInterval(vectorLoadInterval);
-			vectorLoadInterval = undefined;
+			if (vectorLoadInterval === intervalId) {
+				vectorLoadInterval = undefined;
+			}
 			loading.set(false);
 
 			// A. Fade IN new slot
 			setSlotOpacity(nextSlot, 1);
-
 			// B. Fade OUT old slot
 			const previousSlot = activeSlot;
-			if (previousSlot) {
-				setSlotOpacity(previousSlot, 0);
-			}
+			if (previousSlot) setSlotOpacity(previousSlot, 0);
 
 			// C. Update state
 			activeSlot = nextSlot;
@@ -671,6 +672,7 @@ const requestVectorUpdate = () => {
 			}
 		}
 	}, 50);
+	vectorLoadInterval = intervalId;
 };
 
 // =============================================================================
