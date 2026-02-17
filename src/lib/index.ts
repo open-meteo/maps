@@ -362,6 +362,9 @@ const addSlotLayers = (slot: VectorSlot) => {
 
 	if (!map.getSource(srcId)) {
 		map.addSource(srcId, { url: 'om://' + omUrl, type: 'vector' });
+	} else {
+		map.removeSource(srcId);
+		map.addSource(srcId, { url: 'om://' + omUrl, type: 'vector' });
 	}
 
 	if (vectorOptions.arrows) {
@@ -649,66 +652,196 @@ const requestVectorUpdate = () => {
 };
 
 // =============================================================================
-// Raster layer management
+// Raster layer management: double-buffered A/B slot system
 // =============================================================================
 
-let omRasterSource: maplibregl.RasterTileSource | undefined;
-let checkRasterSourceLoadedInterval: ReturnType<typeof setInterval>;
+type RasterSlot = 'A' | 'B';
 
-export const addOmFileLayers = () => {
+let activeRasterSlot: RasterSlot | null = null;
+let pendingRasterSlot: RasterSlot | null = null;
+let cleanupRasterSourceListener: (() => void) | null = null;
+
+// The active source (used for value picking via click/hover)
+let omRasterSource: maplibregl.RasterTileSource | undefined;
+
+const rasterSlotSourceId = (slot: RasterSlot) => `omRasterSource_${slot}`;
+const rasterSlotLayerId = (slot: RasterSlot) => `omRasterLayer_${slot}`;
+
+const setRasterSlotOpacity = (slot: RasterSlot, value: number) => {
+	if (!map) return;
+	const layerId = rasterSlotLayerId(slot);
+	if (map.getLayer(layerId)) {
+		// Adjust for dark mode logic found in original code
+		const finalOpacity = mode.current === 'dark' ? (value * 100 - 10) / 100 : (value * 100) / 100;
+		// Ensure non-negative if value is tiny or 0
+		map.setPaintProperty(layerId, 'raster-opacity', Math.max(0, finalOpacity));
+	}
+};
+
+const removeRasterSlot = (slot: RasterSlot) => {
+	if (!map) return;
+	if (slot === activeRasterSlot || slot === pendingRasterSlot) return;
+
+	const layerId = rasterSlotLayerId(slot);
+	if (map.getLayer(layerId)) map.removeLayer(layerId);
+
+	const sourceId = rasterSlotSourceId(slot);
+	if (map.getSource(sourceId)) map.removeSource(sourceId);
+};
+
+const addRasterSlotLayers = (slot: RasterSlot) => {
 	if (!map) return;
 
-	omUrl = getOMUrl();
-	map.addSource('omRasterSource', {
+	const sourceId = rasterSlotSourceId(slot);
+	const layerId = rasterSlotLayerId(slot);
+	const initialOpacity = 0; // Start invisible
+	// Calculate opacity target for fade-in logic
+	const opacityValue = get(opacity);
+
+	if (map.getSource(sourceId)) {
+		map.removeSource(sourceId);
+	}
+
+	map.addSource(sourceId, {
 		url: 'om://' + omUrl,
 		type: 'raster',
 		tileSize: 256,
 		maxzoom: 14
 	});
 
-	omRasterSource = map.getSource('omRasterSource');
-	if (omRasterSource) {
-		omRasterSource.on('error', (e) => {
-			loading.set(false);
-			clearInterval(checkRasterSourceLoadedInterval);
-			toast.error(e.error.message);
-		});
+	if (map.getLayer(layerId)) {
+		map.removeLayer(layerId);
 	}
 
-	const opacityValue = get(opacity);
 	map.addLayer(
 		{
-			id: 'omRasterLayer',
+			id: layerId,
 			type: 'raster',
-			source: 'omRasterSource',
+			source: sourceId,
 			paint: {
-				'raster-opacity': mode.current === 'dark' ? (opacityValue - 10) / 100 : opacityValue / 100
+				'raster-opacity': initialOpacity,
+				'raster-opacity-transition': { duration: 250, delay: 0 }
 			}
 		},
 		beforeLayerRaster
 	);
 
-	requestVectorUpdate();
+	// Error handling specific to this slot's source
+	const source = map.getSource(sourceId);
+	if (source) {
+		source.on('error', (e) => {
+			toast.error(e.error.message);
+		});
+	}
 };
 
-const checkRasterLoaded = () => {
-	if (checkRasterSourceLoadedInterval) clearInterval(checkRasterSourceLoadedInterval);
+const commitRasterSlotSwap = (nextSlot: RasterSlot, previousSlot: RasterSlot | null) => {
+	loading.set(false);
+	const opacityValue = get(opacity) / 100;
+
+	setRasterSlotOpacity(nextSlot, opacityValue);
+	if (previousSlot) setRasterSlotOpacity(previousSlot, 0);
+
+	activeRasterSlot = nextSlot;
+	pendingRasterSlot = null;
+
+	// Update the global reference for click/hover value picking
+	const newSourceId = rasterSlotSourceId(nextSlot);
+	omRasterSource = map?.getSource(newSourceId) as maplibregl.RasterTileSource;
+
+	// Cleanup old slot
+	if (previousSlot) {
+		setTimeout(() => removeRasterSlot(previousSlot), 300);
+	}
+};
+
+const waitForRasterSourceLoad = (
+	nextSlot: RasterSlot,
+	sourceId: string,
+	previousSlot: RasterSlot | null
+) => {
+	if (!map) return;
+
+	const source = map.getSource(sourceId);
+	if (source?.loaded()) {
+		commitRasterSlotSwap(nextSlot, previousSlot);
+		return;
+	}
+
 	let checked = 0;
-	checkRasterSourceLoadedInterval = setInterval(() => {
-		checked++;
-		if (omRasterSource) {
-			if (checked === 200) {
-				toast.warning(
-					'Loading raster data might be limited by bandwidth or upstream server speed.'
-				);
-			}
-			if (omRasterSource.loaded()) {
-				checked = 0;
-				loading.set(false);
-				clearInterval(checkRasterSourceLoadedInterval);
-			}
+	// Optional warning similar to original code
+	const warningTimeout = setTimeout(() => {
+		toast.warning('Loading raster data might be limited by bandwidth or upstream server speed.');
+	}, 10000); // 10 seconds (approx 200 checks * 50ms)
+
+	const onSourceData = (e: maplibregl.MapSourceDataEvent) => {
+		if (e.sourceId !== sourceId || !e.isSourceLoaded || e.dataType !== 'source') return;
+
+		if (pendingRasterSlot !== nextSlot) {
+			cleanup();
+			return;
 		}
-	}, 50);
+
+		if (map?.getSource(sourceId)?.loaded()) {
+			cleanup();
+			commitRasterSlotSwap(nextSlot, previousSlot);
+		}
+	};
+
+	const onError = (e: maplibregl.MapSourceDataEvent) => {
+		if (e.sourceId !== sourceId) return;
+		cleanup();
+		loading.set(false);
+	};
+
+	const cleanup = () => {
+		clearTimeout(warningTimeout);
+		map?.off('sourcedata', onSourceData);
+		map?.off('error', onError);
+		cleanupRasterSourceListener = null;
+	};
+
+	map.on('sourcedata', onSourceData);
+	map.on('error', onError);
+
+	cleanupRasterSourceListener = cleanup;
+};
+
+const requestRasterUpdate = () => {
+	if (!map) return;
+	// loading.set(true);
+
+	// Cleanup previous listener
+	if (cleanupRasterSourceListener) {
+		cleanupRasterSourceListener();
+		cleanupRasterSourceListener = null;
+	}
+
+	// Cleanup stale pending slot
+	const stalePendingSlot = pendingRasterSlot;
+	if (stalePendingSlot && stalePendingSlot !== activeRasterSlot) {
+		pendingRasterSlot = null;
+		removeRasterSlot(stalePendingSlot);
+	}
+
+	const nextSlot: RasterSlot = activeRasterSlot === 'A' ? 'B' : 'A';
+	pendingRasterSlot = nextSlot;
+
+	addRasterSlotLayers(nextSlot);
+
+	const sourceId = rasterSlotSourceId(nextSlot);
+	waitForRasterSourceLoad(nextSlot, sourceId, activeRasterSlot);
+};
+
+export const addOmFileLayers = () => {
+	if (!map) return;
+
+	omUrl = getOMUrl();
+	// Trigger the first raster load
+	requestRasterUpdate();
+
+	// Trigger the first vector load
+	requestVectorUpdate();
 };
 
 // =============================================================================
@@ -716,8 +849,7 @@ const checkRasterLoaded = () => {
 // =============================================================================
 
 export const changeOMfileURL = (vectorOnly = false, rasterOnly = false) => {
-	if (!map || !omRasterSource) return;
-	loading.set(true);
+	if (!map) return;
 
 	if (popup) {
 		popup.remove();
@@ -726,8 +858,7 @@ export const changeOMfileURL = (vectorOnly = false, rasterOnly = false) => {
 	omUrl = getOMUrl();
 
 	if (!vectorOnly) {
-		omRasterSource.setUrl('om://' + omUrl);
-		checkRasterLoaded();
+		requestRasterUpdate();
 	}
 
 	if (!rasterOnly) {
@@ -800,6 +931,7 @@ export const addPopup = () => {
 		} else {
 			popup.addTo(map);
 		}
+		// Note: We use omRasterSource here which is updated in commitRasterSlotSwap
 		const { value } = getValueFromLatLong(
 			coordinates.lat,
 			coordinates.lng,
