@@ -144,7 +144,7 @@ export const prefetchData = async (
 
 			try {
 				await omFileReader.setToOmFile(url);
-				await omFileReader.prefetchVariable(variable, ranges);
+				await omFileReader.prefetchVariable(variable, ranges, signal);
 				return true;
 			} catch {
 				// Silently continue on errors
