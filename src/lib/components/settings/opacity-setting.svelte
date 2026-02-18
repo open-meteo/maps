@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { opacity } from '$lib/stores/preferences';
 
-	import { reloadStyles } from '$lib/components/buttons';
 	import { Label } from '$lib/components/ui/label';
+
+	import { reloadStyles } from '$lib';
 </script>
 
 <div>

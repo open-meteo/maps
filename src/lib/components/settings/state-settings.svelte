@@ -6,9 +6,7 @@
 
 	import Button from '$lib/components/ui/button/button.svelte';
 
-	import { changeOMfileURL, updateUrl } from '$lib';
-
-	import { reloadStyles } from '../buttons';
+	import { changeOMfileURL, reloadStyles, updateUrl } from '$lib';
 
 	const reset = async () => {
 		await resetStates();

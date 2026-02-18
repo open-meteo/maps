@@ -25,7 +25,6 @@ import {
 	loading,
 	opacity,
 	preferences as p,
-	resolution as r,
 	tileSize as tS,
 	url as u
 } from '$lib/stores/preferences';
@@ -877,11 +876,6 @@ export const getOMUrl = () => {
 		url += `&tile_size=${tileSize}`;
 	}
 
-	const resolution = get(r);
-	if (resolution !== 1) {
-		url += `&resolution_factor=${resolution}`;
-	}
-
 	return url;
 };
 export const getNextOmUrls = (
@@ -1072,4 +1066,20 @@ export const throttle = <T extends unknown[]>(callback: (...args: T) => void, de
 			waiting = false;
 		}, delay);
 	};
+};
+
+export const reloadStyles = () => {
+	getStyle().then((style) => {
+		if (!map) return;
+		map.setStyle(style);
+		map.once('styledata', () => {
+			setTimeout(() => {
+				addOmFileLayers();
+				addHillshadeSources();
+				if (preferences.hillshade) {
+					addHillshadeLayer();
+				}
+			}, 50);
+		});
+	});
 };

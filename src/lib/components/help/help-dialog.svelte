@@ -411,11 +411,12 @@
 				</div>
 				<div>
 					<div>
-						<b>Resolution</b> - Resolution factor for the generated tiles, for Retina / HD Displays
-						a factor of <b><i>2</i></b> is recommended, otherwise <b><i>1</i></b> will suffice
+						<b>Tile Size Source</b> - Size in pixels of the tiles displayed from the protocol
+						source,
+						<b><i>512</i></b> recommended
 					</div>
 					<div>
-						<b>Tile Size</b> - Size in pixels of the generated tiles, <b><i>256</i></b> recommended
+						<b>Tile Size</b> - Size in pixels of the generated tiles, <b><i>512</i></b> recommended
 					</div>
 					<div>
 						<b>Partial Requests</b> - Only request the data of the current viewport. Will update on zoom

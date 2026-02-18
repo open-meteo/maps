@@ -23,8 +23,8 @@
 		localStorageVersion,
 		preferences,
 		resetStates,
-		resolution,
-		resolutionSet,
+		tileSize,
+		tileSizeSet,
 		url
 	} from '$lib/stores/preferences';
 	import { metaJson, modelRun, time } from '$lib/stores/time';
@@ -70,12 +70,12 @@
 		$url = new URL(document.location.href);
 		urlParamsToPreferences();
 
-		// first time on load, check if monitor supports high definition, for increased tile resolution factor
-		if (!get(resolutionSet)) {
+		// first time on load, check if monitor supports high definition, for increased tile size
+		if (!get(tileSizeSet)) {
 			if (checkHighDefinition()) {
-				resolution.set(2);
+				tileSize.set(1024);
 			}
-			resolutionSet.set(true);
+			tileSizeSet.set(true);
 		}
 	});
 
