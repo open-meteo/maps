@@ -27,7 +27,6 @@ import {
 	loading,
 	opacity,
 	preferences as p,
-	resolution as r,
 	tileSize as tS,
 	url as u
 } from '$lib/stores/preferences';
@@ -350,7 +349,7 @@ export const addHillshadeLayer = () => {
 	);
 };
 
-export const getStyle = async (): Promise<object> => {
+export const getStyle = async () => {
 	const style = await fetch(
 		`https://tiles.open-meteo.com/styles/minimal-planet-maps${mode.current === 'dark' ? '-dark' : ''}${preferences.clipWater ? '-water-clip' : ''}.json`
 	).then((r) => r.json());
@@ -374,7 +373,7 @@ export const globeHandler = () => {
 // OM URL construction
 // =============================================================================
 
-export const getOMUrl = (): string => {
+export const getOMUrl = () => {
 	const domain = get(d);
 	const base = `${getBaseUri(domain)}/data_spatial/${domain}`;
 	const modelRun = get(mR) as Date;
@@ -392,9 +391,6 @@ export const getOMUrl = (): string => {
 
 	const tileSize = get(tS);
 	if (tileSize !== 256) result += `&tile_size=${tileSize}`;
-
-	const resolution = get(r);
-	if (resolution !== 1) result += `&resolution_factor=${resolution}`;
 
 	return result;
 };
@@ -442,7 +438,7 @@ export const getNextOmUrls = (
 // Metadata fetching
 // =============================================================================
 
-export const getInitialMetaData = async (): Promise<void> => {
+export const getInitialMetaData = async () => {
 	const domain = get(selectedDomain);
 	const uri = getBaseUri(domain.value);
 
@@ -743,7 +739,6 @@ const createManagers = (): void => {
 		sourceSpec: (sourceUrl) => ({
 			url: sourceUrl,
 			type: 'raster',
-			tileSize: 256,
 			maxzoom: 14
 		}),
 		removeDelayMs: 300,
@@ -854,5 +849,21 @@ export const addPopup = (): void => {
 		if (!showPopup) popup?.remove();
 		if (showPopup) popup?.setLngLat(e.lngLat).addTo(map);
 		updatePopup(e);
+	});
+};
+
+export const reloadStyles = () => {
+	getStyle().then((style) => {
+		if (!map) return;
+		map.setStyle(style);
+		map.once('styledata', () => {
+			setTimeout(() => {
+				addOmFileLayers();
+				addHillshadeSources();
+				if (preferences.hillshade) {
+					addHillshadeLayer();
+				}
+			}, 50);
+		});
 	});
 };

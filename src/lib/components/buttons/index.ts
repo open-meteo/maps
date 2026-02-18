@@ -11,14 +11,7 @@ import {
 	sheet
 } from '$lib/stores/preferences';
 
-import {
-	addHillshadeLayer,
-	addHillshadeSources,
-	addOmFileLayers,
-	getStyle,
-	terrainHandler,
-	updateUrl
-} from '$lib';
+import { addHillshadeLayer, reloadStyles, terrainHandler, updateUrl } from '$lib';
 
 let map = get(m);
 m.subscribe((newMap) => {
@@ -44,21 +37,6 @@ export class SettingsButton {
 	}
 	onRemove() {}
 }
-
-export const reloadStyles = () => {
-	getStyle().then((style) => {
-		map.setStyle(style);
-		map.once('styledata', () => {
-			setTimeout(() => {
-				addOmFileLayers();
-				addHillshadeSources();
-				if (preferences.hillshade) {
-					addHillshadeLayer();
-				}
-			}, 50);
-		});
-	});
-};
 
 export class DarkModeButton {
 	onAdd() {
