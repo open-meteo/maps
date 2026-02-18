@@ -42,7 +42,7 @@
 	} from '$lib/time-format';
 
 	// Disables time selection when loading new OM files
-	let disabled = $derived($loading);
+	let disabled = $derived($modelRun === undefined);
 	// Tracks the currently selected date for display and navigation
 	let currentDate = $state(new Date($time));
 

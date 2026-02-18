@@ -783,6 +783,7 @@ export const addOmFileLayers = (): void => {
 
 export const changeOMfileURL = (vectorOnly = false, rasterOnly = false): void => {
 	if (!map) return;
+	loading.set(true);
 	omUrl = getOMUrl();
 
 	const beforeLayer = preferences.clipWater ? BEFORE_LAYER_VECTOR_WATER_CLIP : BEFORE_LAYER_VECTOR;
