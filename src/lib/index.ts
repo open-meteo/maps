@@ -614,7 +614,7 @@ const rasterLayer = (): SlotLayer => ({
 				source: sourceId,
 				paint: {
 					'raster-opacity': 0.0,
-					'raster-opacity-transition': { duration: 20, delay: 0 }
+					'raster-opacity-transition': { duration: 2, delay: 0 }
 				}
 			},
 			beforeLayer
