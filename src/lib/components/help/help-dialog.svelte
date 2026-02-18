@@ -420,8 +420,8 @@
 				<div>
 					<div>
 						<b>Tile Size</b> - Size in pixels of the generated tiles, <b><i>512px</i></b> default. Since
-						the default source tile size is 512px, using smaller tile sizes will reduce the number of
-						pixels that need to be computed for each tile, which can speed up rendering. On the other
+						the default source tile size is always 512px, using smaller tile sizes will reduce the number
+						of pixels that need to be computed for each tile, which can speed up rendering. On the other
 						hand, increasing the tile size will increase the resolution of the data and can make it look
 						smoother, but it will also increase the number of pixels that need to be computed, which can
 						slow down rendering.
