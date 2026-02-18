@@ -101,6 +101,9 @@ const initializeStores = () => {
 // Utilities
 // =============================================================================
 
+/**
+ * Pads a number with leading zeros to ensure 2 digits
+ */
 export const pad = (num: number | string): string => String(num).padStart(2, '0');
 
 export const fmtModelRun = (modelRun: Date): string =>
@@ -458,7 +461,8 @@ export const getInitialMetaData = async () => {
 };
 
 export const getMetaData = async (): Promise<DomainMetaDataJson> => {
-	const domain = get(selectedDomain);
+	const domain = get(d);
+	const uri = getBaseUri(domain);
 	let modelRun = get(mR);
 
 	const latest = get(l);
@@ -482,8 +486,7 @@ export const getMetaData = async (): Promise<DomainMetaDataJson> => {
 		return inProgress as DomainMetaDataJson;
 	}
 
-	const uri = getBaseUri(domain.value);
-	const metaJsonUrl = `${uri}/data_spatial/${domain.value}/${fmtModelRun(modelRun)}/meta.json`;
+	const metaJsonUrl = `${uri}/data_spatial/${domain}/${fmtModelRun(modelRun)}/meta.json`;
 	const res = await fetch(metaJsonUrl);
 
 	if (!res.ok) {
