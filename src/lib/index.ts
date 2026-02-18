@@ -661,7 +661,6 @@ export const addOmFileLayers = () => {
 	map.addSource('omRasterSource', {
 		url: 'om://' + omUrl,
 		type: 'raster',
-		tileSize: 256,
 		maxzoom: 14
 	});
 

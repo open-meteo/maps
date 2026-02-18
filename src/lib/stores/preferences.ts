@@ -46,10 +46,7 @@ export const tileSize: Persisted<64 | 128 | 256 | 512 | 1024 | 2048> = persisted
 	'tile_size',
 	DEFAULT_TILE_SIZE
 );
-export const tileSizeSource: Persisted<128 | 256 | 512> = persisted(
-	'tile_size_source',
-	DEFAULT_TILE_SIZE
-);
+
 // check for retina / hd on first load, afterwards the tile-size won't be set
 export const tileSizeSet = persisted('tile-size-set', false);
 
@@ -90,7 +87,6 @@ export const resetStates = async () => {
 	variableSelectionExtended.set(undefined);
 
 	tileSize.set(DEFAULT_TILE_SIZE);
-	tileSizeSource.set(DEFAULT_TILE_SIZE);
 	tileSizeSet.set(false);
 
 	opacity.set(DEFAULT_OPACITY);
