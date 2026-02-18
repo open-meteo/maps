@@ -2,6 +2,8 @@ import { tick } from 'svelte';
 import { get } from 'svelte/store';
 
 import {
+	type Domain,
+	type DomainMetaDataJson,
 	VARIABLE_PREFIX,
 	closestModelRun,
 	domainStep,
@@ -47,190 +49,268 @@ import {
 
 import { formatISOUTCWithZ, parseISOWithoutTimezone } from './time-format';
 
-import type { Domain, DomainMetaDataJson } from '@openmeteo/mapbox-layer';
-
 export { findTimeStep } from '$lib/time-utils';
+
+// =============================================================================
+// Module-level state
+// =============================================================================
 
 let url: URL;
 let map: maplibregl.Map | undefined;
 let preferences: Preferences;
 let metaJson: DomainMetaDataJson | undefined;
 let vectorOptions: VectorOptions;
+let omUrl: string;
+let popup: maplibregl.Popup | undefined;
+let showPopup = false;
 
-// Initialize store subscriptions only once on first access
 let storesInitialized = false;
+
 const initializeStores = () => {
 	if (storesInitialized) return;
 	storesInitialized = true;
 
 	url = get(u);
-	u.subscribe((newUrl) => {
-		url = newUrl;
+	u.subscribe((v) => {
+		url = v;
 	});
 
 	map = get(m);
-	m.subscribe((newMap) => {
-		map = newMap;
+	m.subscribe((v) => {
+		map = v;
 	});
 
 	preferences = get(p);
-	p.subscribe((newPreferences) => {
-		preferences = newPreferences;
+	p.subscribe((v) => {
+		preferences = v;
 	});
 
 	metaJson = get(mJ);
-	mJ.subscribe((newMetaJson) => {
-		metaJson = newMetaJson;
+	mJ.subscribe((v) => {
+		metaJson = v;
 	});
 
 	vectorOptions = get(vO);
-	vO.subscribe((newVectorOptions) => {
-		vectorOptions = newVectorOptions;
+	vO.subscribe((v) => {
+		vectorOptions = v;
 	});
 };
 
-const beforeLayerRaster = BEFORE_LAYER_RASTER;
-const beforeLayerVector = BEFORE_LAYER_VECTOR;
-const beforeLayerVectorWaterClip = BEFORE_LAYER_VECTOR_WATER_CLIP;
-
-let omUrl: string;
+// =============================================================================
+// Utilities
+// =============================================================================
 
 /**
  * Pads a number with leading zeros to ensure 2 digits
  */
 export const pad = (num: number | string): string => String(num).padStart(2, '0');
 
+export const fmtModelRun = (modelRun: Date): string =>
+	`${modelRun.getUTCFullYear()}/${pad(modelRun.getUTCMonth() + 1)}/${pad(modelRun.getUTCDate())}/${pad(modelRun.getUTCHours())}${pad(modelRun.getUTCMinutes())}Z`;
+
+export const fmtSelectedTime = (t: Date): string =>
+	`${t.getUTCFullYear()}-${pad(t.getUTCMonth() + 1)}-${pad(t.getUTCDate())}T${pad(t.getUTCHours())}${pad(t.getUTCMinutes())}`;
+
+const getBaseUri = (domainValue: string): string =>
+	domainValue.startsWith('dwd_icon') && !domainValue.endsWith('eps')
+		? 'https://s3.servert.ch'
+		: 'https://map-tiles.open-meteo.com';
+
+export const hashValue = (val: string): Promise<string> =>
+	crypto.subtle.digest('SHA-256', new TextEncoder().encode(val)).then((h) => {
+		const view = new DataView(h);
+		const hexes: string[] = [];
+		for (let i = 0; i < view.byteLength; i += 4)
+			hexes.push(('00000000' + view.getUint32(i).toString(16)).slice(-8));
+		return hexes.join('');
+	});
+
+export const throttle = <T extends unknown[]>(
+	callback: (...args: T) => void,
+	delay: number
+): ((...args: T) => void) => {
+	let waiting = false;
+	return (...args: T) => {
+		if (waiting) return;
+		callback(...args);
+		waiting = true;
+		setTimeout(() => {
+			waiting = false;
+		}, delay);
+	};
+};
+
+function isHighDensity(): boolean {
+	return (
+		window.matchMedia?.(
+			'only screen and (min-resolution: 124dpi), only screen and (min-resolution: 1.3dppx), only screen and (min-resolution: 48.8dpcm)'
+		).matches ||
+		window.matchMedia?.(
+			'only screen and (-webkit-min-device-pixel-ratio: 1.3), only screen and (-o-min-device-pixel-ratio: 2.6/2), only screen and (min--moz-device-pixel-ratio: 1.3), only screen and (min-device-pixel-ratio: 1.3)'
+		).matches ||
+		window.devicePixelRatio > 1.3
+	);
+}
+
+function isRetina(): boolean {
+	return (
+		(window.matchMedia?.(
+			'only screen and (min-resolution: 192dpi), only screen and (min-resolution: 2dppx), only screen and (min-resolution: 75.6dpcm)'
+		).matches ||
+			window.matchMedia?.(
+				'only screen and (-webkit-min-device-pixel-ratio: 2), only screen and (-o-min-device-pixel-ratio: 2/1), only screen and (min--moz-device-pixel-ratio: 2), only screen and (min-device-pixel-ratio: 2)'
+			).matches ||
+			window.devicePixelRatio >= 2) &&
+		/(iPad|iPhone|iPod)/g.test(navigator.userAgent)
+	);
+}
+
+export const checkHighDefinition = (): boolean => (browser ? isRetina() || isHighDensity() : false);
+
+export const textWhite = (
+	[r, g, b, a]: [number, number, number, number] | [number, number, number],
+	dark?: boolean,
+	globalOpacity?: number
+): boolean => {
+	const alpha = ((a ?? 1) * (globalOpacity ?? 100)) / 100;
+	if (alpha < 0.65) return dark ?? false;
+	return r * 0.299 + g * 0.587 + b * 0.114 <= 150;
+};
+
+// =============================================================================
+// URL management
+// =============================================================================
+
+export const updateUrl = async (
+	urlParam?: string,
+	newValue?: string,
+	defaultValue?: string
+): Promise<void> => {
+	if (!url) return;
+
+	if (!defaultValue && urlParam && completeDefaultValues[urlParam]) {
+		defaultValue = String(completeDefaultValues[urlParam]);
+	}
+
+	if (urlParam) {
+		if (newValue && newValue !== defaultValue) {
+			url.searchParams.set(urlParam, newValue);
+		} else {
+			url.searchParams.delete(urlParam);
+		}
+	}
+
+	await tick();
+	try {
+		if (map)
+			pushState(
+				url +
+					(map as maplibregl.Map & { _hash: { getHashString(): string } })._hash.getHashString(),
+				{}
+			);
+	} catch {
+		pushState(url, {});
+	}
+};
+
 export const urlParamsToPreferences = () => {
 	initializeStores();
 	const params = new URLSearchParams(url.search);
 
 	const urlModelTime = params.get('model_run');
-	if (urlModelTime && urlModelTime.length == 15) {
-		const parsedModelTime = parseISOWithoutTimezone(urlModelTime);
-		mR.set(parsedModelTime);
+	if (urlModelTime?.length === 15) {
+		mR.set(parseISOWithoutTimezone(urlModelTime));
 		mRL.set(true);
 	}
 
 	const urlTime = params.get('time');
-	if (urlTime && urlTime.length == 15) {
-		const parsedUrlTime = parseISOWithoutTimezone(urlTime);
-		time.set(parsedUrlTime);
+	if (urlTime?.length === 15) {
+		time.set(parseISOWithoutTimezone(urlTime));
 	}
 
-	if (params.get('globe')) {
-		preferences.globe = params.get('globe') === 'true';
-	} else {
-		if (preferences.globe) {
-			url.searchParams.set('globe', String(preferences.globe));
+	const syncBoolParam = (paramKey: string, prefKey: keyof Preferences, writeIfDefault: boolean) => {
+		const raw = params.get(paramKey);
+		if (raw !== null) {
+			preferences[prefKey] = raw === 'true';
+		} else if (writeIfDefault ? true : preferences[prefKey]) {
+			url.searchParams.set(paramKey, String(preferences[prefKey]));
 		}
-	}
+	};
 
-	if (params.get('terrain')) {
-		preferences.terrain = params.get('terrain') === 'true';
-	} else {
-		if (preferences.terrain) {
-			url.searchParams.set('terrain', String(preferences.terrain));
-		}
+	syncBoolParam('globe', 'globe', false);
+	syncBoolParam('terrain', 'terrain', false);
+	syncBoolParam('hillshade', 'hillshade', false);
+	syncBoolParam('clip_water', 'clipWater', false);
+
+	const timeSelectorRaw = params.get('time_selector');
+	if (timeSelectorRaw !== null) {
+		preferences.timeSelector = timeSelectorRaw === 'true';
+	} else if (!preferences.timeSelector) {
+		url.searchParams.set('time_selector', String(preferences.timeSelector));
 	}
 
 	const domain = params.get('domain');
 	if (domain) {
 		d.set(domain);
-	} else {
-		if (get(d) !== 'dwd_icon') {
-			url.searchParams.set('domain', get(d));
-		}
+	} else if (get(d) !== 'dwd_icon') {
+		url.searchParams.set('domain', get(d));
 	}
 
 	const variable = params.get('variable');
 	if (variable) {
 		v.set(variable);
-	} else {
-		if (get(v) !== 'temperature_2m') {
-			url.searchParams.set('variable', get(v));
-		}
+	} else if (get(v) !== 'temperature_2m') {
+		url.searchParams.set('variable', get(v));
 	}
 
-	if (params.get('hillshade')) {
-		preferences.hillshade = params.get('hillshade') === 'true';
-	} else {
-		if (preferences.hillshade) {
-			url.searchParams.set('hillshade', String(preferences.hillshade));
-		}
+	const arrowsRaw = params.get('arrows');
+	if (arrowsRaw !== null) {
+		vectorOptions.arrows = arrowsRaw === 'true';
+	} else if (!vectorOptions.arrows) {
+		url.searchParams.set('arrows', String(vectorOptions.arrows));
 	}
 
-	if (params.get('time_selector')) {
-		preferences.timeSelector = params.get('time_selector') === 'true';
-	} else {
-		if (!preferences.timeSelector) {
-			url.searchParams.set('time_selector', String(preferences.timeSelector));
-		}
+	const contoursRaw = params.get('contours');
+	if (contoursRaw !== null) {
+		vectorOptions.contours = contoursRaw === 'true';
+	} else if (vectorOptions.contours) {
+		url.searchParams.set('contours', String(vectorOptions.contours));
 	}
 
-	if (params.get('clip_water')) {
-		preferences.clipWater = params.get('clip_water') === 'true';
-	} else {
-		if (preferences.clipWater) {
-			url.searchParams.set('clip_water', String(preferences.clipWater));
-		}
-	}
-
-	if (params.get('arrows')) {
-		vectorOptions.arrows = params.get('arrows') === 'true';
-	} else {
-		if (!vectorOptions.arrows) {
-			url.searchParams.set('arrows', String(vectorOptions.arrows));
-		}
-	}
-
-	if (params.get('contours')) {
-		vectorOptions.contours = params.get('contours') === 'true';
-	} else {
-		if (vectorOptions.contours) {
-			url.searchParams.set('contours', String(vectorOptions.contours));
-		}
-	}
-
-	if (params.get('interval')) {
-		vectorOptions.contourInterval = Number(params.get('interval'));
-	} else {
-		if (vectorOptions.contourInterval !== 2) {
-			url.searchParams.set('interval', String(vectorOptions.contourInterval));
-		}
+	const intervalRaw = params.get('interval');
+	if (intervalRaw !== null) {
+		vectorOptions.contourInterval = Number(intervalRaw);
+	} else if (vectorOptions.contourInterval !== 2) {
+		url.searchParams.set('interval', String(vectorOptions.contourInterval));
 	}
 
 	vO.set(vectorOptions);
 	p.set(preferences);
 };
 
+// =============================================================================
+// Map controls & style
+// =============================================================================
+
 export const setMapControlSettings = () => {
 	if (!map) return;
 
 	map.touchZoomRotate.disableRotation();
-
-	const navigationControl = new maplibregl.NavigationControl({
-		visualizePitch: true,
-		showZoom: true,
-		showCompass: true
-	});
-	map.addControl(navigationControl);
-
-	const locateControl = new maplibregl.GeolocateControl({
-		fitBoundsOptions: {
-			maxZoom: 13.5
-		},
-		positionOptions: {
-			enableHighAccuracy: true
-		},
-		trackUserLocation: true
-	});
-	map.addControl(locateControl);
+	map.addControl(
+		new maplibregl.NavigationControl({ visualizePitch: true, showZoom: true, showCompass: true })
+	);
+	map.addControl(
+		new maplibregl.GeolocateControl({
+			fitBoundsOptions: { maxZoom: 13.5 },
+			positionOptions: { enableHighAccuracy: true },
+			trackUserLocation: true
+		})
+	);
 
 	const globeControl = new maplibregl.GlobeControl();
 	map.addControl(globeControl);
 	globeControl._globeButton.addEventListener('click', () => globeHandler());
 
-	// improved scrolling
 	map.scrollZoom.setZoomRate(1 / 85);
 	map.scrollZoom.setWheelZoomRate(1 / 85);
 };
@@ -267,43 +347,28 @@ export const addHillshadeLayer = () => {
 				'hillshade-highlight-color': 'rgba(255,255,255,0.35)'
 			}
 		},
-		beforeLayerRaster
+		BEFORE_LAYER_RASTER
 	);
 };
 
-function isHighDensity() {
-	return (
-		(window.matchMedia &&
-			(window.matchMedia(
-				'only screen and (min-resolution: 124dpi), only screen and (min-resolution: 1.3dppx), only screen and (min-resolution: 48.8dpcm)'
-			).matches ||
-				window.matchMedia(
-					'only screen and (-webkit-min-device-pixel-ratio: 1.3), only screen and (-o-min-device-pixel-ratio: 2.6/2), only screen and (min--moz-device-pixel-ratio: 1.3), only screen and (min-device-pixel-ratio: 1.3)'
-				).matches)) ||
-		(window.devicePixelRatio && window.devicePixelRatio > 1.3)
-	);
-}
+export const getStyle = async () => {
+	const style = await fetch(
+		`https://tiles.open-meteo.com/styles/minimal-planet-maps${mode.current === 'dark' ? '-dark' : ''}${preferences.clipWater ? '-water-clip' : ''}.json`
+	).then((r) => r.json());
 
-function isRetina() {
-	return (
-		((window.matchMedia &&
-			(window.matchMedia(
-				'only screen and (min-resolution: 192dpi), only screen and (min-resolution: 2dppx), only screen and (min-resolution: 75.6dpcm)'
-			).matches ||
-				window.matchMedia(
-					'only screen and (-webkit-min-device-pixel-ratio: 2), only screen and (-o-min-device-pixel-ratio: 2/1), only screen and (min--moz-device-pixel-ratio: 2), only screen and (min-device-pixel-ratio: 2)'
-				).matches)) ||
-			(window.devicePixelRatio && window.devicePixelRatio >= 2)) &&
-		/(iPad|iPhone|iPod)/g.test(navigator.userAgent)
-	);
-}
+	return preferences.globe ? { ...style, projection: { type: 'globe' } } : style;
+};
 
-export const checkHighDefinition = () => {
-	if (browser) {
-		return isRetina() || isHighDensity();
-	} else {
-		return false;
-	}
+export const terrainHandler = () => {
+	preferences.terrain = !preferences.terrain;
+	p.set(preferences);
+	updateUrl('terrain', String(preferences.terrain), String(defaultPreferences.terrain));
+};
+
+export const globeHandler = () => {
+	preferences.globe = !preferences.globe;
+	p.set(preferences);
+	updateUrl('globe', String(preferences.globe), String(defaultPreferences.globe));
 };
 
 // =============================================================================
@@ -357,7 +422,7 @@ const addSlotLayers = (slot: VectorSlot) => {
 
 	const srcId = slotSourceId(slot);
 	const initialOpacity = 0;
-	const beforeLayer = preferences.clipWater ? beforeLayerVectorWaterClip : beforeLayerVector;
+	const beforeLayer = preferences.clipWater ? BEFORE_LAYER_VECTOR_WATER_CLIP : BEFORE_LAYER_VECTOR;
 
 	if (!map.getSource(srcId)) {
 		map.addSource(srcId, { url: 'om://' + omUrl, type: 'vector' });
@@ -683,7 +748,7 @@ export const addOmFileLayers = () => {
 				'raster-opacity': mode.current === 'dark' ? (opacityValue - 10) / 100 : opacityValue / 100
 			}
 		},
-		beforeLayerRaster
+		BEFORE_LAYER_RASTER
 	);
 
 	requestVectorUpdate();
@@ -733,56 +798,6 @@ export const changeOMfileURL = (vectorOnly = false, rasterOnly = false) => {
 	}
 };
 
-export const terrainHandler = () => {
-	preferences.terrain = !preferences.terrain;
-	p.set(preferences);
-	updateUrl('terrain', String(preferences.terrain), String(defaultPreferences.terrain));
-};
-
-export const globeHandler = () => {
-	preferences.globe = !preferences.globe;
-	p.set(preferences);
-	updateUrl('globe', String(preferences.globe), String(defaultPreferences.globe));
-};
-
-export const getStyle = async () => {
-	return await fetch(
-		`https://tiles.open-meteo.com/styles/minimal-planet-maps${mode.current === 'dark' ? '-dark' : ''}${preferences.clipWater ? '-water-clip' : ''}.json`
-	)
-		.then((response) => response.json())
-		.then((style) => {
-			if (preferences.globe) {
-				return {
-					...style,
-					projection: {
-						type: 'globe'
-					}
-				};
-			} else {
-				return style;
-			}
-		});
-};
-
-export const textWhite = (
-	[r, g, b, a]: [number, number, number, number] | [number, number, number],
-	dark?: boolean,
-	globalOpacity?: number
-): boolean => {
-	const alpha = ((a || 1) * (globalOpacity || 100)) / 100;
-	if (alpha < 0.65) {
-		if (dark) {
-			return true;
-		} else {
-			return false;
-		}
-	}
-	// check luminance
-	return r * 0.299 + g * 0.587 + b * 0.114 <= 150;
-};
-
-let popup: maplibregl.Popup | undefined;
-let showPopup = false;
 export const addPopup = () => {
 	if (!map) return;
 
@@ -836,22 +851,9 @@ export const addPopup = () => {
 	});
 };
 
-/** e.g. /2025/06/06/1200Z/ */
-export const fmtModelRun = (modelRun: Date) => {
-	return `${modelRun.getUTCFullYear()}/${pad(modelRun.getUTCMonth() + 1)}/${pad(modelRun.getUTCDate())}/${pad(modelRun.getUTCHours())}${pad(modelRun.getUTCMinutes())}Z`;
-};
-
-/** e.g. 2025-06-06-1200 */
-export const fmtSelectedTime = (time: Date) => {
-	return `${time.getUTCFullYear()}-${pad(time.getUTCMonth() + 1)}-${pad(time.getUTCDate())}T${pad(time.getUTCHours())}${pad(time.getUTCMinutes())}`;
-};
-
 export const getOMUrl = () => {
 	const domain = get(d);
-	const uri =
-		domain && domain.startsWith('dwd_icon') && !domain.endsWith('eps')
-			? `https://s3.servert.ch`
-			: `https://map-tiles.open-meteo.com`;
+	const uri = getBaseUri(domain);
 
 	let url = `${uri}/data_spatial/${domain}`;
 
@@ -919,55 +921,13 @@ export const getNextOmUrls = (
 	return [prevUrl, nextUrl];
 };
 
-export const hashValue = (val: string) =>
-	crypto.subtle.digest('SHA-256', new TextEncoder().encode(val)).then((h) => {
-		const hexes = [],
-			view = new DataView(h);
-		for (let i = 0; i < view.byteLength; i += 4)
-			hexes.push(('00000000' + view.getUint32(i).toString(16)).slice(-8));
-		return hexes.join('');
-	});
-
-export const updateUrl = async (
-	urlParam: undefined | string = undefined,
-	newValue: undefined | string = undefined,
-	defaultValue: undefined | string = undefined
-) => {
-	if (!url) return;
-
-	if (!defaultValue && urlParam) {
-		if (completeDefaultValues[urlParam]) {
-			defaultValue = String(completeDefaultValues[urlParam]);
-		}
-	}
-
-	if (urlParam) {
-		if (newValue && newValue !== defaultValue) {
-			url.searchParams.set(urlParam, String(newValue));
-		} else {
-			url.searchParams.delete(urlParam);
-		}
-	}
-
-	await tick();
-	try {
-		if (map) pushState(url + map._hash.getHashString(), {});
-	} catch {
-		pushState(url, {});
-	}
-};
-
 export const getInitialMetaData = async () => {
-	const domain = get(selectedDomain);
-
-	const uri =
-		domain && domain.value.startsWith('dwd_icon') && !domain.value.endsWith('eps')
-			? `https://s3.servert.ch`
-			: `https://map-tiles.open-meteo.com`;
+	const domain = get(d);
+	const uri = getBaseUri(domain);
 
 	const metaJsonResults = await Promise.all([
-		fetch(`${uri}/data_spatial/${domain.value}/latest.json`),
-		fetch(`${uri}/data_spatial/${domain.value}/in-progress.json`)
+		fetch(`${uri}/data_spatial/${domain}/latest.json`),
+		fetch(`${uri}/data_spatial/${domain}/in-progress.json`)
 	]);
 
 	for (const metaResult of metaJsonResults) {
@@ -985,7 +945,8 @@ export const getInitialMetaData = async () => {
 };
 
 export const getMetaData = async (): Promise<DomainMetaDataJson> => {
-	const domain = get(selectedDomain);
+	const domain = get(d);
+	const uri = getBaseUri(domain);
 	let modelRun = get(mR);
 
 	const latest = get(l);
@@ -1010,12 +971,7 @@ export const getMetaData = async (): Promise<DomainMetaDataJson> => {
 		}
 	}
 
-	const uri =
-		domain && domain.value.startsWith('dwd_icon') && !domain.value.endsWith('eps')
-			? `https://s3.servert.ch`
-			: `https://map-tiles.open-meteo.com`;
-
-	const metaJsonUrl = `${uri}/data_spatial/${domain.value}/${fmtModelRun(modelRun as Date)}/meta.json`;
+	const metaJsonUrl = `${uri}/data_spatial/${domain}/${fmtModelRun(modelRun as Date)}/meta.json`;
 
 	const metaJsonResult = await fetch(metaJsonUrl);
 	if (!metaJsonResult.ok) {
@@ -1048,23 +1004,6 @@ export const matchVariableOrFirst = () => {
 	if (matchedVariable) {
 		v.set(matchedVariable);
 	}
-};
-
-export const throttle = <T extends unknown[]>(callback: (...args: T) => void, delay: number) => {
-	let waiting = false;
-
-	return (...args: T) => {
-		if (waiting) {
-			return;
-		}
-
-		callback(...args);
-		waiting = true;
-
-		setTimeout(() => {
-			waiting = false;
-		}, delay);
-	};
 };
 
 export const reloadStyles = () => {
