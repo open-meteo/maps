@@ -90,8 +90,8 @@
 	});
 
 	onMount(async () => {
-		maplibregl.addProtocol('om', (params: RequestParameters) =>
-			omProtocol(params, undefined, omProtocolSettings)
+		maplibregl.addProtocol('om', (params: RequestParameters, abortController: AbortController) =>
+			omProtocol(params, abortController, omProtocolSettings)
 		);
 
 		const style = await getStyle();
