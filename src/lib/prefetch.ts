@@ -20,6 +20,7 @@ export interface PrefetchOptions {
 	modelRun: Date;
 	domain: string;
 	variable: string;
+	signal?: AbortSignal;
 }
 
 export interface PrefetchResult {
@@ -27,6 +28,7 @@ export interface PrefetchResult {
 	successCount: number;
 	totalCount: number;
 	error?: string;
+	aborted?: boolean;
 }
 
 export interface PrefetchProgress {
@@ -104,7 +106,7 @@ export const prefetchData = async (
 	options: PrefetchOptions,
 	onProgress?: (progress: PrefetchProgress) => void
 ): Promise<PrefetchResult> => {
-	const { startDate, endDate, metaJson, modelRun, domain, variable } = options;
+	const { startDate, endDate, metaJson, modelRun, domain, variable, signal } = options;
 
 	// Get the time steps to prefetch
 	const timeSteps = getTimeStepsInRange(metaJson, startDate, endDate);
@@ -134,13 +136,15 @@ export const prefetchData = async (
 
 		// Helper to prefetch a single time step
 		const prefetchSingle = async (timeStep: Date): Promise<boolean> => {
+			if (signal?.aborted) return false;
+
 			const url = `${uri}/data_spatial/${domain}/${fmtModelRun(modelRun)}/${fmtSelectedTime(
 				timeStep
 			)}.om`;
 
 			try {
 				await omFileReader.setToOmFile(url);
-				await omFileReader.prefetchVariable(variable, ranges);
+				await omFileReader.prefetchVariable(variable, ranges, signal);
 				return true;
 			} catch {
 				// Silently continue on errors
@@ -155,6 +159,8 @@ export const prefetchData = async (
 		const worker = async () => {
 			let localSuccess = 0;
 			while (true) {
+				if (signal?.aborted) break;
+
 				const i = index++;
 				if (i >= timeSteps.length) break;
 
@@ -178,6 +184,16 @@ export const prefetchData = async (
 
 		const results = await Promise.all(workerPromises);
 		successCount = results.reduce((sum, v) => sum + v, 0);
+
+		if (signal?.aborted) {
+			return {
+				success: false,
+				successCount,
+				totalCount,
+				aborted: true,
+				error: 'Prefetch aborted'
+			};
+		}
 
 		return {
 			success: true,
