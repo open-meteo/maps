@@ -408,16 +408,6 @@
 						<b>Arrows</b> - Show directional arrows on maps with speed and direction (wind / wave)
 					</div>
 					<div><b>Contours</b> - Show contour lines between certain thresholds</div>
-				</div>
-				<div>
-					<div>
-						<b>Tile Size Source</b> - Size in pixels of the tiles displayed from the protocol
-						source,
-						<b><i>512</i></b> recommended
-					</div>
-					<div>
-						<b>Tile Size</b> - Size in pixels of the generated tiles, <b><i>512</i></b> recommended
-					</div>
 					<div>
 						<b>Partial Requests</b> - Only request the data of the current viewport. Will update on zoom
 						/ pan
@@ -425,6 +415,16 @@
 					<div>
 						<b>Clip Water</b> - Overlay the oceans over the generated tiles. Makes sense for certain variables
 						like 'Soil Temperature' where values in the oceans don't represent anything
+					</div>
+				</div>
+				<div>
+					<div>
+						<b>Tile Size</b> - Size in pixels of the generated tiles, <b><i>512px</i></b> default. Since
+						the default source tile size is 512px, using smaller tile sizes will reduce the number of
+						pixels that need to be computed for each tile, which can speed up rendering. On the other
+						hand, increasing the tile size will increase the resolution of the data and can make it look
+						smoother, but it will also increase the number of pixels that need to be computed, which can
+						slow down rendering.
 					</div>
 				</div>
 			</div>
