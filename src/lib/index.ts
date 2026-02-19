@@ -112,7 +112,7 @@ export const fmtModelRun = (modelRun: Date): string =>
 export const fmtSelectedTime = (t: Date): string =>
 	`${t.getUTCFullYear()}-${pad(t.getUTCMonth() + 1)}-${pad(t.getUTCDate())}T${pad(t.getUTCHours())}${pad(t.getUTCMinutes())}`;
 
-const getBaseUri = (domainValue: string): string =>
+export const getBaseUri = (domainValue: string): string =>
 	domainValue.startsWith('dwd_icon') && !domainValue.endsWith('eps')
 		? 'https://s3.servert.ch'
 		: 'https://map-tiles.open-meteo.com';
