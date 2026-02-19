@@ -443,8 +443,8 @@ export const getInitialMetaData = async () => {
 	const uri = getBaseUri(domain.value);
 
 	const [latestRes, inProgressRes] = await Promise.all([
-		fetch(`${uri}/data_spatial/${domain.value}/latest.json`),
-		fetch(`${uri}/data_spatial/${domain.value}/in-progress.json`)
+		fetch(`${uri}data_spatial/${domain.value}/latest.json`),
+		fetch(`${uri}data_spatial/${domain.value}/in-progress.json`)
 	]);
 
 	for (const res of [latestRes, inProgressRes]) {
