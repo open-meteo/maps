@@ -274,6 +274,7 @@
 	min-width: 24px;
 	margin-right: 2px;
 	height: 32px;
+	top: -21px;
 	background: rgba(240, 240, 240, 0.6);
 	backdrop-filter: blur(2px);
 	border: 3px solid rgba(100, 100, 100, 1);
