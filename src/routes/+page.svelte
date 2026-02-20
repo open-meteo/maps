@@ -117,9 +117,9 @@
 
 			if (getInitialMetaDataPromise) await getInitialMetaDataPromise;
 
-			addOmFileLayers();
 			addHillshadeSources();
 			$map.addControl(new HillshadeButton());
+			addOmFileLayers();
 
 			addPopup();
 			changeOMfileURL();

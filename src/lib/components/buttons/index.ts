@@ -147,12 +147,9 @@ export class HillshadeButton {
 			div.innerHTML = noHillshadeSVG;
 		}
 
-		setTimeout(() => {
-			if (preferences.hillshade) {
-				addHillshadeLayer();
-				addTerrainControl();
-			}
-		}, 100);
+		if (preferences.hillshade) {
+			addHillshadeLayer();
+		}
 
 		div.addEventListener('contextmenu', (e) => e.preventDefault());
 		div.addEventListener('click', () => {
@@ -182,6 +179,12 @@ export class HillshadeButton {
 			}
 			updateUrl('hillshade', String(preferences.hillshade), String(defaultPreferences.hillshade));
 		});
+		if (preferences.hillshade) {
+			// terrain control is supposed to appear below the hillshade button
+			setTimeout(() => {
+				addTerrainControl();
+			}, 50);
+		}
 		return div;
 	}
 	onRemove() {}

@@ -6,7 +6,7 @@ import { mode } from 'mode-watcher';
 import { map as m } from '$lib/stores/map';
 import { defaultPreferences, preferences as p } from '$lib/stores/preferences';
 
-import { BEFORE_LAYER_RASTER } from '$lib/constants';
+import { BEFORE_LAYER_RASTER, HILLSHADE_LAYER } from '$lib/constants';
 
 import { addOmFileLayers } from './layers';
 import { updateUrl } from './url';
@@ -61,7 +61,7 @@ export const addHillshadeLayer = () => {
 	map.addLayer(
 		{
 			source: 'terrainSource',
-			id: 'hillshadeLayer',
+			id: HILLSHADE_LAYER,
 			type: 'hillshade',
 			paint: {
 				'hillshade-method': 'igor',
@@ -103,12 +103,12 @@ export const reloadStyles = () => {
 		map.setStyle(style);
 		map.once('styledata', () => {
 			setTimeout(() => {
-				addOmFileLayers();
 				addHillshadeSources();
 				const preferences = get(p);
 				if (preferences.hillshade) {
 					addHillshadeLayer();
 				}
+				addOmFileLayers();
 			}, 50);
 		});
 	});

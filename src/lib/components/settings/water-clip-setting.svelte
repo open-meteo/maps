@@ -1,12 +1,10 @@
 <script lang="ts">
-	import { map } from '$lib/stores/map';
 	import { defaultPreferences, preferences } from '$lib/stores/preferences';
 
 	import { Label } from '$lib/components/ui/label';
 	import { Switch } from '$lib/components/ui/switch';
 
-	import { addOmFileLayers } from '$lib/layers';
-	import { addHillshadeLayer, addHillshadeSources, getStyle } from '$lib/map-controls';
+	import { reloadStyles } from '$lib/map-controls';
 	import { updateUrl } from '$lib/url';
 
 	const clipWater = $derived($preferences.clipWater);
@@ -21,18 +19,7 @@
 			onCheckedChange={() => {
 				updateUrl('clip_water', String(clipWater), String(defaultPreferences.clipWater)); // different key,
 
-				getStyle().then((style) => {
-					$map.setStyle(style);
-					$map.once('styledata', () => {
-						setTimeout(() => {
-							addOmFileLayers();
-							addHillshadeSources();
-							if ($preferences.hillshade) {
-								addHillshadeLayer();
-							}
-						}, 50);
-					});
-				});
+				reloadStyles();
 			}}
 		/>
 		<Label for="arrows">Clip Water {clipWater ? 'on' : 'off'}</Label>

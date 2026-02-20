@@ -11,7 +11,8 @@ import { vectorOptions as vO } from '$lib/stores/vector';
 import {
 	BEFORE_LAYER_RASTER,
 	BEFORE_LAYER_VECTOR,
-	BEFORE_LAYER_VECTOR_WATER_CLIP
+	BEFORE_LAYER_VECTOR_WATER_CLIP,
+	HILLSHADE_LAYER
 } from '$lib/constants';
 import { type SlotLayer, SlotManager } from '$lib/slot-manager';
 
@@ -251,7 +252,7 @@ export const createManagers = (): void => {
 
 	rasterManager = new SlotManager(map, {
 		sourceIdPrefix: 'omRasterSource',
-		beforeLayer: BEFORE_LAYER_RASTER,
+		beforeLayer: preferences.hillshade ? HILLSHADE_LAYER : BEFORE_LAYER_RASTER,
 		layerFactory: () => [rasterLayer()],
 		sourceSpec: (sourceUrl) => ({
 			url: sourceUrl,
@@ -303,8 +304,10 @@ export const changeOMfileURL = (vectorOnly = false, rasterOnly = false): void =>
 	const omUrl = getOMUrl();
 
 	const preferences = get(p);
-	const beforeLayer = preferences.clipWater ? BEFORE_LAYER_VECTOR_WATER_CLIP : BEFORE_LAYER_VECTOR;
-	vectorManager?.setBeforeLayer(beforeLayer);
+	vectorManager?.setBeforeLayer(
+		preferences.clipWater ? BEFORE_LAYER_VECTOR_WATER_CLIP : BEFORE_LAYER_VECTOR
+	);
+	rasterManager?.setBeforeLayer(preferences.hillshade ? HILLSHADE_LAYER : BEFORE_LAYER_RASTER);
 
 	if (!vectorOnly) rasterManager?.update('om://' + omUrl);
 	if (!rasterOnly) vectorManager?.update('om://' + omUrl);
