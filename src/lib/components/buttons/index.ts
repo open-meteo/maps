@@ -160,7 +160,7 @@ export class HillshadeButton {
 		if (!this.map || this.terrainControl) return;
 
 		this.terrainControl = new maplibregl.TerrainControl({
-			source: 'terrainSource',
+			source: 'terrainSource2',
 			exaggeration: 1
 		});
 
@@ -173,8 +173,9 @@ export class HillshadeButton {
 		}
 
 		if (preferences.terrain) {
-			this.map.setTerrain({ source: 'terrainSource' });
+			this.map.setTerrain({ source: 'terrainSource2' });
 		}
+		console.log('Enabled terrain');
 	}
 
 	private removeTerrainControl() {

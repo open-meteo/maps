@@ -118,6 +118,7 @@
 			if (getInitialMetaDataPromise) await getInitialMetaDataPromise;
 
 			addTerrainSource($map);
+			addTerrainSource($map, 'terrainSource2');
 			$map.addControl(new HillshadeButton());
 			addOmFileLayers();
 
