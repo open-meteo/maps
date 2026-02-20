@@ -9,7 +9,6 @@ import {
 	COMPLETE_DEFAULT_VALUES,
 	DEFAULT_OPACITY,
 	DEFAULT_PREFERENCES,
-	DEFAULT_RESOLUTION,
 	DEFAULT_TILE_SIZE
 } from '$lib/constants';
 
@@ -43,10 +42,13 @@ export const url: Writable<URL> = writable();
 export const sheet = writable(false);
 export const loading = writable(true);
 
-export const tileSize: Persisted<128 | 256 | 512> = persisted('tile_size', DEFAULT_TILE_SIZE);
-export const resolution: Persisted<0.5 | 1 | 2> = persisted('resolution', DEFAULT_RESOLUTION);
-// check for retina / hd on first load, afterwards the resolution won't be set
-export const resolutionSet = persisted('resolution-set', false);
+export const tileSize: Persisted<64 | 128 | 256 | 512 | 1024 | 2048> = persisted(
+	'tile_size',
+	DEFAULT_TILE_SIZE
+);
+
+// check for retina / hd on first load, afterwards the tile-size won't be set
+export const tileSizeSet = persisted('tile-size-set', false);
 
 export const opacity = persisted('opacity', DEFAULT_OPACITY);
 
@@ -87,8 +89,7 @@ export const resetStates = async () => {
 	variableSelectionExtended.set(undefined);
 
 	tileSize.set(DEFAULT_TILE_SIZE);
-	resolution.set(DEFAULT_RESOLUTION);
-	resolutionSet.set(false);
+	tileSizeSet.set(false);
 
 	opacity.set(DEFAULT_OPACITY);
 

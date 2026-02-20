@@ -3,7 +3,6 @@
 	import { get } from 'svelte/store';
 
 	import {
-		type Bounds,
 		GridFactory,
 		type RenderableColorScale,
 		domainOptions,
@@ -24,13 +23,12 @@
 		localStorageVersion,
 		preferences,
 		resetStates,
-		resolution,
-		resolutionSet,
+		tileSize,
+		tileSizeSet,
 		url
 	} from '$lib/stores/preferences';
 	import { metaJson, modelRun, time } from '$lib/stores/time';
 	import { domain, selectedDomain, selectedVariable, variable } from '$lib/stores/variables';
-	import { vectorOptions } from '$lib/stores/vector';
 
 	import {
 		ClippingButton,
@@ -41,6 +39,7 @@
 		TimeButton
 	} from '$lib/components/buttons';
 	import ClippingPanel from '$lib/components/clipping/clipping-panel.svelte';
+	import { loadCountriesFromCodes } from '$lib/components/clipping/country-data';
 	import HelpDialog from '$lib/components/help/help-dialog.svelte';
 	import Spinner from '$lib/components/loading/spinner.svelte';
 	import Scale from '$lib/components/scale/scale.svelte';
@@ -50,9 +49,8 @@
 
 	import {
 		addHillshadeSources,
-		addOmRasterLayers,
+		addOmFileLayers,
 		addPopup,
-		addVectorLayers,
 		changeOMfileURL,
 		checkHighDefinition,
 		findTimeStep,
@@ -61,10 +59,7 @@
 		getStyle,
 		hashValue,
 		matchVariableOrFirst,
-		removeOldVectorLayers,
-		removeOmRasterLayers,
 		setMapControlSettings,
-		throttle,
 		updateUrl,
 		urlParamsToPreferences
 	} from '$lib';
@@ -78,7 +73,6 @@
 
 	import '../styles.css';
 
-	import { loadCountriesFromCodes } from '$lib/components/clipping/country-data';
 	import type { Country } from '$lib/components/clipping/country-data';
 	import type { RequestParameters } from 'maplibre-gl';
 
@@ -86,20 +80,16 @@
 
 	let mapContainer: HTMLElement | null;
 
-	const throttledUpdateCurrentBounds = throttle((bounds: Bounds) => {
-		updateCurrentBounds(bounds);
-	}, 100);
-
 	onMount(() => {
 		$url = new URL(document.location.href);
 		urlParamsToPreferences();
 
-		// first time on load, check if monitor supports high definition, for increased tile resolution factor
-		if (!get(resolutionSet)) {
+		// first time on load, check if monitor supports high definition, for increased tile size
+		if (!get(tileSizeSet)) {
 			if (checkHighDefinition()) {
-				resolution.set(2);
+				tileSize.set(1024);
 			}
-			resolutionSet.set(true);
+			tileSizeSet.set(true);
 		}
 	});
 
@@ -114,8 +104,8 @@
 	});
 
 	onMount(async () => {
-		maplibregl.addProtocol('om', (params: RequestParameters) =>
-			omProtocol(params, undefined, $omProtocolSettings)
+		maplibregl.addProtocol('om', (params: RequestParameters, abortController: AbortController) =>
+			omProtocol(params, abortController, $omProtocolSettings)
 		);
 
 		const style = await getStyle();
@@ -157,11 +147,9 @@
 
 			if (getInitialMetaDataPromise) await getInitialMetaDataPromise;
 
-			addOmRasterLayers();
-			if ($vectorOptions.contours || $vectorOptions.arrows || $vectorOptions.grid) {
-				addVectorLayers();
-			}
+			addOmFileLayers();
 			addHillshadeSources();
+
 			$map.addControl(new HillshadeButton());
 			clippingPanel?.initTerraDraw();
 
@@ -272,9 +260,7 @@
 	bind:selectedCountries
 	onselect={handleCountrySelect}
 	onclippingchange={async () => {
-		removeOmRasterLayers();
 		await tick();
-		addOmRasterLayers();
 		changeOMfileURL();
 		if ($map) $map.fire('dataloading');
 	}}

@@ -8,7 +8,7 @@
 	import {
 		addHillshadeLayer,
 		addHillshadeSources,
-		addOmRasterLayers,
+		addOmFileLayers,
 		getStyle,
 		updateUrl
 	} from '$lib';
@@ -29,7 +29,7 @@
 					$map.setStyle(style);
 					$map.once('styledata', () => {
 						setTimeout(() => {
-							addOmRasterLayers();
+							addOmFileLayers();
 							addHillshadeSources();
 							if ($preferences.hillshade) {
 								addHillshadeLayer();

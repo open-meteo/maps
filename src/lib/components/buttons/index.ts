@@ -16,8 +16,8 @@ import {
 import {
 	addHillshadeLayer,
 	addHillshadeSources,
-	addOmRasterLayers,
 	getStyle,
+	reloadStyles,
 	terrainHandler,
 	updateUrl
 } from '$lib';
@@ -48,21 +48,6 @@ export class SettingsButton {
 	}
 	onRemove() {}
 }
-
-export const reloadStyles = () => {
-	getStyle().then((style) => {
-		map.setStyle(style);
-		map.once('styledata', () => {
-			setTimeout(() => {
-				addOmRasterLayers();
-				addHillshadeSources();
-				if (preferences.hillshade) {
-					addHillshadeLayer();
-				}
-			}, 50);
-		});
-	});
-};
 
 export class DarkModeButton {
 	onAdd() {

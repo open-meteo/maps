@@ -29,9 +29,8 @@ export const BEFORE_LAYER_RASTER = 'waterway-tunnel';
 export const BEFORE_LAYER_VECTOR = 'place_label_other';
 export const BEFORE_LAYER_VECTOR_WATER_CLIP = 'water-clip';
 
-// Default tile size and resolution
-export const DEFAULT_TILE_SIZE = 256;
-export const DEFAULT_RESOLUTION = 1;
+// Default tile size and opacity
+export const DEFAULT_TILE_SIZE = 512;
 export const DEFAULT_OPACITY = 75;
 
 // Complete default values for URL parameter checking
