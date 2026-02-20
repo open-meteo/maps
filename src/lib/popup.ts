@@ -24,9 +24,12 @@ const initPopupDiv = (): void => {
 	el = document.createElement('div');
 	el.classList.add('popup-wrapper');
 
-	const tipDiv = document.createElement('div');
-	tipDiv.classList.add('popup-tip');
-	el.append(tipDiv);
+	const stemDiv = document.createElement('div');
+	stemDiv.classList.add('popup-stem');
+	const dotDiv = document.createElement('div');
+	dotDiv.classList.add('popup-dot');
+	stemDiv.append(dotDiv);
+	el.append(stemDiv);
 
 	contentDiv = document.createElement('div');
 	contentDiv.classList.add('popup-content');
