@@ -275,10 +275,15 @@
 	margin-right: 2px;
 	height: 32px;
 	top: -21px;
-	background: rgba(240, 240, 240, 0.6);
+	background: rgba(255, 253, 248, 0.8);
 	backdrop-filter: blur(2px);
 	border: 3px solid rgba(100, 100, 100, 1);
 	border-radius: 4px;
+}
+
+.dark .popup-wrapper {
+	background: rgba(26, 26, 24, 0.8);
+	border: 3px solid rgba(150, 150, 150, 1);
 }
 
 .popup-tip {
@@ -335,4 +340,12 @@
 .scrollbar-hide {
 	-ms-overflow-style: none;
 	scrollbar-width: none;
+}
+
+[data-sonner-toast][data-styled='true'] [data-close-button] {
+	left: unset !important;
+	right: -6px !important;
+	top: 7px !important;
+	border: none !important;
+	background: none !important;
 }

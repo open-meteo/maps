@@ -10,6 +10,7 @@ import { variable as v } from '$lib/stores/variables';
 
 import { textWhite } from './helpers';
 import { rasterManager } from './layers';
+import { opacity } from './stores/preferences';
 
 let popup: maplibregl.Marker | undefined;
 let showPopup = false;
@@ -54,7 +55,11 @@ const updatePopupContent = (coordinates: maplibregl.LngLat): void => {
 		const isDark = mode.current === 'dark';
 		const colorScale = getColorScale(get(v), isDark, omProtocolSettings.colorScales);
 		const color = getColor(colorScale, value);
-		contentDiv.style.backgroundColor = `rgba(${color.join(',')})`;
+
+		const popupOpacity =
+			color[3] && color[3] ? (color[3] * get(opacity)) / 100 : get(opacity) / 100;
+
+		contentDiv.style.backgroundColor = `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${popupOpacity})`;
 		contentDiv.style.color = textWhite(color, isDark) ? 'white' : 'black';
 		valueSpan.innerText = value.toFixed(1);
 		unitSpan.innerText = colorScale.unit;
