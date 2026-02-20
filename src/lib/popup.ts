@@ -75,13 +75,13 @@ const updatePopupContent = (coordinates: maplibregl.LngLat): void => {
 		contentDiv.style.color = textWhite(color, isDark) ? 'white' : 'black';
 		valueSpan.innerText = value.toFixed(1);
 		unitSpan.innerText = colorScale.unit;
-		elevationSpan.innerText = hasElevation ? `${Math.round(elevation)} m` : '';
+		elevationSpan.innerText = hasElevation ? `${Math.round(elevation)}m` : '';
 	} else {
 		contentDiv.style.backgroundColor = '';
 		contentDiv.style.color = '';
 		valueSpan.innerText = 'Outside domain';
 		unitSpan.innerText = '';
-		elevationSpan.innerText = hasElevation ? `${Math.round(elevation)} m` : '';
+		elevationSpan.innerText = hasElevation ? `${Math.round(elevation)}m` : '';
 	}
 };
 
