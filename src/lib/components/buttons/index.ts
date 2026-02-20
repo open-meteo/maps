@@ -11,7 +11,8 @@ import {
 	sheet
 } from '$lib/stores/preferences';
 
-import { addHillshadeLayer, reloadStyles, terrainHandler, updateUrl } from '$lib';
+import { addHillshadeLayer, reloadStyles, terrainHandler } from '$lib/map-controls';
+import { updateUrl } from '$lib/url';
 
 let map = get(m);
 m.subscribe((newMap) => {

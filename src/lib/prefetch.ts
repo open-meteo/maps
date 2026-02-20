@@ -4,9 +4,8 @@ import { currentBounds, getProtocolInstance, getRanges } from '@openmeteo/mapbox
 
 import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 
-import { fmtModelRun, fmtSelectedTime, getBaseUri } from '$lib';
-
 import { MILLISECONDS_PER_DAY } from './constants';
+import { fmtModelRun, fmtSelectedTime, getBaseUri } from './helpers';
 import { selectedDomain } from './stores/variables';
 
 import type { DomainMetaDataJson } from '@openmeteo/mapbox-layer';

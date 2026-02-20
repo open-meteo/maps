@@ -9,8 +9,8 @@
 
 	import { Toaster } from '$lib/components/ui/sonner';
 
-	import { getInitialMetaData } from '$lib';
 	import { METADATA_REFRESH_INTERVAL, MILLISECONDS_PER_MINUTE } from '$lib/constants';
+	import { getInitialMetaData } from '$lib/metadata';
 
 	let { children } = $props();
 

@@ -44,23 +44,14 @@
 	import Settings from '$lib/components/settings/settings.svelte';
 	import TimeSelector from '$lib/components/time/time-selector.svelte';
 
-	import {
-		addHillshadeSources,
-		addOmFileLayers,
-		addPopup,
-		changeOMfileURL,
-		checkHighDefinition,
-		findTimeStep,
-		getInitialMetaData,
-		getMetaData,
-		getStyle,
-		hashValue,
-		matchVariableOrFirst,
-		setMapControlSettings,
-		updateUrl,
-		urlParamsToPreferences
-	} from '$lib';
+	import { checkHighDefinition, hashValue } from '$lib/helpers';
+	import { addOmFileLayers, changeOMfileURL } from '$lib/layers';
+	import { addHillshadeSources, getStyle, setMapControlSettings } from '$lib/map-controls';
+	import { getInitialMetaData, getMetaData, matchVariableOrFirst } from '$lib/metadata';
+	import { addPopup } from '$lib/popup';
 	import { formatISOWithoutTimezone } from '$lib/time-format';
+	import { findTimeStep } from '$lib/time-utils';
+	import { updateUrl, urlParamsToPreferences } from '$lib/url';
 
 	import '../styles.css';
 

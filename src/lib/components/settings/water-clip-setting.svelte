@@ -5,13 +5,9 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Switch } from '$lib/components/ui/switch';
 
-	import {
-		addHillshadeLayer,
-		addHillshadeSources,
-		addOmFileLayers,
-		getStyle,
-		updateUrl
-	} from '$lib';
+	import { addOmFileLayers } from '$lib/layers';
+	import { addHillshadeLayer, addHillshadeSources, getStyle } from '$lib/map-controls';
+	import { updateUrl } from '$lib/url';
 
 	const clipWater = $derived($preferences.clipWater);
 </script>

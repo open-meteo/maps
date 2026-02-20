@@ -7,7 +7,8 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Switch } from '$lib/components/ui/switch';
 
-	import { changeOMfileURL, updateUrl } from '$lib';
+	import { changeOMfileURL } from '$lib/layers';
+	import { updateUrl } from '$lib/url';
 
 	let contours = $derived($vectorOptions.contours);
 	let breakpoints = $derived($vectorOptions.breakpoints);
