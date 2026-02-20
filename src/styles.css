@@ -326,6 +326,25 @@
 	font-weight: bold;
 	gap: 2px;
 	padding: 0.15rem 0.3rem;
+	position: relative;
+}
+
+.popup-elevation {
+	top: -18px;
+	position: absolute;
+	font-size: 0.72rem;
+	font-weight: 600;
+	opacity: 0.72;
+	margin-left: 2px;
+	font-size: smaller;
+	color: black;
+	text-align: right;
+	width: 100%;
+	margin-right: 3px;
+}
+
+.dark .popup-elevation {
+	color: white;
 }
 
 /* Time slider */

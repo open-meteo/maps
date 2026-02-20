@@ -19,6 +19,7 @@ let el: HTMLDivElement | undefined;
 let contentDiv: HTMLDivElement | undefined;
 let valueSpan: HTMLSpanElement | undefined;
 let unitSpan: HTMLSpanElement | undefined;
+let elevationSpan: HTMLSpanElement | undefined;
 
 const initPopupDiv = (): void => {
 	el = document.createElement('div');
@@ -38,15 +39,23 @@ const initPopupDiv = (): void => {
 	valueSpan.classList.add('popup-value');
 	unitSpan = document.createElement('span');
 	unitSpan.classList.add('popup-unit');
+	elevationSpan = document.createElement('span');
+	elevationSpan.classList.add('popup-elevation');
 
 	contentDiv.append(valueSpan);
 	contentDiv.append(unitSpan);
+	contentDiv.append(elevationSpan);
 	el.append(contentDiv);
 };
 
 /** Update the popup content for the given coordinates without moving the marker. */
 const updatePopupContent = (coordinates: maplibregl.LngLat): void => {
-	if (!el || !contentDiv || !valueSpan || !unitSpan) return;
+	if (!el || !contentDiv || !valueSpan || !unitSpan || !elevationSpan) return;
+
+	const map = get(m);
+
+	const elevation = map?.queryTerrainElevation(coordinates);
+	const hasElevation = typeof elevation === 'number' && isFinite(elevation);
 
 	const { value } = getValueFromLatLong(
 		coordinates.lat,
@@ -66,11 +75,13 @@ const updatePopupContent = (coordinates: maplibregl.LngLat): void => {
 		contentDiv.style.color = textWhite(color, isDark) ? 'white' : 'black';
 		valueSpan.innerText = value.toFixed(1);
 		unitSpan.innerText = colorScale.unit;
+		elevationSpan.innerText = hasElevation ? `${Math.round(elevation)} m` : '';
 	} else {
 		contentDiv.style.backgroundColor = '';
 		contentDiv.style.color = '';
 		valueSpan.innerText = 'Outside domain';
 		unitSpan.innerText = '';
+		elevationSpan.innerText = hasElevation ? `${Math.round(elevation)} m` : '';
 	}
 };
 
@@ -79,8 +90,8 @@ const renderPopup = (coordinates: maplibregl.LngLat): void => {
 	const map = get(m);
 	if (!showPopup || !map) return;
 
-	if (!el || !contentDiv || !valueSpan || !unitSpan) initPopupDiv();
-	if (!el || !contentDiv || !valueSpan || !unitSpan) return;
+	if (!el || !contentDiv || !valueSpan || !unitSpan || !elevationSpan) initPopupDiv();
+	if (!el || !contentDiv || !valueSpan || !unitSpan || !elevationSpan) return;
 
 	if (!popup) {
 		popup = new maplibregl.Marker({ element: el, draggable: true })
