@@ -50,6 +50,8 @@ import { type SlotLayer, SlotManager } from '$lib/slot-manager';
 
 import { formatISOUTCWithZ, parseISOWithoutTimezone } from './time-format';
 
+import type { TextSpan } from 'typescript';
+
 export { findTimeStep } from '$lib/time-utils';
 
 // =============================================================================
@@ -62,7 +64,7 @@ let preferences: Preferences;
 let metaJson: DomainMetaDataJson | undefined;
 let vectorOptions: VectorOptions;
 let omUrl: string;
-let popup: maplibregl.Popup | undefined;
+let popup: maplibregl.Marker | undefined;
 let showPopup = false;
 
 let storesInitialized = false;
@@ -798,18 +800,28 @@ export const changeOMfileURL = (vectorOnly = false, rasterOnly = false): void =>
 // =============================================================================
 
 let popupCoordinates: maplibregl.LngLat | undefined;
+let el: HTMLDivElement | undefined;
+let valueSpan: HTMLSpanElement | undefined;
+let unitSpan: HTMLSpanElement | undefined;
 
-const renderPopup = (coordinates: maplibregl.LngLat): void => {
-	if (!showPopup || !map) return;
+const initPopupDiv = (): void => {
+	el = document.createElement('div');
+	el.classList.add('popup-div');
+	el.style.maxWidth = '240px';
+	el.style.height = '32px';
 
-	if (!popup) {
-		popup = new maplibregl.Popup({ closeButton: false })
-			.setLngLat(coordinates)
-			.setHTML('<span class="value-popup">Outside domain</span>')
-			.addTo(map);
-	} else {
-		popup.addTo(map);
-	}
+	valueSpan = document.createElement('span');
+	valueSpan.classList.add('popup-value');
+	unitSpan = document.createElement('span');
+	unitSpan.classList.add('popup-unit');
+
+	el.append(valueSpan);
+	el.append(unitSpan);
+};
+
+/** Update the popup content for the given coordinates without moving the marker. */
+const updatePopupContent = (coordinates: maplibregl.LngLat): void => {
+	if (!el || !valueSpan || !unitSpan) return;
 
 	const { value } = getValueFromLatLong(
 		coordinates.lat,
@@ -821,38 +833,63 @@ const renderPopup = (coordinates: maplibregl.LngLat): void => {
 		const isDark = mode.current === 'dark';
 		const colorScale = getColorScale(get(v), isDark, omProtocolSettings.colorScales);
 		const color = getColor(colorScale, value);
-		popup
-			.setLngLat(coordinates)
-			.setHTML(
-				`<div style="font-weight:bold;background-color:rgba(${color.join(',')});color:${textWhite(color, isDark) ? 'white' : 'black'};" class="popup-div">` +
-					`<span class="popup-value">${value.toFixed(1)}</span>${colorScale.unit}</div>`
-			);
+		el.style.backgroundColor = `rgba(${color.join(',')})`;
+		el.style.color = textWhite(color, isDark) ? 'white' : 'black';
+		valueSpan.innerText = value.toFixed(1);
+		unitSpan.innerText = colorScale.unit;
 	} else {
-		popup
-			.setLngLat(coordinates)
-			.setHTML('<span style="padding:3px 5px;" class="popup-string">Outside domain</span>');
+		el.style.backgroundColor = '';
+		el.style.color = '';
+		valueSpan.innerText = 'Outside domain';
+		unitSpan.innerText = '';
 	}
 };
 
-const updatePopup = (e: maplibregl.MapMouseEvent): void => {
-	popupCoordinates = e.lngLat;
-	renderPopup(e.lngLat);
+/** Ensure the marker exists, place it at `coordinates`, and update its content. */
+const renderPopup = (coordinates: maplibregl.LngLat): void => {
+	if (!showPopup || !map) return;
+
+	if (!el || !valueSpan || !unitSpan) initPopupDiv();
+	if (!el || !valueSpan || !unitSpan) return;
+
+	if (!popup) {
+		popup = new maplibregl.Marker({ element: el, draggable: true })
+			.setLngLat(coordinates)
+			.addTo(map);
+
+		popup.on('drag', () => {
+			const lngLat = popup?.getLngLat();
+			if (lngLat) {
+				popupCoordinates = lngLat;
+				updatePopupContent(lngLat);
+			}
+		});
+	} else {
+		popup.setLngLat(coordinates).addTo(map);
+	}
+
+	popupCoordinates = coordinates;
+	updatePopupContent(coordinates);
 };
 
 export const refreshPopup = (): void => {
-	if (popupCoordinates) renderPopup(popupCoordinates);
+	if (popupCoordinates) updatePopupContent(popupCoordinates);
 };
 
 export const addPopup = (): void => {
 	if (!map) return;
 
-	map.on('mousemove', updatePopup);
 	map.on('click', (e: maplibregl.MapMouseEvent) => {
 		if (!map) return;
+
 		showPopup = !showPopup;
-		if (!showPopup) popup?.remove();
-		if (showPopup) popup?.setLngLat(e.lngLat).addTo(map);
-		updatePopup(e);
+
+		if (!showPopup) {
+			popup?.remove();
+			return;
+		}
+
+		renderPopup(e.lngLat);
 	});
 };
 

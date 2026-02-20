@@ -278,6 +278,9 @@ body {
 	text-align: right;
 	margin-right: 2px;
 	padding: 3px 5px;
+	font-weight: bold;
+	max-width: 240px;
+	height: 32px;
 }
 
 .maplibregl-popup-anchor-top .maplibregl-popup-tip {
