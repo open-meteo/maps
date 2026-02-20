@@ -10,23 +10,52 @@ import { variable as v } from '$lib/stores/variables';
 
 import { textWhite } from './helpers';
 import { rasterManager } from './layers';
+import { opacity } from './stores/preferences';
 
-let popupCoordinates: maplibregl.LngLat | undefined;
-let popup: maplibregl.Popup | undefined;
+let popup: maplibregl.Marker | undefined;
 let showPopup = false;
 
-const renderPopup = (coordinates: maplibregl.LngLat): void => {
-	const map = get(m);
-	if (!showPopup || !map) return;
+let el: HTMLDivElement | undefined;
+let contentDiv: HTMLDivElement | undefined;
+let valueSpan: HTMLSpanElement | undefined;
+let unitSpan: HTMLSpanElement | undefined;
+let elevationSpan: HTMLSpanElement | undefined;
 
-	if (!popup) {
-		popup = new maplibregl.Popup({ closeButton: false })
-			.setLngLat(coordinates)
-			.setHTML('<span class="value-popup">Outside domain</span>')
-			.addTo(map);
-	} else {
-		popup.addTo(map);
-	}
+const initPopupDiv = (): void => {
+	el = document.createElement('div');
+	el.classList.add('popup-wrapper');
+
+	const stemDiv = document.createElement('div');
+	stemDiv.classList.add('popup-stem');
+	const dotDiv = document.createElement('div');
+	dotDiv.classList.add('popup-dot');
+	stemDiv.append(dotDiv);
+	el.append(stemDiv);
+
+	contentDiv = document.createElement('div');
+	contentDiv.classList.add('popup-content');
+
+	valueSpan = document.createElement('span');
+	valueSpan.classList.add('popup-value');
+	unitSpan = document.createElement('span');
+	unitSpan.classList.add('popup-unit');
+	elevationSpan = document.createElement('span');
+	elevationSpan.classList.add('popup-elevation');
+
+	contentDiv.append(valueSpan);
+	contentDiv.append(unitSpan);
+	contentDiv.append(elevationSpan);
+	el.append(contentDiv);
+};
+
+/** Update the popup content for the given coordinates without moving the marker. */
+const updatePopupContent = (coordinates: maplibregl.LngLat): void => {
+	if (!el || !contentDiv || !valueSpan || !unitSpan || !elevationSpan) return;
+
+	const map = get(m);
+
+	const elevation = map?.queryTerrainElevation(coordinates);
+	const hasElevation = typeof elevation === 'number' && isFinite(elevation);
 
 	const { value } = getValueFromLatLong(
 		coordinates.lat,
@@ -38,39 +67,67 @@ const renderPopup = (coordinates: maplibregl.LngLat): void => {
 		const isDark = mode.current === 'dark';
 		const colorScale = getColorScale(get(v), isDark, omProtocolSettings.colorScales);
 		const color = getColor(colorScale, value);
-		popup
-			.setLngLat(coordinates)
-			.setHTML(
-				`<div style="font-weight:bold;background-color:rgba(${color.join(',')});color:${textWhite(color, isDark) ? 'white' : 'black'};" class="popup-div">` +
-					`<span class="popup-value">${value.toFixed(1)}</span>${colorScale.unit}</div>`
-			);
+
+		const popupOpacity =
+			color[3] && color[3] ? (color[3] * get(opacity)) / 100 : get(opacity) / 100;
+
+		contentDiv.style.backgroundColor = `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${popupOpacity})`;
+		contentDiv.style.color = textWhite(color, isDark) ? 'white' : 'black';
+		valueSpan.innerText = value.toFixed(1);
+		unitSpan.innerText = colorScale.unit;
+		elevationSpan.innerText = hasElevation ? `${Math.round(elevation)}m` : '';
 	} else {
-		popup
-			.setLngLat(coordinates)
-			.setHTML('<span style="padding:3px 5px;" class="popup-string">Outside domain</span>');
+		contentDiv.style.backgroundColor = '';
+		contentDiv.style.color = '';
+		valueSpan.innerText = 'Outside domain';
+		unitSpan.innerText = '';
+		elevationSpan.innerText = hasElevation ? `${Math.round(elevation)}m` : '';
 	}
 };
 
-const updatePopup = (e: maplibregl.MapMouseEvent): void => {
-	popupCoordinates = e.lngLat;
-	renderPopup(e.lngLat);
+/** Ensure the marker exists, place it at `coordinates`, and update its content. */
+const renderPopup = (coordinates: maplibregl.LngLat): void => {
+	const map = get(m);
+	if (!showPopup || !map) return;
+
+	if (!el || !contentDiv || !valueSpan || !unitSpan || !elevationSpan) initPopupDiv();
+	if (!el || !contentDiv || !valueSpan || !unitSpan || !elevationSpan) return;
+
+	if (!popup) {
+		popup = new maplibregl.Marker({ element: el, draggable: true })
+			.setLngLat(coordinates)
+			.addTo(map);
+
+		popup.on('drag', () => {
+			const lngLat = popup?.getLngLat();
+			if (lngLat) updatePopupContent(lngLat);
+		});
+	} else {
+		popup.setLngLat(coordinates).addTo(map);
+	}
+
+	updatePopupContent(coordinates);
 };
 
 export const refreshPopup = (): void => {
-	if (popupCoordinates) renderPopup(popupCoordinates);
+	const lngLat = popup?.getLngLat();
+	if (lngLat) updatePopupContent(lngLat);
 };
 
 export const addPopup = (): void => {
 	const map = get(m);
 	if (!map) return;
 
-	map.on('mousemove', updatePopup);
 	map.on('click', (e: maplibregl.MapMouseEvent) => {
-		const map = get(m);
 		if (!map) return;
+
 		showPopup = !showPopup;
-		if (!showPopup) popup?.remove();
-		if (showPopup) popup?.setLngLat(e.lngLat).addTo(map);
-		updatePopup(e);
+
+		if (!showPopup) {
+			popup?.remove();
+			return;
+		}
+
+		renderPopup(e.lngLat);
 	});
 };
