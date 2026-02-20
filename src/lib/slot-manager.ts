@@ -93,7 +93,7 @@ export class SlotManager {
 		this.addSlotLayers(nextSlot, sourceUrl);
 
 		const sourceId = this.sourceId(nextSlot);
-		if (!this.map.getSource(sourceId)) {
+		if (!this.map.style.getSource(sourceId)) {
 			if (this.activeSlot) {
 				this.forceRemoveSlot(this.activeSlot);
 			}
@@ -139,7 +139,7 @@ export class SlotManager {
 		}
 		this.slotLayers[slot] = [];
 		const srcId = this.sourceId(slot);
-		if (this.map.getSource(srcId)) this.map.removeSource(srcId);
+		if (this.map.style.getSource(srcId)) this.map.removeSource(srcId);
 	}
 
 	private removeSlot(slot: Slot): void {
@@ -187,7 +187,7 @@ export class SlotManager {
 	}
 
 	private waitForLoad(nextSlot: Slot, sourceId: string, previousSlot: Slot | null): void {
-		if (this.map.getSource(sourceId)?.loaded()) {
+		if (this.map.style.getSource(sourceId)?.loaded()) {
 			this.commit(nextSlot, previousSlot);
 			return;
 		}
@@ -210,7 +210,7 @@ export class SlotManager {
 				cleanup();
 				return;
 			}
-			if (this.map.getSource(sourceId)?.loaded()) {
+			if (this.map.style.getSource(sourceId)?.loaded()) {
 				cleanup();
 				this.commit(nextSlot, previousSlot);
 			}

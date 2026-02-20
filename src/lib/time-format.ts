@@ -1,6 +1,6 @@
 import { SvelteDate } from 'svelte/reactivity';
 
-import { pad } from '$lib';
+import { pad } from './helpers';
 
 /**
  * Formats a date to display local time (HH:MM)

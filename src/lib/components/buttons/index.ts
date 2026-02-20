@@ -3,7 +3,6 @@ import { get } from 'svelte/store';
 import * as maplibregl from 'maplibre-gl';
 import { mode, setMode } from 'mode-watcher';
 
-import { map as m } from '$lib/stores/map';
 import {
 	defaultPreferences,
 	helpOpen as hO,
@@ -11,12 +10,8 @@ import {
 	sheet
 } from '$lib/stores/preferences';
 
-import { addHillshadeLayer, reloadStyles, terrainHandler, updateUrl } from '$lib';
-
-let map = get(m);
-m.subscribe((newMap) => {
-	map = newMap;
-});
+import { addHillshadeLayer, reloadStyles, terrainHandler } from '$lib/map-controls';
+import { updateUrl } from '$lib/url';
 
 const preferences = get(p);
 
@@ -104,31 +99,12 @@ export class TimeButton {
 	onRemove() {}
 }
 
-let terrainControl: maplibregl.TerrainControl;
-const addTerrainControl = () => {
-	if (!map.hasControl(terrainControl)) {
-		terrainControl = new maplibregl.TerrainControl({
-			source: 'terrainSource',
-			exaggeration: 1
-		});
-
-		map.addControl(terrainControl);
-
-		terrainControl._terrainButton.addEventListener('click', () => terrainHandler());
-	}
-	if (preferences.terrain) {
-		map.setTerrain({ source: 'terrainSource' });
-	}
-};
-const removeTerrainControl = () => {
-	if (map.hasControl(terrainControl)) {
-		map.removeControl(terrainControl);
-	}
-	map.setTerrain(null);
-};
-
 export class HillshadeButton {
-	onAdd() {
+	private map: maplibregl.Map | undefined;
+	private terrainControl: maplibregl.TerrainControl | undefined;
+
+	onAdd(map: maplibregl.Map) {
+		this.map = map;
 		const div = document.createElement('div');
 		div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
 		div.title = 'Hillshade';
@@ -140,18 +116,13 @@ export class HillshadeButton {
 				<svg xmlns="http://www.w3.org/2000/svg" opacity="1" stroke-width="1.2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-mountain-snow-icon lucide-mountain-snow"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/><path d="M4.14 15.08c2.62-1.57 5.24-1.43 7.86.42 2.74 1.94 5.49 2 8.23.19"/></svg>
 			</button>`;
 
-		if (preferences.hillshade) {
-			div.innerHTML = hillshadeSVG;
-		} else {
-			div.innerHTML = noHillshadeSVG;
-		}
+		div.innerHTML = preferences.hillshade ? hillshadeSVG : noHillshadeSVG;
 
-		setTimeout(() => {
-			if (preferences.hillshade) {
-				addHillshadeLayer();
-				addTerrainControl();
-			}
-		}, 100);
+		if (preferences.hillshade) {
+			addHillshadeLayer();
+			// Defer to ensure HillshadeButton is appended to the DOM first, placing Terrain below it
+			setTimeout(() => this.addTerrainControl(), 0);
+		}
 
 		div.addEventListener('contextmenu', (e) => e.preventDefault());
 		div.addEventListener('click', () => {
@@ -163,9 +134,7 @@ export class HillshadeButton {
 				addHillshadeLayer();
 
 				map.once('styledata', () => {
-					setTimeout(() => {
-						addTerrainControl();
-					}, 50);
+					setTimeout(() => this.addTerrainControl(), 0);
 				});
 			} else {
 				div.innerHTML = noHillshadeSVG;
@@ -174,16 +143,49 @@ export class HillshadeButton {
 				}
 
 				map.once('styledata', () => {
-					setTimeout(() => {
-						removeTerrainControl();
-					}, 50);
+					setTimeout(() => this.removeTerrainControl(), 0);
 				});
 			}
 			updateUrl('hillshade', String(preferences.hillshade), String(defaultPreferences.hillshade));
 		});
 		return div;
 	}
-	onRemove() {}
+
+	onRemove() {
+		this.removeTerrainControl();
+		this.map = undefined;
+	}
+
+	private addTerrainControl() {
+		if (!this.map || this.terrainControl) return;
+
+		this.terrainControl = new maplibregl.TerrainControl({
+			source: 'terrainSource',
+			exaggeration: 1
+		});
+
+		this.map.addControl(this.terrainControl);
+
+		// Hijack the terrain button click to use custom handler
+		const terrainBtn = this.terrainControl._terrainButton;
+		if (terrainBtn) {
+			terrainBtn.addEventListener('click', () => terrainHandler());
+		}
+
+		if (preferences.terrain) {
+			this.map.setTerrain({ source: 'terrainSource' });
+		}
+	}
+
+	private removeTerrainControl() {
+		if (!this.map || !this.terrainControl) return;
+
+		if (this.map.hasControl(this.terrainControl)) {
+			this.map.removeControl(this.terrainControl);
+		}
+		this.terrainControl = undefined;
+		this.map.setTerrain(null);
+	}
 }
 
 export class HelpButton {
