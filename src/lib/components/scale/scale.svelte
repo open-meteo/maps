@@ -8,8 +8,8 @@
 	import { opacity, preferences } from '$lib/stores/preferences';
 	import { variable } from '$lib/stores/variables';
 
-	import { textWhite } from '$lib';
 	import { getAlpha, hexToRgba, rgbaToHex } from '$lib/color';
+	import { textWhite } from '$lib/helpers';
 
 	import ColorPicker from './color-picker.svelte';
 

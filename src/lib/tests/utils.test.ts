@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { throttle } from '$lib';
+import { throttle } from '$lib/helpers';
 
 describe('throttle', () => {
 	beforeEach(() => {
