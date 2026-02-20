@@ -11,6 +11,7 @@ import {
 	getColorScale,
 	getValueFromLatLong
 } from '@openmeteo/mapbox-layer';
+import { booleanPointInPolygon } from '@turf/turf';
 import maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
 import { toast } from 'svelte-sonner';
@@ -64,7 +65,7 @@ export { findTimeStep } from '$lib/time-utils';
 // =============================================================================
 
 let url: URL;
-let map: Map | undefined;
+let map: maplibregl.Map | undefined;
 let preferences: Preferences;
 let metaJson: DomainMetaDataJson | undefined;
 let vectorOptions: VectorOptions;
@@ -290,6 +291,17 @@ export const urlParamsToPreferences = () => {
 		vectorOptions.contourInterval = Number(intervalRaw);
 	} else if (vectorOptions.contourInterval !== 2) {
 		url.searchParams.set('interval', String(vectorOptions.contourInterval));
+	}
+
+	const clipCountries = parseClipCountriesParam(params.get(CLIP_COUNTRIES_PARAM));
+	if (clipCountries.length > 0) {
+		clippingCountryCodes.set(clipCountries);
+	} else {
+		const currentCodes = get(clippingCountryCodes);
+		const serialized = serializeClipCountriesParam(currentCodes);
+		if (serialized) {
+			url.searchParams.set(CLIP_COUNTRIES_PARAM, serialized);
+		}
 	}
 
 	vO.set(vectorOptions);
@@ -830,6 +842,21 @@ const renderPopup = (coordinates: maplibregl.LngLat): void => {
 	);
 
 	if (isFinite(value)) {
+		const omProtocolSettingsState = get(omProtocolSettings);
+		const clippingOptions = omProtocolSettingsState.clippingOptions;
+		if (clippingOptions) {
+			const clippingGeometry = toClippingGeometry(clippingOptions.geojson);
+			if (
+				clippingGeometry &&
+				!booleanPointInPolygon([coordinates.lng, coordinates.lat], clippingGeometry)
+			) {
+				popup
+					.setLngLat(coordinates)
+					.setHTML(`<span style="padding: 3px 5px;" class="popup-string">Outside clip</span>`);
+				return;
+			}
+		}
+
 		const isDark = mode.current === 'dark';
 		const colorScale = getColorScale(get(v), isDark, omProtocolSettings.colorScales);
 		const color = getColor(colorScale, value);
