@@ -35,10 +35,7 @@ export const setMapControlSettings = () => {
 	map.scrollZoom.setWheelZoomRate(1 / 85);
 };
 
-export const addHillshadeSources = () => {
-	const map = get(m);
-	if (!map) return;
-
+export const addTerrainSource = (map: maplibregl.Map, name: string = 'terrainSource') => {
 	map.setSky({
 		'sky-color': '#000000',
 		'sky-horizon-blend': 0.8,
@@ -48,7 +45,7 @@ export const addHillshadeSources = () => {
 		'fog-ground-blend': 0
 	});
 
-	map.addSource('terrainSource', {
+	map.addSource(name, {
 		type: 'raster-dem',
 		url: 'https://tiles.mapterhorn.com/tilejson.json'
 	});
@@ -103,7 +100,7 @@ export const reloadStyles = () => {
 		map.setStyle(style);
 		map.once('styledata', () => {
 			setTimeout(() => {
-				addHillshadeSources();
+				addTerrainSource(map);
 				const preferences = get(p);
 				if (preferences.hillshade) {
 					addHillshadeLayer();

@@ -133,7 +133,7 @@ export class HillshadeButton {
 				div.innerHTML = hillshadeSVG;
 				addHillshadeLayer();
 
-				this.map?.once('styledata', () => {
+				map.once('styledata', () => {
 					setTimeout(() => this.addTerrainControl(), 0);
 				});
 			} else {
@@ -142,7 +142,7 @@ export class HillshadeButton {
 					map.removeLayer('hillshadeLayer');
 				}
 
-				this.map?.once('styledata', () => {
+				map.once('styledata', () => {
 					setTimeout(() => this.removeTerrainControl(), 0);
 				});
 			}
@@ -179,7 +179,6 @@ export class HillshadeButton {
 
 	private removeTerrainControl() {
 		if (!this.map || !this.terrainControl) return;
-		console.log('Removing terrain control');
 
 		if (this.map.hasControl(this.terrainControl)) {
 			this.map.removeControl(this.terrainControl);

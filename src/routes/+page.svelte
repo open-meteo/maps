@@ -46,7 +46,7 @@
 
 	import { checkHighDefinition, hashValue } from '$lib/helpers';
 	import { addOmFileLayers, changeOMfileURL } from '$lib/layers';
-	import { addHillshadeSources, getStyle, setMapControlSettings } from '$lib/map-controls';
+	import { addTerrainSource, getStyle, setMapControlSettings } from '$lib/map-controls';
 	import { getInitialMetaData, getMetaData, matchVariableOrFirst } from '$lib/metadata';
 	import { addPopup } from '$lib/popup';
 	import { formatISOWithoutTimezone } from '$lib/time-format';
@@ -117,7 +117,7 @@
 
 			if (getInitialMetaDataPromise) await getInitialMetaDataPromise;
 
-			addHillshadeSources();
+			addTerrainSource($map);
 			$map.addControl(new HillshadeButton());
 			addOmFileLayers();
 
