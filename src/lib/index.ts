@@ -50,8 +50,6 @@ import { type SlotLayer, SlotManager } from '$lib/slot-manager';
 
 import { formatISOUTCWithZ, parseISOWithoutTimezone } from './time-format';
 
-import type { TextSpan } from 'typescript';
-
 export { findTimeStep } from '$lib/time-utils';
 
 // =============================================================================
@@ -799,29 +797,35 @@ export const changeOMfileURL = (vectorOnly = false, rasterOnly = false): void =>
 // Popup
 // =============================================================================
 
-let popupCoordinates: maplibregl.LngLat | undefined;
 let el: HTMLDivElement | undefined;
+let contentDiv: HTMLDivElement | undefined;
 let valueSpan: HTMLSpanElement | undefined;
 let unitSpan: HTMLSpanElement | undefined;
 
 const initPopupDiv = (): void => {
 	el = document.createElement('div');
-	el.classList.add('popup-div');
-	el.style.maxWidth = '240px';
-	el.style.height = '32px';
+	el.classList.add('popup-wrapper');
+
+	const tipDiv = document.createElement('div');
+	tipDiv.classList.add('popup-tip');
+	el.append(tipDiv);
+
+	contentDiv = document.createElement('div');
+	contentDiv.classList.add('popup-content');
 
 	valueSpan = document.createElement('span');
 	valueSpan.classList.add('popup-value');
 	unitSpan = document.createElement('span');
 	unitSpan.classList.add('popup-unit');
 
-	el.append(valueSpan);
-	el.append(unitSpan);
+	contentDiv.append(valueSpan);
+	contentDiv.append(unitSpan);
+	el.append(contentDiv);
 };
 
 /** Update the popup content for the given coordinates without moving the marker. */
 const updatePopupContent = (coordinates: maplibregl.LngLat): void => {
-	if (!el || !valueSpan || !unitSpan) return;
+	if (!el || !contentDiv || !valueSpan || !unitSpan) return;
 
 	const { value } = getValueFromLatLong(
 		coordinates.lat,
@@ -833,13 +837,13 @@ const updatePopupContent = (coordinates: maplibregl.LngLat): void => {
 		const isDark = mode.current === 'dark';
 		const colorScale = getColorScale(get(v), isDark, omProtocolSettings.colorScales);
 		const color = getColor(colorScale, value);
-		el.style.backgroundColor = `rgba(${color.join(',')})`;
-		el.style.color = textWhite(color, isDark) ? 'white' : 'black';
+		contentDiv.style.backgroundColor = `rgba(${color.join(',')})`;
+		contentDiv.style.color = textWhite(color, isDark) ? 'white' : 'black';
 		valueSpan.innerText = value.toFixed(1);
 		unitSpan.innerText = colorScale.unit;
 	} else {
-		el.style.backgroundColor = '';
-		el.style.color = '';
+		contentDiv.style.backgroundColor = '';
+		contentDiv.style.color = '';
 		valueSpan.innerText = 'Outside domain';
 		unitSpan.innerText = '';
 	}
@@ -849,8 +853,8 @@ const updatePopupContent = (coordinates: maplibregl.LngLat): void => {
 const renderPopup = (coordinates: maplibregl.LngLat): void => {
 	if (!showPopup || !map) return;
 
-	if (!el || !valueSpan || !unitSpan) initPopupDiv();
-	if (!el || !valueSpan || !unitSpan) return;
+	if (!el || !contentDiv || !valueSpan || !unitSpan) initPopupDiv();
+	if (!el || !contentDiv || !valueSpan || !unitSpan) return;
 
 	if (!popup) {
 		popup = new maplibregl.Marker({ element: el, draggable: true })
@@ -859,21 +863,18 @@ const renderPopup = (coordinates: maplibregl.LngLat): void => {
 
 		popup.on('drag', () => {
 			const lngLat = popup?.getLngLat();
-			if (lngLat) {
-				popupCoordinates = lngLat;
-				updatePopupContent(lngLat);
-			}
+			if (lngLat) updatePopupContent(lngLat);
 		});
 	} else {
 		popup.setLngLat(coordinates).addTo(map);
 	}
 
-	popupCoordinates = coordinates;
 	updatePopupContent(coordinates);
 };
 
 export const refreshPopup = (): void => {
-	if (popupCoordinates) updatePopupContent(popupCoordinates);
+	const lngLat = popup?.getLngLat();
+	if (lngLat) updatePopupContent(lngLat);
 };
 
 export const addPopup = (): void => {
