@@ -48,7 +48,18 @@
 		if (!browser) return [];
 		try {
 			const raw = localStorage.getItem(DRAWN_FEATURES_KEY);
-			return raw ? JSON.parse(raw) : [];
+			const parsed = raw ? JSON.parse(raw) : [];
+			if (!Array.isArray(parsed)) return [];
+			return parsed
+				.filter((feature) => feature?.geometry?.type === 'Polygon')
+				.map((feature, index) => ({
+					...feature,
+					id: feature?.id ?? `drawn-${Date.now()}-${index}`,
+					properties: {
+						...(feature?.properties ?? {}),
+						mode: feature?.properties?.mode ?? 'polygon'
+					}
+				}));
 		} catch {
 			return [];
 		}
@@ -142,6 +153,11 @@
 		draw.start();
 
 		draw.on('finish', () => {
+			if (activeMode === 'select') {
+				suppressPopupUntil.set(Date.now() + 250);
+				syncEditedGeometryFromSnapshot();
+				return;
+			}
 			mergeDrawnGeometry();
 		});
 	};
@@ -150,13 +166,7 @@
 	const mergeDrawnGeometry = () => {
 		if (!draw) return;
 		const snapshot = draw.getSnapshot();
-		const newPolygons = snapshot
-			.filter((f) => f.geometry.type === 'Polygon')
-			.map((f) => ({
-				type: 'Feature' as const,
-				properties: {} as Record<string, unknown>,
-				geometry: f.geometry
-			}));
+		const newPolygons = snapshot.filter((f) => f.geometry.type === 'Polygon');
 		if (newPolygons.length === 0) return;
 
 		drawnFeatures = [...drawnFeatures, ...newPolygons];
@@ -166,6 +176,21 @@
 		draw.clear();
 		exitDrawingMode(true);
 		rebuildClippingOptions();
+	};
+
+	const syncEditedGeometryFromSnapshot = () => {
+		if (!draw) return;
+		drawnFeatures = draw.getSnapshot().filter((f) => f.geometry.type === 'Polygon');
+		saveDrawnFeatures();
+		rebuildClippingOptions();
+	};
+
+	const loadDrawnFeaturesIntoDraw = () => {
+		if (!draw) return;
+		draw.clear();
+		if (drawnFeatures.length > 0) {
+			draw.addFeatures(drawnFeatures as any);
+		}
 	};
 
 	/**
@@ -186,7 +211,14 @@
 			}
 		}
 
-		const allFeatures = [...countryFeatures, ...drawnFeatures];
+		const drawnGeoJsonFeatures = drawnFeatures
+			.filter((feature) => feature?.geometry?.type === 'Polygon')
+			.map((feature) => ({
+				type: 'Feature' as const,
+				properties: {} as Record<string, unknown>,
+				geometry: feature.geometry
+			}));
+		const allFeatures = [...countryFeatures, ...drawnGeoJsonFeatures];
 		if (allFeatures.length === 0) {
 			($omProtocolSettings as any).clippingOptions = undefined;
 		} else {
@@ -212,9 +244,20 @@
 		if (activeMode === mode) {
 			exitDrawingMode();
 		} else {
+			let featureIdToSelect: string | number | undefined;
+			if (mode === 'select') {
+				loadDrawnFeaturesIntoDraw();
+				const snapshot = draw.getSnapshot();
+				featureIdToSelect = snapshot.at(-1)?.id;
+			} else {
+				draw.clear();
+			}
 			draw.setMode(mode);
 			activeMode = mode;
 			terraDrawActive.set(true);
+			if (mode === 'select' && featureIdToSelect !== undefined) {
+				draw.selectFeature(featureIdToSelect);
+			}
 		}
 	};
 
