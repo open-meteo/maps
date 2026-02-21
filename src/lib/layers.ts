@@ -23,38 +23,38 @@ import { getOMUrl } from './url';
 // Expression helpers
 // =============================================================================
 
-const dark = (): boolean => mode.current === 'dark';
-const rgba = (light: string, d: string): string => (dark() ? d : light);
+const isDark = (): boolean => mode.current === 'dark';
+const lightOrDark = (light: string, dark: string): string => (isDark() ? dark : light);
 
 const getRasterOpacity = (): number => {
 	const opacityValue = get(opacity) / 100;
-	return mode.current === 'dark' ? Math.max(0, (opacityValue * 100 - 10) / 100) : opacityValue;
+	return isDark() ? Math.max(0, (opacityValue * 100 - 10) / 100) : opacityValue;
 };
 
-const mkArrowColor = (): maplibregl.ExpressionSpecification => {
+const makeArrowColor = (): maplibregl.ExpressionSpecification => {
 	let expr: maplibregl.ExpressionSpecification = [
 		'literal',
-		rgba('rgba(0,0,0, 0.2)', 'rgba(255,255,255, 0.2)')
+		lightOrDark('rgba(0,0,0, 0.2)', 'rgba(255,255,255, 0.2)')
 	];
 	const thresholds: [number, string, string][] = [
 		[2, 'rgba(0,0,0, 0.3)', 'rgba(255,255,255, 0.3)'],
 		[3, 'rgba(0,0,0, 0.4)', 'rgba(255,255,255, 0.4)'],
-		[4, 'rgba(0,0,0, 0.5)', 'rgba(255,255,255, 0.5)'],
-		[5, 'rgba(0,0,0, 0.6)', 'rgba(255,255,255, 0.6)'],
-		[9, 'rgba(0,0,0, 0.6)', 'rgba(255,255,255, 0.6)']
+		[4, 'rgba(0,0,0, 0.5)', 'rgba(255,255,255, 0.6)'],
+		[5, 'rgba(0,0,0, 0.6)', 'rgba(255,255,255, 0.7)'],
+		[9, 'rgba(0,0,0, 0.9)', 'rgba(255,255,255, 0.9)']
 	];
-	for (const [threshold, light, d] of [...thresholds].reverse()) {
+	for (const [threshold, light, dark] of [...thresholds]) {
 		expr = [
 			'case',
 			['boolean', ['>', ['to-number', ['get', 'value']], threshold], false],
-			rgba(light, d),
+			lightOrDark(light, dark),
 			expr
 		];
 	}
 	return expr;
 };
 
-const mkArrowWidth = (): maplibregl.ExpressionSpecification => [
+const makeArrowWidth = (): maplibregl.ExpressionSpecification => [
 	'case',
 	['boolean', ['>', ['to-number', ['get', 'value']], 20], false],
 	2.8,
@@ -76,24 +76,24 @@ const mkArrowWidth = (): maplibregl.ExpressionSpecification => [
 	]
 ];
 
-const mkContourColor = (): maplibregl.ExpressionSpecification => [
+const makeContourColor = (): maplibregl.ExpressionSpecification => [
 	'case',
 	['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
-	rgba('rgba(0,0,0, 0.6)', 'rgba(255,255,255, 0.8)'),
+	lightOrDark('rgba(0,0,0, 0.6)', 'rgba(255,255,255, 0.8)'),
 	[
 		'case',
 		['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
-		rgba('rgba(0,0,0, 0.5)', 'rgba(255,255,255, 0.7)'),
+		lightOrDark('rgba(0,0,0, 0.5)', 'rgba(255,255,255, 0.7)'),
 		[
 			'case',
 			['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
-			rgba('rgba(0,0,0, 0.4)', 'rgba(255,255,255, 0.6)'),
-			rgba('rgba(0,0,0, 0.3)', 'rgba(255,255,255, 0.5)')
+			lightOrDark('rgba(0,0,0, 0.4)', 'rgba(255,255,255, 0.6)'),
+			lightOrDark('rgba(0,0,0, 0.3)', 'rgba(255,255,255, 0.5)')
 		]
 	]
 ];
 
-const mkContourWidth = (): maplibregl.ExpressionSpecification => [
+const makeContourWidth = (): maplibregl.ExpressionSpecification => [
 	'case',
 	['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
 	3,
@@ -145,8 +145,8 @@ const vectorArrowLayer = (): SlotLayer => ({
 				paint: {
 					'line-opacity': 0,
 					'line-opacity-transition': { duration: 200, delay: 0 },
-					'line-color': mkArrowColor(),
-					'line-width': mkArrowWidth()
+					'line-color': makeArrowColor(),
+					'line-width': makeArrowWidth()
 				},
 				layout: { 'line-cap': 'round' }
 			},
@@ -196,8 +196,8 @@ const vectorContourLayer = (): SlotLayer => ({
 				paint: {
 					'line-opacity': 0,
 					'line-opacity-transition': { duration: 200, delay: 0 },
-					'line-color': mkContourColor(),
-					'line-width': mkContourWidth()
+					'line-color': makeContourColor(),
+					'line-width': makeContourWidth()
 				}
 			},
 			beforeLayer
@@ -229,7 +229,7 @@ const vectorContourLabelsLayer = (): SlotLayer => ({
 				paint: {
 					'text-opacity': 0,
 					'text-opacity-transition': { duration: 200, delay: 0 },
-					'text-color': rgba('rgba(0,0,0, 0.7)', 'rgba(255,255,255, 0.8)')
+					'text-color': lightOrDark('rgba(0,0,0, 0.7)', 'rgba(255,255,255, 0.8)')
 				}
 			},
 			beforeLayer
