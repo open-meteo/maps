@@ -11,6 +11,7 @@ const addHeaders = (res: ServerResponse) => {
 	res.setHeader('Access-Control-Allow-Methods', 'GET');
 	res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
 	res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+	res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
 };
 
 const viteServerConfig = (): Plugin => ({
