@@ -1,4 +1,12 @@
+import { get } from 'svelte/store';
+
+import { toast } from 'svelte-sonner';
+
 import { browser } from '$app/environment';
+
+import { time } from './stores/time';
+import { domain, variable } from './stores/variables';
+import { formatISOWithoutTimezone } from './time-format';
 
 /**
  * Pads a number with leading zeros to ensure 2 digits
@@ -75,4 +83,33 @@ export const textWhite = (
 	const alpha = ((a ?? 1) * (globalOpacity ?? 100)) / 100;
 	if (alpha < 0.65) return dark ?? false;
 	return r * 0.299 + g * 0.587 + b * 0.114 <= 150;
+};
+
+export const takeSnapshot = (map: maplibregl.Map) => {
+	const currentDomain = get(domain);
+	const currentVariable = get(variable);
+	const currentTime = get(time);
+	const timeStr = currentTime
+		? formatISOWithoutTimezone(currentTime).replace(/[:.]/g, '-')
+		: 'unknown';
+	const filename = `openmeteo_maps_${currentDomain}_${currentVariable}_${timeStr}.png`;
+
+	map.once('render', () => {
+		const canvas = map!.getCanvas();
+		try {
+			const dataURL = canvas.toDataURL('image/png');
+			const link = document.createElement('a');
+			link.href = dataURL;
+			link.download = filename;
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+			toast('Snapshot saved');
+		} catch {
+			toast.error(
+				'Snapshot failed — try enabling "Preserve drawing buffer" in settings or check browser permissions.'
+			);
+		}
+	});
+	map.triggerRepaint();
 };
