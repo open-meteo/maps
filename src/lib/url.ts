@@ -10,7 +10,8 @@ import {
 import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
 
-import { pushState } from '$app/navigation';
+import { pushState, replaceState } from '$app/navigation';
+import { resolve } from '$app/paths';
 
 import { map as m } from '$lib/stores/map';
 import {
@@ -48,17 +49,13 @@ export const updateUrl = async (
 	}
 
 	await tick();
-	try {
-		const map = get(m);
-		if (map)
-			pushState(
-				url +
-					(map as maplibregl.Map & { _hash: { getHashString(): string } })._hash.getHashString(),
-				{}
-			);
-	} catch {
-		pushState(url, {});
-	}
+	const map = get(m);
+	const fullUrl = map
+		? String(url) +
+			(map as maplibregl.Map & { _hash: { getHashString(): string } })._hash.getHashString()
+		: String(url);
+	// eslint-disable-next-line svelte/no-navigation-without-resolve
+	replaceState(fullUrl, {});
 };
 
 export const urlParamsToPreferences = () => {
