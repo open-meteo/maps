@@ -1,6 +1,7 @@
 import { get } from 'svelte/store';
 
 import { getColor, getColorScale, getValueFromLatLong } from '@openmeteo/mapbox-layer';
+import { booleanPointInPolygon } from '@turf/turf';
 import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
 
@@ -8,9 +9,13 @@ import { map as m } from '$lib/stores/map';
 import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 import { variable as v } from '$lib/stores/variables';
 
+import { toClippingGeometry } from './clipping';
 import { textWhite } from './helpers';
 import { rasterManager } from './layers';
+import { suppressPopupUntil, terraDrawActive } from './stores/clipping';
 import { opacity } from './stores/preferences';
+
+import type { MultiPolygon, Polygon } from 'geojson';
 
 let popup: maplibregl.Marker | undefined;
 let showPopup = false;
@@ -64,8 +69,29 @@ const updatePopupContent = (coordinates: maplibregl.LngLat): void => {
 	);
 
 	if (isFinite(value)) {
+		const omProtocolSettingsState = get(omProtocolSettings);
+		const clippingOptions = omProtocolSettingsState.clippingOptions;
+		if (clippingOptions) {
+			const clippingGeometry = toClippingGeometry(clippingOptions.geojson);
+			const polygonGeometry: Polygon | MultiPolygon | null =
+				clippingGeometry?.type === 'Polygon' || clippingGeometry?.type === 'MultiPolygon'
+					? clippingGeometry
+					: null;
+			if (
+				polygonGeometry &&
+				!booleanPointInPolygon([coordinates.lng, coordinates.lat], polygonGeometry)
+			) {
+				contentDiv.style.backgroundColor = '';
+				contentDiv.style.color = '';
+				valueSpan.innerText = 'Outside clip';
+				unitSpan.innerText = '';
+				elevationSpan.innerText = hasElevation ? `${Math.round(elevation)}m` : '';
+				return;
+			}
+		}
+
 		const isDark = mode.current === 'dark';
-		const colorScale = getColorScale(get(v), isDark, omProtocolSettings.colorScales);
+		const colorScale = getColorScale(get(v), isDark, omProtocolSettingsState.colorScales);
 		const color = getColor(colorScale, value);
 
 		const popupOpacity =
@@ -120,6 +146,11 @@ export const addPopup = (): void => {
 
 	map.on('click', (e: maplibregl.MapMouseEvent) => {
 		if (!map) return;
+		if (get(terraDrawActive) || Date.now() < get(suppressPopupUntil)) {
+			showPopup = false;
+			popup?.remove();
+			return;
+		}
 
 		showPopup = !showPopup;
 

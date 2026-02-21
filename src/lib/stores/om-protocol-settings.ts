@@ -1,4 +1,4 @@
-import { get } from 'svelte/store';
+import { type Writable, get, writable } from 'svelte/store';
 
 import { BrowserBlockCache } from '@openmeteo/file-reader';
 import { type MapboxLayerFileReader, defaultOmProtocolSettings } from '@openmeteo/mapbox-layer';
@@ -27,7 +27,7 @@ export const customColorScales = persisted<Record<string, RenderableColorScale>>
 );
 
 const initialCustomColorScales = get(customColorScales);
-export const omProtocolSettings: OmProtocolSettings = {
+export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
 	...defaultOmProtocolSettings,
 	// static
 	fileReaderConfig: {
@@ -66,4 +66,4 @@ export const omProtocolSettings: OmProtocolSettings = {
 			}
 		}
 	}
-};
+});

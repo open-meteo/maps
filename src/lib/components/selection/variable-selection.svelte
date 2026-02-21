@@ -17,7 +17,7 @@
 
 	import { browser } from '$app/environment';
 
-	import { desktop, loading } from '$lib/stores/preferences';
+	import { desktop, loading, typing } from '$lib/stores/preferences';
 	import { metaJson } from '$lib/stores/time';
 	import {
 		domainSelectionOpen as dSO,
@@ -108,6 +108,7 @@
 
 	let ctrl = $state(false);
 	const keyDownEvent = (event: KeyboardEvent) => {
+		if ($typing) return;
 		if (event.keyCode == 17 || event.keyCode == 91) ctrl = true;
 		if (
 			variableSelectionExtended &&

@@ -9,7 +9,7 @@
 
 	import { browser } from '$app/environment';
 
-	import { desktop, loading, preferences } from '$lib/stores/preferences';
+	import { desktop, loading, preferences, typing } from '$lib/stores/preferences';
 	import { metaJson, modelRunLocked } from '$lib/stores/time';
 	import { inProgress, latest, modelRun, now, time } from '$lib/stores/time';
 	import {
@@ -352,6 +352,8 @@
 	const throttledNextDay = throttle(nextDay, 150);
 
 	const keyDownEvent = (event: KeyboardEvent) => {
+		if ($typing) return;
+
 		const canNavigate = !($domainSelectionOpen || $variableSelectionOpen);
 		if (!canNavigate) return;
 

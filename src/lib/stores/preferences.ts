@@ -59,6 +59,8 @@ export const localStorageVersion: Persisted<string | undefined> = persisted(
 
 export const helpOpen = writable(false);
 
+export const typing = writable(false);
+
 export const resetStates = async () => {
 	modelRunLocked.set(false);
 
