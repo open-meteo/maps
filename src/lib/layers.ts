@@ -39,9 +39,9 @@ const makeArrowColor = (): maplibregl.ExpressionSpecification => {
 	const thresholds: [number, string, string][] = [
 		[2, 'rgba(0,0,0, 0.3)', 'rgba(255,255,255, 0.3)'],
 		[3, 'rgba(0,0,0, 0.4)', 'rgba(255,255,255, 0.4)'],
-		[4, 'rgba(0,0,0, 0.5)', 'rgba(255,255,255, 0.6)'],
-		[5, 'rgba(0,0,0, 0.6)', 'rgba(255,255,255, 0.7)'],
-		[9, 'rgba(0,0,0, 0.9)', 'rgba(255,255,255, 0.9)']
+		[4, 'rgba(0,0,0, 0.5)', 'rgba(255,255,255, 0.5)'],
+		[5, 'rgba(0,0,0, 0.6)', 'rgba(255,255,255, 0.6)'],
+		[10, 'rgba(0,0,0, 0.7)', 'rgba(255,255,255, 0.7)']
 	];
 	for (const [threshold, light, dark] of [...thresholds]) {
 		expr = [
