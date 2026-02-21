@@ -2,6 +2,7 @@ import { get } from 'svelte/store';
 
 import * as maplibregl from 'maplibre-gl';
 import { mode, setMode } from 'mode-watcher';
+import { toast } from 'svelte-sonner';
 
 import {
 	defaultPreferences,
@@ -9,8 +10,11 @@ import {
 	preferences as p,
 	sheet
 } from '$lib/stores/preferences';
+import { time } from '$lib/stores/time';
+import { domain, variable } from '$lib/stores/variables';
 
 import { addHillshadeLayer, reloadStyles, terrainHandler } from '$lib/map-controls';
+import { formatISOWithoutTimezone } from '$lib/time-format';
 import { updateUrl } from '$lib/url';
 
 const preferences = get(p);
@@ -181,6 +185,62 @@ export class HillshadeButton {
 		}
 		this.terrainControl = undefined;
 		this.map.setTerrain(null);
+	}
+}
+
+export class SnapshotButton {
+	private map: maplibregl.Map | undefined;
+
+	onAdd(map: maplibregl.Map) {
+		this.map = map;
+		const div = document.createElement('div');
+		div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+		div.title = 'Take Snapshot';
+
+		const cameraSVG = `<button style="display:flex;justify-content:center;align-items:center;">
+			<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-camera"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+		</button>`;
+
+		div.innerHTML = cameraSVG;
+		div.addEventListener('contextmenu', (e) => e.preventDefault());
+		div.addEventListener('click', () => this.takeSnapshot());
+
+		return div;
+	}
+
+	onRemove() {
+		this.map = undefined;
+	}
+
+	private takeSnapshot() {
+		if (!this.map) return;
+
+		const currentDomain = get(domain);
+		const currentVariable = get(variable);
+		const currentTime = get(time);
+		const timeStr = currentTime
+			? formatISOWithoutTimezone(currentTime).replace(/[:.]/g, '-')
+			: 'unknown';
+		const filename = `openmeteo_maps_${currentDomain}_${currentVariable}_${timeStr}.png`;
+
+		this.map.once('render', () => {
+			const canvas = this.map!.getCanvas();
+			try {
+				const dataURL = canvas.toDataURL('image/png');
+				const link = document.createElement('a');
+				link.href = dataURL;
+				link.download = filename;
+				document.body.appendChild(link);
+				link.click();
+				document.body.removeChild(link);
+				toast('Snapshot saved');
+			} catch {
+				toast.error(
+					'Snapshot failed — try enabling "Preserve drawing buffer" in settings or check browser permissions.'
+				);
+			}
+		});
+		this.map.triggerRepaint();
 	}
 }
 

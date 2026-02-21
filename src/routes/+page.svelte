@@ -35,6 +35,7 @@
 		HelpButton,
 		HillshadeButton,
 		SettingsButton,
+		SnapshotButton,
 		TimeButton
 	} from '$lib/components/buttons';
 	import HelpDialog from '$lib/components/help/help-dialog.svelte';
@@ -100,7 +101,8 @@
 			zoom: domainObject.grid.zoom,
 			keyboard: false,
 			hash: true,
-			maxPitch: 85
+			maxPitch: 85,
+			canvasContextAttributes: { preserveDrawingBuffer: true }
 		});
 
 		setMapControlSettings();
@@ -114,6 +116,7 @@
 			$map.addControl(new SettingsButton());
 			$map.addControl(new TimeButton());
 			$map.addControl(new HelpButton());
+			$map.addControl(new SnapshotButton());
 
 			if (getInitialMetaDataPromise) await getInitialMetaDataPromise;
 
