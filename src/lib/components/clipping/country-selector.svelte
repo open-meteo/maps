@@ -4,7 +4,7 @@
 	import CheckIcon from '@lucide/svelte/icons/check';
 	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down';
 
-	import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
+	import { clippingCountryCodes } from '$lib/stores/clipping';
 	import { typing } from '$lib/stores/preferences';
 
 	import { Button } from '$lib/components/ui/button';
@@ -16,11 +16,10 @@
 	export type { Country };
 
 	interface Props {
-		selectedCountries?: string[];
 		onselect?: (countries: Country[]) => void;
 	}
 
-	let { selectedCountries = $bindable([]), onselect }: Props = $props();
+	let { onselect }: Props = $props();
 
 	let open = $state(false);
 	let searchValue = $state('');
@@ -34,7 +33,7 @@
 	$effect(() => {
 		if (!onselect) return;
 		const requestId = ++selectionRequestId;
-		if (selectedCountries.length === 0) {
+		if ($clippingCountryCodes.length === 0) {
 			onselect([]);
 			return;
 		}
@@ -60,7 +59,7 @@
 
 	// Get the selected country objects
 	const selectedCountryObjs = $derived.by(() => {
-		return countryList.filter((c) => selectedCountries.includes(c.code));
+		return countryList.filter((c) => $clippingCountryCodes.includes(c.code));
 	});
 
 	// Calculate the total number of actual countries (deduplicated by filename)
@@ -80,7 +79,7 @@
 
 	// Helper to check if a country is selected
 	function isSelected(countryCode: string): boolean {
-		return selectedCountries.includes(countryCode);
+		return $clippingCountryCodes.includes(countryCode);
 	}
 
 	async function loadCountryGeoJsonWithState(country: Country): Promise<Country> {
@@ -93,21 +92,18 @@
 	}
 
 	async function handleSelect(country: Country) {
-		// Toggle selection
-		const index = selectedCountries.indexOf(country.code);
+		const index = $clippingCountryCodes.indexOf(country.code);
 		if (index > -1) {
-			// Remove from selection
-			selectedCountries = selectedCountries.filter((code) => code !== country.code);
+			$clippingCountryCodes = $clippingCountryCodes.filter((code) => code !== country.code);
 		} else {
-			// Add to selection
-			selectedCountries = [...selectedCountries, country.code];
+			$clippingCountryCodes = [...$clippingCountryCodes, country.code];
 		}
 	}
 
-	function clearAll() {
-		selectedCountries = [];
+	export const clearAll = () => {
+		$clippingCountryCodes = [];
 		searchValue = '';
-	}
+	};
 </script>
 
 <Popover.Root bind:open>
@@ -121,7 +117,7 @@
 			aria-expanded={open}
 		>
 			<div class="truncate">
-				{#if selectedCountries.length === 0}
+				{#if $clippingCountryCodes.length === 0}
 					Clip: Select countries...
 				{:else if totalCountriesCount === 1}
 					Clip: {selectedCountryObjs[0]?.name}
@@ -151,7 +147,7 @@
 						</button>
 					{/if}
 				</div>
-				{#if selectedCountries.length > 0}
+				{#if $clippingCountryCodes.length > 0}
 					<div class="flex items-center justify-between px-3 py-1 text-xs border-t border-muted/50">
 						<span class="text-muted-foreground">{totalCountriesCount} selected</span>
 						<button

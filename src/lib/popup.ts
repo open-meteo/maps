@@ -1,6 +1,7 @@
 import { get } from 'svelte/store';
 
 import { getColor, getColorScale, getValueFromLatLong } from '@openmeteo/mapbox-layer';
+import { booleanPointInPolygon } from '@turf/turf';
 import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
 
@@ -8,6 +9,7 @@ import { map as m } from '$lib/stores/map';
 import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 import { variable as v } from '$lib/stores/variables';
 
+import { toClippingGeometry } from './clipping';
 import { textWhite } from './helpers';
 import { rasterManager } from './layers';
 import { opacity } from './stores/preferences';
@@ -64,8 +66,25 @@ const updatePopupContent = (coordinates: maplibregl.LngLat): void => {
 	);
 
 	if (isFinite(value)) {
+		const omProtocolSettingsState = get(omProtocolSettings);
+		const clippingOptions = omProtocolSettingsState.clippingOptions;
+		if (clippingOptions) {
+			const clippingGeometry = toClippingGeometry(clippingOptions.geojson);
+			if (
+				clippingGeometry &&
+				!booleanPointInPolygon([coordinates.lng, coordinates.lat], clippingGeometry)
+			) {
+				contentDiv.style.backgroundColor = '';
+				contentDiv.style.color = '';
+				valueSpan.innerText = 'Outside clip';
+				unitSpan.innerText = '';
+				elevationSpan.innerText = hasElevation ? `${Math.round(elevation)}m` : '';
+				return;
+			}
+		}
+
 		const isDark = mode.current === 'dark';
-		const colorScale = getColorScale(get(v), isDark, omProtocolSettings.colorScales);
+		const colorScale = getColorScale(get(v), isDark, omProtocolSettingsState.colorScales);
 		const color = getColor(colorScale, value);
 
 		const popupOpacity =

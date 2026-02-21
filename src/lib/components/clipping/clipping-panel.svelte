@@ -22,15 +22,18 @@
 	import { map } from '$lib/stores/map';
 	import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 
-	import CountrySelector, { type Country } from './country-selector.svelte';
+	import CountrySelector from './country-selector.svelte';
+
+	import type { Country } from './country-data';
 
 	interface Props {
-		selectedCountries?: string[];
 		onselect?: (countries: Country[]) => void;
 		onclippingchange?: () => void;
 	}
 
-	let { selectedCountries = $bindable([]), onselect, onclippingchange }: Props = $props();
+	let { onselect, onclippingchange }: Props = $props();
+
+	let countrySelectorRef = $state<ReturnType<typeof CountrySelector>>();
 
 	const DRAWN_FEATURES_KEY = 'om-clipping-drawn-features';
 
@@ -224,6 +227,8 @@
 		saveDrawnFeatures();
 		activeMode = '';
 		terraDrawActive.set(false);
+		countryClipping = undefined;
+		countrySelectorRef?.clearAll();
 		rebuildClippingOptions();
 	};
 
@@ -317,6 +322,6 @@
 				</button>
 			</div>
 		</div>
-		<CountrySelector bind:selectedCountries {onselect} />
+		<CountrySelector bind:this={countrySelectorRef} {onselect} />
 	</div>
 {/if}

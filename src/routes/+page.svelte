@@ -51,7 +51,6 @@
 	import {
 		CLIP_COUNTRIES_PARAM,
 		buildCountryClippingOptions,
-		isSameCountrySelection,
 		serializeClipCountriesParam
 	} from '$lib/clipping';
 	import { checkHighDefinition, hashValue } from '$lib/helpers';
@@ -199,25 +198,15 @@
 		variableSubscription(); // unsubscribe
 	});
 
-	let selectedCountries = $state<string[]>([]);
 	const handleCountrySelect = (countries: Country[]) => {
-		if (!isSameCountrySelection(selectedCountries, $clippingCountryCodes)) {
-			clippingCountryCodes.set(selectedCountries);
-			updateUrl(CLIP_COUNTRIES_PARAM, serializeClipCountriesParam(selectedCountries));
-		}
-
+		updateUrl(CLIP_COUNTRIES_PARAM, serializeClipCountriesParam($clippingCountryCodes));
 		const nextClipping = buildCountryClippingOptions(countries);
-		// Let the clipping panel merge country + drawn features
 		clippingPanel?.setCountryClipping(nextClipping);
 	};
 
 	onMount(async () => {
-		if (!isSameCountrySelection(selectedCountries, $clippingCountryCodes)) {
-			selectedCountries = $clippingCountryCodes;
-		}
-		// Apply country clipping on load even if the panel isn't open
-		if (selectedCountries.length > 0) {
-			const countries = await loadCountriesFromCodes(selectedCountries);
+		if ($clippingCountryCodes.length > 0) {
+			const countries = await loadCountriesFromCodes($clippingCountryCodes);
 			handleCountrySelect(countries);
 		}
 	});
@@ -249,7 +238,6 @@
 <VariableSelection />
 <ClippingPanel
 	bind:this={clippingPanel}
-	bind:selectedCountries
 	onselect={handleCountrySelect}
 	onclippingchange={async () => {
 		await tick();
