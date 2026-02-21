@@ -2,7 +2,6 @@ import { get } from 'svelte/store';
 
 import * as maplibregl from 'maplibre-gl';
 import { mode, setMode } from 'mode-watcher';
-import { toast } from 'svelte-sonner';
 
 import {
 	defaultPreferences,
@@ -10,11 +9,9 @@ import {
 	preferences as p,
 	sheet
 } from '$lib/stores/preferences';
-import { time } from '$lib/stores/time';
-import { domain, variable } from '$lib/stores/variables';
 
+import { takeSnapshot } from '$lib/helpers';
 import { addHillshadeLayer, reloadStyles, terrainHandler } from '$lib/map-controls';
-import { formatISOWithoutTimezone } from '$lib/time-format';
 import { updateUrl } from '$lib/url';
 
 const preferences = get(p);
@@ -189,10 +186,7 @@ export class HillshadeButton {
 }
 
 export class SnapshotButton {
-	private map: maplibregl.Map | undefined;
-
 	onAdd(map: maplibregl.Map) {
-		this.map = map;
 		const div = document.createElement('div');
 		div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
 		div.title = 'Take Snapshot';
@@ -203,44 +197,9 @@ export class SnapshotButton {
 
 		div.innerHTML = cameraSVG;
 		div.addEventListener('contextmenu', (e) => e.preventDefault());
-		div.addEventListener('click', () => this.takeSnapshot());
+		div.addEventListener('click', () => takeSnapshot(map));
 
 		return div;
-	}
-
-	onRemove() {
-		this.map = undefined;
-	}
-
-	private takeSnapshot() {
-		if (!this.map) return;
-
-		const currentDomain = get(domain);
-		const currentVariable = get(variable);
-		const currentTime = get(time);
-		const timeStr = currentTime
-			? formatISOWithoutTimezone(currentTime).replace(/[:.]/g, '-')
-			: 'unknown';
-		const filename = `openmeteo_maps_${currentDomain}_${currentVariable}_${timeStr}.png`;
-
-		this.map.once('render', () => {
-			const canvas = this.map!.getCanvas();
-			try {
-				const dataURL = canvas.toDataURL('image/png');
-				const link = document.createElement('a');
-				link.href = dataURL;
-				link.download = filename;
-				document.body.appendChild(link);
-				link.click();
-				document.body.removeChild(link);
-				toast('Snapshot saved');
-			} catch {
-				toast.error(
-					'Snapshot failed — try enabling "Preserve drawing buffer" in settings or check browser permissions.'
-				);
-			}
-		});
-		this.map.triggerRepaint();
 	}
 }
 

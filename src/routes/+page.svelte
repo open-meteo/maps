@@ -14,7 +14,7 @@
 	import 'maplibre-gl/dist/maplibre-gl.css';
 	import { toast } from 'svelte-sonner';
 
-	import { version } from '$app/environment';
+	import { browser, version } from '$app/environment';
 
 	import { map } from '$lib/stores/map';
 	import { defaultColorHash, omProtocolSettings } from '$lib/stores/om-protocol-settings';
@@ -45,7 +45,7 @@
 	import Settings from '$lib/components/settings/settings.svelte';
 	import TimeSelector from '$lib/components/time/time-selector.svelte';
 
-	import { checkHighDefinition, hashValue } from '$lib/helpers';
+	import { checkHighDefinition, hashValue, takeSnapshot } from '$lib/helpers';
 	import { addOmFileLayers, changeOMfileURL } from '$lib/layers';
 	import { addTerrainSource, getStyle, setMapControlSettings } from '$lib/map-controls';
 	import { getInitialMetaData, getMetaData, matchVariableOrFirst } from '$lib/metadata';
@@ -128,7 +128,19 @@
 			addPopup();
 			changeOMfileURL();
 		});
+
+		if (browser) {
+			window.addEventListener('keydown', keyDownEvent);
+		}
 	});
+
+	const keyDownEvent = (event: KeyboardEvent) => {
+		switch (event.key) {
+			case 's':
+				if (!event.ctrlKey) takeSnapshot($map);
+				break;
+		}
+	};
 
 	let getInitialMetaDataPromise: Promise<void> | undefined;
 	const domainSubscription = domain.subscribe(async (newDomain) => {
@@ -177,6 +189,9 @@
 		}
 		domainSubscription(); // unsubscribe
 		variableSubscription(); // unsubscribe
+		if (browser) {
+			window.removeEventListener('keydown', keyDownEvent);
+		}
 	});
 </script>
 
