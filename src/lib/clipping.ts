@@ -30,6 +30,32 @@ const closeRings = (features: FeatureCollection<Geometry>): void => {
 	}
 };
 
+const countGeometryPoints = (geometry: Geometry | null): number => {
+	if (!geometry) return 0;
+	if (geometry.type === 'Polygon') {
+		return (geometry.coordinates as number[][][]).reduce((sum, ring) => sum + ring.length, 0);
+	}
+	if (geometry.type === 'MultiPolygon') {
+		return (geometry.coordinates as number[][][][]).reduce(
+			(sum, polygon) => sum + polygon.reduce((ringSum, ring) => ringSum + ring.length, 0),
+			0
+		);
+	}
+	if (geometry.type === 'GeometryCollection') {
+		return geometry.geometries.reduce((sum, geom) => sum + countGeometryPoints(geom), 0);
+	}
+	return 0;
+};
+
+const computeSimplifyTolerance = (pointCount: number): number => {
+	const minTolerance = 0.0005;
+	const maxTolerance = 0.01;
+	if (pointCount <= 1000) return minTolerance;
+	if (pointCount >= 10000) return maxTolerance;
+	const t = (pointCount - 1000) / 9000;
+	return minTolerance + (maxTolerance - minTolerance) * t;
+};
+
 export const buildCountryClippingOptions = (countries: Country[]): ClippingOptions | undefined => {
 	if (countries.length === 0) return undefined;
 
@@ -43,6 +69,12 @@ export const buildCountryClippingOptions = (countries: Country[]): ClippingOptio
 		type: 'FeatureCollection',
 		features: allFeatures
 	};
+
+	const totalPoints = mergedGeojson.features.reduce(
+		(sum, feature) => sum + countGeometryPoints(feature.geometry),
+		0
+	);
+	const simplifyTolerance = computeSimplifyTolerance(totalPoints);
 
 	// Some country GeoJSON files have unclosed rings — fix before union/simplify
 	closeRings(mergedGeojson);
@@ -58,7 +90,7 @@ export const buildCountryClippingOptions = (countries: Country[]): ClippingOptio
 	}
 
 	const result = simplify(toSimplify, {
-		tolerance: 0.0025,
+		tolerance: simplifyTolerance,
 		highQuality: true
 	});
 
