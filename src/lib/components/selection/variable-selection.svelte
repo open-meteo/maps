@@ -106,33 +106,27 @@
 		variableSelectionExtended = vE;
 	});
 
-	let ctrl = $state(false);
 	const keyDownEvent = (event: KeyboardEvent) => {
-		if (event.keyCode == 17 || event.keyCode == 91) ctrl = true;
-		if (
+		const canNavigate =
 			variableSelectionExtended &&
 			!variableSelectionOpen &&
 			!domainSelectionOpen &&
-			!pressureLevelSelectionOpen
-		) {
-			switch (event.key) {
-				case 'v':
-					if (!ctrl) vSO.set(true);
-					break;
-				case 'd':
-					if (!ctrl) dSO.set(true);
-					break;
-				case 'l':
-					if (!ctrl) pLSO.set(true);
-					break;
-				case 'Escape':
-					toast.dismiss();
-					break;
-			}
+			!pressureLevelSelectionOpen;
+		if (!canNavigate) return;
+		switch (event.key) {
+			case 'v':
+				if (!event.ctrlKey) vSO.set(true);
+				break;
+			case 'd':
+				if (!event.ctrlKey) dSO.set(true);
+				break;
+			case 'l':
+				if (!event.ctrlKey) pLSO.set(true);
+				break;
+			case 'Escape':
+				toast.dismiss();
+				break;
 		}
-	};
-	const keyUpEvent = (event: KeyboardEvent) => {
-		if (event.keyCode == 17 || event.keyCode == 91) ctrl = false;
 	};
 
 	onMount(() => {
@@ -142,14 +136,12 @@
 
 		if (browser) {
 			window.addEventListener('keydown', keyDownEvent);
-			window.addEventListener('keyup', keyUpEvent);
 		}
 	});
 
 	onDestroy(() => {
 		if (browser) {
 			window.removeEventListener('keydown', keyDownEvent);
-			window.removeEventListener('keyup', keyUpEvent);
 		}
 	});
 
