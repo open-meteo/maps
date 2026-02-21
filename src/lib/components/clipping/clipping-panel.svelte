@@ -262,7 +262,15 @@
 	};
 
 	const exitDrawingMode = (deferDeactivation = false) => {
-		if (draw) draw.setMode('static');
+		if (draw) {
+			const snapshot = draw.getSnapshot();
+			for (const feature of snapshot) {
+				if (feature.id !== undefined) {
+					draw.deselectFeature(feature.id);
+				}
+			}
+			draw.setMode('static');
+		}
 		activeMode = '';
 		if (deferDeactivation) {
 			queueMicrotask(() => terraDrawActive.set(false));
