@@ -12,7 +12,10 @@ import { variable as v } from '$lib/stores/variables';
 import { toClippingGeometry } from './clipping';
 import { textWhite } from './helpers';
 import { rasterManager } from './layers';
+import { suppressPopupUntil, terraDrawActive } from './stores/clipping';
 import { opacity } from './stores/preferences';
+
+import type { MultiPolygon, Polygon } from 'geojson';
 
 let popup: maplibregl.Marker | undefined;
 let showPopup = false;
@@ -70,9 +73,13 @@ const updatePopupContent = (coordinates: maplibregl.LngLat): void => {
 		const clippingOptions = omProtocolSettingsState.clippingOptions;
 		if (clippingOptions) {
 			const clippingGeometry = toClippingGeometry(clippingOptions.geojson);
+			const polygonGeometry: Polygon | MultiPolygon | null =
+				clippingGeometry?.type === 'Polygon' || clippingGeometry?.type === 'MultiPolygon'
+					? clippingGeometry
+					: null;
 			if (
-				clippingGeometry &&
-				!booleanPointInPolygon([coordinates.lng, coordinates.lat], clippingGeometry)
+				polygonGeometry &&
+				!booleanPointInPolygon([coordinates.lng, coordinates.lat], polygonGeometry)
 			) {
 				contentDiv.style.backgroundColor = '';
 				contentDiv.style.color = '';
@@ -139,6 +146,11 @@ export const addPopup = (): void => {
 
 	map.on('click', (e: maplibregl.MapMouseEvent) => {
 		if (!map) return;
+		if (get(terraDrawActive) || Date.now() < get(suppressPopupUntil)) {
+			showPopup = false;
+			popup?.remove();
+			return;
+		}
 
 		showPopup = !showPopup;
 

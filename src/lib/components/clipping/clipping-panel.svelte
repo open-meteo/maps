@@ -18,7 +18,7 @@
 
 	import { browser } from '$app/environment';
 
-	import { clippingPanelOpen, terraDrawActive } from '$lib/stores/clipping';
+	import { clippingPanelOpen, suppressPopupUntil, terraDrawActive } from '$lib/stores/clipping';
 	import { map } from '$lib/stores/map';
 	import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 
@@ -161,10 +161,10 @@
 
 		drawnFeatures = [...drawnFeatures, ...newPolygons];
 		saveDrawnFeatures();
+		suppressPopupUntil.set(Date.now() + 250);
 
 		draw.clear();
-		activeMode = '';
-		terraDrawActive.set(false);
+		exitDrawingMode(true);
 		rebuildClippingOptions();
 	};
 
@@ -210,9 +210,7 @@
 	const setMode = (mode: string) => {
 		if (!draw) return;
 		if (activeMode === mode) {
-			draw.setMode('static');
-			activeMode = '';
-			terraDrawActive.set(false);
+			exitDrawingMode();
 		} else {
 			draw.setMode(mode);
 			activeMode = mode;
@@ -220,32 +218,37 @@
 		}
 	};
 
+	const exitDrawingMode = (deferDeactivation = false) => {
+		if (draw) draw.setMode('static');
+		activeMode = '';
+		if (deferDeactivation) {
+			queueMicrotask(() => terraDrawActive.set(false));
+		} else {
+			terraDrawActive.set(false);
+		}
+		$map?.getCanvas().style.removeProperty('cursor');
+	};
+
 	const clearDrawings = () => {
 		if (!draw) return;
 		draw.clear();
 		drawnFeatures = [];
 		saveDrawnFeatures();
-		activeMode = '';
-		terraDrawActive.set(false);
+		exitDrawingMode();
 		countryClipping = undefined;
 		countrySelectorRef?.clearAll();
 		rebuildClippingOptions();
 	};
 
-	const handleKeyup = (e: KeyboardEvent) => {
+	const handleEscapeKeydown = (e: KeyboardEvent) => {
 		if (e.key === 'Escape') {
-			// Terra-draw already handled Escape (cleanUp removes the in-progress
-			// feature), but the mode is still active with its crosshair cursor.
-			// Switch to static to reset the cursor.
-			if (draw) draw.setMode('static');
-			activeMode = '';
-			terraDrawActive.set(false);
+			exitDrawingMode();
 		}
 	};
 
 	onMount(() => {
 		if (browser) {
-			window.addEventListener('keyup', handleKeyup);
+			window.addEventListener('keydown', handleEscapeKeydown, true);
 			// Restore persisted drawn features into clipping on load
 			if (drawnFeatures.length > 0) {
 				rebuildClippingOptions();
@@ -255,7 +258,7 @@
 
 	onDestroy(() => {
 		if (browser) {
-			window.removeEventListener('keyup', handleKeyup);
+			window.removeEventListener('keydown', handleEscapeKeydown, true);
 		}
 		if (draw) {
 			draw.stop();
@@ -274,7 +277,7 @@
 		<div class="mt-1 flex flex-col gap-1.5">
 			<div class="flex gap-1">
 				<button
-					class="inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors
+					class="inline-flex cursor-pointer h-8 w-8 items-center justify-center rounded-md transition-colors
 						{activeMode === 'polygon'
 						? 'bg-primary text-primary-foreground'
 						: 'bg-secondary text-secondary-foreground hover:bg-accent'}"
@@ -284,7 +287,7 @@
 					<PentagonIcon class="h-4 w-4" />
 				</button>
 				<button
-					class="inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors
+					class="inline-flex cursor-pointer h-8 w-8 items-center justify-center rounded-md transition-colors
 						{activeMode === 'rectangle'
 						? 'bg-primary text-primary-foreground'
 						: 'bg-secondary text-secondary-foreground hover:bg-accent'}"
@@ -294,7 +297,7 @@
 					<SquareIcon class="h-4 w-4" />
 				</button>
 				<button
-					class="inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors
+					class="inline-flex cursor-pointer h-8 w-8 items-center justify-center rounded-md transition-colors
 						{activeMode === 'freehand'
 						? 'bg-primary text-primary-foreground'
 						: 'bg-secondary text-secondary-foreground hover:bg-accent'}"
@@ -304,7 +307,7 @@
 					<SplineIcon class="h-4 w-4" />
 				</button>
 				<button
-					class="inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors
+					class="inline-flex cursor-pointer h-8 w-8 items-center justify-center rounded-md transition-colors
 						{activeMode === 'select'
 						? 'bg-primary text-primary-foreground'
 						: 'bg-secondary text-secondary-foreground hover:bg-accent'}"
@@ -314,7 +317,7 @@
 					<MousePointerIcon class="h-4 w-4" />
 				</button>
 				<button
-					class="inline-flex h-8 w-8 items-center justify-center rounded-md text-destructive transition-colors hover:bg-destructive/10"
+					class="inline-flex cursor-pointer h-8 w-8 items-center justify-center rounded-md text-destructive transition-colors hover:bg-destructive/10"
 					title="Clear drawings"
 					onclick={clearDrawings}
 				>

@@ -60,8 +60,11 @@ export const buildCountryClippingOptions = (countries: Country[]): ClippingOptio
 
 type PolygonCoordinates = GeoJsonPosition[][];
 type MultiPolygonCoordinates = GeoJsonPosition[][][];
+type ClippingPolygonGeometry = Extract<GeoJsonGeometry, { type: 'Polygon' | 'MultiPolygon' }>;
 
-export const toClippingGeometry = (geojson: GeoJson | undefined): GeoJsonGeometry | null => {
+export const toClippingGeometry = (
+	geojson: GeoJson | undefined
+): ClippingPolygonGeometry | null => {
 	if (!geojson) return null;
 
 	const polygons: MultiPolygonCoordinates = [];
@@ -95,10 +98,10 @@ export const toClippingGeometry = (geojson: GeoJson | undefined): GeoJsonGeometr
 
 	if (polygons.length === 0) return null;
 	if (polygons.length === 1) {
-		return { type: 'Polygon', coordinates: polygons[0] } as GeoJsonGeometry;
+		return { type: 'Polygon', coordinates: polygons[0] };
 	}
 
-	return { type: 'MultiPolygon', coordinates: polygons } as GeoJsonGeometry;
+	return { type: 'MultiPolygon', coordinates: polygons };
 };
 
 export const CLIP_COUNTRIES_PARAM = 'clip_countries';

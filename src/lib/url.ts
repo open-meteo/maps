@@ -24,7 +24,13 @@ import { modelRun as mR, modelRunLocked as mRL, time } from '$lib/stores/time';
 import { domain as d, variable as v } from '$lib/stores/variables';
 import { vectorOptions as vO } from '$lib/stores/vector';
 
+import {
+	CLIP_COUNTRIES_PARAM,
+	parseClipCountriesParam,
+	serializeClipCountriesParam
+} from './clipping';
 import { fmtModelRun, fmtSelectedTime, getBaseUri } from './helpers';
+import { clippingCountryCodes } from './stores/clipping';
 import { formatISOUTCWithZ, parseISOWithoutTimezone } from './time-format';
 
 export const updateUrl = async (
@@ -133,6 +139,17 @@ export const urlParamsToPreferences = () => {
 		vectorOptions.contourInterval = Number(intervalRaw);
 	} else if (vectorOptions.contourInterval !== 2) {
 		url.searchParams.set('interval', String(vectorOptions.contourInterval));
+	}
+
+	const clipCountries = parseClipCountriesParam(params.get(CLIP_COUNTRIES_PARAM));
+	if (clipCountries.length > 0) {
+		clippingCountryCodes.set(clipCountries);
+	} else {
+		const currentCodes = get(clippingCountryCodes);
+		const serialized = serializeClipCountriesParam(currentCodes);
+		if (serialized) {
+			url.searchParams.set(CLIP_COUNTRIES_PARAM, serialized);
+		}
 	}
 
 	vO.set(vectorOptions);
