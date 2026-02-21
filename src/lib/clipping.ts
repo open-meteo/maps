@@ -1,4 +1,4 @@
-import { flatten, simplify } from '@turf/turf';
+import { simplify, union } from '@turf/turf';
 
 import type { Country } from '$lib/components/clipping/country-data';
 import type {
@@ -7,7 +7,7 @@ import type {
 	GeoJsonGeometry,
 	GeoJsonPosition
 } from '@openmeteo/mapbox-layer';
-import type { FeatureCollection, Geometry } from 'geojson';
+import type { FeatureCollection, Geometry, MultiPolygon, Polygon } from 'geojson';
 
 /** Ensure every polygon ring is properly closed (first coord === last coord). */
 const closeRings = (features: FeatureCollection<Geometry>): void => {
@@ -35,8 +35,8 @@ export const buildCountryClippingOptions = (countries: Country[]): ClippingOptio
 
 	const allFeatures = countries.flatMap((country) => {
 		if (!country.geojson) return [];
-		const flattened = flatten(country.geojson) as FeatureCollection<Geometry>;
-		return flattened.features;
+		const fc = country.geojson as FeatureCollection<Geometry>;
+		return fc.features ?? [];
 	});
 
 	const mergedGeojson: FeatureCollection<Geometry> = {
@@ -44,18 +44,28 @@ export const buildCountryClippingOptions = (countries: Country[]): ClippingOptio
 		features: allFeatures
 	};
 
-	// Some country GeoJSON files have unclosed rings — fix before simplify
+	// Some country GeoJSON files have unclosed rings — fix before union/simplify
 	closeRings(mergedGeojson);
 
-	const simplifiedGeoJSON = simplify(mergedGeojson, {
-		tolerance: 0.00025,
+	// Union all polygons into a single geometry to merge overlapping/adjacent countries
+	let toSimplify: FeatureCollection<Geometry>;
+	if (allFeatures.length >= 2) {
+		const unioned = union(mergedGeojson as FeatureCollection<Polygon | MultiPolygon>);
+		if (!unioned) return undefined;
+		toSimplify = { type: 'FeatureCollection', features: [unioned] };
+	} else {
+		toSimplify = mergedGeojson;
+	}
+
+	const result = simplify(toSimplify, {
+		tolerance: 0.0025,
 		highQuality: true
 	});
 
-	// simplify can also produce unclosed rings — fix again after
-	closeRings(simplifiedGeoJSON);
+	// simplify can produce unclosed rings — fix after
+	closeRings(result);
 
-	return { geojson: simplifiedGeoJSON };
+	return { geojson: result };
 };
 
 type PolygonCoordinates = GeoJsonPosition[][];
