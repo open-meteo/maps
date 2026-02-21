@@ -128,7 +128,7 @@
 			<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
 		</Button>
 	</Popover.Trigger>
-	<Popover.Content class="bg-transparent! ml-2.5 w-62.5 rounded border-none! p-0">
+	<Popover.Content class="bg-transparent! mt-3 mr-11 ml-2.5 w-62.5 rounded border-none! p-0">
 		<Command.Root class="bg-glass/85! backdrop-blur-sm rounded" shouldFilter={false}>
 			<div class="flex flex-col gap-1 bg-transparent">
 				<div class="flex items-center gap-2">
