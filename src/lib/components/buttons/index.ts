@@ -134,7 +134,7 @@ export class HillshadeButton {
 				addHillshadeLayer();
 
 				map.once('styledata', () => {
-					setTimeout(() => this.addTerrainControl(), 0);
+					setTimeout(() => this.addTerrainControl(), 50);
 				});
 			} else {
 				div.innerHTML = noHillshadeSVG;
@@ -143,7 +143,7 @@ export class HillshadeButton {
 				}
 
 				map.once('styledata', () => {
-					setTimeout(() => this.removeTerrainControl(), 0);
+					setTimeout(() => this.removeTerrainControl(), 50);
 				});
 			}
 			updateUrl('hillshade', String(preferences.hillshade), String(defaultPreferences.hillshade));
@@ -166,16 +166,11 @@ export class HillshadeButton {
 
 		this.map.addControl(this.terrainControl);
 
-		// Hijack the terrain button click to use custom handler
-		const terrainBtn = this.terrainControl._terrainButton;
-		if (terrainBtn) {
-			terrainBtn.addEventListener('click', () => terrainHandler());
-		}
+		this.terrainControl._terrainButton.addEventListener('click', () => terrainHandler());
 
 		if (preferences.terrain) {
 			this.map.setTerrain({ source: 'terrainSource2' });
 		}
-		console.log('Enabled terrain');
 	}
 
 	private removeTerrainControl() {
