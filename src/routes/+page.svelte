@@ -3,6 +3,7 @@
 	import { get } from 'svelte/store';
 
 	import {
+		type Domain,
 		GridFactory,
 		type RenderableColorScale,
 		domainOptions,
@@ -48,28 +49,19 @@
 	import TimeSelector from '$lib/components/time/time-selector.svelte';
 
 	import {
-		addHillshadeSources,
-		addOmFileLayers,
-		addPopup,
-		changeOMfileURL,
-		checkHighDefinition,
-		findTimeStep,
-		getInitialMetaData,
-		getMetaData,
-		getStyle,
-		hashValue,
-		matchVariableOrFirst,
-		setMapControlSettings,
-		updateUrl,
-		urlParamsToPreferences
-	} from '$lib';
-	import {
 		CLIP_COUNTRIES_PARAM,
 		buildCountryClippingOptions,
 		isSameCountrySelection,
 		serializeClipCountriesParam
 	} from '$lib/clipping';
+	import { checkHighDefinition, hashValue } from '$lib/helpers';
+	import { addOmFileLayers, changeOMfileURL } from '$lib/layers';
+	import { addTerrainSource, getStyle, setMapControlSettings } from '$lib/map-controls';
+	import { getInitialMetaData, getMetaData, matchVariableOrFirst } from '$lib/metadata';
+	import { addPopup } from '$lib/popup';
 	import { formatISOWithoutTimezone } from '$lib/time-format';
+	import { findTimeStep } from '$lib/time-utils';
+	import { updateUrl, urlParamsToPreferences } from '$lib/url';
 
 	import '../styles.css';
 
@@ -110,7 +102,7 @@
 
 		const style = await getStyle();
 
-		const domainObject = domainOptions.find(({ value }) => value === $domain);
+		const domainObject = domainOptions.find(({ value }: Domain) => value === $domain);
 		if (!domainObject) {
 			throw new Error('Domain not found');
 		}
@@ -147,12 +139,12 @@
 
 			if (getInitialMetaDataPromise) await getInitialMetaDataPromise;
 
-			addOmFileLayers();
-			addHillshadeSources();
-
+			addTerrainSource($map);
+			addTerrainSource($map, 'terrainSource2');
 			$map.addControl(new HillshadeButton());
 			clippingPanel?.initTerraDraw();
 
+			addOmFileLayers();
 			addPopup();
 			changeOMfileURL();
 		});

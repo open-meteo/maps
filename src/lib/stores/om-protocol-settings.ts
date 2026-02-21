@@ -6,8 +6,8 @@ import { persisted } from 'svelte-persisted-store';
 
 import { browser } from '$app/environment';
 
-import { getNextOmUrls } from '$lib';
 import { DEFAULT_COLOR_HASH } from '$lib/constants';
+import { getNextOmUrls } from '$lib/url';
 
 import { metaJson } from './time';
 import { selectedDomain } from './variables';
