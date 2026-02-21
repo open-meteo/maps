@@ -121,8 +121,7 @@ export class HillshadeButton {
 		if (preferences.hillshade) {
 			addHillshadeLayer();
 			// Defer to ensure HillshadeButton is appended to the DOM first, placing Terrain below it
-			// Additionally if this timeout is too small, the terrain will somehow be over the raster layer.
-			setTimeout(() => this.addTerrainControl(), 100);
+			setTimeout(() => this.addTerrainControl(), 0);
 		}
 
 		div.addEventListener('contextmenu', (e) => e.preventDefault());
