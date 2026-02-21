@@ -10,8 +10,7 @@ import {
 import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
 
-import { pushState, replaceState } from '$app/navigation';
-import { resolve } from '$app/paths';
+import { replaceState } from '$app/navigation';
 
 import { map as m } from '$lib/stores/map';
 import {
