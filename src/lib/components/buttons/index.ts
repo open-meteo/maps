@@ -201,6 +201,7 @@ export class SnapshotButton {
 
 		return div;
 	}
+	onRemove() {}
 }
 
 export class HelpButton {
