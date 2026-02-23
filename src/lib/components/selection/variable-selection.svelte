@@ -171,7 +171,7 @@
 		? 'left-2.5'
 		: '-left-45.5'} "
 >
-	{#if $loading || !$metaJson}
+	{#if !$metaJson}
 		<VariableSelectionEmpty />
 	{:else}
 		<div class="flex flex-col gap-2.5">
