@@ -167,7 +167,7 @@
 </script>
 
 <div
-	class="absolute top-2.5 flex max-h-75 gap-2.5 z-30 duration-300 {variableSelectionExtended
+	class="absolute top-2.5 flex z-70 max-h-75 gap-2.5 duration-300 {variableSelectionExtended
 		? 'left-2.5'
 		: '-left-45.5'} "
 >
