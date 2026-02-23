@@ -6,6 +6,7 @@ import { mode } from 'mode-watcher';
 
 import { map as m } from '$lib/stores/map';
 import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
+import { convertValue, getDisplayUnit, unitPreferences } from '$lib/stores/units';
 import { variable as v } from '$lib/stores/variables';
 
 import { textWhite } from './helpers';
@@ -73,8 +74,10 @@ const updatePopupContent = (coordinates: maplibregl.LngLat): void => {
 
 		contentDiv.style.backgroundColor = `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${popupOpacity})`;
 		contentDiv.style.color = textWhite(color, isDark) ? 'white' : 'black';
-		valueSpan.innerText = value.toFixed(1);
-		unitSpan.innerText = colorScale.unit;
+		const units = get(unitPreferences);
+		const displayValue = convertValue(value, colorScale.unit, units);
+		valueSpan.innerText = displayValue.toFixed(1);
+		unitSpan.innerText = getDisplayUnit(colorScale.unit, units);
 		elevationSpan.innerText = hasElevation ? `${Math.round(elevation)}m` : '';
 	} else {
 		contentDiv.style.backgroundColor = '';
