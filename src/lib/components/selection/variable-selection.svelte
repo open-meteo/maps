@@ -106,34 +106,28 @@
 		variableSelectionExtended = vE;
 	});
 
-	let ctrl = $state(false);
 	const keyDownEvent = (event: KeyboardEvent) => {
-		if ($typing) return;
-		if (event.keyCode == 17 || event.keyCode == 91) ctrl = true;
-		if (
+		const canNavigate =
+			!$typing &&
 			variableSelectionExtended &&
 			!variableSelectionOpen &&
 			!domainSelectionOpen &&
-			!pressureLevelSelectionOpen
-		) {
-			switch (event.key) {
-				case 'v':
-					if (!ctrl) vSO.set(true);
-					break;
-				case 'd':
-					if (!ctrl) dSO.set(true);
-					break;
-				case 'l':
-					if (!ctrl) pLSO.set(true);
-					break;
-				case 'Escape':
-					toast.dismiss();
-					break;
-			}
+			!pressureLevelSelectionOpen;
+		if (!canNavigate) return;
+		switch (event.key) {
+			case 'v':
+				if (!event.ctrlKey) vSO.set(true);
+				break;
+			case 'd':
+				if (!event.ctrlKey) dSO.set(true);
+				break;
+			case 'l':
+				if (!event.ctrlKey) pLSO.set(true);
+				break;
+			case 'Escape':
+				toast.dismiss();
+				break;
 		}
-	};
-	const keyUpEvent = (event: KeyboardEvent) => {
-		if (event.keyCode == 17 || event.keyCode == 91) ctrl = false;
 	};
 
 	onMount(() => {
@@ -143,14 +137,12 @@
 
 		if (browser) {
 			window.addEventListener('keydown', keyDownEvent);
-			window.addEventListener('keyup', keyUpEvent);
 		}
 	});
 
 	onDestroy(() => {
 		if (browser) {
 			window.removeEventListener('keydown', keyDownEvent);
-			window.removeEventListener('keyup', keyUpEvent);
 		}
 	});
 
@@ -176,11 +168,11 @@
 </script>
 
 <div
-	class="absolute top-2.5 flex max-h-75 gap-2.5 z-30 duration-300 {variableSelectionExtended
+	class="absolute top-2.5 flex z-70 max-h-75 gap-2.5 duration-300 {variableSelectionExtended
 		? 'left-2.5'
 		: '-left-45.5'} "
 >
-	{#if $loading || !$metaJson}
+	{#if !$metaJson}
 		<VariableSelectionEmpty />
 	{:else}
 		<div class="flex flex-col gap-2.5">

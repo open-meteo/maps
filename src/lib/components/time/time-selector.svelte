@@ -350,6 +350,8 @@
 	const throttledNextHour = throttle(nextHour, 150);
 	const throttledPreviousDay = throttle(previousDay, 150);
 	const throttledNextDay = throttle(nextDay, 150);
+	const throttledPreviousModel = throttle(previousModel, 250);
+	const throttledNextModel = throttle(nextModel, 250);
 
 	const keyDownEvent = (event: KeyboardEvent) => {
 		if ($typing) return;
@@ -358,8 +360,8 @@
 		if (!canNavigate) return;
 
 		const actions: Record<string, () => void> = {
-			ArrowLeft: event.ctrlKey ? previousModel : throttledPreviousHour,
-			ArrowRight: event.ctrlKey ? nextModel : throttledNextHour,
+			ArrowLeft: event.ctrlKey ? throttledPreviousModel : throttledPreviousHour,
+			ArrowRight: event.ctrlKey ? throttledNextModel : throttledNextHour,
 			ArrowDown: throttledPreviousDay,
 			ArrowUp: throttledNextDay,
 			c: jumpToCurrentTime,

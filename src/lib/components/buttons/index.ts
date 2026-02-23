@@ -123,8 +123,7 @@ export class HillshadeButton {
 		if (preferences.hillshade) {
 			addHillshadeLayer();
 			// Defer to ensure HillshadeButton is appended to the DOM first, placing Terrain below it
-			// Additionally if this timeout is too small, the terrain will somehow be over the raster layer.
-			setTimeout(() => this.addTerrainControl(), 100);
+			setTimeout(() => this.addTerrainControl(), 0);
 		}
 
 		div.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -137,7 +136,7 @@ export class HillshadeButton {
 				addHillshadeLayer();
 
 				map.once('styledata', () => {
-					setTimeout(() => this.addTerrainControl(), 0);
+					setTimeout(() => this.addTerrainControl(), 50);
 				});
 			} else {
 				div.innerHTML = noHillshadeSVG;
@@ -146,7 +145,7 @@ export class HillshadeButton {
 				}
 
 				map.once('styledata', () => {
-					setTimeout(() => this.removeTerrainControl(), 0);
+					setTimeout(() => this.removeTerrainControl(), 50);
 				});
 			}
 			updateUrl('hillshade', String(preferences.hillshade), String(defaultPreferences.hillshade));
@@ -169,16 +168,11 @@ export class HillshadeButton {
 
 		this.map.addControl(this.terrainControl);
 
-		// Hijack the terrain button click to use custom handler
-		const terrainBtn = this.terrainControl._terrainButton;
-		if (terrainBtn) {
-			terrainBtn.addEventListener('click', () => terrainHandler());
-		}
+		this.terrainControl._terrainButton.addEventListener('click', () => terrainHandler());
 
 		if (preferences.terrain) {
 			this.map.setTerrain({ source: 'terrainSource2' });
 		}
-		console.log('Enabled terrain');
 	}
 
 	private removeTerrainControl() {
