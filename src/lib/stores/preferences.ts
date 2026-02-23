@@ -15,6 +15,14 @@ import { getInitialMetaData, getMetaData } from '$lib/metadata';
 import { customColorScales } from './om-protocol-settings';
 import { inProgress, latest, metaJson, modelRun, modelRunLocked, now, time } from './time';
 import {
+	DEFAULT_PRECIPITATION_UNIT,
+	DEFAULT_TEMPERATURE_UNIT,
+	DEFAULT_WIND_SPEED_UNIT,
+	precipitationUnit,
+	temperatureUnit,
+	windSpeedUnit
+} from './units';
+import {
 	domain,
 	domainSelectionOpen,
 	variable,
@@ -92,6 +100,10 @@ export const resetStates = async () => {
 	opacity.set(DEFAULT_OPACITY);
 
 	customColorScales.set({});
+
+	temperatureUnit.set(DEFAULT_TEMPERATURE_UNIT);
+	precipitationUnit.set(DEFAULT_PRECIPITATION_UNIT);
+	windSpeedUnit.set(DEFAULT_WIND_SPEED_UNIT);
 
 	helpOpen.set(false);
 
