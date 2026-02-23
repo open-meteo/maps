@@ -5,10 +5,12 @@ import { persisted } from 'svelte-persisted-store';
 export type TemperatureUnit = '°C' | '°F';
 export type PrecipitationUnit = 'mm' | 'inch';
 export type WindSpeedUnit = 'm/s' | 'km/h' | 'mph' | 'knots';
+export type DistanceUnit = 'm' | 'ft';
 
 export const DEFAULT_TEMPERATURE_UNIT: TemperatureUnit = '°C';
 export const DEFAULT_PRECIPITATION_UNIT: PrecipitationUnit = 'mm';
 export const DEFAULT_WIND_SPEED_UNIT: WindSpeedUnit = 'm/s';
+export const DEFAULT_DISTANCE_UNIT: DistanceUnit = 'm';
 
 export const temperatureUnit = persisted<TemperatureUnit>(
 	'temperature_unit',
@@ -19,6 +21,7 @@ export const precipitationUnit = persisted<PrecipitationUnit>(
 	DEFAULT_PRECIPITATION_UNIT
 );
 export const windSpeedUnit = persisted<WindSpeedUnit>('wind_speed_unit', DEFAULT_WIND_SPEED_UNIT);
+export const distanceUnit = persisted<DistanceUnit>('distance_unit', DEFAULT_DISTANCE_UNIT);
 
 // --- Conversion functions (from base SI unit to selected unit) ---
 
@@ -46,7 +49,12 @@ export function convertWindSpeed(value: number, unit: WindSpeedUnit): number {
 }
 
 /** Map a base unit string from the color scale to the corresponding unit category. */
-export type UnitCategory = 'temperature' | 'precipitation' | 'wind_speed';
+export type UnitCategory = 'temperature' | 'precipitation' | 'wind_speed' | 'distance';
+
+export function convertDistance(value: number, unit: DistanceUnit): number {
+	if (unit === 'ft') return value * 3.28084;
+	return value;
+}
 
 export function getUnitCategory(baseUnit: string): UnitCategory | undefined {
 	switch (baseUnit) {
@@ -57,6 +65,8 @@ export function getUnitCategory(baseUnit: string): UnitCategory | undefined {
 			return 'precipitation';
 		case 'm/s':
 			return 'wind_speed';
+		case 'm':
+			return 'distance';
 		default:
 			return undefined;
 	}
@@ -70,6 +80,7 @@ export function convertValue(
 		temperature: TemperatureUnit;
 		precipitation: PrecipitationUnit;
 		windSpeed: WindSpeedUnit;
+		distance: DistanceUnit;
 	}
 ): number {
 	const category = getUnitCategory(baseUnit);
@@ -80,6 +91,8 @@ export function convertValue(
 			return convertPrecipitation(value, units.precipitation);
 		case 'wind_speed':
 			return convertWindSpeed(value, units.windSpeed);
+		case 'distance':
+			return convertDistance(value, units.distance);
 		default:
 			return value;
 	}
@@ -92,6 +105,7 @@ export function getDisplayUnit(
 		temperature: TemperatureUnit;
 		precipitation: PrecipitationUnit;
 		windSpeed: WindSpeedUnit;
+		distance: DistanceUnit;
 	}
 ): string {
 	const category = getUnitCategory(baseUnit);
@@ -102,10 +116,16 @@ export function getDisplayUnit(
 			return units.precipitation;
 		case 'wind_speed':
 			return units.windSpeed;
+		case 'distance':
+			return units.distance;
 		default:
 			return baseUnit;
 	}
 }
+export const distanceOptions: { value: DistanceUnit; label: string }[] = [
+	{ value: 'm', label: 'm' },
+	{ value: 'ft', label: 'ft' }
+];
 
 /** Option arrays for each unit category. */
 export const temperatureOptions: { value: TemperatureUnit; label: string }[] = [
@@ -135,6 +155,8 @@ export function getUnitOptions(baseUnit: string): { value: string; label: string
 			return precipitationOptions;
 		case 'wind_speed':
 			return windSpeedOptions;
+		case 'distance':
+			return distanceOptions;
 		default:
 			return undefined;
 	}
@@ -153,15 +175,19 @@ export function setUnitForCategory(baseUnit: string, newUnit: string): void {
 		case 'wind_speed':
 			windSpeedUnit.set(newUnit as WindSpeedUnit);
 			break;
+		case 'distance':
+			distanceUnit.set(newUnit as DistanceUnit);
+			break;
 	}
 }
 
 /** Derived store combining all unit preferences into a single object. */
 export const unitPreferences = derived(
-	[temperatureUnit, precipitationUnit, windSpeedUnit],
-	([$t, $p, $w]) => ({
+	[temperatureUnit, precipitationUnit, windSpeedUnit, distanceUnit],
+	([$t, $p, $w, $d]) => ({
 		temperature: $t,
 		precipitation: $p,
-		windSpeed: $w
+		windSpeed: $w,
+		distance: $d
 	})
 );

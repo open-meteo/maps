@@ -2,9 +2,11 @@
 	import { toast } from 'svelte-sonner';
 
 	import {
+		type DistanceUnit,
 		type PrecipitationUnit,
 		type TemperatureUnit,
 		type WindSpeedUnit,
+		distanceUnit,
 		precipitationUnit,
 		temperatureUnit,
 		windSpeedUnit
@@ -30,6 +32,11 @@
 		{ value: 'km/h', label: 'Kilometer/h (km/h)' },
 		{ value: 'mph', label: 'Miles/h (mph)' },
 		{ value: 'knots', label: 'Knots (kn)' }
+	];
+
+	export const distanceOptions: { value: DistanceUnit; label: string }[] = [
+		{ value: 'm', label: 'Meters (m)' },
+		{ value: 'ft', label: 'Feet (ft)' }
 	];
 
 	function getLabel<T extends string>(options: { value: T; label: string }[], value: T): string {
@@ -61,6 +68,34 @@
 				</Select.Trigger>
 				<Select.Content class="border-none bg-glass/65 backdrop-blur-sm">
 					{#each temperatureOptions as { value, label } (value)}
+						<Select.Item {value} {label} class="cursor-pointer text-sm" />
+					{/each}
+				</Select.Content>
+			</Select.Root>
+		</div>
+
+		<!-- Distance selector -->
+		<div class="flex items-center gap-3">
+			<Label class="w-28 shrink-0">Distance</Label>
+			<Select.Root
+				type="single"
+				value={$distanceUnit}
+				onValueChange={(v) => {
+					if (v) {
+						distanceUnit.set(v as DistanceUnit);
+						refreshPopup();
+						toast.info(`Distance unit set to ${v}`);
+					}
+				}}
+			>
+				<Select.Trigger
+					class="h-8 text-sm flex-1 cursor-pointer bg-background/60"
+					aria-label="Distance unit"
+				>
+					{getLabel(distanceOptions, $distanceUnit)}
+				</Select.Trigger>
+				<Select.Content class="border-none bg-glass/65 backdrop-blur-sm">
+					{#each distanceOptions as { value, label } (value)}
 						<Select.Item {value} {label} class="cursor-pointer text-sm" />
 					{/each}
 				</Select.Content>
