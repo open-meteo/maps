@@ -46,7 +46,7 @@
 
 <Dialog.Root bind:open={$helpOpen}>
 	<Dialog.Content
-		class="bg-glass/80 backdrop-blur-sm shaded-md min-h-1/4 max-h-[90vh] overflow-y-scroll pb-18 border-none"
+		class="z-90 bg-glass/80 backdrop-blur-sm shaded-md min-h-1/4 max-h-[90vh] overflow-y-scroll pb-18 border-none"
 	>
 		<Dialog.Header>
 			<Dialog.Title class="text-2xl">Help</Dialog.Title>
