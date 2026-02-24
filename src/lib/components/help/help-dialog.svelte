@@ -430,7 +430,10 @@
 			</div>
 			<div class="grid grid-cols-1 sm:gap-3 sm:grid-cols-2">
 				<div>
-					<div><b>Units</b> - WIP</div>
+					<div>
+						<b>Units</b> - Adjust the units of measurement for various variables, like distance, temperature,
+						precipitation, and wind speed.
+					</div>
 					<b>Grid</b> - Show individual model grid points as orange dots on map
 					<div>
 						<b>Arrows</b> - Show directional arrows on maps with speed and direction (wind / wave)
