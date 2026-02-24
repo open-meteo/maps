@@ -323,12 +323,12 @@
 
 @media (max-width: 768px) {
 	.popup {
-		height: 100px;
-		top: 7px;
+		height: 120px;
+		top: 17px;
 	}
 
 	.popup-stem {
-		bottom: 50px;
+		bottom: 70px;
 	}
 }
 
