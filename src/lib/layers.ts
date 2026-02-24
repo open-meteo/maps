@@ -17,6 +17,7 @@ import {
 import { type SlotLayer, SlotManager } from '$lib/slot-manager';
 
 import { refreshPopup } from './popup';
+import { currentOmUrl } from './stores/om-url';
 import { getOMUrl } from './url';
 
 // =============================================================================
@@ -300,8 +301,12 @@ export const addOmFileLayers = (): void => {
 export const changeOMfileURL = (vectorOnly = false, rasterOnly = false): void => {
 	const map = get(m);
 	if (!map) return;
-	loading.set(true);
+
 	const omUrl = getOMUrl();
+	if (get(currentOmUrl) == omUrl) return;
+	currentOmUrl.set(omUrl);
+
+	loading.set(true);
 
 	const preferences = get(p);
 	vectorManager?.setBeforeLayer(
