@@ -321,6 +321,17 @@
 	transform: translateX(-50%);
 }
 
+@media (max-width: 768px) {
+	.popup {
+		height: 80px;
+		top: -3px;
+	}
+
+	.popup-stem {
+		bottom: 30px;
+	}
+}
+
 .popup-elevation {
 	top: -18px;
 	position: absolute;
