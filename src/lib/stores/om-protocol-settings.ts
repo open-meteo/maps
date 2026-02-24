@@ -34,7 +34,7 @@ export const omProtocolSettings: OmProtocolSettings = {
 		useSAB: true,
 		cache: browser
 			? new BrowserBlockCache({
-					blockSize: 128 * 1024,
+					blockSize: 32 * 1024,
 					cacheName: 'open-meteo-maps-cache-v1',
 					memCacheTtlMs: 1000,
 					maxBytes: 400 * 1024 * 1024 // 400Mb maximum storage
