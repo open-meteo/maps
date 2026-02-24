@@ -2,8 +2,11 @@
 	import { onDestroy, onMount } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
 
+	import { toast } from 'svelte-sonner';
+
 	import { browser } from '$app/environment';
 
+	import { popupFollowMouse } from '$lib/stores/map';
 	import { helpOpen } from '$lib/stores/preferences';
 
 	import * as Dialog from '$lib/components/ui/dialog';
@@ -13,6 +16,15 @@
 		switch (event.key) {
 			case 'h':
 				$helpOpen = !$helpOpen;
+				break;
+
+			case 'f':
+				$popupFollowMouse = !$popupFollowMouse;
+				if ($popupFollowMouse) {
+					toast('Popup mode: follows mouse');
+				} else {
+					toast('Popup mode: draggable');
+				}
 				break;
 		}
 	};
@@ -127,6 +139,15 @@
 						</div>
 						<div class="flex items-center gap-2">
 							<Kbd.Root>l</Kbd.Root> Level Selection
+						</div>
+					</div>
+
+					<div class="flex items-center mb-2 gap-1.25 mt-6">
+						<h2 class="text-lg font-bold">Popup</h2>
+					</div>
+					<div class="flex flex-col gap-1">
+						<div class="flex items-center gap-2">
+							<Kbd.Root>f</Kbd.Root> Popup mode: follows mouse / draggable
 						</div>
 					</div>
 				</div>

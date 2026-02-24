@@ -267,55 +267,22 @@
    ============================================================================= */
 
 /* Popup */
+.popup {
+	height: 50px;
+	top: -21.5px;
+}
+
 .popup-wrapper {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	min-width: 24px;
-	margin-right: 2px;
-	height: 32px;
-	top: -35px;
-	background: rgba(255, 253, 248, 0.8);
-	backdrop-filter: blur(2px);
+	top: 0;
+	min-width: 50px;
 	border: 3px solid rgba(100, 100, 100, 1);
 	border-radius: 4px;
+	backdrop-filter: blur(2px);
+	background: rgba(255, 253, 248, 0.8);
 }
 
 .dark .popup-wrapper {
 	background: rgba(26, 26, 24, 0.8);
-	border: 3px solid rgba(150, 150, 150, 1);
-}
-
-.popup-stem {
-	position: absolute;
-	width: 3px;
-	height: 21px;
-	background: rgba(100, 100, 100, 1);
-	bottom: -23px;
-	left: 50%;
-	transform: translateX(-50%);
-	display: flex;
-	align-items: flex-end;
-	justify-content: center;
-}
-
-.dark .popup-stem {
-	background: rgba(150, 150, 150, 1);
-}
-
-.popup-dot {
-	width: 9px;
-	height: 9px;
-	background: rgba(100, 100, 100, 1);
-	border-radius: 50%;
-	position: absolute;
-	bottom: -3px;
-	left: 50%;
-	transform: translateX(-50%);
-}
-
-.dark .popup-dot {
-	background: rgba(150, 150, 150, 1);
 }
 
 .popup-content {
@@ -324,9 +291,34 @@
 	align-items: center;
 	justify-content: center;
 	font-weight: bold;
+	height: 22px;
 	gap: 2px;
 	padding: 0.15rem 0.3rem;
 	position: relative;
+}
+
+.popup-stem {
+	position: absolute;
+	width: 3px;
+	height: 24px;
+	background: rgba(100, 100, 100, 1);
+	bottom: 0px;
+	left: 50%;
+	transform: translateX(-50%);
+	display: flex;
+	align-items: flex-end;
+	justify-content: center;
+}
+
+.popup-dot {
+	width: 9px;
+	height: 9px;
+	background: rgba(100, 100, 100, 1);
+	border-radius: 50%;
+	position: absolute;
+	bottom: 0px;
+	left: 50%;
+	transform: translateX(-50%);
 }
 
 .popup-elevation {
