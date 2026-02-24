@@ -51,10 +51,10 @@ export const omProtocolSettings: OmProtocolSettings = {
 			const nextOmUrls = getNextOmUrls(state.omFileUrl, get(selectedDomain), get(metaJson));
 			for (const nextOmUrl of nextOmUrls) {
 				if (nextOmUrl === undefined) continue;
-				omFileReader.setToOmFile(nextOmUrl);
-				// This will trigger a request to the tail of the file and cache it
-				// Not requesting a real variable ensures that we don't request any additional data.
-				omFileReader.prefetchVariable('not_a_real_variable');
+				// omFileReader.setToOmFile(nextOmUrl);
+				// // This will trigger a request to the tail of the file and cache it
+				// // Not requesting a real variable ensures that we don't request any additional data.
+				// omFileReader.prefetchVariable('not_a_real_variable');
 			}
 		}
 		if (
