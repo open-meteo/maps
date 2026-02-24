@@ -295,6 +295,7 @@
 	gap: 2px;
 	padding: 0.15rem 0.3rem;
 	position: relative;
+	transition: 150ms;
 }
 
 .popup-stem {
