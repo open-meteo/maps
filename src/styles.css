@@ -268,8 +268,8 @@
 
 /* Popup */
 .popup {
-	height: 50px;
-	top: -21.5px;
+	height: 55px;
+	top: -16.5px;
 }
 
 .popup-wrapper {
@@ -302,7 +302,7 @@
 	width: 3px;
 	height: 24px;
 	background: rgba(100, 100, 100, 1);
-	bottom: 0px;
+	bottom: 5px;
 	left: 50%;
 	transform: translateX(-50%);
 	display: flex;
