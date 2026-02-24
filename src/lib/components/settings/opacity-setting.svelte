@@ -3,7 +3,7 @@
 
 	import { Label } from '$lib/components/ui/label';
 
-	import { reloadStyles } from '$lib';
+	import { reloadStyles } from '$lib/map-controls';
 </script>
 
 <div>

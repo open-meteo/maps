@@ -4,13 +4,13 @@ import { type Writable, writable } from 'svelte/store';
 import { setMode } from 'mode-watcher';
 import { type Persisted, persisted } from 'svelte-persisted-store';
 
-import { getInitialMetaData, getMetaData } from '$lib';
 import {
 	COMPLETE_DEFAULT_VALUES,
 	DEFAULT_OPACITY,
 	DEFAULT_PREFERENCES,
 	DEFAULT_TILE_SIZE
 } from '$lib/constants';
+import { getInitialMetaData, getMetaData } from '$lib/metadata';
 
 import { customColorScales } from './om-protocol-settings';
 import { inProgress, latest, metaJson, modelRun, modelRunLocked, now, time } from './time';

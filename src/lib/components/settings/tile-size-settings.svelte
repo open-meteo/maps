@@ -1,12 +1,11 @@
 <script lang="ts">
 	import { get } from 'svelte/store';
 
-	import { map } from '$lib/stores/map';
 	import { tileSize as tS } from '$lib/stores/preferences';
 
 	import Button from '$lib/components/ui/button/button.svelte';
 
-	import { changeOMfileURL } from '$lib';
+	import { changeOMfileURL } from '$lib/layers';
 
 	const handleTileSizeChange = (tile: 64 | 128 | 256 | 512 | 1024 | 2048) => {
 		tS.set(tile);

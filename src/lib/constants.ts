@@ -25,6 +25,7 @@ export const DEFAULT_PREFERENCES = {
 export const DEFAULT_COLOR_HASH = '';
 
 // Layer names for map rendering
+export const HILLSHADE_LAYER = 'hillshadeLayer';
 export const BEFORE_LAYER_RASTER = 'waterway-tunnel';
 export const BEFORE_LAYER_VECTOR = 'place_label_other';
 export const BEFORE_LAYER_VECTOR_WATER_CLIP = 'water-clip';

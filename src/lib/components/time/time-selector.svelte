@@ -21,13 +21,15 @@
 	import PrefetchButton from '$lib/components/time/prefetch-button.svelte';
 	import * as Select from '$lib/components/ui/select';
 
-	import { changeOMfileURL, findTimeStep, getMetaData, throttle, updateUrl } from '$lib';
 	import {
 		DAY_NAMES,
 		MILLISECONDS_PER_DAY,
 		MILLISECONDS_PER_HOUR,
 		MILLISECONDS_PER_WEEK
 	} from '$lib/constants';
+	import { throttle } from '$lib/helpers';
+	import { changeOMfileURL } from '$lib/layers';
+	import { getMetaData } from '$lib/metadata';
 	import {
 		formatISOWithoutTimezone,
 		formatLocalDate,
@@ -40,6 +42,8 @@
 		startOfLocalDay,
 		withLocalTime
 	} from '$lib/time-format';
+	import { findTimeStep } from '$lib/time-utils';
+	import { updateUrl } from '$lib/url';
 
 	// Disables time selection when loading new OM files
 	let disabled = $derived($modelRun === undefined);
@@ -346,14 +350,16 @@
 	const throttledNextHour = throttle(nextHour, 150);
 	const throttledPreviousDay = throttle(previousDay, 150);
 	const throttledNextDay = throttle(nextDay, 150);
+	const throttledPreviousModel = throttle(previousModel, 250);
+	const throttledNextModel = throttle(nextModel, 250);
 
 	const keyDownEvent = (event: KeyboardEvent) => {
 		const canNavigate = !($domainSelectionOpen || $variableSelectionOpen);
 		if (!canNavigate) return;
 
 		const actions: Record<string, () => void> = {
-			ArrowLeft: event.ctrlKey ? previousModel : throttledPreviousHour,
-			ArrowRight: event.ctrlKey ? nextModel : throttledNextHour,
+			ArrowLeft: event.ctrlKey ? throttledPreviousModel : throttledPreviousHour,
+			ArrowRight: event.ctrlKey ? throttledNextModel : throttledNextHour,
 			ArrowDown: throttledPreviousDay,
 			ArrowUp: throttledNextDay,
 			c: jumpToCurrentTime,

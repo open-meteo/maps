@@ -4,9 +4,8 @@ import { currentBounds, getProtocolInstance, getRanges } from '@openmeteo/mapbox
 
 import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 
-import { fmtModelRun, fmtSelectedTime } from '$lib';
-
 import { MILLISECONDS_PER_DAY } from './constants';
+import { fmtModelRun, fmtSelectedTime, getBaseUri } from './helpers';
 import { selectedDomain } from './stores/variables';
 
 import type { DomainMetaDataJson } from '@openmeteo/mapbox-layer';
@@ -126,10 +125,7 @@ export const prefetchData = async (
 		const omFileReader = instance.omFileReader;
 
 		// Build base URL
-		const uri =
-			domain && domain.startsWith('dwd_icon')
-				? `https://s3.servert.ch`
-				: `https://map-tiles.open-meteo.com`;
+		const uri = getBaseUri(domain);
 
 		let successCount = 0;
 		const totalCount = timeSteps.length;

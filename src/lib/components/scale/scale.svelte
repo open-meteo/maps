@@ -8,8 +8,8 @@
 	import { opacity, preferences } from '$lib/stores/preferences';
 	import { variable } from '$lib/stores/variables';
 
-	import { textWhite } from '$lib';
 	import { getAlpha, hexToRgba, rgbaToHex } from '$lib/color';
+	import { textWhite } from '$lib/helpers';
 
 	import ColorPicker from './color-picker.svelte';
 
@@ -93,13 +93,13 @@
 
 {#if $preferences.showScale}
 	<div
-		class="absolute {$preferences.timeSelector && !desktop.current
+		class="absolute z-60 {$preferences.timeSelector && !desktop.current
 			? 'bottom-22.5'
-			: 'bottom-2.5'} duration-500 left-2.5 z-10 select-none"
+			: 'bottom-2.5'} duration-500 left-2.5 z-10 select-none rounded"
 		style="max-height: {totalHeight + 100}px;"
 	>
-		<div class="flex flex-col-reverse overflow-hidden rounded shadow-md">
-			<div class="flex flex-col-reverse bg-glass/30 backdrop-blur-sm">
+		<div class="flex flex-col-reverse shadow-md">
+			<div class="flex flex-col-reverse bg-glass/30 backdrop-blur-sm rounded-b">
 				{#each labeledColors as lc, i (lc)}
 					{@const alphaValue = getAlpha(lc.color)}
 					<button
@@ -116,7 +116,7 @@
 							: undefined}
 					>
 						<div
-							class="absolute inset-0"
+							class="absolute inset-0 {i === 0 ? 'rounded-b' : ''}"
 							style="background: rgb({lc.color[0]}, {lc.color[1]}, {lc
 								.color[2]}); opacity: {(alphaValue * $opacity) / 100};"
 						></div>
@@ -150,7 +150,7 @@
 
 			{#if colorScale.unit}
 				<div
-					class="bg-glass/75 backdrop-blur-sm shadow-md h-[23px] w-full overflow-hidden py-1 text-center text-xs"
+					class="bg-glass/75 rounded-t backdrop-blur-sm shadow-md h-[23px] w-full overflow-hidden py-1 text-center text-xs"
 				>
 					{colorScale.unit}
 				</div>
