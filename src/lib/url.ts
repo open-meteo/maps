@@ -53,9 +53,7 @@ export const updateUrl = async (
 	try {
 		const map = get(m);
 		if (map) {
-			fullUrl =
-				String(url) +
-				(map as maplibregl.Map & { _hash: { getHashString(): string } })._hash.getHashString();
+			fullUrl = String(url) + map._hash.getHashString();
 		} else {
 			fullUrl = String(url);
 		}
