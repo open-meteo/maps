@@ -24,7 +24,7 @@
 				switchPopupMode();
 				toast.info(
 					'Popup mode: ' +
-						($popupMode ? ($popupMode === 'follow' ? 'follows mouse' : 'draggable') : 'off')
+						($popupMode ? ($popupMode === 'follow' ? 'Follows mouse' : 'Draggable') : 'Off')
 				);
 				break;
 		}
@@ -148,7 +148,7 @@
 					</div>
 					<div class="flex flex-col gap-1">
 						<div class="flex items-center gap-2">
-							<Kbd.Root>f</Kbd.Root> Popup mode: follows mouse / draggable
+							<Kbd.Root>p</Kbd.Root> Popup mode: Follows mouse / Draggable / Off
 						</div>
 					</div>
 				</div>
