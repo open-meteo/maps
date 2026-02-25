@@ -29,8 +29,9 @@ import {
 	parseClipCountriesParam,
 	serializeClipCountriesParam
 } from './clipping';
-import { fmtModelRun, fmtSelectedTime, getBaseUri } from './helpers';
+import { fmtModelRun, fmtSelectedTime, getBaseUri, hashValue } from './helpers';
 import { clippingCountryCodes } from './stores/clipping';
+import { omProtocolSettings } from './stores/om-protocol-settings';
 import { formatISOUTCWithZ, parseISOWithoutTimezone } from './time-format';
 
 export const updateUrl = async (
@@ -171,6 +172,11 @@ export const getOMUrl = () => {
 
 	const tileSize = get(tS);
 	if (tileSize !== 256) result += `&tile_size=${tileSize}`;
+
+	const omProtocolSettingsState = get(omProtocolSettings);
+	hashValue(JSON.stringify(omProtocolSettingsState.clippingOptions)).then((hash) => {
+		result += `&clipping_options_hash=${hash}`;
+	});
 
 	return result;
 };
