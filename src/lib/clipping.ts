@@ -79,7 +79,69 @@ export const buildCountryClippingOptions = (countries: Country[]): ClippingOptio
 	// Some country GeoJSON files have unclosed rings — fix before union/simplify
 	closeRings(mergedGeojson);
 
-	const result = simplify(mergedGeojson, {
+	// Detect if any feature crosses the dateline; turf.union operates in
+	// planar lon/lat space and will produce artefacts when polygons cross
+	// the antimeridian. If any feature crosses the dateline, skip union.
+	const crossesDateline = (geometry: Geometry | null): boolean => {
+		if (!geometry) return false;
+		const lons: number[] = [];
+
+		const collect = (coords: any): void => {
+			if (!Array.isArray(coords)) return;
+			if (typeof coords[0] === 'number') {
+				// a single position [lon, lat]
+				lons.push(coords[0]);
+				return;
+			}
+			for (const c of coords) collect(c);
+		};
+
+		if (geometry.type === 'Polygon') {
+			collect(geometry.coordinates as number[][][]);
+		} else if (geometry.type === 'MultiPolygon') {
+			collect(geometry.coordinates as number[][][][]);
+		} else if (geometry.type === 'GeometryCollection') {
+			for (const g of geometry.geometries) {
+				if (g.type === 'Polygon' || g.type === 'MultiPolygon') collect((g as any).coordinates);
+			}
+		}
+
+		if (lons.length === 0) return false;
+
+		// Normalize to [-180, 180]
+		const normalized = lons.map((lon) => {
+			let v = lon;
+			while (v <= -180) v += 360;
+			while (v > 180) v -= 360;
+			return v;
+		});
+
+		const min = Math.min(...normalized);
+		const max = Math.max(...normalized);
+		if (max - min > 180) return true;
+
+		// Also check for large jumps between consecutive points (another indicator)
+		for (let i = 1; i < normalized.length; i++) {
+			if (Math.abs(normalized[i] - normalized[i - 1]) > 180) return true;
+		}
+
+		return false;
+	};
+
+	const hasDatelineCrossing = mergedGeojson.features.some((f) => crossesDateline(f.geometry));
+
+	// Union all polygons into a single geometry to merge overlapping/adjacent countries
+	// Skip union when any feature crosses the dateline to avoid planar artefacts.
+	let toSimplify: FeatureCollection<Geometry>;
+	if (allFeatures.length >= 2 && !hasDatelineCrossing) {
+		const unioned = union(mergedGeojson as FeatureCollection<Polygon | MultiPolygon>);
+		if (!unioned) return undefined;
+		toSimplify = { type: 'FeatureCollection', features: [unioned] };
+	} else {
+		toSimplify = mergedGeojson;
+	}
+
+	const result = simplify(toSimplify, {
 		tolerance: simplifyTolerance,
 		highQuality: true
 	});
