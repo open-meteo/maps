@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
+	import { get } from 'svelte/store';
 
 	import { toast } from 'svelte-sonner';
 
 	import { browser } from '$app/environment';
 
-	import { popupMode } from '$lib/stores/map';
+	import { popup, popupMode } from '$lib/stores/map';
 	import { helpOpen } from '$lib/stores/preferences';
 
 	import * as Dialog from '$lib/components/ui/dialog';
@@ -26,6 +27,15 @@
 					'Popup mode: ' +
 						($popupMode ? ($popupMode === 'follow' ? 'Follows mouse' : 'Draggable') : 'Off')
 				);
+				break;
+
+			case 'Escape':
+				popupMode.set(null);
+				const p = get(popup);
+				if (p) {
+					p.remove();
+				}
+				popup.set(undefined);
 				break;
 		}
 	};

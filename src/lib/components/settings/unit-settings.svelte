@@ -66,7 +66,7 @@
 				>
 					{getLabel(temperatureOptions, $temperatureUnit)}
 				</Select.Trigger>
-				<Select.Content class="border-none bg-glass/65 backdrop-blur-sm">
+				<Select.Content class="z-110 border-none bg-glass/65 backdrop-blur-sm">
 					{#each temperatureOptions as { value, label } (value)}
 						<Select.Item {value} {label} class="cursor-pointer text-sm" />
 					{/each}
@@ -94,7 +94,7 @@
 				>
 					{getLabel(distanceOptions, $distanceUnit)}
 				</Select.Trigger>
-				<Select.Content class="border-none bg-glass/65 backdrop-blur-sm">
+				<Select.Content class="z-110 border-none bg-glass/65 backdrop-blur-sm">
 					{#each distanceOptions as { value, label } (value)}
 						<Select.Item {value} {label} class="cursor-pointer text-sm" />
 					{/each}
@@ -121,7 +121,7 @@
 				>
 					{getLabel(precipitationOptions, $precipitationUnit)}
 				</Select.Trigger>
-				<Select.Content class="border-none bg-glass/65 backdrop-blur-sm">
+				<Select.Content class="z-110 border-none bg-glass/65 backdrop-blur-sm">
 					{#each precipitationOptions as { value, label } (value)}
 						<Select.Item {value} {label} class="cursor-pointer text-sm" />
 					{/each}
@@ -148,7 +148,7 @@
 				>
 					{getLabel(windSpeedOptions, $windSpeedUnit)}
 				</Select.Trigger>
-				<Select.Content class="border-none bg-glass/65 backdrop-blur-sm">
+				<Select.Content class="z-110 border-none bg-glass/65 backdrop-blur-sm">
 					{#each windSpeedOptions as { value, label } (value)}
 						<Select.Item {value} {label} class="cursor-pointer text-sm" />
 					{/each}
