@@ -289,20 +289,20 @@ export const createManagers = (): void => {
 // Public layer API
 // =============================================================================
 
-export const addOmFileLayers = (): void => {
+export const addOmFileLayers = async (): Promise<void> => {
 	const map = get(m);
 	if (!map) return;
-	const omUrl = getOMUrl();
+	const omUrl = await getOMUrl();
 	createManagers();
 	rasterManager?.update('om://' + omUrl);
 	vectorManager?.update('om://' + omUrl);
 };
 
-export const changeOMfileURL = (vectorOnly = false, rasterOnly = false): void => {
+export const changeOMfileURL = async (vectorOnly = false, rasterOnly = false): Promise<void> => {
 	const map = get(m);
 	if (!map) return;
 
-	const omUrl = getOMUrl();
+	const omUrl = await getOMUrl();
 	if (get(currentOmUrl) == omUrl) return;
 	currentOmUrl.set(omUrl);
 

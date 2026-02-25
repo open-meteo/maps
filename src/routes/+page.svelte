@@ -143,7 +143,7 @@
 			$map.addControl(new HillshadeButton());
 			clippingPanel?.initTerraDraw();
 
-			addOmFileLayers();
+			await addOmFileLayers();
 			addPopup();
 			changeOMfileURL();
 		});
@@ -239,7 +239,7 @@
 	onselect={handleCountrySelect}
 	onclippingchange={async () => {
 		await tick();
-		changeOMfileURL();
+		await changeOMfileURL();
 		if ($map) $map.fire('dataloading');
 	}}
 />

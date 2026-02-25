@@ -7,6 +7,7 @@ import {
 	closestModelRun,
 	domainStep
 } from '@openmeteo/mapbox-layer';
+import { defaultOmProtocolSettings } from '@openmeteo/mapbox-layer';
 import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
 
@@ -55,7 +56,6 @@ export const updateUrl = async (
 	}
 
 	await tick();
-
 	let fullUrl: string;
 	try {
 		const map = get(m);
@@ -161,7 +161,7 @@ export const urlParamsToPreferences = () => {
 	p.set(preferences);
 };
 
-export const getOMUrl = () => {
+export const getOMUrl = async () => {
 	const domain = get(d);
 	const base = `${getBaseUri(domain)}/data_spatial/${domain}`;
 	const modelRun = get(mR) as Date;
@@ -182,9 +182,13 @@ export const getOMUrl = () => {
 	if (tileSize !== 256) result += `&tile_size=${tileSize}`;
 
 	const omProtocolSettingsState = get(omProtocolSettings);
-	hashValue(JSON.stringify(omProtocolSettingsState.clippingOptions)).then((hash) => {
+	if (
+		omProtocolSettingsState.clippingOptions !== undefined &&
+		omProtocolSettingsState.clippingOptions !== defaultOmProtocolSettings.clippingOptions
+	) {
+		const hash = await hashValue(JSON.stringify(omProtocolSettingsState.clippingOptions));
 		result += `&clipping_options_hash=${hash}`;
-	});
+	}
 
 	return result;
 };

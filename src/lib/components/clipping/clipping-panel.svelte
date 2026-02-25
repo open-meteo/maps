@@ -175,7 +175,7 @@
 
 	/** Merge drawn polygons into the current clippingOptions and notify the parent. */
 	const mergeDrawnGeometry = () => {
-		if (!draw) return;
+		if (!draw || !$map) return;
 		const snapshot = draw.getSnapshot();
 		const newPolygons = snapshot.filter((f) => f.geometry.type === 'Polygon');
 		if (newPolygons.length === 0) return;
@@ -190,14 +190,14 @@
 	};
 
 	const syncEditedGeometryFromSnapshot = () => {
-		if (!draw) return;
+		if (!draw || !$map) return;
 		drawnFeatures = draw.getSnapshot().filter((f) => f.geometry.type === 'Polygon');
 		saveDrawnFeatures();
 		rebuildClippingOptions();
 	};
 
 	const loadDrawnFeaturesIntoDraw = () => {
-		if (!draw) return;
+		if (!draw || !$map) return;
 		draw.clear();
 		if (drawnFeatures.length > 0) {
 			draw.addFeatures(drawnFeatures as any);
@@ -209,6 +209,7 @@
 	 * Called when either source changes.
 	 */
 	export const rebuildClippingOptions = () => {
+		if (!$map) return;
 		// Collect country features from the stored country clipping
 		let countryFeatures: any[] = [];
 		const cg = (countryClipping as any)?.geojson;
@@ -292,7 +293,7 @@
 	};
 
 	const clearDrawings = () => {
-		if (!draw) return;
+		if (!draw || !$map) return;
 		draw.clear();
 		drawnFeatures = [];
 		saveDrawnFeatures();
