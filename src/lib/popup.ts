@@ -112,9 +112,15 @@ export const renderPopup = (coordinates: maplibregl.LngLat): void => {
 			.addTo(map);
 		p.set(popup);
 
+		popup.on('dragstart', () => {
+			if (el) el.classList.add('grabbing');
+		});
 		popup.on('drag', () => {
 			const lngLat = popup?.getLngLat();
 			if (lngLat) updatePopupContent(lngLat);
+		});
+		popup.on('dragend', () => {
+			if (el) el.classList.remove('grabbing');
 		});
 	} else {
 		popup.setLngLat(coordinates).addTo(map);

@@ -272,6 +272,13 @@
 	top: -13.5px;
 }
 
+.popup.grabbing {
+	cursor: grabbing !important;
+	cursor: -moz-grabbing !important;
+	cursor: -webkit-grabbing !important;
+	pointer-events: auto !important;
+}
+
 .popup-wrapper {
 	top: 0;
 	min-width: 50px;
@@ -323,12 +330,12 @@
 
 @media (max-width: 768px) {
 	.popup {
-		height: 120px;
-		top: 17px;
+		height: 110px;
+		top: 12px;
 	}
 
 	.popup-stem {
-		bottom: 70px;
+		bottom: 60px;
 	}
 
 	.popup-dot::after {
