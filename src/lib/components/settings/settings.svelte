@@ -7,6 +7,7 @@
 	import ContourSettings from './contour-settings.svelte';
 	import GridSettings from './grid-settings.svelte';
 	import OpacitySetting from './opacity-setting.svelte';
+	import PopupSettings from './popup-settings.svelte';
 	import StateSettings from './state-settings.svelte';
 	import TileSizeSettings from './tile-size-settings.svelte';
 	import UnitSettings from './unit-settings.svelte';
@@ -21,6 +22,7 @@
 			<ArrowsSettings />
 			<ContourSettings />
 			<TileSizeSettings />
+			<PopupSettings />
 			<WaterClipSetting />
 			<OpacitySetting />
 			<StateSettings />
