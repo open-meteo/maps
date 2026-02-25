@@ -12,14 +12,14 @@
 	import { renderPopup } from '$lib/popup';
 
 	let popupOn = $state(!!$popupMode);
-	let popupModeFollow = $state($popupMode === 'follow');
+	let popupModeDrag = $state(!!$popupMode && $popupMode === 'drag');
 </script>
 
 <div>
 	<h2 class="text-lg font-bold">Popup settings</h2>
 	<div class="mt-3 flex gap-3">
 		<Switch
-			id="popup_mode"
+			id="popup_on"
 			class="cursor-pointer"
 			bind:checked={popupOn}
 			onCheckedChange={() => {
@@ -35,12 +35,12 @@
 					} else {
 						popupMode.set('drag');
 					}
-				} else if (get(popupMode) === 'follow') {
-					popupMode.set('drag');
-					return;
+				} else if (get(popupMode) === 'drag' || get(popupMode) === 'follow') {
+					popupMode.set(null);
 				}
-				popupModeFollow = $popupMode === 'follow';
-				toast.info('Popup: ' + (popupOn ? 'on' : 'off'));
+
+				popupModeDrag = !!$popupMode && $popupMode === 'drag';
+				toast.info('Popup: ' + (popupOn ? 'On' : 'Off'));
 
 				renderPopup(lastLngLat ?? $map.getCenter());
 			}}
@@ -51,23 +51,27 @@
 		<Switch
 			id="popup_mode"
 			class="cursor-pointer"
-			disabled={!desktop.current}
-			bind:checked={popupModeFollow}
+			disabled={!desktop.current || !$popupMode}
+			bind:checked={popupModeDrag}
 			onCheckedChange={() => {
 				if ($popupMode === 'drag') {
 					popupMode.set('follow');
 				} else if ($popupMode === 'follow') {
 					popupMode.set('drag');
 				}
-				popupModeFollow = $popupMode === 'follow';
+				popupModeDrag = !!$popupMode && $popupMode === 'drag';
 				toast.info(
 					'Popup mode: ' +
-						($popupMode ? ($popupMode === 'follow' ? 'follows mouse' : 'draggable') : 'off')
+						($popupMode ? ($popupMode === 'follow' ? 'Follows mouse' : 'Draggable') : 'Off')
 				);
 			}}
 		/>
 		<Label class="cursor-pointer" for="popup_mode"
-			>Popup mode: {$popupMode === 'follow' ? 'follows mouse' : 'draggable'}</Label
+			>Popup mode: {$popupMode
+				? $popupMode === 'follow'
+					? 'Follows mouse'
+					: 'Draggable'
+				: 'Off'}</Label
 		>
 	</div>
 </div>
