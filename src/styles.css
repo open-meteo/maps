@@ -330,6 +330,16 @@
 	.popup-stem {
 		bottom: 70px;
 	}
+
+	.popup-dot::after {
+		content: '';
+		position: absolute;
+		width: 250%;
+		height: 250%;
+		border-radius: 50%;
+		transform: translate(-30%, 200%);
+		background: rgba(100, 100, 100, 0.5);
+	}
 }
 
 .popup-elevation {
