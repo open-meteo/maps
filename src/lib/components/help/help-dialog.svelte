@@ -6,11 +6,13 @@
 
 	import { browser } from '$app/environment';
 
-	import { popupFollowMouse } from '$lib/stores/map';
+	import { popupMode } from '$lib/stores/map';
 	import { helpOpen } from '$lib/stores/preferences';
 
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Kbd from '$lib/components/ui/kbd';
+
+	import { switchPopupMode } from '$lib/popup';
 
 	const keydownEvent = (event: KeyboardEvent) => {
 		switch (event.key) {
@@ -18,13 +20,12 @@
 				$helpOpen = !$helpOpen;
 				break;
 
-			case 'f':
-				$popupFollowMouse = !$popupFollowMouse;
-				if ($popupFollowMouse) {
-					toast('Popup mode: follows mouse');
-				} else {
-					toast('Popup mode: draggable');
-				}
+			case 'p':
+				switchPopupMode();
+				toast.info(
+					'Popup mode: ' +
+						($popupMode ? ($popupMode === 'follow' ? 'follows mouse' : 'draggable') : 'off')
+				);
 				break;
 		}
 	};

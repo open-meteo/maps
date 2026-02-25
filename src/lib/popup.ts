@@ -4,20 +4,14 @@ import { getColor, getColorScale, getValueFromLatLong } from '@openmeteo/mapbox-
 import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
 
-import {
-	map as m,
-	popup as p,
-	popupFollowMouse as pFM,
-	popupFollowMouse,
-	showPopup
-} from '$lib/stores/map';
+import { map as m, popup as p, popupMode } from '$lib/stores/map';
 import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 import { convertValue, getDisplayUnit, unitPreferences } from '$lib/stores/units';
 import { variable as v } from '$lib/stores/variables';
 
 import { textWhite } from './helpers';
 import { rasterManager } from './layers';
-import { opacity } from './stores/preferences';
+import { desktop, opacity } from './stores/preferences';
 
 let el: HTMLDivElement | undefined;
 let wrapperDiv: HTMLDivElement | undefined;
@@ -100,14 +94,14 @@ const updatePopupContent = (coordinates: maplibregl.LngLat): void => {
 /** Ensure the marker exists, place it at `coordinates`, and update its content. */
 export const renderPopup = (coordinates: maplibregl.LngLat): void => {
 	const map = get(m);
-	if (!get(showPopup) || !map) return;
+	if (!get(popupMode) || !map) return;
 
 	if (!el || !contentDiv || !valueSpan || !unitSpan || !elevationSpan) initPopupDiv();
 	if (!el || !contentDiv || !valueSpan || !unitSpan || !elevationSpan) return;
 
 	let popup = get(p);
 	if (!popup) {
-		popup = new maplibregl.Marker({ element: el, draggable: !get(pFM) })
+		popup = new maplibregl.Marker({ element: el, draggable: get(popupMode) === 'drag' })
 			.setLngLat(coordinates)
 			.addTo(map);
 		p.set(popup);
@@ -130,12 +124,28 @@ export const refreshPopup = (): void => {
 };
 
 const updatePopup = (e: maplibregl.MapMouseEvent): void => {
-	if (get(popupFollowMouse)) {
+	if (get(popupMode) === 'follow') {
 		const popup = get(p);
 		if (popup) {
 			popup.setLngLat(e.lngLat);
 		}
 		renderPopup(e.lngLat);
+	}
+};
+
+export const switchPopupMode = (): void => {
+	if (get(popupMode) === null) {
+		if (desktop.current) {
+			popupMode.set('follow');
+		} else {
+			popupMode.set('drag');
+		}
+	} else if (get(popupMode) === 'follow') {
+		popupMode.set('drag');
+		return;
+	} else if (get(popupMode) === 'drag') {
+		popupMode.set(null);
+		return;
 	}
 };
 
@@ -148,9 +158,9 @@ export const addPopup = (): void => {
 	map.on('click', (e: maplibregl.MapMouseEvent) => {
 		if (!map) return;
 
-		showPopup.set(!get(showPopup));
+		switchPopupMode();
 
-		if (!get(showPopup)) {
+		if (get(popupMode) === null) {
 			const popup = get(p);
 			popup?.remove();
 			p.set(undefined);
