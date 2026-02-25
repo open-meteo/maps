@@ -21,9 +21,6 @@ export const DEFAULT_PREFERENCES = {
 	timeSelector: true
 };
 
-// Color hash default
-export const DEFAULT_COLOR_HASH = '';
-
 // Layer names for map rendering
 export const HILLSHADE_LAYER = 'hillshadeLayer';
 export const BEFORE_LAYER_RASTER = 'waterway-tunnel';

@@ -79,17 +79,7 @@ export const buildCountryClippingOptions = (countries: Country[]): ClippingOptio
 	// Some country GeoJSON files have unclosed rings — fix before union/simplify
 	closeRings(mergedGeojson);
 
-	// Union all polygons into a single geometry to merge overlapping/adjacent countries
-	let toSimplify: FeatureCollection<Geometry>;
-	if (allFeatures.length >= 2) {
-		const unioned = union(mergedGeojson as FeatureCollection<Polygon | MultiPolygon>);
-		if (!unioned) return undefined;
-		toSimplify = { type: 'FeatureCollection', features: [unioned] };
-	} else {
-		toSimplify = mergedGeojson;
-	}
-
-	const result = simplify(toSimplify, {
+	const result = simplify(mergedGeojson, {
 		tolerance: simplifyTolerance,
 		highQuality: true
 	});

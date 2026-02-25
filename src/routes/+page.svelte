@@ -18,7 +18,7 @@
 
 	import { clippingCountryCodes } from '$lib/stores/clipping';
 	import { map } from '$lib/stores/map';
-	import { defaultColorHash, omProtocolSettings } from '$lib/stores/om-protocol-settings';
+	import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 	import {
 		loading,
 		localStorageVersion,
@@ -53,7 +53,7 @@
 		buildCountryClippingOptions,
 		serializeClipCountriesParam
 	} from '$lib/clipping';
-	import { checkHighDefinition, hashValue } from '$lib/helpers';
+	import { checkHighDefinition } from '$lib/helpers';
 	import { addOmFileLayers, changeOMfileURL } from '$lib/layers';
 	import { addTerrainSource, getStyle, setMapControlSettings } from '$lib/map-controls';
 	import { getInitialMetaData, getMetaData, matchVariableOrFirst } from '$lib/metadata';
@@ -227,8 +227,7 @@
 <Scale
 	afterColorScaleChange={async (variable: string, colorScale: RenderableColorScale) => {
 		$omProtocolSettings.colorScales[variable] = colorScale;
-		const colorHash = await hashValue(JSON.stringify($omProtocolSettings.colorScales));
-		updateUrl('color_hash', colorHash, defaultColorHash);
+		await tick();
 		changeOMfileURL();
 		toast('Changed color scale');
 	}}

@@ -186,8 +186,17 @@ export const getOMUrl = async () => {
 		omProtocolSettingsState.clippingOptions !== undefined &&
 		omProtocolSettingsState.clippingOptions !== defaultOmProtocolSettings.clippingOptions
 	) {
-		const hash = await hashValue(JSON.stringify(omProtocolSettingsState.clippingOptions));
-		result += `&clipping_options_hash=${hash}`;
+		const clippingHash = await hashValue(JSON.stringify(omProtocolSettingsState.clippingOptions));
+		result += `&clipping_options_hash=${clippingHash}`;
+	}
+
+	if (
+		omProtocolSettingsState.colorScales !== undefined &&
+		JSON.stringify(omProtocolSettingsState.colorScales) !==
+			JSON.stringify(defaultOmProtocolSettings.colorScales)
+	) {
+		const colorHash = await hashValue(JSON.stringify(omProtocolSettingsState.colorScales));
+		result += `&color_hash=${colorHash}`;
 	}
 
 	return result;
