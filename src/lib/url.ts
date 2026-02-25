@@ -48,11 +48,19 @@ export const updateUrl = async (
 	}
 
 	await tick();
-	const map = get(m);
-	const fullUrl = map
-		? String(url) +
-			(map as maplibregl.Map & { _hash: { getHashString(): string } })._hash.getHashString()
-		: String(url);
+
+	let fullUrl: string;
+	try {
+		const map = get(m);
+		if (map) {
+			fullUrl = String(url) + map._hash.getHashString();
+		} else {
+			fullUrl = String(url);
+		}
+	} catch {
+		fullUrl = String(url);
+	}
+
 	// eslint-disable-next-line svelte/no-navigation-without-resolve
 	replaceState(fullUrl, {});
 };
