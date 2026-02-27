@@ -73,7 +73,7 @@ export const addHillshadeLayer = () => {
 export const getStyle = async () => {
 	const preferences = get(p);
 	const style = await fetch(
-		`https://tiles.open-meteo.com/styles/minimal-planet-maps${mode.current === 'dark' ? '-dark' : ''}${preferences.clipWater ? '-water-clip' : ''}.json`
+		`https://map-assets.open-meteo.com/styles/minimal-planet-maps${mode.current === 'dark' ? '-dark' : ''}${preferences.clipWater ? '-water-clip' : ''}.json`
 	).then((r) => r.json());
 
 	return preferences.globe ? { ...style, projection: { type: 'globe' } } : style;
