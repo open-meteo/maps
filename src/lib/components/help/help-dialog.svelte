@@ -1,18 +1,41 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
+	import { get } from 'svelte/store';
+
+	import { toast } from 'svelte-sonner';
 
 	import { browser } from '$app/environment';
 
+	import { popup, popupMode } from '$lib/stores/map';
 	import { helpOpen } from '$lib/stores/preferences';
 
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Kbd from '$lib/components/ui/kbd';
 
+	import { switchPopupMode } from '$lib/popup';
+
 	const keydownEvent = (event: KeyboardEvent) => {
 		switch (event.key) {
 			case 'h':
 				$helpOpen = !$helpOpen;
+				break;
+
+			case 'p':
+				switchPopupMode();
+				toast.info(
+					'Popup mode: ' +
+						($popupMode ? ($popupMode === 'follow' ? 'Follows mouse' : 'Draggable') : 'Off')
+				);
+				break;
+
+			case 'Escape':
+				popupMode.set(null);
+				const p = get(popup);
+				if (p) {
+					p.remove();
+				}
+				popup.set(undefined);
 				break;
 		}
 	};
@@ -34,7 +57,7 @@
 
 <Dialog.Root bind:open={$helpOpen}>
 	<Dialog.Content
-		class="bg-glass/80 backdrop-blur-sm shaded-md min-h-1/4 max-h-[90vh] overflow-y-scroll pb-18 border-none"
+		class="z-90 bg-glass/80 backdrop-blur-sm shaded-md min-h-1/4 max-h-[90vh] overflow-y-scroll pb-18 border-none"
 	>
 		<Dialog.Header>
 			<Dialog.Title class="text-2xl">Help</Dialog.Title>
@@ -127,6 +150,15 @@
 						</div>
 						<div class="flex items-center gap-2">
 							<Kbd.Root>l</Kbd.Root> Level Selection
+						</div>
+					</div>
+
+					<div class="flex items-center mb-2 gap-1.25 mt-6">
+						<h2 class="text-lg font-bold">Popup</h2>
+					</div>
+					<div class="flex flex-col gap-1">
+						<div class="flex items-center gap-2">
+							<Kbd.Root>p</Kbd.Root> Popup mode: Follows mouse / Draggable / Off
 						</div>
 					</div>
 				</div>
@@ -402,7 +434,10 @@
 			</div>
 			<div class="grid grid-cols-1 sm:gap-3 sm:grid-cols-2">
 				<div>
-					<div><b>Units</b> - WIP</div>
+					<div>
+						<b>Units</b> - Adjust the units of measurement for various variables, like distance, temperature,
+						precipitation, and wind speed.
+					</div>
 					<b>Grid</b> - Show individual model grid points as orange dots on map
 					<div>
 						<b>Arrows</b> - Show directional arrows on maps with speed and direction (wind / wave)

@@ -167,11 +167,11 @@
 </script>
 
 <div
-	class="absolute top-2.5 flex max-h-75 gap-2.5 z-30 duration-300 {variableSelectionExtended
+	class="absolute top-2.5 flex z-70 max-h-75 gap-2.5 duration-300 {variableSelectionExtended
 		? 'left-2.5'
 		: '-left-45.5'} "
 >
-	{#if $loading || !$metaJson}
+	{#if !$metaJson}
 		<VariableSelectionEmpty />
 	{:else}
 		<div class="flex flex-col gap-2.5">
@@ -213,7 +213,7 @@
 							}, 10);
 						}
 					}}
-					class="bg-transparent! ml-2.5 w-62.5 rounded border-none! p-0"
+					class="bg-transparent! z-80 ml-2.5 w-62.5 rounded border-none! p-0"
 				>
 					<Popover.Close
 						class="absolute right-0.5 top-0.5 flex h-5 w-5 cursor-pointer items-center justify-center"
@@ -311,7 +311,7 @@
 							firstChild.focus();
 						}
 					}}
-					class="ml-2.5 w-62.5 rounded border-none bg-transparent! p-0"
+					class="ml-2.5 z-80 w-62.5 rounded border-none bg-transparent! p-0"
 				>
 					<Popover.Close
 						class="absolute right-0.5 top-0.5 flex h-5 w-5 cursor-pointer items-center justify-center"
@@ -421,7 +421,7 @@
 					</Popover.Trigger>
 					<Popover.Content
 						tabindex={0}
-						class="ml-2.5 w-62.5 rounded border-none bg-transparent! p-0"
+						class="ml-2.5 z-80 w-62.5 rounded border-none bg-transparent! p-0"
 					>
 						<Popover.Close
 							class="absolute right-0.5 top-0.5 flex h-5 w-5 cursor-pointer items-center justify-center"

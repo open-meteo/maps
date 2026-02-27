@@ -6,10 +6,20 @@
 
 	import { customColorScales } from '$lib/stores/om-protocol-settings';
 	import { opacity, preferences } from '$lib/stores/preferences';
+	import {
+		convertValue,
+		getDisplayUnit,
+		getUnitOptions,
+		setUnitForCategory,
+		unitPreferences
+	} from '$lib/stores/units';
 	import { variable } from '$lib/stores/variables';
+
+	import * as Select from '$lib/components/ui/select';
 
 	import { getAlpha, hexToRgba, rgbaToHex } from '$lib/color';
 	import { textWhite } from '$lib/helpers';
+	import { refreshPopup } from '$lib/popup';
 
 	import ColorPicker from './color-picker.svelte';
 
@@ -45,9 +55,10 @@
 	};
 
 	const formatValue = (value: number, digits: number): string => {
-		if (Math.abs(value) >= 1) return value.toFixed(0);
-		if (Math.abs(value) >= 0.1) return value.toFixed(1);
-		return value.toFixed(digits);
+		const converted = convertValue(value, colorScale.unit, $unitPreferences);
+		if (Math.abs(converted) >= 1) return converted.toFixed(0);
+		if (Math.abs(converted) >= 0.1) return converted.toFixed(1);
+		return converted.toFixed(digits);
 	};
 
 	const handleColorClick = (index: number, e: MouseEvent) => {
@@ -81,10 +92,10 @@
 
 	const digits = 2;
 	const labeledColors = $derived(getLabeledColorsForLegend(colorScale));
+	const displayUnit = $derived(getDisplayUnit(colorScale.unit, $unitPreferences));
+	const unitOptions = $derived(getUnitOptions(colorScale.unit));
 	const valueLength = $derived(String(Math.round(labeledColors.at(-1)?.value ?? 1)).length);
-	const labelWidth = $derived(
-		17 + Math.max(valueLength, colorScale.unit.length + 1, digits + 2) * 4
-	);
+	const labelWidth = $derived(17 + Math.max(valueLength, displayUnit.length + 1, digits + 2) * 4);
 	const desktop = new MediaQuery('min-width: 768px');
 	const isMobile = $derived(!desktop.current);
 	const colorBlockHeight = $derived(isMobile && labeledColors.length >= 20 ? 10 : 20);
@@ -93,13 +104,13 @@
 
 {#if $preferences.showScale}
 	<div
-		class="absolute {$preferences.timeSelector && !desktop.current
+		class="absolute z-60 {$preferences.timeSelector && !desktop.current
 			? 'bottom-22.5'
-			: 'bottom-2.5'} duration-500 left-2.5 z-10 select-none"
+			: 'bottom-2.5'} duration-500 left-2.5 z-10 select-none rounded"
 		style="max-height: {totalHeight + 100}px;"
 	>
-		<div class="flex flex-col-reverse overflow-hidden rounded shadow-md">
-			<div class="flex flex-col-reverse bg-glass/30 backdrop-blur-sm">
+		<div class="flex flex-col-reverse shadow-md">
+			<div class="flex flex-col-reverse bg-glass/30 backdrop-blur-sm rounded-b">
 				{#each labeledColors as lc, i (lc)}
 					{@const alphaValue = getAlpha(lc.color)}
 					<button
@@ -116,7 +127,7 @@
 							: undefined}
 					>
 						<div
-							class="absolute inset-0"
+							class="absolute inset-0 {i === 0 ? 'rounded-b' : ''}"
 							style="background: rgb({lc.color[0]}, {lc.color[1]}, {lc
 								.color[2]}); opacity: {(alphaValue * $opacity) / 100};"
 						></div>
@@ -150,9 +161,38 @@
 
 			{#if colorScale.unit}
 				<div
-					class="bg-glass/75 backdrop-blur-sm shadow-md h-[23px] w-full overflow-hidden py-1 text-center text-xs"
+					class="bg-glass/75 rounded-t backdrop-blur-sm shadow-md h-6 w-full overflow-hidden text-center text-xs"
 				>
-					{colorScale.unit}
+					{#if unitOptions}
+						<Select.Root
+							type="single"
+							value={displayUnit}
+							onValueChange={(v) => {
+								if (v) {
+									setUnitForCategory(colorScale.unit, v);
+									refreshPopup();
+								}
+							}}
+						>
+							<Select.Trigger
+								class="h-6! cursor-pointer w-full p-0 text-xs flex items-center justify-center px-1 py-0 gap-0.5 border-none bg-transparent shadow-none focus-visible:ring-0"
+								aria-label="Change unit"
+								icon={false}
+							>
+								{displayUnit}
+							</Select.Trigger>
+							<Select.Content
+								side="top"
+								class="z-80 left-2.5 border-none bg-glass/65 backdrop-blur-sm rounded min-w-20"
+							>
+								{#each unitOptions as { value, label } (value)}
+									<Select.Item {value} {label} class="cursor-pointer text-xs" />
+								{/each}
+							</Select.Content>
+						</Select.Root>
+					{:else}
+						<span class="leading-6">{displayUnit}</span>
+					{/if}
 				</div>
 			{/if}
 		</div>

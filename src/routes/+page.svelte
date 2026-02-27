@@ -178,9 +178,7 @@
 			toast('Variable set to: ' + $selectedVariable.label);
 		}
 
-		if (!$loading) {
-			changeOMfileURL();
-		}
+		changeOMfileURL();
 	});
 
 	onDestroy(() => {
