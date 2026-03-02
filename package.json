@@ -28,7 +28,6 @@
 		"upgrade:ui": "npx shadcn-svelte@latest add button command dialog input kbd label popover select separator sheet sonner switch -y -o"
 	},
 	"devDependencies": {
-		"@eslint/compat": "^2.0.0",
 		"@eslint/js": "^10.0.1",
 		"@lucide/svelte": "^0.575.0",
 		"@openmeteo/file-reader": "^0.0.15",

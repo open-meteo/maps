@@ -1,18 +1,23 @@
-import { includeIgnoreFile } from '@eslint/compat';
 import js from '@eslint/js';
 import prettier from 'eslint-config-prettier';
 import svelte from 'eslint-plugin-svelte';
-import { globalIgnores } from 'eslint/config';
+import { defineConfig, globalIgnores } from 'eslint/config';
 import globals from 'globals';
-import { fileURLToPath } from 'node:url';
 import ts from 'typescript-eslint';
 
 import svelteConfig from './svelte.config.js';
 
-const gitignorePath = fileURLToPath(new URL('./.gitignore', import.meta.url));
-
-export default ts.config(
-	includeIgnoreFile(gitignorePath),
+export default defineConfig([
+	globalIgnores([
+		'node_modules',
+		'dist',
+		'build',
+		'coverage',
+		'.svelte-kit',
+		'.vscode',
+		'.gitignore',
+		'src/lib/components/ui/**/*'
+	]),
 	js.configs.recommended,
 	...ts.configs.recommended,
 	...svelte.configs.recommended,
@@ -21,7 +26,20 @@ export default ts.config(
 	{
 		languageOptions: {
 			globals: { ...globals.browser, ...globals.node }
-		},
+		}
+	},
+	{
+		files: ['**/*.svelte', '**/*.svelte.ts', '**/*.svelte.js'],
+		languageOptions: {
+			parserOptions: {
+				projectService: true,
+				extraFileExtensions: ['.svelte'],
+				parser: ts.parser,
+				svelteConfig
+			}
+		}
+	},
+	{
 		rules: {
 			'svelte/no-navigation-without-resolve': [
 				'error',
@@ -42,17 +60,5 @@ export default ts.config(
 				}
 			]
 		}
-	},
-	{
-		files: ['**/*.svelte', '**/*.svelte.ts', '**/*.svelte.js'],
-		languageOptions: {
-			parserOptions: {
-				projectService: true,
-				extraFileExtensions: ['.svelte'],
-				parser: ts.parser,
-				svelteConfig
-			}
-		}
-	},
-	globalIgnores(['src/lib/components/ui/**/*'], 'Ignore Shadcn Component Directory')
-);
+	}
+]);
