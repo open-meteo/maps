@@ -83,7 +83,6 @@
 		} else {
 			// jump to next model run if available
 			if (currentIndex - 1 < 0) {
-				let date = new SvelteDate($time);
 				date.setTime(date.getTime() - metaFirstResolution);
 				onDateChange(date);
 			}
@@ -117,7 +116,6 @@
 		} else {
 			if (timeSteps && currentIndex + 1 > timeSteps.length - 1) {
 				if ($modelRun && $modelRun.getTime() < latestReferenceTime.getTime()) {
-					let date = new SvelteDate($time);
 					date.setTime(date.getTime() + metaLastResolution);
 					onDateChange(date);
 				} else {
