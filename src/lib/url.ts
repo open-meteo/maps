@@ -8,7 +8,6 @@ import {
 	domainStep
 } from '@openmeteo/mapbox-layer';
 import { defaultOmProtocolSettings } from '@openmeteo/mapbox-layer';
-import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
 
 import { replaceState } from '$app/navigation';
@@ -68,7 +67,6 @@ export const updateUrl = async (
 		fullUrl = String(url);
 	}
 
-	// eslint-disable-next-line svelte/no-navigation-without-resolve
 	replaceState(fullUrl, {});
 };
 
