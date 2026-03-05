@@ -17,7 +17,7 @@
 		}
 		reloadStyles();
 		$domain = $domain; // reload domainData
-		changeOMfileURL();
+		await changeOMfileURL();
 		updateUrl();
 		toast.info('All default states reset');
 	};

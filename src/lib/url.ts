@@ -7,6 +7,7 @@ import {
 	closestModelRun,
 	domainStep
 } from '@openmeteo/mapbox-layer';
+import { defaultOmProtocolSettings } from '@openmeteo/mapbox-layer';
 import { mode } from 'mode-watcher';
 
 import { replaceState } from '$app/navigation';
@@ -23,7 +24,14 @@ import { modelRun as mR, modelRunLocked as mRL, time } from '$lib/stores/time';
 import { domain as d, variable as v } from '$lib/stores/variables';
 import { vectorOptions as vO } from '$lib/stores/vector';
 
-import { fmtModelRun, fmtSelectedTime, getBaseUri } from './helpers';
+import {
+	CLIP_COUNTRIES_PARAM,
+	parseClipCountriesParam,
+	serializeClipCountriesParam
+} from './clipping';
+import { fmtModelRun, fmtSelectedTime, getBaseUri, hashValue } from './helpers';
+import { clippingCountryCodes } from './stores/clipping';
+import { omProtocolSettings } from './stores/om-protocol-settings';
 import { formatISOUTCWithZ, parseISOWithoutTimezone } from './time-format';
 
 export const updateUrl = async (
@@ -47,7 +55,6 @@ export const updateUrl = async (
 	}
 
 	await tick();
-
 	let fullUrl: string;
 	try {
 		const map = get(m);
@@ -137,11 +144,22 @@ export const urlParamsToPreferences = () => {
 		url.searchParams.set('interval', String(vectorOptions.contourInterval));
 	}
 
+	const clipCountries = parseClipCountriesParam(params.get(CLIP_COUNTRIES_PARAM));
+	if (clipCountries.length > 0) {
+		clippingCountryCodes.set(clipCountries);
+	} else {
+		const currentCodes = get(clippingCountryCodes);
+		const serialized = serializeClipCountriesParam(currentCodes);
+		if (serialized) {
+			url.searchParams.set(CLIP_COUNTRIES_PARAM, serialized);
+		}
+	}
+
 	vO.set(vectorOptions);
 	p.set(preferences);
 };
 
-export const getOMUrl = () => {
+export const getOMUrl = async () => {
 	const domain = get(d);
 	const base = `${getBaseUri(domain)}/data_spatial/${domain}`;
 	const modelRun = get(mR) as Date;
@@ -160,6 +178,24 @@ export const getOMUrl = () => {
 
 	const tileSize = get(tS);
 	if (tileSize !== 256) result += `&tile_size=${tileSize}`;
+
+	const omProtocolSettingsState = get(omProtocolSettings);
+	if (
+		omProtocolSettingsState.clippingOptions !== undefined &&
+		omProtocolSettingsState.clippingOptions !== defaultOmProtocolSettings.clippingOptions
+	) {
+		const clippingHash = await hashValue(JSON.stringify(omProtocolSettingsState.clippingOptions));
+		result += `&clipping_options_hash=${clippingHash}`;
+	}
+
+	if (
+		omProtocolSettingsState.colorScales !== undefined &&
+		JSON.stringify(omProtocolSettingsState.colorScales) !==
+			JSON.stringify(defaultOmProtocolSettings.colorScales)
+	) {
+		const colorHash = await hashValue(JSON.stringify(omProtocolSettingsState.colorScales));
+		result += `&color_hash=${colorHash}`;
+	}
 
 	return result;
 };
