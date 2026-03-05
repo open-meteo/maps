@@ -199,3 +199,14 @@ export const addPopup = (): void => {
 		renderPopup(e.lngLat);
 	});
 };
+
+export const removePopup = (): void => {
+	const map = get(m);
+	if (!map) return;
+
+	map.off('mousemove', updatePopup);
+
+	const popup = get(p);
+	popup?.remove();
+	p.set(undefined);
+};

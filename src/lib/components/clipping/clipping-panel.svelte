@@ -27,9 +27,14 @@
 	import { map } from '$lib/stores/map';
 	import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 
+	import { removePopup } from '$lib/popup';
+
 	import CountrySelector from './country-selector.svelte';
 
 	import type { Country } from './country-data';
+	import type { ClippingOptions, GeoJsonFeature, GeoJsonGeometry } from '@openmeteo/mapbox-layer';
+	import type { Polygon } from 'geojson';
+	import type { GeoJSONStoreFeatures } from 'terra-draw';
 
 	interface Props {
 		onselect?: (countries: Country[]) => void;
@@ -45,24 +50,27 @@
 	let draw: TerraDraw | undefined = $state(undefined);
 	let activeMode = $state<string>('');
 	/** Accumulated drawn features that have been finalized. */
-	let drawnFeatures: any[] = $state(loadDrawnFeatures());
+	let drawnFeatures: GeoJSONStoreFeatures<Polygon>[] = $state(loadDrawnFeatures());
 	/** Country clipping set by the country selector (kept separately so draws don't erase it). */
-	let countryClipping: any = $state(undefined);
+	let countryClipping: ClippingOptions = $state<ClippingOptions>(undefined);
 
-	function loadDrawnFeatures(): any[] {
+	function loadDrawnFeatures(): GeoJSONStoreFeatures<Polygon>[] {
 		if (!browser) return [];
 		try {
 			const raw = localStorage.getItem(DRAWN_FEATURES_KEY);
 			const parsed = raw ? JSON.parse(raw) : [];
 			if (!Array.isArray(parsed)) return [];
-			return parsed
-				.filter((feature) => feature?.geometry?.type === 'Polygon')
+			return (parsed as GeoJSONStoreFeatures<Polygon>[])
+				.filter(
+					(feature): feature is GeoJSONStoreFeatures<Polygon> =>
+						feature?.geometry?.type === 'Polygon'
+				)
 				.map((feature, index) => ({
 					...feature,
 					id: feature?.id ?? `drawn-${Date.now()}-${index}`,
 					properties: {
 						...(feature?.properties ?? {}),
-						mode: feature?.properties?.mode ?? 'polygon'
+						mode: (feature?.properties?.mode as string) ?? 'polygon'
 					}
 				}));
 		} catch {
@@ -177,7 +185,9 @@
 	const mergeDrawnGeometry = () => {
 		if (!draw || !$map) return;
 		const snapshot = draw.getSnapshot();
-		const newPolygons = snapshot.filter((f) => f.geometry.type === 'Polygon');
+		const newPolygons = snapshot.filter(
+			(f): f is GeoJSONStoreFeatures<Polygon> => f.geometry.type === 'Polygon'
+		);
 		if (newPolygons.length === 0) return;
 
 		drawnFeatures = [...drawnFeatures, ...newPolygons];
@@ -191,7 +201,9 @@
 
 	const syncEditedGeometryFromSnapshot = () => {
 		if (!draw || !$map) return;
-		drawnFeatures = draw.getSnapshot().filter((f) => f.geometry.type === 'Polygon');
+		drawnFeatures = draw
+			.getSnapshot()
+			.filter((f): f is GeoJSONStoreFeatures<Polygon> => f.geometry.type === 'Polygon');
 		saveDrawnFeatures();
 		rebuildClippingOptions();
 	};
@@ -200,7 +212,7 @@
 		if (!draw || !$map) return;
 		draw.clear();
 		if (drawnFeatures.length > 0) {
-			draw.addFeatures(drawnFeatures as any);
+			draw.addFeatures(drawnFeatures);
 		}
 	};
 
@@ -211,8 +223,8 @@
 	export const rebuildClippingOptions = () => {
 		if (!$map) return;
 		// Collect country features from the stored country clipping
-		let countryFeatures: any[] = [];
-		const cg = (countryClipping as any)?.geojson;
+		let countryFeatures: GeoJsonFeature[] = [];
+		const cg = countryClipping?.geojson;
 		if (cg) {
 			if ('features' in cg) {
 				countryFeatures = cg.features;
@@ -223,35 +235,37 @@
 			}
 		}
 
-		const drawnGeoJsonFeatures = drawnFeatures
-			.filter((feature) => feature?.geometry?.type === 'Polygon')
-			.map((feature) => ({
-				type: 'Feature' as const,
-				properties: {} as Record<string, unknown>,
-				geometry: feature.geometry
-			}));
+		const drawnGeoJsonFeatures: GeoJsonFeature[] = drawnFeatures.map((feature) => ({
+			type: 'Feature' as const,
+			properties: {},
+			geometry: feature.geometry as GeoJsonGeometry
+		}));
 		const allFeatures = [...countryFeatures, ...drawnGeoJsonFeatures];
 		if (allFeatures.length === 0) {
-			($omProtocolSettings as any).clippingOptions = undefined;
+			omProtocolSettings.update((s) => ({ ...s, clippingOptions: undefined }));
 		} else {
-			($omProtocolSettings as any).clippingOptions = {
-				geojson: {
-					type: 'FeatureCollection',
-					features: allFeatures
+			omProtocolSettings.update((s) => ({
+				...s,
+				clippingOptions: {
+					geojson: {
+						type: 'FeatureCollection' as const,
+						features: allFeatures
+					}
 				}
-			};
+			}));
 		}
 
 		onclippingchange?.();
 	};
 
 	/** Called by the parent when country selection produces new clipping. */
-	export const setCountryClipping = (clipping: any) => {
+	export const setCountryClipping = (clipping: ClippingOptions) => {
 		countryClipping = clipping;
 		rebuildClippingOptions();
 	};
 
 	const setMode = (mode: string) => {
+		removePopup();
 		if (!draw) return;
 		if (activeMode === mode) {
 			exitDrawingMode();
