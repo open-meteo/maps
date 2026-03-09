@@ -28,7 +28,7 @@
 		"upgrade:ui": "npx shadcn-svelte@latest add button command dialog input kbd label popover select separator sheet sonner switch -y -o"
 	},
 	"devDependencies": {
-		"@lucide/svelte": "^0.575.0",
+		"@lucide/svelte": "^0.576.0",
 		"@openmeteo/file-reader": "^0.0.15",
 		"@openmeteo/mapbox-layer": "^0.0.15",
 		"@sveltejs/adapter-static": "^3.0.8",
@@ -44,8 +44,8 @@
 		"eslint": "^10.0.0",
 		"eslint-config-prettier": "^10.0.1",
 		"eslint-plugin-svelte": "^3.15.0",
-		"globals": "^17.3.0",
-		"maplibre-gl": "^5.18.0",
+		"globals": "^17.4.0",
+		"maplibre-gl": "^5.19.0",
 		"mode-watcher": "^1.1.0",
 		"prettier": "^3.8.0",
 		"prettier-plugin-svelte": "^3.5.0",
