@@ -1,13 +1,21 @@
 import { get } from 'svelte/store';
 
-import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
 import { toast } from 'svelte-sonner';
 
+import { customArrowStyles, customContourStyles } from '$lib/stores/chart-styles';
 import { map as m } from '$lib/stores/map';
 import { loading, opacity, preferences as p } from '$lib/stores/preferences';
 import { vectorOptions as vO } from '$lib/stores/vector';
 
+import {
+	buildArrowColorExpr,
+	buildArrowWidthExpr,
+	buildContourColorExpr,
+	buildContourWidthExpr,
+	defaultArrowStyle,
+	defaultContourStyle
+} from '$lib/chart-styles';
 import {
 	BEFORE_LAYER_RASTER,
 	BEFORE_LAYER_VECTOR,
@@ -16,8 +24,11 @@ import {
 } from '$lib/constants';
 import { type SlotLayer, SlotManager } from '$lib/slot-manager';
 
+import { destroyMultiSource, updateMultiSource } from './multi-source-manager';
 import { refreshPopup } from './popup';
+import { activeChartSources } from './stores/chart';
 import { currentOmUrl } from './stores/om-url';
+import { variable as currentVariable } from './stores/variables';
 import { getOMUrl } from './url';
 
 // =============================================================================
@@ -32,79 +43,8 @@ const getRasterOpacity = (): number => {
 	return isDark() ? Math.max(0, (opacityValue * 100 - 10) / 100) : opacityValue;
 };
 
-const makeArrowColor = (): maplibregl.ExpressionSpecification => {
-	let expr: maplibregl.ExpressionSpecification = [
-		'literal',
-		lightOrDark('rgba(0,0,0, 0.2)', 'rgba(255,255,255, 0.2)')
-	];
-	const thresholds: [number, string, string][] = [
-		[2, 'rgba(0,0,0, 0.3)', 'rgba(255,255,255, 0.3)'],
-		[3, 'rgba(0,0,0, 0.4)', 'rgba(255,255,255, 0.4)'],
-		[4, 'rgba(0,0,0, 0.5)', 'rgba(255,255,255, 0.5)'],
-		[5, 'rgba(0,0,0, 0.6)', 'rgba(255,255,255, 0.6)'],
-		[10, 'rgba(0,0,0, 0.7)', 'rgba(255,255,255, 0.7)']
-	];
-	for (const [threshold, light, dark] of [...thresholds]) {
-		expr = [
-			'case',
-			['boolean', ['>', ['to-number', ['get', 'value']], threshold], false],
-			lightOrDark(light, dark),
-			expr
-		];
-	}
-	return expr;
-};
-
-const makeArrowWidth = (): maplibregl.ExpressionSpecification => [
-	'case',
-	['boolean', ['>', ['to-number', ['get', 'value']], 20], false],
-	2.8,
-	[
-		'case',
-		['boolean', ['>', ['to-number', ['get', 'value']], 10], false],
-		2.2,
-		[
-			'case',
-			['boolean', ['>', ['to-number', ['get', 'value']], 5], false],
-			2,
-			[
-				'case',
-				['boolean', ['>', ['to-number', ['get', 'value']], 3], false],
-				1.8,
-				['case', ['boolean', ['>', ['to-number', ['get', 'value']], 2], false], 1.6, 1.5]
-			]
-		]
-	]
-];
-
-const makeContourColor = (): maplibregl.ExpressionSpecification => [
-	'case',
-	['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
-	lightOrDark('rgba(0,0,0, 0.6)', 'rgba(255,255,255, 0.8)'),
-	[
-		'case',
-		['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
-		lightOrDark('rgba(0,0,0, 0.5)', 'rgba(255,255,255, 0.7)'),
-		[
-			'case',
-			['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
-			lightOrDark('rgba(0,0,0, 0.4)', 'rgba(255,255,255, 0.6)'),
-			lightOrDark('rgba(0,0,0, 0.3)', 'rgba(255,255,255, 0.5)')
-		]
-	]
-];
-
-const makeContourWidth = (): maplibregl.ExpressionSpecification => [
-	'case',
-	['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
-	3,
-	[
-		'case',
-		['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
-		2.5,
-		['case', ['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false], 2, 1]
-	]
-];
+const getArrowStyle = () => get(customArrowStyles)[get(currentVariable)] ?? defaultArrowStyle;
+const getContourStyle = () => get(customContourStyles)[get(currentVariable)] ?? defaultContourStyle;
 
 // =============================================================================
 // Layer definitions
@@ -146,8 +86,8 @@ const vectorArrowLayer = (): SlotLayer => ({
 				paint: {
 					'line-opacity': 0,
 					'line-opacity-transition': { duration: 200, delay: 0 },
-					'line-color': makeArrowColor(),
-					'line-width': makeArrowWidth()
+					'line-color': buildArrowColorExpr(getArrowStyle(), isDark()),
+					'line-width': buildArrowWidthExpr(getArrowStyle())
 				},
 				layout: { 'line-cap': 'round' }
 			},
@@ -197,8 +137,8 @@ const vectorContourLayer = (): SlotLayer => ({
 				paint: {
 					'line-opacity': 0,
 					'line-opacity-transition': { duration: 200, delay: 0 },
-					'line-color': makeContourColor(),
-					'line-width': makeContourWidth()
+					'line-color': buildContourColorExpr(getContourStyle(), isDark()),
+					'line-width': buildContourWidthExpr(getContourStyle())
 				}
 			},
 			beforeLayer
@@ -298,9 +238,36 @@ export const addOmFileLayers = (): void => {
 	vectorManager?.update('om://' + omUrl);
 };
 
+/** Tear down single-source managers so they don't conflict with multi-source. */
+export const destroySingleSource = (): void => {
+	rasterManager?.destroy();
+	vectorManager?.destroy();
+	rasterManager = undefined;
+	vectorManager = undefined;
+};
+
+/** Re-activate single-source mode (called when leaving a chart preset). */
+export const restoreSingleSource = (): void => {
+	destroyMultiSource();
+	// Reset currentOmUrl so changeOMfileURL doesn't skip the update
+	currentOmUrl.set('');
+	addOmFileLayers();
+};
+
 export const changeOMfileURL = (vectorOnly = false, rasterOnly = false): void => {
 	const map = get(m);
 	if (!map) return;
+
+	// When chart sources are active, delegate to the multi-source manager
+	const sources = get(activeChartSources);
+	if (sources) {
+		loading.set(true);
+		updateMultiSource(sources);
+		return;
+	}
+
+	// Safety: if single-source managers don't exist yet, skip
+	if (!rasterManager && !vectorManager) return;
 
 	const omUrl = getOMUrl();
 	if (get(currentOmUrl) == omUrl) return;
