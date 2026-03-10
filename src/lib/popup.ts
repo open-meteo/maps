@@ -76,22 +76,31 @@ const updatePopupContent = (coordinates: maplibregl.LngLat): void => {
 			return;
 		}
 
-		// Use first source for the popup background colour
-		const first = sourceUrls[0];
-		let firstValue = NaN;
-		try {
-			firstValue = getValueFromLatLong(coordinates.lat, coordinates.lng, first.url).value;
-		} catch {
-			/* state not ready yet */
-		}
+		// Use first raster source for the popup background colour
+		const rasterSrc = sourceUrls.find((s) => s.raster);
+		if (rasterSrc) {
+			let rasterValue = NaN;
+			try {
+				rasterValue = getValueFromLatLong(coordinates.lat, coordinates.lng, rasterSrc.url).value;
+			} catch {
+				/* state not ready yet */
+			}
 
-		if (isFinite(firstValue)) {
-			const colorScale = getColorScale(first.variable, isDark, omProtocolSettings.colorScales);
-			const color = getColor(colorScale, firstValue);
-			const popupOpacity =
-				color[3] && color[3] ? (color[3] * get(opacity)) / 100 : get(opacity) / 100;
-			contentDiv.style.backgroundColor = `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${popupOpacity})`;
-			contentDiv.style.color = textWhite(color, isDark) ? 'white' : 'black';
+			if (isFinite(rasterValue)) {
+				const colorScale = getColorScale(
+					rasterSrc.variable,
+					isDark,
+					omProtocolSettings.colorScales
+				);
+				const color = getColor(colorScale, rasterValue);
+				const popupOpacity =
+					color[3] && color[3] ? (color[3] * get(opacity)) / 100 : get(opacity) / 100;
+				contentDiv.style.backgroundColor = `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${popupOpacity})`;
+				contentDiv.style.color = textWhite(color, isDark) ? 'white' : 'black';
+			} else {
+				contentDiv.style.backgroundColor = '';
+				contentDiv.style.color = '';
+			}
 		} else {
 			contentDiv.style.backgroundColor = '';
 			contentDiv.style.color = '';
@@ -114,7 +123,7 @@ const updatePopupContent = (coordinates: maplibregl.LngLat): void => {
 			parts.push(`${displayValue}${unit}`);
 		}
 
-		valueSpan.innerText = parts.join(' · ');
+		valueSpan.innerHTML = parts.join('<br>');
 		unitSpan.innerText = '';
 		elevationSpan.innerText = hasElevation ? `${Math.round(elevation)}m` : '';
 	} else {

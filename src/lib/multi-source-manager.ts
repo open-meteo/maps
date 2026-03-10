@@ -19,6 +19,16 @@ import { modelRun as mR, time } from '$lib/stores/time';
 import { domain as d } from '$lib/stores/variables';
 
 import {
+	type ArrowStyle,
+	type ContourStyle,
+	buildArrowColorExpr,
+	buildArrowWidthExpr,
+	buildContourColorExpr,
+	buildContourWidthExpr,
+	defaultArrowStyle,
+	defaultContourStyle
+} from './chart-styles';
+import {
 	BEFORE_LAYER_RASTER,
 	BEFORE_LAYER_VECTOR,
 	BEFORE_LAYER_VECTOR_WATER_CLIP,
@@ -27,6 +37,7 @@ import {
 import { fmtModelRun, fmtSelectedTime, getBaseUri } from './helpers';
 import { refreshPopup } from './popup';
 import { type SlotLayer, SlotManager } from './slot-manager';
+import { customArrowStyles, customContourStyles } from './stores/chart-styles';
 
 import type { ChartSource } from './chart-presets';
 
@@ -39,80 +50,6 @@ const getRasterOpacity = (): number => {
 	const opacityValue = get(opacity) / 100;
 	return isDark() ? Math.max(0, (opacityValue * 100 - 10) / 100) : opacityValue;
 };
-
-const makeArrowColor = (): maplibregl.ExpressionSpecification => {
-	let expr: maplibregl.ExpressionSpecification = [
-		'literal',
-		lightOrDark('rgba(0,0,0, 0.2)', 'rgba(255,255,255, 0.2)')
-	];
-	const thresholds: [number, string, string][] = [
-		[2, 'rgba(0,0,0, 0.3)', 'rgba(255,255,255, 0.3)'],
-		[3, 'rgba(0,0,0, 0.4)', 'rgba(255,255,255, 0.4)'],
-		[4, 'rgba(0,0,0, 0.5)', 'rgba(255,255,255, 0.5)'],
-		[5, 'rgba(0,0,0, 0.6)', 'rgba(255,255,255, 0.6)'],
-		[10, 'rgba(0,0,0, 0.7)', 'rgba(255,255,255, 0.7)']
-	];
-	for (const [threshold, light, dark] of [...thresholds]) {
-		expr = [
-			'case',
-			['boolean', ['>', ['to-number', ['get', 'value']], threshold], false],
-			lightOrDark(light, dark),
-			expr
-		];
-	}
-	return expr;
-};
-
-const makeArrowWidth = (): maplibregl.ExpressionSpecification => [
-	'case',
-	['boolean', ['>', ['to-number', ['get', 'value']], 20], false],
-	2.8,
-	[
-		'case',
-		['boolean', ['>', ['to-number', ['get', 'value']], 10], false],
-		2.2,
-		[
-			'case',
-			['boolean', ['>', ['to-number', ['get', 'value']], 5], false],
-			2,
-			[
-				'case',
-				['boolean', ['>', ['to-number', ['get', 'value']], 3], false],
-				1.8,
-				['case', ['boolean', ['>', ['to-number', ['get', 'value']], 2], false], 1.6, 1.5]
-			]
-		]
-	]
-];
-
-const makeContourColor = (): maplibregl.ExpressionSpecification => [
-	'case',
-	['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
-	lightOrDark('rgba(0,0,0, 0.6)', 'rgba(255,255,255, 0.8)'),
-	[
-		'case',
-		['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
-		lightOrDark('rgba(0,0,0, 0.5)', 'rgba(255,255,255, 0.7)'),
-		[
-			'case',
-			['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
-			lightOrDark('rgba(0,0,0, 0.4)', 'rgba(255,255,255, 0.6)'),
-			lightOrDark('rgba(0,0,0, 0.3)', 'rgba(255,255,255, 0.5)')
-		]
-	]
-];
-
-const makeContourWidth = (): maplibregl.ExpressionSpecification => [
-	'case',
-	['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
-	3,
-	[
-		'case',
-		['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
-		2.5,
-		['case', ['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false], 2, 1]
-	]
-];
 
 // ── layer factories ─────────────────────────────────────────────────────
 
@@ -136,7 +73,7 @@ const rasterLayer = (prefix: string): SlotLayer => ({
 	}
 });
 
-const arrowLayer = (prefix: string): SlotLayer => ({
+const arrowLayer = (prefix: string, style: ArrowStyle): SlotLayer => ({
 	id: `${prefix}_arrow`,
 	opacityProp: 'line-opacity',
 	commitOpacity: 1,
@@ -150,8 +87,8 @@ const arrowLayer = (prefix: string): SlotLayer => ({
 				paint: {
 					'line-opacity': 0,
 					'line-opacity-transition': { duration: 200, delay: 0 },
-					'line-color': makeArrowColor(),
-					'line-width': makeArrowWidth()
+					'line-color': buildArrowColorExpr(style, isDark()),
+					'line-width': buildArrowWidthExpr(style)
 				},
 				layout: { 'line-cap': 'round' }
 			},
@@ -160,7 +97,7 @@ const arrowLayer = (prefix: string): SlotLayer => ({
 	}
 });
 
-const contourLineLayer = (prefix: string): SlotLayer => ({
+const contourLineLayer = (prefix: string, style: ContourStyle): SlotLayer => ({
 	id: `${prefix}_contour`,
 	opacityProp: 'line-opacity',
 	commitOpacity: 1,
@@ -174,8 +111,8 @@ const contourLineLayer = (prefix: string): SlotLayer => ({
 				paint: {
 					'line-opacity': 0,
 					'line-opacity-transition': { duration: 200, delay: 0 },
-					'line-color': makeContourColor(),
-					'line-width': makeContourWidth()
+					'line-color': buildContourColorExpr(style, isDark()),
+					'line-width': buildContourWidthExpr(style)
 				}
 			},
 			beforeLayer
@@ -267,14 +204,14 @@ export function isMultiSourceActive(): boolean {
  * the corresponding variable name. Used by the popup to read values from
  * all visible layers. Checks raster first, falls back to vector.
  */
-export function getMultiSourceUrls(): Array<{ url: string; variable: string }> {
-	const result: Array<{ url: string; variable: string }> = [];
+export function getMultiSourceUrls(): Array<{ url: string; variable: string; raster: boolean }> {
+	const result: Array<{ url: string; variable: string; raster: boolean }> = [];
 	for (let i = 0; i < activeManagers.length; i++) {
 		const mgr = activeManagers[i];
 		const src = activeSources[i];
 		if (!src) continue;
 		const url = mgr.raster?.getActiveSourceUrl() ?? mgr.vector?.getActiveSourceUrl();
-		if (url) result.push({ url, variable: src.variable });
+		if (url) result.push({ url, variable: src.variable, raster: !!src.raster });
 	}
 	return result;
 }
@@ -292,27 +229,28 @@ export function applyChartSources(sources: ChartSource[]): void {
 	activeSources = sources;
 
 	const preferences = get(p);
-	let committedCount = 0;
-	const totalExpected = sources.reduce(
-		(n, s) => n + (s.raster ? 1 : 0) + (s.contours || s.arrows ? 1 : 0),
-		0
-	);
+
+	// Collect all individual SlotManagers for coordinated commit
+	const allManagers: SlotManager[] = [];
 
 	loading.set(true);
+
+	/** Called each time a manager signals its tiles are loaded. When every
+	 *  manager is ready, flush all commits simultaneously so layers fade in
+	 *  together instead of one-by-one. */
+	const onReady = () => {
+		if (allManagers.every((mgr) => mgr.isReady())) {
+			for (const mgr of allManagers) mgr.commitNow();
+			loading.set(false);
+			refreshPopup();
+		}
+	};
+	const onError = () => loading.set(false);
 
 	for (let i = 0; i < sources.length; i++) {
 		const source = sources[i];
 		const prefix = `chart_${i}`;
 		const mgr: SourceManagers = {};
-
-		const onCommit = () => {
-			committedCount++;
-			if (committedCount >= totalExpected) {
-				loading.set(false);
-				refreshPopup();
-			}
-		};
-		const onError = () => loading.set(false);
 
 		if (source.raster) {
 			mgr.raster = new SlotManager(map, {
@@ -321,7 +259,8 @@ export function applyChartSources(sources: ChartSource[]): void {
 				layerFactory: () => [rasterLayer(prefix)],
 				sourceSpec: (url) => ({ url, type: 'raster', maxzoom: 14 }),
 				removeDelayMs: 300,
-				onCommit,
+				deferCommit: true,
+				onReady,
 				onError,
 				slowLoadWarningMs: 10000,
 				onSlowLoad: () =>
@@ -329,6 +268,7 @@ export function applyChartSources(sources: ChartSource[]): void {
 						'Loading raster data might be limited by bandwidth or upstream server speed.'
 					)
 			});
+			allManagers.push(mgr.raster);
 		}
 
 		if (source.contours || source.arrows) {
@@ -337,18 +277,22 @@ export function applyChartSources(sources: ChartSource[]): void {
 				beforeLayer: preferences.clipWater ? BEFORE_LAYER_VECTOR_WATER_CLIP : BEFORE_LAYER_VECTOR,
 				layerFactory: () => {
 					const result: SlotLayer[] = [];
-					if (source.arrows) result.push(arrowLayer(prefix));
+					const aStyle = get(customArrowStyles)[source.variable] ?? defaultArrowStyle;
+					const cStyle = get(customContourStyles)[source.variable] ?? defaultContourStyle;
+					if (source.arrows) result.push(arrowLayer(prefix, aStyle));
 					if (source.contours) {
-						result.push(contourLineLayer(prefix));
+						result.push(contourLineLayer(prefix, cStyle));
 						result.push(contourLabelLayer(prefix));
 					}
 					return result;
 				},
 				sourceSpec: (url) => ({ url, type: 'vector' }),
 				removeDelayMs: 250,
-				onCommit,
+				deferCommit: true,
+				onReady,
 				onError
 			});
+			allManagers.push(mgr.vector);
 		}
 
 		activeManagers.push(mgr);
@@ -364,6 +308,7 @@ export function applyChartSources(sources: ChartSource[]): void {
  * `applyChartSources`.
  */
 export function updateMultiSource(sources: ChartSource[]): void {
+	loading.set(true);
 	for (let i = 0; i < activeManagers.length; i++) {
 		const source = sources[i];
 		const url = 'om://' + buildOmUrl(source);

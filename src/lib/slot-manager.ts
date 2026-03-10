@@ -47,6 +47,13 @@ export interface SlotManagerOptions {
 	onError?: () => void;
 	slowLoadWarningMs?: number;
 	onSlowLoad?: () => void;
+	/**
+	 * When true, the manager will NOT auto-commit when tiles finish loading.
+	 * Instead it calls `onReady()` and waits for an explicit `commitNow()`.
+	 */
+	deferCommit?: boolean;
+	/** Called when tiles are loaded and the manager is ready to commit (only used with `deferCommit`). */
+	onReady?: () => void;
 }
 
 export class SlotManager {
@@ -57,6 +64,8 @@ export class SlotManager {
 	private cleanupListener: (() => void) | null = null;
 	/** Tracks which layers were actually added per slot for correct removal. */
 	private slotLayers: Record<Slot, SlotLayer[]> = { A: [], B: [] };
+	/** When deferCommit is on, stores the ready-to-commit state. */
+	private deferredCommit: { nextSlot: Slot; previousSlot: Slot | null } | null = null;
 
 	constructor(map: maplibregl.Map, opts: SlotManagerOptions) {
 		this.map = map;
@@ -74,9 +83,26 @@ export class SlotManager {
 		this.opts.beforeLayer = beforeLayer;
 	}
 
+	/**
+	 * Flush a deferred commit — call this when all coordinated managers are
+	 * ready so they all fade in at exactly the same time.
+	 */
+	commitNow(): void {
+		if (!this.deferredCommit) return;
+		const { nextSlot, previousSlot } = this.deferredCommit;
+		this.deferredCommit = null;
+		this.executeCommit(nextSlot, previousSlot);
+	}
+
+	/** Returns true when this manager has loaded tiles but not yet committed (deferred mode). */
+	isReady(): boolean {
+		return this.deferredCommit !== null;
+	}
+
 	update(sourceUrl: string): void {
 		this.cleanupListener?.();
 		this.cleanupListener = null;
+		this.deferredCommit = null;
 
 		// Abandon stale pending slot
 		if (this.pendingSlot !== null && this.pendingSlot !== this.activeSlot) {
@@ -166,6 +192,15 @@ export class SlotManager {
 	}
 
 	private commit(nextSlot: Slot, previousSlot: Slot | null): void {
+		if (this.opts.deferCommit) {
+			this.deferredCommit = { nextSlot, previousSlot };
+			this.opts.onReady?.();
+			return;
+		}
+		this.executeCommit(nextSlot, previousSlot);
+	}
+
+	private executeCommit(nextSlot: Slot, previousSlot: Slot | null): void {
 		this.activeSlot = nextSlot;
 		this.pendingSlot = null;
 

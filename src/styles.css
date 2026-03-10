@@ -291,11 +291,12 @@
 	align-items: center;
 	justify-content: center;
 	font-weight: bold;
-	height: 22px;
 	gap: 2px;
 	padding: 0.15rem 0.3rem;
 	position: relative;
 	transition: 150ms;
+	line-height: 14px;
+	min-height: 22px;
 }
 
 .popup-stem {

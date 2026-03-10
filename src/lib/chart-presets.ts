@@ -43,6 +43,24 @@ export const chartPresets: ChartPreset[] = [
 		]
 	},
 	{
+		id: 'z500_t500',
+		label: '500 hPa Geopotential + Temperature',
+		group: 'Upper-level',
+		sources: [
+			{ variable: 'temperature_500hPa', raster: true },
+			{ variable: 'geopotential_height_500hPa', contours: true, contourInterval: 4 }
+		]
+	},
+	{
+		id: 'z300_wind300',
+		label: '300 hPa Geopotential + Wind',
+		group: 'Upper-level',
+		sources: [
+			{ variable: 'geopotential_height_300hPa', contours: true, contourInterval: 4 },
+			{ variable: 'wind_u_component_300hPa', raster: true, arrows: true }
+		]
+	},
+	{
 		id: 'wind200_mslp',
 		label: 'MSLP + 200 hPa Wind (Jet Stream)',
 		group: 'Upper-level',
@@ -53,11 +71,38 @@ export const chartPresets: ChartPreset[] = [
 	},
 	{
 		id: 'wind850_mslp',
-		label: 'MSLP + 850 hPa Wind Speed',
+		label: 'MSLP + 850 hPa Wind',
 		group: 'Upper-level',
 		sources: [
 			{ variable: 'pressure_msl', contours: true, contourInterval: 5 },
 			{ variable: 'wind_u_component_850hPa', raster: true, arrows: true }
+		]
+	},
+	{
+		id: 'rh700_z500',
+		label: '700 hPa Relative Humidity + 500 hPa Geopotential',
+		group: 'Upper-level',
+		sources: [
+			{ variable: 'relative_humidity_700hPa', raster: true },
+			{ variable: 'geopotential_height_500hPa', contours: true, contourInterval: 4 }
+		]
+	},
+	{
+		id: 'vvel500_z500',
+		label: '500 hPa Vertical Velocity + Geopotential',
+		group: 'Upper-level',
+		sources: [
+			{ variable: 'vertical_velocity_500hPa', raster: true },
+			{ variable: 'geopotential_height_500hPa', contours: true, contourInterval: 4 }
+		]
+	},
+	{
+		id: 't850_z850',
+		label: '850 hPa Temperature + Geopotential',
+		group: 'Upper-level',
+		sources: [
+			{ variable: 'temperature_850hPa', raster: true },
+			{ variable: 'geopotential_height_850hPa', contours: true, contourInterval: 2 }
 		]
 	},
 	// ── Surface ─────────────────────────────────────────────────────────
@@ -77,6 +122,15 @@ export const chartPresets: ChartPreset[] = [
 		]
 	},
 	{
+		id: 't2m_mslp',
+		label: '2 m Temperature + MSLP',
+		group: 'Surface',
+		sources: [
+			{ variable: 'temperature_2m', raster: true },
+			{ variable: 'pressure_msl', contours: true, contourInterval: 5 }
+		]
+	},
+	{
 		id: 'wind100m_mslp',
 		label: '100 m Wind + MSLP',
 		group: 'Surface',
@@ -85,6 +139,39 @@ export const chartPresets: ChartPreset[] = [
 			{ variable: 'pressure_msl', contours: true, contourInterval: 5 }
 		]
 	},
+	{
+		id: 'wind10m_gusts',
+		label: '10 m Wind Gusts + Wind',
+		group: 'Surface',
+		sources: [
+			{ variable: 'wind_gusts_10m', raster: true },
+			{ variable: 'wind_u_component_10m', arrows: true }
+		]
+	},
+	{
+		id: 'cape_mslp',
+		label: 'CAPE + MSLP',
+		group: 'Surface',
+		sources: [
+			{ variable: 'cape', raster: true },
+			{ variable: 'pressure_msl', contours: true, contourInterval: 5 }
+		]
+	},
+	{
+		id: 'tcwv_mslp',
+		label: 'Total Column Water Vapour + MSLP',
+		group: 'Surface',
+		sources: [
+			{ variable: 'total_column_integrated_water_vapour', raster: true },
+			{ variable: 'pressure_msl', contours: true, contourInterval: 5 }
+		]
+	},
+	{
+		id: 'cloud_cover',
+		label: 'Cloud Cover',
+		group: 'Surface',
+		sources: [{ variable: 'cloud_cover', raster: true }]
+	},
 	// ── Precipitation ───────────────────────────────────────────────────
 	{
 		id: 'rain_mslp',
@@ -92,6 +179,24 @@ export const chartPresets: ChartPreset[] = [
 		group: 'Precipitation',
 		sources: [
 			{ variable: 'precipitation', raster: true },
+			{ variable: 'pressure_msl', contours: true, contourInterval: 5 }
+		]
+	},
+	{
+		id: 'snowfall_mslp',
+		label: 'Snowfall + MSLP',
+		group: 'Precipitation',
+		sources: [
+			{ variable: 'snowfall', raster: true },
+			{ variable: 'pressure_msl', contours: true, contourInterval: 5 }
+		]
+	},
+	{
+		id: 'freezing_level',
+		label: 'Freezing Level Height + MSLP',
+		group: 'Precipitation',
+		sources: [
+			{ variable: 'freezing_level_height', raster: true },
 			{ variable: 'pressure_msl', contours: true, contourInterval: 5 }
 		]
 	}

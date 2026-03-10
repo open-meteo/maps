@@ -108,6 +108,70 @@
 		toast('Switched back to single variable mode');
 		open = false;
 	}
+
+	// ── Custom sources ──────────────────────────────────────────────────
+
+	let customSources = $state<ChartSource[]>([]);
+	let showCustomEditor = $state(false);
+
+	const availableVariables = $derived($metaJson?.variables ?? []);
+	const isCustomActive = $derived(!!$activeChartSources && !activePresetId);
+
+	// Auto-show and populate when popover opens with custom (non-preset) sources
+	$effect(() => {
+		if (open && isCustomActive && $activeChartSources) {
+			customSources = $activeChartSources.map((s) => ({ ...s }));
+			showCustomEditor = true;
+		}
+	});
+
+	// Reset editor state when popover closes
+	$effect(() => {
+		if (!open) {
+			showCustomEditor = false;
+			customSources = [];
+		}
+	});
+
+	function openCustomEditor() {
+		if (isCustomActive && $activeChartSources) {
+			customSources = $activeChartSources.map((s) => ({ ...s }));
+		} else if (customSources.length === 0) {
+			const vars = availableVariables;
+			if (vars.length > 0) {
+				customSources = [{ variable: vars[0], raster: true }];
+			}
+		}
+		showCustomEditor = true;
+	}
+
+	function addCustomSource() {
+		const vars = availableVariables;
+		if (vars.length === 0) return;
+		const used = new Set(customSources.map((s) => s.variable));
+		const next = vars.find((va) => !used.has(va)) ?? vars[0];
+		customSources = [...customSources, { variable: next, raster: true }];
+	}
+
+	function removeCustomSource(index: number) {
+		customSources = customSources.filter((_, i) => i !== index);
+	}
+
+	function updateCustomSource(index: number, patch: Partial<ChartSource>) {
+		customSources = customSources.map((s, i) => (i === index ? { ...s, ...patch } : s));
+	}
+
+	function applyCustomSources() {
+		if (customSources.length === 0) return;
+		const sources = customSources.map((s) => ({ ...s }));
+		$activeChartSources = sources;
+		$loading = true;
+		setChartSourcesInUrl(sources);
+		destroySingleSource();
+		applyChartSources(sources);
+		toast('Custom chart applied');
+		open = false;
+	}
 </script>
 
 <div class="absolute top-2.5 left-1/2 z-70 -translate-x-1/2">
@@ -117,13 +181,31 @@
 				variant="outline"
 				class="bg-glass/75 dark:bg-glass/75 backdrop-blur-sm shadow-md {open
 					? 'bg-glass/95!'
-					: ''} hover:bg-glass/95! border-none h-7.25 cursor-pointer justify-between rounded p-1.5! gap-1.5"
+					: ''} hover:bg-glass/95! border-none h-auto min-h-7.25 cursor-pointer justify-between rounded p-1.5! gap-1.5"
 				role="combobox"
 				aria-expanded={open}
 			>
 				<LayersIcon class="size-4 shrink-0 opacity-70" />
-				<div class="truncate max-w-50">
-					{activeLabel ?? 'Chart presets'}
+				<div class="truncate max-w-60">
+					<div class="truncate text-left">{activeLabel ?? 'Chart presets'}</div>
+					{#if $activeChartSources}
+						<div
+							class="truncate text-left text-[10px] leading-tight text-muted-foreground font-normal"
+						>
+							{$activeChartSources
+								.map((s) => {
+									const parts: string[] = [];
+									if (s.raster) parts.push('fill');
+									if (s.contours) parts.push('contours');
+									if (s.arrows) parts.push('arrows');
+									const name = s.variable
+										.replace(/_/g, ' ')
+										.replace(/\b\w/g, (c) => c.toUpperCase());
+									return name + ' (' + parts.join('+') + ')';
+								})
+								.join(' · ')}
+						</div>
+					{/if}
 				</div>
 				<ChevronsUpDownIcon class="size-4 shrink-0 opacity-50" />
 			</Button>
@@ -204,6 +286,87 @@
 					{/each}
 				</Command.List>
 			</Command.Root>
+			<!-- Custom sources editor -->
+			<div class="mt-1 bg-glass/85 backdrop-blur-sm rounded p-2">
+				{#if showCustomEditor || isCustomActive}
+					<div class="text-xs font-medium mb-1.5">Custom Sources</div>
+					{#each customSources as source, i}
+						<div class="flex items-center gap-1 mb-1.5">
+							<select
+								class="flex-1 text-xs bg-background/60 border border-muted-foreground/20 rounded px-1 h-6 min-w-0"
+								value={source.variable}
+								onchange={(e) => updateCustomSource(i, { variable: e.currentTarget.value })}
+							>
+								{#each availableVariables as va}
+									<option value={va}>{va}</option>
+								{/each}
+							</select>
+							<label
+								class="text-[10px] flex items-center gap-0.5 cursor-pointer"
+								title="Raster fill"
+							>
+								<input
+									type="checkbox"
+									checked={!!source.raster}
+									onchange={() => updateCustomSource(i, { raster: !source.raster })}
+									class="size-3"
+								/>
+								R
+							</label>
+							<label class="text-[10px] flex items-center gap-0.5 cursor-pointer" title="Contours">
+								<input
+									type="checkbox"
+									checked={!!source.contours}
+									onchange={() => updateCustomSource(i, { contours: !source.contours })}
+									class="size-3"
+								/>
+								C
+							</label>
+							<label class="text-[10px] flex items-center gap-0.5 cursor-pointer" title="Arrows">
+								<input
+									type="checkbox"
+									checked={!!source.arrows}
+									onchange={() => updateCustomSource(i, { arrows: !source.arrows })}
+									class="size-3"
+								/>
+								A
+							</label>
+							<button
+								type="button"
+								class="text-xs text-muted-foreground hover:text-foreground cursor-pointer px-0.5"
+								onclick={() => removeCustomSource(i)}
+								title="Remove source">✕</button
+							>
+						</div>
+					{/each}
+					<div class="flex gap-1.5 mt-1">
+						<button
+							type="button"
+							class="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+							onclick={addCustomSource}
+						>
+							+ Add source
+						</button>
+						{#if customSources.length > 0}
+							<button
+								type="button"
+								class="ml-auto text-xs bg-primary/20 hover:bg-primary/30 rounded px-2 py-0.5 cursor-pointer"
+								onclick={applyCustomSources}
+							>
+								Apply
+							</button>
+						{/if}
+					</div>
+				{:else}
+					<button
+						type="button"
+						class="w-full text-xs text-muted-foreground hover:text-foreground cursor-pointer py-0.5"
+						onclick={openCustomEditor}
+					>
+						+ Custom sources
+					</button>
+				{/if}
+			</div>
 		</Popover.Content>
 	</Popover.Root>
 </div>
