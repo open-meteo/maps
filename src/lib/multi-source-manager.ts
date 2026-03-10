@@ -245,6 +245,7 @@ interface SourceManagers {
 // ── public API ──────────────────────────────────────────────────────────
 
 let activeManagers: SourceManagers[] = [];
+let activeSources: ChartSource[] = [];
 
 /** Destroy all active multi-source managers. */
 export function destroyMultiSource(): void {
@@ -253,11 +254,29 @@ export function destroyMultiSource(): void {
 		mgr.vector?.destroy();
 	}
 	activeManagers = [];
+	activeSources = [];
 }
 
 /** Returns true when multi-source layers are currently active. */
 export function isMultiSourceActive(): boolean {
 	return activeManagers.length > 0;
+}
+
+/**
+ * Returns the active OM URLs for each source manager, along with
+ * the corresponding variable name. Used by the popup to read values from
+ * all visible layers. Checks raster first, falls back to vector.
+ */
+export function getMultiSourceUrls(): Array<{ url: string; variable: string }> {
+	const result: Array<{ url: string; variable: string }> = [];
+	for (let i = 0; i < activeManagers.length; i++) {
+		const mgr = activeManagers[i];
+		const src = activeSources[i];
+		if (!src) continue;
+		const url = mgr.raster?.getActiveSourceUrl() ?? mgr.vector?.getActiveSourceUrl();
+		if (url) result.push({ url, variable: src.variable });
+	}
+	return result;
 }
 
 /**
@@ -270,6 +289,7 @@ export function applyChartSources(sources: ChartSource[]): void {
 
 	// Tear down any previous multi-source layers
 	destroyMultiSource();
+	activeSources = sources;
 
 	const preferences = get(p);
 	let committedCount = 0;

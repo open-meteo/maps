@@ -34,12 +34,6 @@ export interface ChartPreset {
 export const chartPresets: ChartPreset[] = [
 	// ── Upper-level ─────────────────────────────────────────────────────
 	{
-		id: 'z500',
-		label: '500 hPa Geopotential Height',
-		group: 'Upper-level',
-		sources: [{ variable: 'geopotential_height_500hPa', raster: true }]
-	},
-	{
 		id: 'z500_t850',
 		label: '500 hPa Geopotential + 850 hPa Temperature',
 		group: 'Upper-level',
@@ -49,18 +43,12 @@ export const chartPresets: ChartPreset[] = [
 		]
 	},
 	{
-		id: 't850',
-		label: '850 hPa Temperature',
-		group: 'Upper-level',
-		sources: [{ variable: 'temperature_850hPa', raster: true, contours: true, contourInterval: 2 }]
-	},
-	{
 		id: 'wind200_mslp',
 		label: 'MSLP + 200 hPa Wind (Jet Stream)',
 		group: 'Upper-level',
 		sources: [
 			{ variable: 'pressure_msl', contours: true, contourInterval: 5 },
-			{ variable: 'wind_speed_200hPa', raster: true, arrows: true }
+			{ variable: 'wind_u_component_200hPa', raster: true, arrows: true }
 		]
 	},
 	{
@@ -69,7 +57,7 @@ export const chartPresets: ChartPreset[] = [
 		group: 'Upper-level',
 		sources: [
 			{ variable: 'pressure_msl', contours: true, contourInterval: 5 },
-			{ variable: 'wind_speed_850hPa', raster: true, arrows: true }
+			{ variable: 'wind_u_component_850hPa', raster: true, arrows: true }
 		]
 	},
 	// ── Surface ─────────────────────────────────────────────────────────
@@ -85,7 +73,7 @@ export const chartPresets: ChartPreset[] = [
 		group: 'Surface',
 		sources: [
 			{ variable: 'temperature_2m', raster: true },
-			{ variable: 'wind_speed_10m', arrows: true }
+			{ variable: 'wind_u_component_10m', arrows: true }
 		]
 	},
 	{
@@ -93,7 +81,7 @@ export const chartPresets: ChartPreset[] = [
 		label: '100 m Wind + MSLP',
 		group: 'Surface',
 		sources: [
-			{ variable: 'wind_speed_100m', raster: true, arrows: true },
+			{ variable: 'wind_u_component_100m', raster: true, arrows: true },
 			{ variable: 'pressure_msl', contours: true, contourInterval: 5 }
 		]
 	},

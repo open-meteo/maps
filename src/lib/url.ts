@@ -135,6 +135,8 @@ export const urlParamsToPreferences = () => {
 			v.set(variables[0]);
 		} else {
 			v.set(variable);
+			// Clean up any stale multi-source params in single-variable mode
+			url.searchParams.delete('raster');
 		}
 	} else if (get(v) !== 'temperature_2m') {
 		url.searchParams.set('variable', get(v));

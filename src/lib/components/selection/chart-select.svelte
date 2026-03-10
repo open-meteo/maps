@@ -2,29 +2,63 @@
 	import CheckIcon from '@lucide/svelte/icons/check';
 	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down';
 	import LayersIcon from '@lucide/svelte/icons/layers';
+	import { VARIABLE_PREFIX } from '@openmeteo/mapbox-layer';
 	import { toast } from 'svelte-sonner';
 
 	import { activeChartSources } from '$lib/stores/chart';
 	import { loading } from '$lib/stores/preferences';
+	import { metaJson } from '$lib/stores/time';
 
 	import { Button } from '$lib/components/ui/button';
 	import * as Command from '$lib/components/ui/command';
 	import * as Popover from '$lib/components/ui/popover';
 
-	import { type ChartPreset, chartPresets } from '$lib/chart-presets';
+	import { type ChartPreset, type ChartSource, chartPresets } from '$lib/chart-presets';
 	import { destroySingleSource, restoreSingleSource } from '$lib/layers';
 	import { applyChartSources, destroyMultiSource } from '$lib/multi-source-manager';
 	import { clearChartSourcesFromUrl, setChartSourcesInUrl } from '$lib/url';
 
 	let open = $state(false);
 
-	// Group presets by their group label
+	/**
+	 * Given meta-data variables, find the best match for a requested variable.
+	 * Returns the exact variable if present, otherwise tries a prefix match,
+	 * otherwise returns undefined.
+	 */
+	function resolveVariable(variable: string, available: string[]): string | undefined {
+		if (available.includes(variable)) return variable;
+		const prefix = variable.match(VARIABLE_PREFIX)?.groups?.prefix;
+		if (prefix) {
+			return available.find((v) => v.startsWith(prefix));
+		}
+		return undefined;
+	}
+
+	/** Resolve all sources of a preset against the current domain variables. */
+	function resolvedSources(preset: ChartPreset, available: string[]): ChartSource[] | undefined {
+		const resolved: ChartSource[] = [];
+		for (const src of preset.sources) {
+			const matched = resolveVariable(src.variable, available);
+			if (!matched) return undefined;
+			resolved.push(matched === src.variable ? src : { ...src, variable: matched });
+		}
+		return resolved;
+	}
+
+	// Group presets by their group label, with availability info
 	const groups = $derived.by(() => {
-		const result: Record<string, ChartPreset[]> = {};
+		const available = $metaJson?.variables;
+		const result: Record<
+			string,
+			Array<{ preset: ChartPreset; sources: ChartSource[] | undefined }>
+		> = {};
 		for (const preset of chartPresets) {
 			const g = preset.group ?? 'Other';
 			if (!result[g]) result[g] = [];
-			result[g].push(preset);
+			result[g].push({
+				preset,
+				sources: available ? resolvedSources(preset, available) : preset.sources
+			});
 		}
 		return result;
 	});
@@ -47,7 +81,8 @@
 		return chartPresets.find((p) => p.id === activePresetId)?.label;
 	});
 
-	function selectPreset(preset: ChartPreset) {
+	function selectPreset(preset: ChartPreset, resolved: ChartSource[] | undefined) {
+		if (!resolved) return;
 		if (activePresetId === preset.id) {
 			// Deselect — go back to single-source mode
 			$activeChartSources = undefined;
@@ -55,11 +90,11 @@
 			restoreSingleSource();
 			toast('Switched back to single variable mode');
 		} else {
-			$activeChartSources = preset.sources;
+			$activeChartSources = resolved;
 			$loading = true;
-			setChartSourcesInUrl(preset.sources);
+			setChartSourcesInUrl(resolved);
 			destroySingleSource();
-			applyChartSources(preset.sources);
+			applyChartSources(resolved);
 			toast('Chart: ' + preset.label);
 		}
 		open = false;
@@ -129,15 +164,16 @@
 						</Command.Item>
 						<Command.Separator />
 					{/if}
-					{#each Object.entries(groups) as [groupLabel, presets] (groupLabel)}
+					{#each Object.entries(groups) as [groupLabel, entries] (groupLabel)}
 						<Command.Group heading={groupLabel}>
-							{#each presets as preset (preset.id)}
+							{#each entries as { preset, sources } (preset.id)}
 								<Command.Item
 									value={preset.id}
+									disabled={!sources}
 									class="hover:bg-primary/25! cursor-pointer {activePresetId === preset.id
 										? 'bg-primary/10!'
-										: ''}"
-									onSelect={() => selectPreset(preset)}
+										: ''} {!sources ? 'opacity-40 cursor-not-allowed!' : ''}"
+									onSelect={() => selectPreset(preset, sources)}
 									aria-selected={activePresetId === preset.id}
 								>
 									<div class="flex w-full items-center justify-between gap-2">

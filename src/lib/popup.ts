@@ -11,6 +11,7 @@ import { variable as v } from '$lib/stores/variables';
 
 import { textWhite } from './helpers';
 import { rasterManager } from './layers';
+import { getMultiSourceUrls, isMultiSourceActive } from './multi-source-manager';
 import { desktop, opacity } from './stores/preferences';
 
 let el: HTMLDivElement | undefined;
@@ -61,33 +62,94 @@ const updatePopupContent = (coordinates: maplibregl.LngLat): void => {
 	const elevation = map?.queryTerrainElevation(coordinates);
 	const hasElevation = typeof elevation === 'number' && isFinite(elevation);
 
-	const { value } = getValueFromLatLong(
-		coordinates.lat,
-		coordinates.lng,
-		rasterManager?.getActiveSourceUrl() ?? ''
-	);
+	const isDark = mode.current === 'dark';
+	const units = get(unitPreferences);
 
-	if (isFinite(value)) {
-		const isDark = mode.current === 'dark';
-		const colorScale = getColorScale(get(v), isDark, omProtocolSettings.colorScales);
-		const color = getColor(colorScale, value);
+	if (isMultiSourceActive()) {
+		const sourceUrls = getMultiSourceUrls();
+		if (sourceUrls.length === 0) {
+			contentDiv.style.backgroundColor = '';
+			contentDiv.style.color = '';
+			valueSpan.innerText = 'No data';
+			unitSpan.innerText = '';
+			elevationSpan.innerText = hasElevation ? `${Math.round(elevation)}m` : '';
+			return;
+		}
 
-		const popupOpacity =
-			color[3] && color[3] ? (color[3] * get(opacity)) / 100 : get(opacity) / 100;
+		// Use first source for the popup background colour
+		const first = sourceUrls[0];
+		let firstValue = NaN;
+		try {
+			firstValue = getValueFromLatLong(coordinates.lat, coordinates.lng, first.url).value;
+		} catch {
+			/* state not ready yet */
+		}
 
-		contentDiv.style.backgroundColor = `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${popupOpacity})`;
-		contentDiv.style.color = textWhite(color, isDark) ? 'white' : 'black';
-		const units = get(unitPreferences);
-		const displayValue = convertValue(value, colorScale.unit, units);
-		valueSpan.innerText = displayValue.toFixed(1);
-		unitSpan.innerText = getDisplayUnit(colorScale.unit, units);
-		elevationSpan.innerText = hasElevation ? `${Math.round(elevation)}m` : '';
-	} else {
-		contentDiv.style.backgroundColor = '';
-		contentDiv.style.color = '';
-		valueSpan.innerText = 'Outside domain';
+		if (isFinite(firstValue)) {
+			const colorScale = getColorScale(first.variable, isDark, omProtocolSettings.colorScales);
+			const color = getColor(colorScale, firstValue);
+			const popupOpacity =
+				color[3] && color[3] ? (color[3] * get(opacity)) / 100 : get(opacity) / 100;
+			contentDiv.style.backgroundColor = `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${popupOpacity})`;
+			contentDiv.style.color = textWhite(color, isDark) ? 'white' : 'black';
+		} else {
+			contentDiv.style.backgroundColor = '';
+			contentDiv.style.color = '';
+		}
+
+		// Build text showing all source values
+		const parts: string[] = [];
+		for (const src of sourceUrls) {
+			let val = NaN;
+			try {
+				val = getValueFromLatLong(coordinates.lat, coordinates.lng, src.url).value;
+			} catch {
+				/* state not ready */
+			}
+			const colorScale = getColorScale(src.variable, isDark, omProtocolSettings.colorScales);
+			const displayValue = isFinite(val)
+				? convertValue(val, colorScale.unit, units).toFixed(1)
+				: '–';
+			const unit = getDisplayUnit(colorScale.unit, units);
+			parts.push(`${displayValue}${unit}`);
+		}
+
+		valueSpan.innerText = parts.join(' · ');
 		unitSpan.innerText = '';
 		elevationSpan.innerText = hasElevation ? `${Math.round(elevation)}m` : '';
+	} else {
+		const sourceUrl = rasterManager?.getActiveSourceUrl();
+		if (!sourceUrl) {
+			contentDiv.style.backgroundColor = '';
+			contentDiv.style.color = '';
+			valueSpan.innerText = '';
+			unitSpan.innerText = '';
+			elevationSpan.innerText = '';
+			return;
+		}
+
+		const { value } = getValueFromLatLong(coordinates.lat, coordinates.lng, sourceUrl);
+
+		if (isFinite(value)) {
+			const colorScale = getColorScale(get(v), isDark, omProtocolSettings.colorScales);
+			const color = getColor(colorScale, value);
+
+			const popupOpacity =
+				color[3] && color[3] ? (color[3] * get(opacity)) / 100 : get(opacity) / 100;
+
+			contentDiv.style.backgroundColor = `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${popupOpacity})`;
+			contentDiv.style.color = textWhite(color, isDark) ? 'white' : 'black';
+			const displayValue = convertValue(value, colorScale.unit, units);
+			valueSpan.innerText = displayValue.toFixed(1);
+			unitSpan.innerText = getDisplayUnit(colorScale.unit, units);
+			elevationSpan.innerText = hasElevation ? `${Math.round(elevation)}m` : '';
+		} else {
+			contentDiv.style.backgroundColor = '';
+			contentDiv.style.color = '';
+			valueSpan.innerText = 'Outside domain';
+			unitSpan.innerText = '';
+			elevationSpan.innerText = hasElevation ? `${Math.round(elevation)}m` : '';
+		}
 	}
 };
 
