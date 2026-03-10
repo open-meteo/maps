@@ -1,6 +1,12 @@
 import { get } from 'svelte/store';
 
-import { getColor, getColorScale, getValueFromLatLong } from '@openmeteo/mapbox-layer';
+import {
+	createClippingTester,
+	getColor,
+	getColorScale,
+	getValueFromLatLong,
+	resolveClippingOptions
+} from '@openmeteo/mapbox-layer';
 import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
 
@@ -11,7 +17,10 @@ import { variable as v } from '$lib/stores/variables';
 
 import { textWhite } from './helpers';
 import { rasterManager } from './layers';
+import { suppressPopupUntil, terraDrawActive } from './stores/clipping';
 import { desktop, opacity } from './stores/preferences';
+
+let popup: maplibregl.Marker | undefined;
 
 let el: HTMLDivElement | undefined;
 let wrapperDiv: HTMLDivElement | undefined;
@@ -68,8 +77,24 @@ const updatePopupContent = (coordinates: maplibregl.LngLat): void => {
 	);
 
 	if (isFinite(value)) {
+		const omProtocolSettingsState = get(omProtocolSettings);
+		const clippingOptions = omProtocolSettingsState.clippingOptions;
+
+		if (clippingOptions) {
+			const resolved = resolveClippingOptions(clippingOptions, false);
+			const isInsideClip = createClippingTester(resolved);
+			if (isInsideClip && !isInsideClip(coordinates.lng, coordinates.lat)) {
+				contentDiv.style.backgroundColor = '';
+				contentDiv.style.color = '';
+				valueSpan.innerText = 'Outside clip';
+				unitSpan.innerText = '';
+				elevationSpan.innerText = hasElevation ? `${Math.round(elevation)}m` : '';
+				return;
+			}
+		}
+
 		const isDark = mode.current === 'dark';
-		const colorScale = getColorScale(get(v), isDark, omProtocolSettings.colorScales);
+		const colorScale = getColorScale(get(v), isDark, omProtocolSettingsState.colorScales);
 		const color = getColor(colorScale, value);
 
 		const popupOpacity =
@@ -157,6 +182,10 @@ export const addPopup = (): void => {
 
 	map.on('click', (e: maplibregl.MapMouseEvent) => {
 		if (!map) return;
+		if (get(terraDrawActive) || Date.now() < get(suppressPopupUntil)) {
+			popup?.remove();
+			return;
+		}
 
 		switchPopupMode();
 
@@ -169,4 +198,15 @@ export const addPopup = (): void => {
 
 		renderPopup(e.lngLat);
 	});
+};
+
+export const removePopup = (): void => {
+	const map = get(m);
+	if (!map) return;
+
+	map.off('mousemove', updatePopup);
+
+	const popup = get(p);
+	popup?.remove();
+	p.set(undefined);
 };

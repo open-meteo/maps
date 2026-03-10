@@ -1,4 +1,4 @@
-import { get } from 'svelte/store';
+import { type Writable, get, writable } from 'svelte/store';
 
 import { BrowserBlockCache } from '@openmeteo/file-reader';
 import { type MapboxLayerFileReader, defaultOmProtocolSettings } from '@openmeteo/mapbox-layer';
@@ -6,7 +6,6 @@ import { persisted } from 'svelte-persisted-store';
 
 import { browser } from '$app/environment';
 
-import { DEFAULT_COLOR_HASH } from '$lib/constants';
 import { getNextOmUrls } from '$lib/url';
 
 import { metaJson } from './time';
@@ -19,25 +18,23 @@ import type {
 	RenderableColorScale
 } from '@openmeteo/mapbox-layer';
 
-export const defaultColorHash = DEFAULT_COLOR_HASH;
-
 export const customColorScales = persisted<Record<string, RenderableColorScale>>(
 	'custom-color-scales',
 	{}
 );
 
 const initialCustomColorScales = get(customColorScales);
-export const omProtocolSettings: OmProtocolSettings = {
+export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
 	...defaultOmProtocolSettings,
 	// static
 	fileReaderConfig: {
 		useSAB: true,
 		cache: browser
 			? new BrowserBlockCache({
-					blockSize: 128 * 1024,
+					blockSize: 32 * 1024,
 					cacheName: 'open-meteo-maps-cache-v1',
 					memCacheTtlMs: 1000,
-					maxBytes: 400 * 1024 * 1024 // 400Mb maximum storage
+					maxBytes: 1000 * 1024 * 1024 // 1000Mb maximum storage
 				})
 			: undefined
 	},
@@ -66,4 +63,4 @@ export const omProtocolSettings: OmProtocolSettings = {
 			}
 		}
 	}
-};
+});

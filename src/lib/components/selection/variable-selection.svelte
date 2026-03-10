@@ -17,7 +17,7 @@
 
 	import { browser } from '$app/environment';
 
-	import { desktop, loading } from '$lib/stores/preferences';
+	import { desktop, loading, typing } from '$lib/stores/preferences';
 	import { metaJson } from '$lib/stores/time';
 	import {
 		domainSelectionOpen as dSO,
@@ -108,6 +108,7 @@
 
 	const keyDownEvent = (event: KeyboardEvent) => {
 		const canNavigate =
+			!$typing &&
 			variableSelectionExtended &&
 			!variableSelectionOpen &&
 			!domainSelectionOpen &&

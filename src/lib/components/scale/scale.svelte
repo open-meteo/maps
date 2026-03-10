@@ -82,7 +82,6 @@
 			...scales,
 			[$variable]: newScale
 		}));
-		// console.log(`customColorScales[${$variable}]: `, JSON.stringify($customColorScales[$variable]));
 		afterColorScaleChange($variable, newScale);
 	};
 
