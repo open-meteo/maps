@@ -16,6 +16,7 @@
 
 	import { version } from '$app/environment';
 
+	import { activeChartSources } from '$lib/stores/chart';
 	import { map } from '$lib/stores/map';
 	import { defaultColorHash, omProtocolSettings } from '$lib/stores/om-protocol-settings';
 	import {
@@ -40,14 +41,16 @@
 	import HelpDialog from '$lib/components/help/help-dialog.svelte';
 	import Spinner from '$lib/components/loading/spinner.svelte';
 	import Scale from '$lib/components/scale/scale.svelte';
+	import ChartSelect from '$lib/components/selection/chart-select.svelte';
 	import VariableSelection from '$lib/components/selection/variable-selection.svelte';
 	import Settings from '$lib/components/settings/settings.svelte';
 	import TimeSelector from '$lib/components/time/time-selector.svelte';
 
 	import { checkHighDefinition, hashValue } from '$lib/helpers';
-	import { addOmFileLayers, changeOMfileURL } from '$lib/layers';
+	import { addOmFileLayers, changeOMfileURL, destroySingleSource } from '$lib/layers';
 	import { addTerrainSource, getStyle, setMapControlSettings } from '$lib/map-controls';
 	import { getInitialMetaData, getMetaData, matchVariableOrFirst } from '$lib/metadata';
+	import { applyChartSources } from '$lib/multi-source-manager';
 	import { addPopup } from '$lib/popup';
 	import { formatISOWithoutTimezone } from '$lib/time-format';
 	import { findTimeStep } from '$lib/time-utils';
@@ -121,6 +124,12 @@
 			addTerrainSource($map, 'terrainSource2');
 			$map.addControl(new HillshadeButton());
 			addOmFileLayers();
+
+			const sources = get(activeChartSources);
+			if (sources) {
+				destroySingleSource();
+				applyChartSources(sources);
+			}
 
 			addPopup();
 			changeOMfileURL();
@@ -199,6 +208,7 @@
 	}}
 />
 <VariableSelection />
+<ChartSelect />
 <TimeSelector />
 <Settings />
 <HelpDialog />

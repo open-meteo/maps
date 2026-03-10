@@ -23,7 +23,9 @@ import { modelRun as mR, modelRunLocked as mRL, time } from '$lib/stores/time';
 import { domain as d, variable as v } from '$lib/stores/variables';
 import { vectorOptions as vO } from '$lib/stores/vector';
 
+import { type ChartSource, chartPresets } from './chart-presets';
 import { fmtModelRun, fmtSelectedTime, getBaseUri } from './helpers';
+import { activeChartSources } from './stores/chart';
 import { formatISOUTCWithZ, parseISOWithoutTimezone } from './time-format';
 
 export const updateUrl = async (
@@ -111,27 +113,52 @@ export const urlParamsToPreferences = () => {
 
 	const variable = params.get('variable');
 	if (variable) {
-		v.set(variable);
+		const variables = variable.split(',');
+		if (variables.length > 1) {
+			// Multi-source mode: parse per-source params as comma-separated lists
+			const rasterList = (params.get('raster') ?? '').split(',');
+			const contoursList = (params.get('contours') ?? '').split(',');
+			const arrowsList = (params.get('arrows') ?? '').split(',');
+			const intervalList = (params.get('interval') ?? '').split(',');
+
+			const sources: ChartSource[] = variables.map((v, i) => ({
+				variable: v,
+				raster: (rasterList[i] ?? 'false') === 'true',
+				contours: (contoursList[i] ?? 'false') === 'true',
+				arrows: (arrowsList[i] ?? 'false') === 'true',
+				...(contoursList[i] === 'true' && intervalList[i]
+					? { contourInterval: Number(intervalList[i]) }
+					: {})
+			}));
+			activeChartSources.set(sources);
+			// Set primary variable store to first variable (for metadata etc.)
+			v.set(variables[0]);
+		} else {
+			v.set(variable);
+		}
 	} else if (get(v) !== 'temperature_2m') {
 		url.searchParams.set('variable', get(v));
 	}
 
 	const arrowsRaw = params.get('arrows');
-	if (arrowsRaw !== null) {
+	// Only apply arrows to vectorOptions in single-source mode
+	if (arrowsRaw !== null && !variable?.includes(',')) {
 		vectorOptions.arrows = arrowsRaw === 'true';
 	} else if (!vectorOptions.arrows) {
 		url.searchParams.set('arrows', String(vectorOptions.arrows));
 	}
 
 	const contoursRaw = params.get('contours');
-	if (contoursRaw !== null) {
+	// Only apply contours to vectorOptions in single-source mode
+	if (contoursRaw !== null && !variable?.includes(',')) {
 		vectorOptions.contours = contoursRaw === 'true';
 	} else if (vectorOptions.contours) {
 		url.searchParams.set('contours', String(vectorOptions.contours));
 	}
 
 	const intervalRaw = params.get('interval');
-	if (intervalRaw !== null) {
+	// Only apply interval to vectorOptions in single-source mode
+	if (intervalRaw !== null && !variable?.includes(',')) {
 		vectorOptions.contourInterval = Number(intervalRaw);
 	} else if (vectorOptions.contourInterval !== 2) {
 		url.searchParams.set('interval', String(vectorOptions.contourInterval));
@@ -162,6 +189,77 @@ export const getOMUrl = () => {
 	if (tileSize !== 256) result += `&tile_size=${tileSize}`;
 
 	return result;
+};
+
+/**
+ * Write multi-source chart params to the URL as comma-separated lists.
+ * E.g. `?variable=A,B&raster=true,false&contours=false,true&interval=,2`
+ */
+export const setChartSourcesInUrl = async (sources: ChartSource[]): Promise<void> => {
+	const url = get(u);
+	if (!url) return;
+
+	url.searchParams.set('variable', sources.map((s) => s.variable).join(','));
+	url.searchParams.set('raster', sources.map((s) => (s.raster ? 'true' : 'false')).join(','));
+	url.searchParams.set('contours', sources.map((s) => (s.contours ? 'true' : 'false')).join(','));
+	url.searchParams.set('arrows', sources.map((s) => (s.arrows ? 'true' : 'false')).join(','));
+	url.searchParams.set(
+		'interval',
+		sources.map((s) => (s.contourInterval != null ? String(s.contourInterval) : '')).join(',')
+	);
+
+	await tick();
+
+	let fullUrl: string;
+	try {
+		const map = get(m);
+		if (map) {
+			fullUrl = String(url) + map._hash.getHashString();
+		} else {
+			fullUrl = String(url);
+		}
+	} catch {
+		fullUrl = String(url);
+	}
+	replaceState(fullUrl, {});
+};
+
+/**
+ * Clear multi-source chart params from the URL and restore single-variable mode.
+ */
+export const clearChartSourcesFromUrl = async (): Promise<void> => {
+	const url = get(u);
+	if (!url) return;
+
+	// Reset variable to single value from store
+	url.searchParams.set('variable', get(v));
+	// Remove multi-source specific params (single-mode arrows/contours handled normally)
+	url.searchParams.delete('raster');
+
+	// Restore single-source vector options
+	const vectorOptions = get(vO);
+	url.searchParams.set('arrows', String(vectorOptions.arrows));
+	url.searchParams.set('contours', String(vectorOptions.contours));
+	if (vectorOptions.contourInterval !== 2) {
+		url.searchParams.set('interval', String(vectorOptions.contourInterval));
+	} else {
+		url.searchParams.delete('interval');
+	}
+
+	await tick();
+
+	let fullUrl: string;
+	try {
+		const map = get(m);
+		if (map) {
+			fullUrl = String(url) + map._hash.getHashString();
+		} else {
+			fullUrl = String(url);
+		}
+	} catch {
+		fullUrl = String(url);
+	}
+	replaceState(fullUrl, {});
 };
 
 export const getNextOmUrls = (

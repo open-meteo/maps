@@ -16,7 +16,9 @@ import {
 } from '$lib/constants';
 import { type SlotLayer, SlotManager } from '$lib/slot-manager';
 
+import { destroyMultiSource, updateMultiSource } from './multi-source-manager';
 import { refreshPopup } from './popup';
+import { activeChartSources } from './stores/chart';
 import { currentOmUrl } from './stores/om-url';
 import { getOMUrl } from './url';
 
@@ -298,9 +300,36 @@ export const addOmFileLayers = (): void => {
 	vectorManager?.update('om://' + omUrl);
 };
 
+/** Tear down single-source managers so they don't conflict with multi-source. */
+export const destroySingleSource = (): void => {
+	rasterManager?.destroy();
+	vectorManager?.destroy();
+	rasterManager = undefined;
+	vectorManager = undefined;
+};
+
+/** Re-activate single-source mode (called when leaving a chart preset). */
+export const restoreSingleSource = (): void => {
+	destroyMultiSource();
+	// Reset currentOmUrl so changeOMfileURL doesn't skip the update
+	currentOmUrl.set('');
+	addOmFileLayers();
+};
+
 export const changeOMfileURL = (vectorOnly = false, rasterOnly = false): void => {
 	const map = get(m);
 	if (!map) return;
+
+	// When chart sources are active, delegate to the multi-source manager
+	const sources = get(activeChartSources);
+	if (sources) {
+		loading.set(true);
+		updateMultiSource(sources);
+		return;
+	}
+
+	// Safety: if single-source managers don't exist yet, skip
+	if (!rasterManager && !vectorManager) return;
 
 	const omUrl = getOMUrl();
 	if (get(currentOmUrl) == omUrl) return;
