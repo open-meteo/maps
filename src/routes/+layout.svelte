@@ -1,10 +1,8 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
-	import { get } from 'svelte/store';
 
 	import { ModeWatcher } from 'mode-watcher';
 
-	import { preferences as p } from '$lib/stores/preferences';
 	import { now } from '$lib/stores/time';
 
 	import { Toaster } from '$lib/components/ui/sonner';
@@ -13,11 +11,6 @@
 	import { getInitialMetaData } from '$lib/metadata';
 
 	let { children } = $props();
-
-	let preferences = $state(get(p));
-	p.subscribe((newPreferences) => {
-		preferences = newPreferences;
-	});
 
 	let metaDataInterval: ReturnType<typeof setInterval>;
 	let updateNowInterval: ReturnType<typeof setTimeout> | undefined;
