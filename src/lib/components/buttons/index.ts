@@ -11,6 +11,7 @@ import {
 } from '$lib/stores/preferences';
 
 import { addHillshadeLayer, reloadStyles, terrainHandler } from '$lib/map-controls';
+import { takeSnapshot } from '$lib/snapshot';
 import { updateUrl } from '$lib/url';
 
 const preferences = get(p);
@@ -182,6 +183,25 @@ export class HillshadeButton {
 		this.terrainControl = undefined;
 		this.map.setTerrain(null);
 	}
+}
+
+export class SnapshotButton {
+	onAdd(map: maplibregl.Map) {
+		const div = document.createElement('div');
+		div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+		div.title = 'Take Snapshot';
+
+		const cameraSVG = `<button style="display:flex;justify-content:center;align-items:center;">
+			<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-camera"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+		</button>`;
+
+		div.innerHTML = cameraSVG;
+		div.addEventListener('contextmenu', (e) => e.preventDefault());
+		div.addEventListener('click', () => takeSnapshot(map));
+
+		return div;
+	}
+	onRemove() {}
 }
 
 export class HelpButton {
