@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
+	import { onMount } from 'svelte';
 	import { get } from 'svelte/store';
 
 	import CheckIcon from '@lucide/svelte/icons/check';
@@ -13,9 +13,6 @@
 		levelGroupVariables,
 		variableOptions
 	} from '@openmeteo/mapbox-layer';
-	import { toast } from 'svelte-sonner';
-
-	import { browser } from '$app/environment';
 
 	import { desktop, loading } from '$lib/stores/preferences';
 	import { metaJson } from '$lib/stores/time';
@@ -106,42 +103,9 @@
 		variableSelectionExtended = vE;
 	});
 
-	const keyDownEvent = (event: KeyboardEvent) => {
-		const canNavigate =
-			variableSelectionExtended &&
-			!variableSelectionOpen &&
-			!domainSelectionOpen &&
-			!pressureLevelSelectionOpen;
-		if (!canNavigate) return;
-		switch (event.key) {
-			case 'v':
-				if (!event.ctrlKey) vSO.set(true);
-				break;
-			case 'd':
-				if (!event.ctrlKey) dSO.set(true);
-				break;
-			case 'l':
-				if (!event.ctrlKey) pLSO.set(true);
-				break;
-			case 'Escape':
-				toast.dismiss();
-				break;
-		}
-	};
-
 	onMount(() => {
 		if (desktop.current && typeof get(vSE) === 'undefined') {
 			vSE.set(true);
-		}
-
-		if (browser) {
-			window.addEventListener('keydown', keyDownEvent);
-		}
-	});
-
-	onDestroy(() => {
-		if (browser) {
-			window.removeEventListener('keydown', keyDownEvent);
 		}
 	});
 
