@@ -85,6 +85,8 @@ export const textWhite = (
 	return r * 0.299 + g * 0.587 + b * 0.114 <= 150;
 };
 
+let _staticSnapshotLink: HTMLAnchorElement | null = null;
+
 export const takeSnapshot = (map: maplibregl.Map) => {
 	const currentDomain = get(domain);
 	const currentVariable = get(variable);
@@ -94,18 +96,54 @@ export const takeSnapshot = (map: maplibregl.Map) => {
 		: 'unknown';
 	const filename = `openmeteo_maps_${currentDomain}_${currentVariable}_${timeStr}.png`;
 
-	map.once('render', () => {
+	map.once('render', async () => {
 		const canvas = map!.getCanvas();
+
+		// Capture attribution text from DOM
+		const attribEl = map.getContainer().querySelector('.maplibregl-ctrl-attrib-inner');
+		const attributionText = attribEl?.textContent?.replace(/\s+/g, ' ').trim() || '';
+
 		try {
-			const dataURL = canvas.toDataURL('image/png');
-			const link = document.createElement('a');
-			link.href = dataURL;
-			link.download = filename;
-			document.body.appendChild(link);
-			link.click();
-			document.body.removeChild(link);
+			const offscreen = new OffscreenCanvas(canvas.width, canvas.height);
+			const ctx = offscreen.getContext('2d');
+			if (!ctx) throw new Error('Failed to get offscreen context');
+			ctx.drawImage(canvas, 0, 0);
+
+			// Add attribution watermark
+			const dpr = window.devicePixelRatio || 1;
+			const fontSize = Math.round(12 * dpr);
+			ctx.font = `${fontSize}px system-ui, -apple-system, sans-serif`;
+			ctx.textBaseline = 'bottom';
+			ctx.textAlign = 'right';
+
+			const padding = 8 * dpr;
+			const x = offscreen.width - padding;
+			const y = offscreen.height - padding;
+
+			// Add shadow for legibility on light/dark backgrounds
+			ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+			ctx.shadowBlur = 4 * dpr;
+			ctx.fillStyle = 'white';
+
+			ctx.fillText(attributionText, x, y);
+
+			// Convert to Blob to download
+			const blob = await offscreen.convertToBlob({ type: 'image/png' });
+			const dataURL = URL.createObjectURL(blob);
+
+			if (!_staticSnapshotLink) {
+				_staticSnapshotLink = document.createElement('a');
+				_staticSnapshotLink.style.display = 'none';
+				document.body.appendChild(_staticSnapshotLink);
+			}
+
+			_staticSnapshotLink.href = dataURL;
+			_staticSnapshotLink.download = filename;
+			_staticSnapshotLink.click();
+
 			toast('Snapshot saved');
-		} catch {
+		} catch (e) {
+			console.error(e);
 			toast.error(
 				'Snapshot failed — try enabling "Preserve drawing buffer" in settings or check browser permissions.'
 			);
