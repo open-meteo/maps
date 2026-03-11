@@ -32,7 +32,7 @@ export const takeSnapshot = (map: maplibregl.Map) => {
 
 			// Add attribution watermark
 			const dpr = window.devicePixelRatio || 1;
-			const fontSize = Math.round(12 * dpr);
+			const fontSize = Math.round(24 * dpr);
 			ctx.font = `${fontSize}px system-ui, -apple-system, sans-serif`;
 			ctx.textBaseline = 'bottom';
 			ctx.textAlign = 'right';
