@@ -1,56 +1,10 @@
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
-	import { get } from 'svelte/store';
 
-	import { toast } from 'svelte-sonner';
-
-	import { browser } from '$app/environment';
-
-	import { popup, popupMode } from '$lib/stores/map';
 	import { helpOpen } from '$lib/stores/preferences';
 
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Kbd from '$lib/components/ui/kbd';
-
-	import { switchPopupMode } from '$lib/popup';
-
-	const keydownEvent = (event: KeyboardEvent) => {
-		switch (event.key) {
-			case 'h':
-				$helpOpen = !$helpOpen;
-				break;
-
-			case 'p':
-				switchPopupMode();
-				toast.info(
-					'Popup mode: ' +
-						($popupMode ? ($popupMode === 'follow' ? 'Follows mouse' : 'Draggable') : 'Off')
-				);
-				break;
-
-			case 'Escape':
-				popupMode.set(null);
-				const p = get(popup);
-				if (p) {
-					p.remove();
-				}
-				popup.set(undefined);
-				break;
-		}
-	};
-
-	onMount(() => {
-		if (browser) {
-			window.addEventListener('keydown', keydownEvent);
-		}
-	});
-
-	onDestroy(() => {
-		if (browser) {
-			window.removeEventListener('keydown', keydownEvent);
-		}
-	});
 
 	const smallerDesktop = new MediaQuery('min-width: 640px');
 </script>
