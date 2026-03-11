@@ -10,8 +10,8 @@ import {
 	sheet
 } from '$lib/stores/preferences';
 
-import { takeSnapshot } from '$lib/helpers';
 import { addHillshadeLayer, reloadStyles, terrainHandler } from '$lib/map-controls';
+import { takeSnapshot } from '$lib/snapshot';
 import { updateUrl } from '$lib/url';
 
 const preferences = get(p);
