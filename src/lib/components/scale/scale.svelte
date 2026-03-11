@@ -104,7 +104,9 @@
 
 {#if $preferences.showScale}
 	<div
-		class="absolute z-60 'bottom-22.5' duration-500 left-2.5 select-none rounded"
+		class="absolute z-60 {!desktop.current
+			? 'bottom-22.5'
+			: 'bottom-2.5'} duration-500 left-2.5 z-10 select-none rounded"
 		style="max-height: {totalHeight + 100}px;"
 	>
 		<div class="flex flex-col-reverse shadow-md">

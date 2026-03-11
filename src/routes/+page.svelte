@@ -181,11 +181,7 @@
 	<Spinner />
 {/if}
 
-<div
-	class="map maplibregl-map time-selector-open"
-	id="#map_container"
-	bind:this={mapContainer}
-></div>
+<div class="map maplibregl-map" id="#map_container" bind:this={mapContainer}></div>
 
 <Scale
 	afterColorScaleChange={async (variable: string, colorScale: RenderableColorScale) => {
