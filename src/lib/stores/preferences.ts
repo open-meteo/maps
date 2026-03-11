@@ -39,7 +39,6 @@ export interface Preferences {
 	hillshade: boolean;
 	clipWater: boolean;
 	showScale: boolean;
-	timeSelector: boolean;
 }
 
 export const preferences = persisted('preferences', defaultPreferences);

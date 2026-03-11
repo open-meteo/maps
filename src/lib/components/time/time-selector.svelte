@@ -742,14 +742,12 @@
 <div
 	class="fixed bottom-0 w-full md:w-[unset] md:max-w-[75vw] -translate-x-1/2 left-1/2 z-40 {disabled
 		? 'text-foreground/50 cursor-not-allowed'
-		: ''} {$preferences.timeSelector ? '' : 'pointer-events-none'}"
+		: ''}"
 >
 	<div
-		class="duration-500 select-none {disabled
+		class="duration-500 select-none opacity-100 translate-y-0 {disabled
 			? 'pointer-events-none'
-			: ''} {$preferences.timeSelector
-			? 'opacity-100 translate-y-0'
-			: 'pointer-events-none opacity-0 translate-y-15'}"
+			: ''}"
 	>
 		<!-- Hover container -->
 		<div

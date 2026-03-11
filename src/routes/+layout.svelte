@@ -41,10 +41,8 @@
 <Toaster
 	closeButton={true}
 	richColors={true}
-	offset={preferences.timeSelector
-		? { bottom: '85px', right: '10px' }
-		: { bottom: '10px', right: '10px' }}
-	mobileOffset={preferences.timeSelector ? { bottom: '85px' } : { bottom: '10px' }}
+	offset={{ bottom: '85px', right: '10px' }}
+	mobileOffset={{ bottom: '85px' }}
 />
 
 {@render children()}
