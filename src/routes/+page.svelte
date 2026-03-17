@@ -30,13 +30,7 @@
 	import { metaJson, modelRun, time } from '$lib/stores/time';
 	import { domain, selectedDomain, selectedVariable, variable } from '$lib/stores/variables';
 
-	import {
-		DarkModeButton,
-		HelpButton,
-		HillshadeButton,
-		SettingsButton,
-		SnapshotButton
-	} from '$lib/components/buttons';
+	import { HillshadeButton, MoreButtons, SettingsButton } from '$lib/components/buttons';
 	import HelpDialog from '$lib/components/help/help-dialog.svelte';
 	import Spinner from '$lib/components/loading/spinner.svelte';
 	import Scale from '$lib/components/scale/scale.svelte';
@@ -112,10 +106,8 @@
 		});
 
 		$map.on('load', async () => {
-			$map.addControl(new DarkModeButton());
 			$map.addControl(new SettingsButton());
-			$map.addControl(new HelpButton());
-			$map.addControl(new SnapshotButton());
+			$map.addControl(new MoreButtons());
 
 			if (getInitialMetaDataPromise) await getInitialMetaDataPromise;
 
