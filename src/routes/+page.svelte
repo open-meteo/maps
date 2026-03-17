@@ -35,8 +35,7 @@
 		HelpButton,
 		HillshadeButton,
 		SettingsButton,
-		SnapshotButton,
-		TimeButton
+		SnapshotButton
 	} from '$lib/components/buttons';
 	import HelpDialog from '$lib/components/help/help-dialog.svelte';
 	import Spinner from '$lib/components/loading/spinner.svelte';
@@ -115,7 +114,6 @@
 		$map.on('load', async () => {
 			$map.addControl(new DarkModeButton());
 			$map.addControl(new SettingsButton());
-			$map.addControl(new TimeButton());
 			$map.addControl(new HelpButton());
 			$map.addControl(new SnapshotButton());
 
@@ -202,11 +200,7 @@
 	<Spinner />
 {/if}
 
-<div
-	class="map maplibregl-map {$preferences.timeSelector ? 'time-selector-open' : ''}"
-	id="#map_container"
-	bind:this={mapContainer}
-></div>
+<div class="map maplibregl-map" id="#map_container" bind:this={mapContainer}></div>
 
 <Scale
 	afterColorScaleChange={async (variable: string, colorScale: RenderableColorScale) => {

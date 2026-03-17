@@ -226,11 +226,11 @@
 }
 
 @media (max-width: 768px) {
-	.time-selector-open .maplibregl-ctrl-bottom-right {
+	.maplibregl-ctrl-bottom-right {
 		bottom: 93px;
 	}
 
-	.time-selector-open .maplibregl-ctrl.maplibregl-ctrl-attrib {
+	.maplibregl-ctrl.maplibregl-ctrl-attrib {
 		margin-right: 5px;
 	}
 }

@@ -95,13 +95,6 @@ export const urlParamsToPreferences = () => {
 	syncBoolParam('hillshade', 'hillshade', false);
 	syncBoolParam('clip_water', 'clipWater', false);
 
-	const timeSelectorRaw = params.get('time_selector');
-	if (timeSelectorRaw !== null) {
-		preferences.timeSelector = timeSelectorRaw === 'true';
-	} else if (!preferences.timeSelector) {
-		url.searchParams.set('time_selector', String(preferences.timeSelector));
-	}
-
 	const domain = params.get('domain');
 	if (domain) {
 		d.set(domain);
