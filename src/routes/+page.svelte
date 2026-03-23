@@ -14,7 +14,7 @@
 	import 'maplibre-gl/dist/maplibre-gl.css';
 	import { toast } from 'svelte-sonner';
 
-	import { version } from '$app/environment';
+	import { browser, version } from '$app/environment';
 
 	import { map } from '$lib/stores/map';
 	import { defaultColorHash, omProtocolSettings } from '$lib/stores/om-protocol-settings';
@@ -35,8 +35,7 @@
 		HelpButton,
 		HillshadeButton,
 		SettingsButton,
-		SnapshotButton,
-		TimeButton
+		SnapshotButton
 	} from '$lib/components/buttons';
 	import HelpDialog from '$lib/components/help/help-dialog.svelte';
 	import Spinner from '$lib/components/loading/spinner.svelte';
@@ -50,6 +49,7 @@
 	import { addTerrainSource, getStyle, setMapControlSettings } from '$lib/map-controls';
 	import { getInitialMetaData, getMetaData, matchVariableOrFirst } from '$lib/metadata';
 	import { addPopup } from '$lib/popup';
+	import { takeSnapshot } from '$lib/snapshot';
 	import { formatISOWithoutTimezone } from '$lib/time-format';
 	import { findTimeStep } from '$lib/time-utils';
 	import { updateUrl, urlParamsToPreferences } from '$lib/url';
@@ -114,7 +114,6 @@
 		$map.on('load', async () => {
 			$map.addControl(new DarkModeButton());
 			$map.addControl(new SettingsButton());
-			$map.addControl(new TimeButton());
 			$map.addControl(new HelpButton());
 			$map.addControl(new SnapshotButton());
 
@@ -128,7 +127,19 @@
 			addPopup();
 			changeOMfileURL();
 		});
+
+		if (browser) {
+			window.addEventListener('keydown', keyDownEvent);
+		}
 	});
+
+	const keyDownEvent = (event: KeyboardEvent) => {
+		switch (event.key) {
+			case 's':
+				if (!event.ctrlKey) takeSnapshot($map);
+				break;
+		}
+	};
 
 	let getInitialMetaDataPromise: Promise<void> | undefined;
 	const domainSubscription = domain.subscribe(async (newDomain) => {
@@ -175,6 +186,9 @@
 		}
 		domainSubscription(); // unsubscribe
 		variableSubscription(); // unsubscribe
+		if (browser) {
+			window.removeEventListener('keydown', keyDownEvent);
+		}
 	});
 </script>
 
@@ -186,11 +200,7 @@
 	<Spinner />
 {/if}
 
-<div
-	class="map maplibregl-map {$preferences.timeSelector ? 'time-selector-open' : ''}"
-	id="#map_container"
-	bind:this={mapContainer}
-></div>
+<div class="map maplibregl-map" id="#map_container" bind:this={mapContainer}></div>
 
 <Scale
 	afterColorScaleChange={async (variable: string, colorScale: RenderableColorScale) => {

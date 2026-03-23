@@ -15,8 +15,8 @@
 		variableSelectionOpen
 	} from '$lib/stores/variables';
 
-	import { takeSnapshot } from '$lib/helpers';
 	import { switchPopupMode } from '$lib/popup';
+	import { takeSnapshot } from '$lib/snapshot';
 
 	// Props for time-selector actions as we can't easily import them
 	let {
