@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
+	import { onMount } from 'svelte';
 	import { get } from 'svelte/store';
 
 	import CheckIcon from '@lucide/svelte/icons/check';
@@ -12,10 +12,7 @@
 		domainOptions,
 		levelGroupVariables,
 		variableOptions
-	} from '@openmeteo/mapbox-layer';
-	import { toast } from 'svelte-sonner';
-
-	import { browser } from '$app/environment';
+	} from '@openmeteo/weather-map-layer';
 
 	import { desktop, loading } from '$lib/stores/preferences';
 	import { metaJson } from '$lib/stores/time';
@@ -106,42 +103,9 @@
 		variableSelectionExtended = vE;
 	});
 
-	const keyDownEvent = (event: KeyboardEvent) => {
-		const canNavigate =
-			variableSelectionExtended &&
-			!variableSelectionOpen &&
-			!domainSelectionOpen &&
-			!pressureLevelSelectionOpen;
-		if (!canNavigate) return;
-		switch (event.key) {
-			case 'v':
-				if (!event.ctrlKey) vSO.set(true);
-				break;
-			case 'd':
-				if (!event.ctrlKey) dSO.set(true);
-				break;
-			case 'l':
-				if (!event.ctrlKey) pLSO.set(true);
-				break;
-			case 'Escape':
-				toast.dismiss();
-				break;
-		}
-	};
-
 	onMount(() => {
 		if (desktop.current && typeof get(vSE) === 'undefined') {
 			vSE.set(true);
-		}
-
-		if (browser) {
-			window.addEventListener('keydown', keyDownEvent);
-		}
-	});
-
-	onDestroy(() => {
-		if (browser) {
-			window.removeEventListener('keydown', keyDownEvent);
 		}
 	});
 
@@ -213,7 +177,7 @@
 							}, 10);
 						}
 					}}
-					class="bg-transparent! ml-2.5 w-62.5 rounded border-none! p-0"
+					class="bg-transparent! z-80 ml-2.5 w-62.5 rounded border-none! p-0"
 				>
 					<Popover.Close
 						class="absolute right-0.5 top-0.5 flex h-5 w-5 cursor-pointer items-center justify-center"
@@ -311,7 +275,7 @@
 							firstChild.focus();
 						}
 					}}
-					class="ml-2.5 w-62.5 rounded border-none bg-transparent! p-0"
+					class="ml-2.5 z-80 w-62.5 rounded border-none bg-transparent! p-0"
 				>
 					<Popover.Close
 						class="absolute right-0.5 top-0.5 flex h-5 w-5 cursor-pointer items-center justify-center"
@@ -421,7 +385,7 @@
 					</Popover.Trigger>
 					<Popover.Content
 						tabindex={0}
-						class="ml-2.5 w-62.5 rounded border-none bg-transparent! p-0"
+						class="ml-2.5 z-80 w-62.5 rounded border-none bg-transparent! p-0"
 					>
 						<Popover.Close
 							class="absolute right-0.5 top-0.5 flex h-5 w-5 cursor-pointer items-center justify-center"

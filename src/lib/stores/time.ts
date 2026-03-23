@@ -1,6 +1,6 @@
 import { type Writable, writable } from 'svelte/store';
 
-import type { DomainMetaDataJson } from '@openmeteo/mapbox-layer';
+import type { DomainMetaDataJson } from '@openmeteo/weather-map-layer';
 
 export const now = writable(new Date());
 

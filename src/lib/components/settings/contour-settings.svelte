@@ -67,16 +67,17 @@
 		<input
 			disabled={breakpoints}
 			id="interval_slider"
-			class="w-[100px] delay-75 duration-200"
+			class="w-25 delay-75 duration-200"
 			type="range"
 			min="0"
 			max="50"
 			bind:value={$vectorOptions.contourInterval}
 			onchange={handleContourIntervalChange}
 		/>
-		<Label for="interval">Contouring interval:</Label><Input
+		<Label for="interval">Contouring interval:</Label>
+		<Input
 			id="interval"
-			class="w-20"
+			class="w-20 bg-background/60"
 			step="0.5"
 			bind:value={$vectorOptions.contourInterval}
 			onchange={handleContourIntervalChange}

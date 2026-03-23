@@ -1,7 +1,10 @@
 import { get } from 'svelte/store';
 
 import { BrowserBlockCache } from '@openmeteo/file-reader';
-import { type MapboxLayerFileReader, defaultOmProtocolSettings } from '@openmeteo/mapbox-layer';
+import {
+	type MapboxLayerFileReader,
+	defaultOmProtocolSettings
+} from '@openmeteo/weather-map-layer';
 import { persisted } from 'svelte-persisted-store';
 
 import { browser } from '$app/environment';
@@ -17,7 +20,7 @@ import type {
 	OmProtocolSettings,
 	OmUrlState,
 	RenderableColorScale
-} from '@openmeteo/mapbox-layer';
+} from '@openmeteo/weather-map-layer';
 
 export const defaultColorHash = DEFAULT_COLOR_HASH;
 
