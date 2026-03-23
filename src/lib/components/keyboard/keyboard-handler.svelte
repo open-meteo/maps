@@ -6,6 +6,7 @@
 
 	import { browser } from '$app/environment';
 
+	import { timeSelectorActions } from '$lib/stores/keyboard';
 	import { map, popup, popupMode } from '$lib/stores/map';
 	import { helpOpen } from '$lib/stores/preferences';
 	import {
@@ -17,31 +18,6 @@
 
 	import { switchPopupMode } from '$lib/popup';
 	import { takeSnapshot } from '$lib/snapshot';
-
-	// Props for time-selector actions as we can't easily import them
-	let {
-		previousHour,
-		nextHour,
-		previousDay,
-		nextDay,
-		previousModel,
-		nextModel,
-		jumpToCurrentTime,
-		toggleModelRunLock,
-		setLatestModelRun,
-		disabled = false
-	} = $props<{
-		previousHour?: () => void;
-		nextHour?: () => void;
-		previousDay?: () => void;
-		nextDay?: () => void;
-		previousModel?: () => void;
-		nextModel?: () => void;
-		jumpToCurrentTime?: () => void;
-		toggleModelRunLock?: () => void;
-		setLatestModelRun?: () => void;
-		disabled?: boolean;
-	}>();
 
 	const keyDownEvent = (event: KeyboardEvent) => {
 		// Ignore shortcuts when focus is inside an editable element, except for Escape
@@ -120,15 +96,20 @@
 			].includes(event.key);
 			if (!isTimeAction) return;
 
-			if (disabled && event.key !== 'm') return;
+			const { timeNavigationDisabled } = get(timeSelectorActions);
 
-			if (event.key === 'ArrowLeft') (event.ctrlKey ? previousModel : previousHour)?.();
-			else if (event.key === 'ArrowRight') (event.ctrlKey ? nextModel : nextHour)?.();
-			else if (event.key === 'ArrowDown') previousDay?.();
-			else if (event.key === 'ArrowUp') nextDay?.();
-			else if (event.key === 'c') jumpToCurrentTime?.();
-			else if (event.key === 'm') toggleModelRunLock?.();
-			else if (event.key === 'n') setLatestModelRun?.();
+			if (timeNavigationDisabled && event.key !== 'm') return;
+
+			const actions = get(timeSelectorActions);
+			if (event.key === 'ArrowLeft')
+				(event.ctrlKey ? actions.previousModel : actions.previousHour)?.();
+			else if (event.key === 'ArrowRight')
+				(event.ctrlKey ? actions.nextModel : actions.nextHour)?.();
+			else if (event.key === 'ArrowDown') actions.previousDay?.();
+			else if (event.key === 'ArrowUp') actions.nextDay?.();
+			else if (event.key === 'c') actions.jumpToCurrentTime?.();
+			else if (event.key === 'm') actions.toggleModelRunLock?.();
+			else if (event.key === 'n') actions.setLatestModelRun?.();
 		}
 	};
 

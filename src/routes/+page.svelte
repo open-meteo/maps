@@ -37,6 +37,7 @@
 		SnapshotButton
 	} from '$lib/components/buttons';
 	import HelpDialog from '$lib/components/help/help-dialog.svelte';
+	import KeyboardHandler from '$lib/components/keyboard/keyboard-handler.svelte';
 	import Spinner from '$lib/components/loading/spinner.svelte';
 	import Scale from '$lib/components/scale/scale.svelte';
 	import VariableSelection from '$lib/components/selection/variable-selection.svelte';
@@ -202,3 +203,4 @@
 <TimeSelector />
 <Settings />
 <HelpDialog />
+<KeyboardHandler />
