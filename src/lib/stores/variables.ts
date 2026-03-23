@@ -6,7 +6,7 @@ import {
 	LEVEL_UNIT_REGEX,
 	domainOptions,
 	variableOptions
-} from '@openmeteo/mapbox-layer';
+} from '@openmeteo/weather-map-layer';
 import { type Persisted, persisted } from 'svelte-persisted-store';
 
 import { DEFAULT_DOMAIN, DEFAULT_VARIABLE } from '$lib/constants';

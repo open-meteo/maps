@@ -8,7 +8,7 @@
 		domainOptions,
 		omProtocol,
 		updateCurrentBounds
-	} from '@openmeteo/mapbox-layer';
+	} from '@openmeteo/weather-map-layer';
 	import { type RequestParameters } from 'maplibre-gl';
 	import * as maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
@@ -21,7 +21,6 @@
 	import {
 		loading,
 		localStorageVersion,
-		preferences,
 		resetStates,
 		tileSize,
 		tileSizeSet,
@@ -108,7 +107,10 @@
 		setMapControlSettings();
 
 		$map.on('dataloading', () => {
-			updateCurrentBounds($map.getBounds());
+			const bounds = $map.getBounds();
+			const [minLng, minLat] = bounds.getSouthWest().toArray();
+			const [maxLng, maxLat] = bounds.getNorthEast().toArray();
+			updateCurrentBounds([minLng, minLat, maxLng, maxLat]);
 		});
 
 		$map.on('load', async () => {

@@ -4,20 +4,17 @@
 [![Build](https://github.com/open-meteo/maps/actions/workflows/build.yml/badge.svg)](https://github.com/open-meteo/maps/actions/workflows/build.yml)
 [![GitHub license](https://img.shields.io/github/license/open-meteo/maps)](https://github.com/open-meteo/maps/blob/main/LICENSE)
 
-UI demo for the [Open-Meteo MapLibre/Mapbox protocol](https://github.com/open-meteo/mapbox-layer).
+A UI demo for the [Open-Meteo Weather Map Layer](https://github.com/open-meteo/weather-map-layer) — a MapLibre/Mapbox GL JS weather layer powered by Open-Meteo OMfiles.
 
 ![Open-Meteo Maps UI example](./static/example.png)
 
-## About this Repository
+## About
 
-This is a simple client-side UI that loads OM files from [https://openmeteo.s3.amazonaws.com/](https://openmeteo.s3.amazonaws.com/index.html#data_spatial/) and renders them with MapLibre GL using the Open-Meteo MapLibre/Mapbox protocol.
-Weather tiles are fully rendered on the client using the data in the native model resolution.
+This is a client-side app that fetches OMfiles from [openmeteo.s3.amazonaws.com](https://openmeteo.s3.amazonaws.com/index.html#data_spatial/) and renders them with MapLibre GL. Weather tiles are fully rendered in the browser at the native model resolution — no server-side tile rendering required.
 
-This is not the [Open-Meteo weather API](https://github.com/open-meteo/open-meteo).
+> Looking for the Open-Meteo API? See [open-meteo/open-meteo](https://github.com/open-meteo/open-meteo).
 
 ## Development
-
-Install and run dev server:
 
 ```bash
 npm install
@@ -33,5 +30,5 @@ npm run preview
 
 ## Issues & Contributing
 
-- Open issues/PRs in this repository for UI/demo changes.
-- For protocol-specific issues, see https://github.com/open-meteo/mapbox-layer/issues.
+- Open issues and PRs in this repository for UI/demo-related changes.
+- For issues with the weather map layer itself, see the [weather-map-layer issues](https://github.com/open-meteo/weather-map-layer/issues).

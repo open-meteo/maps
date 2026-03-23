@@ -12,7 +12,7 @@
 		domainOptions,
 		levelGroupVariables,
 		variableOptions
-	} from '@openmeteo/mapbox-layer';
+	} from '@openmeteo/weather-map-layer';
 
 	import { desktop, loading } from '$lib/stores/preferences';
 	import { metaJson } from '$lib/stores/time';

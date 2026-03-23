@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { MediaQuery } from 'svelte/reactivity';
 
-	import { type RenderableColorScale, getColor, getColorScale } from '@openmeteo/mapbox-layer';
+	import { type RenderableColorScale, getColor, getColorScale } from '@openmeteo/weather-map-layer';
 	import { mode } from 'mode-watcher';
 
 	import { customColorScales } from '$lib/stores/om-protocol-settings';
