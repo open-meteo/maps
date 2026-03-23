@@ -3,7 +3,7 @@
 	import { SvelteDate } from 'svelte/reactivity';
 	import { fade } from 'svelte/transition';
 
-	import { closestModelRun, domainStep } from '@openmeteo/mapbox-layer';
+	import { closestModelRun, domainStep } from '@openmeteo/weather-map-layer';
 	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 

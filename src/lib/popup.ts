@@ -1,6 +1,6 @@
 import { get } from 'svelte/store';
 
-import { getColor, getColorScale, getValueFromLatLong } from '@openmeteo/mapbox-layer';
+import { getColor, getColorScale, getValueFromLatLong } from '@openmeteo/weather-map-layer';
 import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
 
@@ -53,7 +53,7 @@ const initPopupDiv = (): void => {
 };
 
 /** Update the popup content for the given coordinates without moving the marker. */
-const updatePopupContent = (coordinates: maplibregl.LngLat): void => {
+const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void> => {
 	if (!el || !contentDiv || !valueSpan || !unitSpan || !elevationSpan) return;
 
 	const map = get(m);
@@ -61,7 +61,7 @@ const updatePopupContent = (coordinates: maplibregl.LngLat): void => {
 	const elevation = map?.queryTerrainElevation(coordinates);
 	const hasElevation = typeof elevation === 'number' && isFinite(elevation);
 
-	const { value } = getValueFromLatLong(
+	const { value } = await getValueFromLatLong(
 		coordinates.lat,
 		coordinates.lng,
 		rasterManager?.getActiveSourceUrl() ?? ''
@@ -92,7 +92,7 @@ const updatePopupContent = (coordinates: maplibregl.LngLat): void => {
 };
 
 /** Ensure the marker exists, place it at `coordinates`, and update its content. */
-export const renderPopup = (coordinates: maplibregl.LngLat): void => {
+export const renderPopup = async (coordinates: maplibregl.LngLat): Promise<void> => {
 	const map = get(m);
 	if (!get(popupMode) || !map) return;
 
@@ -106,30 +106,30 @@ export const renderPopup = (coordinates: maplibregl.LngLat): void => {
 			.addTo(map);
 		p.set(popup);
 
-		popup.on('drag', () => {
+		popup.on('drag', async () => {
 			const lngLat = popup?.getLngLat();
-			if (lngLat) updatePopupContent(lngLat);
+			if (lngLat) await updatePopupContent(lngLat);
 		});
 	} else {
 		popup.setLngLat(coordinates).addTo(map);
 	}
 
-	updatePopupContent(coordinates);
+	await updatePopupContent(coordinates);
 };
 
-export const refreshPopup = (): void => {
+export const refreshPopup = async (): Promise<void> => {
 	const popup = get(p);
 	const lngLat = popup?.getLngLat();
-	if (lngLat) updatePopupContent(lngLat);
+	if (lngLat) await updatePopupContent(lngLat);
 };
 
-const updatePopup = (e: maplibregl.MapMouseEvent): void => {
+const updatePopup = async (e: maplibregl.MapMouseEvent): Promise<void> => {
 	if (get(popupMode) === 'follow') {
 		const popup = get(p);
 		if (popup) {
 			popup.setLngLat(e.lngLat);
 		}
-		renderPopup(e.lngLat);
+		await renderPopup(e.lngLat);
 	}
 };
 
@@ -155,7 +155,7 @@ export const addPopup = (): void => {
 
 	map.on('mousemove', updatePopup);
 
-	map.on('click', (e: maplibregl.MapMouseEvent) => {
+	map.on('click', async (e: maplibregl.MapMouseEvent) => {
 		if (!map) return;
 
 		switchPopupMode();
@@ -167,6 +167,6 @@ export const addPopup = (): void => {
 			return;
 		}
 
-		renderPopup(e.lngLat);
+		await renderPopup(e.lngLat);
 	});
 };

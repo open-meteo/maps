@@ -4,7 +4,7 @@
 [![Build](https://github.com/open-meteo/maps/actions/workflows/build.yml/badge.svg)](https://github.com/open-meteo/maps/actions/workflows/build.yml)
 [![GitHub license](https://img.shields.io/github/license/open-meteo/maps)](https://github.com/open-meteo/maps/blob/main/LICENSE)
 
-UI demo for the [Open-Meteo MapLibre/Mapbox protocol](https://github.com/open-meteo/mapbox-layer).
+UI demo for the [Open-Meteo MapLibre/Mapbox protocol](https://github.com/open-meteo/weather-map-layer).
 
 ![Open-Meteo Maps UI example](./static/example.png)
 
@@ -34,4 +34,4 @@ npm run preview
 ## Issues & Contributing
 
 - Open issues/PRs in this repository for UI/demo changes.
-- For protocol-specific issues, see https://github.com/open-meteo/mapbox-layer/issues.
+- For protocol-specific issues, see https://github.com/open-meteo/weather-map-layer/issues.

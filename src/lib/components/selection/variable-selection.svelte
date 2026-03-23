@@ -12,7 +12,7 @@
 		domainOptions,
 		levelGroupVariables,
 		variableOptions
-	} from '@openmeteo/mapbox-layer';
+	} from '@openmeteo/weather-map-layer';
 	import { toast } from 'svelte-sonner';
 
 	import { browser } from '$app/environment';

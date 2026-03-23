@@ -6,7 +6,7 @@ import {
 	type DomainMetaDataJson,
 	closestModelRun,
 	domainStep
-} from '@openmeteo/mapbox-layer';
+} from '@openmeteo/weather-map-layer';
 import { mode } from 'mode-watcher';
 
 import { replaceState } from '$app/navigation';
