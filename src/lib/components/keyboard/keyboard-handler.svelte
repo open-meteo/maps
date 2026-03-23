@@ -44,6 +44,15 @@
 	}>();
 
 	const keyDownEvent = (event: KeyboardEvent) => {
+		// Ignore shortcuts when focus is inside an editable element, except for Escape
+		const target = event.target as HTMLElement;
+		const isEditable =
+			target instanceof HTMLInputElement ||
+			target instanceof HTMLTextAreaElement ||
+			target instanceof HTMLSelectElement ||
+			target.isContentEditable;
+		if (isEditable && event.key !== 'Escape') return;
+
 		// Global actions (Snapshot)
 		if (event.key === 's' && !event.ctrlKey) {
 			const m = get(map);
