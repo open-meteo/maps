@@ -1,12 +1,4 @@
-import { get } from 'svelte/store';
-
-import { toast } from 'svelte-sonner';
-
 import { browser } from '$app/environment';
-
-import { time } from './stores/time';
-import { domain, variable } from './stores/variables';
-import { formatISOWithoutTimezone } from './time-format';
 
 /**
  * Pads a number with leading zeros to ensure 2 digits
