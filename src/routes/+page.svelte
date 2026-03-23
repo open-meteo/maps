@@ -107,7 +107,10 @@
 		setMapControlSettings();
 
 		$map.on('dataloading', () => {
-			updateCurrentBounds($map.getBounds());
+			const bounds = $map.getBounds();
+			const [minLng, minLat] = bounds.getSouthWest().toArray();
+			const [maxLng, maxLat] = bounds.getNorthEast().toArray();
+			updateCurrentBounds([minLng, minLat, maxLng, maxLat]);
 		});
 
 		$map.on('load', async () => {
