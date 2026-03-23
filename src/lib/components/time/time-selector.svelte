@@ -9,7 +9,7 @@
 
 	import { browser } from '$app/environment';
 
-	import { desktop, loading, preferences } from '$lib/stores/preferences';
+	import { desktop, loading } from '$lib/stores/preferences';
 	import { metaJson, modelRunLocked } from '$lib/stores/time';
 	import { inProgress, latest, modelRun, now, time } from '$lib/stores/time';
 	import {

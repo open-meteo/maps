@@ -21,7 +21,6 @@
 	import {
 		loading,
 		localStorageVersion,
-		preferences,
 		resetStates,
 		tileSize,
 		tileSizeSet,
