@@ -51,6 +51,7 @@
 	let countrySelectorRef = $state<ReturnType<typeof CountrySelector>>();
 
 	const DRAWN_FEATURES_KEY = 'om-clipping-drawn-features';
+	const FILL_RULE_KEY = 'om-clipping-fill-rule';
 
 	let draw: TerraDraw | undefined = $state(undefined);
 	let activeMode = $state<string>('');
@@ -59,7 +60,9 @@
 	/** Country clipping set by the country selector (kept separately so draws don't erase it). */
 	let countryClipping: ClippingOptions = $state<ClippingOptions>(undefined);
 	/** Fill rule for canvas clipping: 'nonzero' includes all rings, 'evenodd' excludes holes. */
-	let fillRule = $state<'nonzero' | 'evenodd'>('nonzero');
+	let fillRule = $state<'nonzero' | 'evenodd'>(
+		browser && localStorage.getItem(FILL_RULE_KEY) === 'evenodd' ? 'evenodd' : 'nonzero'
+	);
 
 	function loadDrawnFeatures(): GeoJSONStoreFeatures<Polygon>[] {
 		if (!browser) return [];
@@ -228,7 +231,6 @@
 	 * Called when either source changes.
 	 */
 	export const rebuildClippingOptions = () => {
-		if (!$map) return;
 		// Collect country features from the stored country clipping
 		let countryFeatures: GeoJsonFeature[] = [];
 		const cg = countryClipping?.geojson;
@@ -269,6 +271,35 @@
 	/** Called by the parent when country selection produces new clipping. */
 	export const setCountryClipping = (clipping: ClippingOptions) => {
 		countryClipping = clipping;
+		rebuildClippingOptions();
+	};
+
+	/** Import external polygon features (e.g. from a dropped GeoJSON file). */
+	export const addImportedFeatures = (features: GeoJsonFeature[]) => {
+		const imported: GeoJSONStoreFeatures<Polygon>[] = features
+			.filter((f) => f.geometry?.type === 'Polygon' || f.geometry?.type === 'MultiPolygon')
+			.flatMap((f, i) => {
+				if (f.geometry?.type === 'MultiPolygon') {
+					const coords = (f.geometry as { coordinates: number[][][][] }).coordinates;
+					return coords.map((polygon, j) => ({
+						id: `import-${Date.now()}-${i}-${j}`,
+						type: 'Feature' as const,
+						properties: { mode: 'polygon' },
+						geometry: { type: 'Polygon' as const, coordinates: polygon }
+					}));
+				}
+				return [
+					{
+						id: `import-${Date.now()}-${i}`,
+						type: 'Feature' as const,
+						properties: { mode: 'polygon' },
+						geometry: f.geometry as Polygon
+					}
+				];
+			});
+		if (imported.length === 0) return;
+		drawnFeatures = [...drawnFeatures, ...imported];
+		saveDrawnFeatures();
 		rebuildClippingOptions();
 	};
 
@@ -316,6 +347,7 @@
 
 	const toggleFillRule = () => {
 		fillRule = fillRule === 'nonzero' ? 'evenodd' : 'nonzero';
+		if (browser) localStorage.setItem(FILL_RULE_KEY, fillRule);
 		rebuildClippingOptions();
 	};
 
@@ -327,6 +359,8 @@
 		exitDrawingMode();
 		countryClipping = undefined;
 		countrySelectorRef?.clearAll();
+		fillRule = 'nonzero';
+		if (browser) localStorage.removeItem(FILL_RULE_KEY);
 		rebuildClippingOptions();
 	};
 

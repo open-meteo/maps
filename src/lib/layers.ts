@@ -293,7 +293,6 @@ export const addOmFileLayers = async (): Promise<void> => {
 	const map = get(m);
 	if (!map) return;
 	const omUrl = await getOMUrl();
-	console.log('Adding OM file layers with URL:', omUrl);
 	createManagers();
 	rasterManager?.update('om://' + omUrl);
 	vectorManager?.update('om://' + omUrl);
@@ -304,6 +303,7 @@ export const changeOMfileURL = async (vectorOnly = false, rasterOnly = false): P
 	if (!map) return;
 
 	const omUrl = await getOMUrl();
+	if (!omUrl) return;
 	if (get(currentOmUrl) == omUrl) return;
 	currentOmUrl.set(omUrl);
 

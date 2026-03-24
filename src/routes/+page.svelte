@@ -8,6 +8,8 @@
 		type RenderableColorScale,
 		domainOptions,
 		omProtocol,
+		resolveClippingOptions,
+		setClippingBounds,
 		updateCurrentBounds
 	} from '@openmeteo/weather-map-layer';
 	import * as maplibregl from 'maplibre-gl';
@@ -40,6 +42,7 @@
 	} from '$lib/components/buttons';
 	import ClippingPanel from '$lib/components/clipping/clipping-panel.svelte';
 	import { loadCountriesFromCodes } from '$lib/components/clipping/country-data';
+	import Dropzone from '$lib/components/dropzone/dropzone.svelte';
 	import HelpDialog from '$lib/components/help/help-dialog.svelte';
 	import KeyboardHandler from '$lib/components/keyboard/keyboard-handler.svelte';
 	import Spinner from '$lib/components/loading/spinner.svelte';
@@ -239,6 +242,8 @@
 	onselect={handleCountrySelect}
 	onclippingchange={async () => {
 		await tick();
+		const resolved = resolveClippingOptions($omProtocolSettings.clippingOptions);
+		setClippingBounds(resolved?.bounds);
 		await changeOMfileURL();
 		if ($map) $map.fire('dataloading');
 	}}
@@ -247,3 +252,12 @@
 <Settings />
 <HelpDialog />
 <KeyboardHandler />
+<Dropzone
+	ondrop={async (features) => {
+		clippingPanel?.addImportedFeatures(features);
+		$clippingPanelOpen = true;
+		await tick();
+		await changeOMfileURL();
+		if ($map) $map.fire('dataloading');
+	}}
+/>

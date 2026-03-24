@@ -155,7 +155,8 @@ export const urlParamsToPreferences = () => {
 export const getOMUrl = async () => {
 	const domain = get(d);
 	const base = `${getBaseUri(domain)}/data_spatial/${domain}`;
-	const modelRun = get(mR) as Date;
+	const modelRun = get(mR);
+	if (!modelRun) return undefined;
 	const selectedTime = get(time);
 
 	let result = `${base}/${fmtModelRun(modelRun)}/${fmtSelectedTime(selectedTime)}.om`;
