@@ -9,8 +9,8 @@
 		domainOptions,
 		omProtocol,
 		updateCurrentBounds
-	} from '@openmeteo/mapbox-layer';
-	import maplibregl from 'maplibre-gl';
+	} from '@openmeteo/weather-map-layer';
+	import * as maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
 	import { toast } from 'svelte-sonner';
 
@@ -22,7 +22,6 @@
 	import {
 		loading,
 		localStorageVersion,
-		preferences,
 		resetStates,
 		tileSize,
 		tileSizeSet,
@@ -37,11 +36,12 @@
 		HelpButton,
 		HillshadeButton,
 		SettingsButton,
-		TimeButton
+		SnapshotButton
 	} from '$lib/components/buttons';
 	import ClippingPanel from '$lib/components/clipping/clipping-panel.svelte';
 	import { loadCountriesFromCodes } from '$lib/components/clipping/country-data';
 	import HelpDialog from '$lib/components/help/help-dialog.svelte';
+	import KeyboardHandler from '$lib/components/keyboard/keyboard-handler.svelte';
 	import Spinner from '$lib/components/loading/spinner.svelte';
 	import Scale from '$lib/components/scale/scale.svelte';
 	import VariableSelection from '$lib/components/selection/variable-selection.svelte';
@@ -114,27 +114,25 @@
 			zoom: domainObject.grid.zoom,
 			keyboard: false,
 			hash: true,
-			maxPitch: 85
+			maxPitch: 85,
+			canvasContextAttributes: { preserveDrawingBuffer: true }
 		});
 
 		setMapControlSettings();
 
 		$map.on('dataloading', () => {
 			const bounds = $map.getBounds();
-			updateCurrentBounds([
-				bounds.getWest(),
-				bounds.getSouth(),
-				bounds.getEast(),
-				bounds.getNorth()
-			]);
+			const [minLng, minLat] = bounds.getSouthWest().toArray();
+			const [maxLng, maxLat] = bounds.getNorthEast().toArray();
+			updateCurrentBounds([minLng, minLat, maxLng, maxLat]);
 		});
 
 		$map.on('load', async () => {
 			$map.addControl(new DarkModeButton());
 			$map.addControl(new SettingsButton());
-			$map.addControl(new TimeButton());
 			$map.addControl(new HelpButton());
 			$map.addControl(new ClippingButton());
+			$map.addControl(new SnapshotButton());
 
 			if (getInitialMetaDataPromise) await getInitialMetaDataPromise;
 
@@ -218,11 +216,7 @@
 	<Spinner />
 {/if}
 
-<div
-	class="map maplibregl-map {$preferences.timeSelector ? 'time-selector-open' : ''}"
-	id="#map_container"
-	bind:this={mapContainer}
-></div>
+<div class="map maplibregl-map" id="#map_container" bind:this={mapContainer}></div>
 
 <Scale
 	afterColorScaleChange={async (variable: string, colorScale: RenderableColorScale) => {
@@ -245,3 +239,4 @@
 <TimeSelector />
 <Settings />
 <HelpDialog />
+<KeyboardHandler />

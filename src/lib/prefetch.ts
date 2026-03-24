@@ -1,6 +1,6 @@
 import { get } from 'svelte/store';
 
-import { currentBounds, getProtocolInstance, getRanges } from '@openmeteo/mapbox-layer';
+import { currentBounds, getProtocolInstance, getRanges } from '@openmeteo/weather-map-layer';
 
 import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 
@@ -8,7 +8,7 @@ import { MILLISECONDS_PER_DAY } from './constants';
 import { fmtModelRun, fmtSelectedTime, getBaseUri } from './helpers';
 import { selectedDomain } from './stores/variables';
 
-import type { DomainMetaDataJson } from '@openmeteo/mapbox-layer';
+import type { DomainMetaDataJson } from '@openmeteo/weather-map-layer';
 
 export type PrefetchMode = 'today' | 'next24h' | 'prev24h' | 'completeModelRun';
 

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { MediaQuery } from 'svelte/reactivity';
 
-	import { type RenderableColorScale, getColor, getColorScale } from '@openmeteo/mapbox-layer';
+	import { type RenderableColorScale, getColor, getColorScale } from '@openmeteo/weather-map-layer';
 	import { mode } from 'mode-watcher';
 
 	import { customColorScales } from '$lib/stores/om-protocol-settings';
@@ -103,7 +103,7 @@
 
 {#if $preferences.showScale}
 	<div
-		class="absolute z-60 {$preferences.timeSelector && !desktop.current
+		class="absolute z-60 {!desktop.current
 			? 'bottom-22.5'
 			: 'bottom-2.5'} duration-500 left-2.5 z-10 select-none rounded"
 		style="max-height: {totalHeight + 100}px;"

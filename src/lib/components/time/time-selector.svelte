@@ -3,20 +3,15 @@
 	import { SvelteDate } from 'svelte/reactivity';
 	import { fade } from 'svelte/transition';
 
-	import { closestModelRun, domainStep } from '@openmeteo/mapbox-layer';
+	import { closestModelRun, domainStep } from '@openmeteo/weather-map-layer';
 	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
-	import { browser } from '$app/environment';
-
-	import { desktop, loading, preferences, typing } from '$lib/stores/preferences';
+	import { timeSelectorActions } from '$lib/stores/keyboard';
+	import { desktop, loading } from '$lib/stores/preferences';
 	import { metaJson, modelRunLocked } from '$lib/stores/time';
 	import { inProgress, latest, modelRun, now, time } from '$lib/stores/time';
-	import {
-		domainSelectionOpen,
-		selectedDomain,
-		variableSelectionOpen
-	} from '$lib/stores/variables';
+	import { selectedDomain } from '$lib/stores/variables';
 
 	import PrefetchButton from '$lib/components/time/prefetch-button.svelte';
 	import * as Select from '$lib/components/ui/select';
@@ -351,41 +346,20 @@
 	const throttledPreviousModel = throttle(previousModel, 250);
 	const throttledNextModel = throttle(nextModel, 250);
 
-	const keyDownEvent = (event: KeyboardEvent) => {
-		if ($typing) return;
-
-		const canNavigate = !($domainSelectionOpen || $variableSelectionOpen);
-		if (!canNavigate) return;
-
-		const actions: Record<string, () => void> = {
-			ArrowLeft: event.ctrlKey ? throttledPreviousModel : throttledPreviousHour,
-			ArrowRight: event.ctrlKey ? throttledNextModel : throttledNextHour,
-			ArrowDown: throttledPreviousDay,
-			ArrowUp: throttledNextDay,
-			c: jumpToCurrentTime,
-			m: () => toggleModelRunLock(),
-			n: () => setLatestModelRun()
-		};
-
-		const action = actions[event.key];
-		if (!action) return;
-
-		// check if loading
-		if (!disabled || ['m'].includes(event.key)) {
-			action();
-		}
-	};
-
-	onMount(() => {
-		if (browser) {
-			window.addEventListener('keydown', keyDownEvent);
-		}
-	});
-
-	onDestroy(() => {
-		if (browser) {
-			window.removeEventListener('keydown', keyDownEvent);
-		}
+	$effect(() => {
+		timeSelectorActions.set({
+			previousHour: throttledPreviousHour,
+			nextHour: throttledNextHour,
+			previousDay: throttledPreviousDay,
+			nextDay: throttledNextDay,
+			previousModel: throttledPreviousModel,
+			nextModel: throttledNextModel,
+			jumpToCurrentTime,
+			toggleModelRunLock,
+			setLatestModelRun,
+			timeNavigationDisabled: disabled
+		});
+		return () => timeSelectorActions.set({});
 	});
 
 	const latestReferenceTime = $derived(new Date($latest?.reference_time as string));
@@ -744,14 +718,12 @@
 <div
 	class="fixed bottom-0 w-full md:w-[unset] md:max-w-[75vw] -translate-x-1/2 left-1/2 z-40 {disabled
 		? 'text-foreground/50 cursor-not-allowed'
-		: ''} {$preferences.timeSelector ? '' : 'pointer-events-none'}"
+		: ''}"
 >
 	<div
-		class="duration-500 select-none {disabled
+		class="duration-500 select-none opacity-100 translate-y-0 {disabled
 			? 'pointer-events-none'
-			: ''} {$preferences.timeSelector
-			? 'opacity-100 translate-y-0'
-			: 'pointer-events-none opacity-0 translate-y-15'}"
+			: ''}"
 	>
 		<!-- Hover container -->
 		<div

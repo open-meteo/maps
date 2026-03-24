@@ -5,9 +5,9 @@ import {
 	type Domain,
 	type DomainMetaDataJson,
 	closestModelRun,
+	defaultOmProtocolSettings,
 	domainStep
-} from '@openmeteo/mapbox-layer';
-import { defaultOmProtocolSettings } from '@openmeteo/mapbox-layer';
+} from '@openmeteo/weather-map-layer';
 import { mode } from 'mode-watcher';
 
 import { replaceState } from '$app/navigation';
@@ -101,13 +101,6 @@ export const urlParamsToPreferences = () => {
 	syncBoolParam('terrain', 'terrain', false);
 	syncBoolParam('hillshade', 'hillshade', false);
 	syncBoolParam('clip_water', 'clipWater', false);
-
-	const timeSelectorRaw = params.get('time_selector');
-	if (timeSelectorRaw !== null) {
-		preferences.timeSelector = timeSelectorRaw === 'true';
-	} else if (!preferences.timeSelector) {
-		url.searchParams.set('time_selector', String(preferences.timeSelector));
-	}
 
 	const domain = params.get('domain');
 	if (domain) {

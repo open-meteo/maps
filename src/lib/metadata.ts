@@ -1,6 +1,6 @@
 import { get } from 'svelte/store';
 
-import { type DomainMetaDataJson, VARIABLE_PREFIX } from '@openmeteo/mapbox-layer';
+import { type DomainMetaDataJson, VARIABLE_PREFIX } from '@openmeteo/weather-map-layer';
 
 import { loading } from '$lib/stores/preferences';
 import { inProgress as iP, latest as l, metaJson as mJ, modelRun as mR } from '$lib/stores/time';
@@ -39,6 +39,7 @@ export const getMetaData = async (): Promise<DomainMetaDataJson> => {
 		mR.set(latestReferenceTime);
 		modelRun = get(mR) as Date;
 	}
+	latest?.valid_times.sort();
 
 	if (latestReferenceTime && modelRun.getTime() === latestReferenceTime.getTime()) {
 		return latest as DomainMetaDataJson;
