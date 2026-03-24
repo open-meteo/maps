@@ -34,10 +34,10 @@ export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
 		useSAB: true,
 		cache: browser
 			? new BrowserBlockCache({
-					blockSize: 32 * 1024,
+					blockSize: 64 * 1024, // 64Kb blocks
 					cacheName: 'open-meteo-maps-cache-v1',
-					memCacheTtlMs: 1000,
-					maxBytes: 1000 * 1024 * 1024 // 1000Mb maximum storage
+					memCacheTtlMs: 1000, // 1 second in-memory cache TTL
+					maxBytes: 400 * 1024 * 1024 // 400Mb maximum storage
 				})
 			: undefined
 	},
