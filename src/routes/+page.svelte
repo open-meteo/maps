@@ -16,7 +16,7 @@
 
 	import { version } from '$app/environment';
 
-	import { clippingCountryCodes } from '$lib/stores/clipping';
+	import { clippingCountryCodes, clippingPanelOpen } from '$lib/stores/clipping';
 	import { map } from '$lib/stores/map';
 	import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 	import {
@@ -156,23 +156,25 @@
 			toast('Domain set to: ' + $selectedDomain.label);
 		}
 
-		getInitialMetaDataPromise = getInitialMetaData();
+		getInitialMetaDataPromise = (async () => {
+			await getInitialMetaData();
+			$metaJson = await getMetaData();
+
+			const timeSteps = $metaJson?.valid_times.map((validTime: string) => new Date(validTime));
+			const timeStep = findTimeStep($time, timeSteps);
+			// clamp time to valid times in meta data
+			if (timeStep) {
+				$time = timeStep;
+				updateUrl('time', formatISOWithoutTimezone($time));
+			} else {
+				// otherwise use first valid time
+				$time = timeSteps[0];
+				updateUrl('time', formatISOWithoutTimezone($time));
+			}
+
+			matchVariableOrFirst();
+		})();
 		await getInitialMetaDataPromise;
-		$metaJson = await getMetaData();
-
-		const timeSteps = $metaJson?.valid_times.map((validTime: string) => new Date(validTime));
-		const timeStep = findTimeStep($time, timeSteps);
-		// clamp time to valid times in meta data
-		if (timeStep) {
-			$time = timeStep;
-			updateUrl('time', formatISOWithoutTimezone($time));
-		} else {
-			// otherwise use first valid time
-			$time = timeSteps[0];
-			updateUrl('time', formatISOWithoutTimezone($time));
-		}
-
-		matchVariableOrFirst();
 		changeOMfileURL();
 	});
 
@@ -201,7 +203,12 @@
 	};
 
 	onMount(async () => {
-		if ($clippingCountryCodes.length > 0) {
+		const hasClipCountries = $clippingCountryCodes.length > 0;
+		const hasDrawnFeatures = !!localStorage.getItem('om-clipping-drawn-features');
+		if (hasClipCountries || hasDrawnFeatures) {
+			$clippingPanelOpen = true;
+		}
+		if (hasClipCountries) {
 			const countries = await loadCountriesFromCodes($clippingCountryCodes);
 			handleCountrySelect(countries);
 		}

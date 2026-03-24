@@ -2,6 +2,7 @@
 	import { onDestroy, onMount } from 'svelte';
 
 	import MousePointerIcon from '@lucide/svelte/icons/mouse-pointer';
+	import PaintbrushIcon from '@lucide/svelte/icons/paintbrush';
 	import PentagonIcon from '@lucide/svelte/icons/pentagon';
 	import SplineIcon from '@lucide/svelte/icons/spline';
 	import SquareIcon from '@lucide/svelte/icons/square';
@@ -57,6 +58,8 @@
 	let drawnFeatures: GeoJSONStoreFeatures<Polygon>[] = $state(loadDrawnFeatures());
 	/** Country clipping set by the country selector (kept separately so draws don't erase it). */
 	let countryClipping: ClippingOptions = $state<ClippingOptions>(undefined);
+	/** Fill rule for canvas clipping: 'nonzero' includes all rings, 'evenodd' excludes holes. */
+	let fillRule = $state<'nonzero' | 'evenodd'>('nonzero');
 
 	function loadDrawnFeatures(): GeoJSONStoreFeatures<Polygon>[] {
 		if (!browser) return [];
@@ -251,6 +254,7 @@
 			omProtocolSettings.update((s) => ({
 				...s,
 				clippingOptions: {
+					fillRule,
 					geojson: {
 						type: 'FeatureCollection' as const,
 						features: allFeatures
@@ -308,6 +312,11 @@
 			terraDrawActive.set(false);
 		}
 		$map?.getCanvas().style.removeProperty('cursor');
+	};
+
+	const toggleFillRule = () => {
+		fillRule = fillRule === 'nonzero' ? 'evenodd' : 'nonzero';
+		rebuildClippingOptions();
 	};
 
 	const clearDrawings = () => {
@@ -396,6 +405,18 @@
 					onclick={() => setMode('select')}
 				>
 					<MousePointerIcon class="h-4 w-4" />
+				</button>
+				<button
+					class="inline-flex border-2 cursor-pointer h-8 items-center justify-center rounded-md px-1.5 text-xs font-semibold transition-colors
+						{fillRule === 'evenodd'
+						? 'bg-primary text-primary-foreground border-primary'
+						: 'bg-secondary text-secondary-foreground border-primary/50 hover:bg-accent'}"
+					title={fillRule === 'evenodd'
+						? 'Fill rule: even-odd (holes excluded)'
+						: 'Fill rule: non-zero (all rings filled)'}
+					onclick={toggleFillRule}
+				>
+					<PaintbrushIcon class="h-4 w-4" />
 				</button>
 				<button
 					class="inline-flex border-2 border-transparent {drawnFeatures.length > 0 ||
