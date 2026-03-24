@@ -32,7 +32,11 @@
 	import CountrySelector from './country-selector.svelte';
 
 	import type { Country } from './country-data';
-	import type { ClippingOptions, GeoJsonFeature, GeoJsonGeometry } from '@openmeteo/mapbox-layer';
+	import type {
+		ClippingOptions,
+		GeoJsonFeature,
+		GeoJsonGeometry
+	} from '@openmeteo/weather-map-layer';
 	import type { Polygon } from 'geojson';
 	import type { GeoJSONStoreFeatures } from 'terra-draw';
 

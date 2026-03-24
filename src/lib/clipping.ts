@@ -6,7 +6,7 @@ import type {
 	GeoJson,
 	GeoJsonGeometry,
 	GeoJsonPosition
-} from '@openmeteo/mapbox-layer';
+} from '@openmeteo/weather-map-layer';
 import type { FeatureCollection, Geometry, MultiPolygon, Polygon } from 'geojson';
 
 /** Ensure every polygon ring is properly closed (first coord === last coord). */
