@@ -70,11 +70,10 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 	const elevation = map?.queryTerrainElevation(coordinates);
 	const hasElevation = typeof elevation === 'number' && isFinite(elevation);
 
-	const { value } = await getValueFromLatLong(
-		coordinates.lat,
-		coordinates.lng,
-		rasterManager?.getActiveSourceUrl() ?? ''
-	);
+	const activeUrl = rasterManager?.getActiveSourceUrl();
+	if (!activeUrl) return;
+
+	const { value } = await getValueFromLatLong(coordinates.lat, coordinates.lng, activeUrl);
 
 	if (isFinite(value)) {
 		const omProtocolSettingsState = get(omProtocolSettings);
