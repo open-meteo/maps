@@ -2,6 +2,7 @@
 	import { onDestroy, onMount } from 'svelte';
 
 	import { ModeWatcher } from 'mode-watcher';
+	import { pwaInfo } from 'virtual:pwa-info';
 
 	import { now } from '$lib/stores/time';
 
@@ -10,11 +11,27 @@
 	import { METADATA_REFRESH_INTERVAL, MILLISECONDS_PER_MINUTE } from '$lib/constants';
 	import { getInitialMetaData } from '$lib/metadata';
 
+	const webManifest = $derived(pwaInfo ? pwaInfo.webManifest.linkTag : '');
+
 	let { children } = $props();
 
 	let metaDataInterval: ReturnType<typeof setInterval>;
 	let updateNowInterval: ReturnType<typeof setTimeout> | undefined;
-	onMount(() => {
+
+	onMount(async () => {
+		if (pwaInfo) {
+			const { registerSW } = await import('virtual:pwa-register');
+			registerSW({
+				immediate: true,
+				onRegistered(r) {
+					console.log(`SW Registered: ${r}`);
+				},
+				onRegisterError(error) {
+					console.log('SW registration error', error);
+				}
+			});
+		}
+
 		if (metaDataInterval) clearInterval(metaDataInterval);
 		metaDataInterval = setInterval(() => {
 			getInitialMetaData();
@@ -30,6 +47,11 @@
 		if (metaDataInterval) clearInterval(metaDataInterval);
 	});
 </script>
+
+<svelte:head>
+	<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+	{@html webManifest}
+</svelte:head>
 
 <Toaster
 	closeButton={true}
