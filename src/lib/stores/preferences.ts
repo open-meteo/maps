@@ -1,6 +1,7 @@
 import { MediaQuery } from 'svelte/reactivity';
 import { type Writable, writable } from 'svelte/store';
 
+import { clearBlockCache } from '@openmeteo/weather-map-layer';
 import { setMode } from 'mode-watcher';
 import { type Persisted, persisted } from 'svelte-persisted-store';
 
@@ -107,6 +108,8 @@ export const resetStates = async () => {
 	helpOpen.set(false);
 
 	setMode('system');
+
+	await clearBlockCache();
 };
 
 // used to check against url search parameters
