@@ -152,6 +152,16 @@ export const urlParamsToPreferences = () => {
 	p.set(preferences);
 };
 
+let cachedClippingJson = '';
+let cachedClippingHash = '';
+let cachedColorJson = '';
+let cachedColorHash = '';
+
+const memorisedHash = async (json: string, cachedJson: string, cachedHash: string) => {
+	if (json === cachedJson) return { json, hash: cachedHash };
+	return { json, hash: await hashValue(json) };
+};
+
 export const getOMUrl = async () => {
 	const domain = get(d);
 	const base = `${getBaseUri(domain)}/data_spatial/${domain}`;
@@ -178,17 +188,22 @@ export const getOMUrl = async () => {
 		omProtocolSettingsState.clippingOptions !== undefined &&
 		omProtocolSettingsState.clippingOptions !== defaultOmProtocolSettings.clippingOptions
 	) {
-		const clippingHash = await hashValue(JSON.stringify(omProtocolSettingsState.clippingOptions));
-		result += `&clipping_options_hash=${clippingHash}`;
+		const clippingJson = JSON.stringify(omProtocolSettingsState.clippingOptions);
+		const cached = await memorisedHash(clippingJson, cachedClippingJson, cachedClippingHash);
+		cachedClippingJson = cached.json;
+		cachedClippingHash = cached.hash;
+		result += `&clipping_options_hash=${cached.hash}`;
 	}
 
+	const colorJson = JSON.stringify(omProtocolSettingsState.colorScales);
 	if (
 		omProtocolSettingsState.colorScales !== undefined &&
-		JSON.stringify(omProtocolSettingsState.colorScales) !==
-			JSON.stringify(defaultOmProtocolSettings.colorScales)
+		colorJson !== JSON.stringify(defaultOmProtocolSettings.colorScales)
 	) {
-		const colorHash = await hashValue(JSON.stringify(omProtocolSettingsState.colorScales));
-		result += `&color_hash=${colorHash}`;
+		const cached = await memorisedHash(colorJson, cachedColorJson, cachedColorHash);
+		cachedColorJson = cached.json;
+		cachedColorHash = cached.hash;
+		result += `&color_hash=${cached.hash}`;
 	}
 
 	return result;
