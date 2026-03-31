@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy, onMount, tick } from 'svelte';
+	import { onDestroy, onMount, tick, untrack } from 'svelte';
 
 	import MousePointerIcon from '@lucide/svelte/icons/mouse-pointer';
 	import PaintbrushIcon from '@lucide/svelte/icons/paintbrush';
@@ -379,22 +379,25 @@
 		}
 	};
 
+	// Auto-open the panel when country codes appear from URL parsing
+	// (parent's onMount runs urlParamsToPreferences after this component mounts)
+	$effect(() => {
+		if ($clippingCountryCodes.length > 0 && !untrack(() => $clippingPanelOpen)) {
+			$clippingPanelOpen = true;
+		}
+	});
+
 	onMount(async () => {
 		if (browser) {
 			window.addEventListener('keydown', handleEscapeKeydown, true);
 
-			const hasClipCountries = $clippingCountryCodes.length > 0;
-			const hasDrawnFeatures = !!localStorage.getItem(DRAWN_FEATURES_KEY);
-			if (hasClipCountries || hasDrawnFeatures) {
-				$clippingPanelOpen = true;
-			}
-			if (hasClipCountries) {
-				const countries = await loadCountriesFromCodes($clippingCountryCodes);
-				handleCountrySelect(countries);
+			// Ensure drawn features are loaded from localStorage (SSR/hydration safety)
+			if (drawnFeatures.length === 0) {
+				drawnFeatures = loadDrawnFeatures();
 			}
 
-			// Restore persisted drawn features into clipping on load
 			if (drawnFeatures.length > 0) {
+				$clippingPanelOpen = true;
 				rebuildClippingOptions();
 			}
 		}

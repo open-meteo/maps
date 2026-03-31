@@ -20,8 +20,6 @@ import { rasterManager } from './layers';
 import { suppressPopupUntil, terraDrawActive } from './stores/clipping';
 import { desktop, opacity } from './stores/preferences';
 
-let popup: maplibregl.Marker | undefined;
-
 let el: HTMLDivElement | undefined;
 let wrapperDiv: HTMLDivElement | undefined;
 let contentDiv: HTMLDivElement | undefined;
@@ -192,6 +190,10 @@ export const addPopup = (): void => {
 			removePopup();
 			return;
 		}
+
+		// Re-add mousemove listener (may have been removed by a previous removePopup)
+		map.off('mousemove', updatePopup);
+		map.on('mousemove', updatePopup);
 
 		await renderPopup(e.lngLat);
 	});
