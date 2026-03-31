@@ -27,35 +27,19 @@ export const getInitialMetaData = async () => {
 	}
 };
 
-export const getMetaData = async (): Promise<DomainMetaDataJson> => {
-	const domain = get(d);
-	const uri = getBaseUri(domain);
-	let modelRun = get(mR);
+const toDate = (dateString: string | undefined): Date | undefined =>
+	dateString ? new Date(dateString) : undefined;
 
-	const latest = get(l);
-	const latestReferenceTime = latest?.reference_time ? new Date(latest.reference_time) : undefined;
+const matchesModelRun = (referenceTime: Date | undefined, modelRun: Date): boolean =>
+	referenceTime?.getTime() === modelRun.getTime();
 
-	if (modelRun === undefined) {
-		mR.set(latestReferenceTime);
-		modelRun = get(mR) as Date;
-	}
-	latest?.valid_times.sort();
-
-	if (latestReferenceTime && modelRun.getTime() === latestReferenceTime.getTime()) {
-		return latest as DomainMetaDataJson;
-	}
-
-	const inProgress = get(iP);
-	const inProgressReferenceTime = inProgress?.reference_time
-		? new Date(inProgress.reference_time)
-		: undefined;
-
-	if (inProgressReferenceTime && modelRun.getTime() === inProgressReferenceTime.getTime()) {
-		return inProgress as DomainMetaDataJson;
-	}
-
-	const metaJsonUrl = `${uri}/data_spatial/${domain}/${fmtModelRun(modelRun)}/meta.json`;
-	const res = await fetch(metaJsonUrl);
+const fetchMetaData = async (
+	uri: string,
+	domain: string,
+	modelRun: Date
+): Promise<DomainMetaDataJson> => {
+	const url = `${uri}/data_spatial/${domain}/${fmtModelRun(modelRun)}/meta.json`;
+	const res = await fetch(url);
 
 	if (!res.ok) {
 		loading.set(false);
@@ -63,6 +47,31 @@ export const getMetaData = async (): Promise<DomainMetaDataJson> => {
 	}
 
 	return res.json();
+};
+
+export const getMetaData = async (): Promise<DomainMetaDataJson> => {
+	const domain = get(d);
+	const uri = getBaseUri(domain);
+
+	const latest = get(l);
+	const latestReferenceTime = toDate(latest?.reference_time);
+
+	if (get(mR) === undefined) {
+		mR.set(latestReferenceTime);
+	}
+	const modelRun = get(mR) as Date;
+
+	const inProgress = get(iP);
+	const inProgressReferenceTime = toDate(inProgress?.reference_time);
+
+	const result: DomainMetaDataJson = matchesModelRun(latestReferenceTime, modelRun)
+		? (latest as DomainMetaDataJson)
+		: matchesModelRun(inProgressReferenceTime, modelRun)
+			? (inProgress as DomainMetaDataJson)
+			: await fetchMetaData(uri, domain, modelRun);
+
+	result.valid_times.sort();
+	return result;
 };
 
 export const matchVariableOrFirst = () => {
