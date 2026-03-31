@@ -347,7 +347,8 @@
 	position: absolute;
 	font-size: 0.72rem;
 	font-weight: 600;
-	opacity: 0.72;
+	opacity: 0.95;
+	transition: 200ms;
 	margin-left: 2px;
 	font-size: smaller;
 	color: black;
