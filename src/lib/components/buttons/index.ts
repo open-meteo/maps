@@ -191,6 +191,8 @@ export class HelpButton {
 	onRemove() {}
 }
 
+let clippingPanelOpenSubscribtion: () => void;
+let omProtocolSettingsSubscribtion: () => void;
 export class ClippingButton {
 	onAdd() {
 		const div = document.createElement('div');
@@ -221,8 +223,8 @@ export class ClippingButton {
 			}
 		};
 
-		clippingPanelOpen.subscribe(updateIcon);
-		omProtocolSettings.subscribe(updateIcon);
+		clippingPanelOpenSubscribtion = clippingPanelOpen.subscribe(updateIcon);
+		omProtocolSettingsSubscribtion = omProtocolSettings.subscribe(updateIcon);
 
 		div.addEventListener('contextmenu', (e) => e.preventDefault());
 		div.addEventListener('click', () => {
@@ -231,5 +233,8 @@ export class ClippingButton {
 		});
 		return div;
 	}
-	onRemove() {}
+	onRemove() {
+		clippingPanelOpenSubscribtion?.();
+		omProtocolSettingsSubscribtion?.();
+	}
 }
