@@ -110,25 +110,28 @@
 
 <Popover.Root bind:open>
 	<Popover.Trigger>
-		<Button
-			variant="outline"
-			class="bg-glass/75 dark:bg-glass/75 backdrop-blur-sm shadow-md {open
-				? 'bg-glass/95!'
-				: ''} hover:bg-glass/95! border-none h-7.25 w-48 cursor-pointer justify-between rounded p-1.5!"
-			role="combobox"
-			aria-expanded={open}
-		>
-			<div class="truncate">
-				{#if $clippingCountryCodes.length === 0}
-					Clip: Select countries...
-				{:else if totalCountriesCount === 1}
-					Clip: {selectedCountryObjs[0]?.name}
-				{:else}
-					Clip: {totalCountriesCount} countries
-				{/if}
-			</div>
-			<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
-		</Button>
+		{#snippet child({ props })}
+			<Button
+				{...props}
+				variant="outline"
+				class="bg-glass/75 dark:bg-glass/75 backdrop-blur-sm shadow-md {open
+					? 'bg-glass/95!'
+					: ''} hover:bg-glass/95! border-none h-7.25 w-48 cursor-pointer justify-between rounded p-1.5!"
+				role="combobox"
+				aria-expanded={open}
+			>
+				<div class="truncate">
+					{#if $clippingCountryCodes.length === 0}
+						Clip: Select countries...
+					{:else if totalCountriesCount === 1}
+						Clip: {selectedCountryObjs[0]?.name}
+					{:else}
+						Clip: {totalCountriesCount} countries
+					{/if}
+				</div>
+				<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
+			</Button>
+		{/snippet}
 	</Popover.Trigger>
 	<Popover.Content class="bg-transparent! mt-3 mr-11 ml-2.5 w-62.5 rounded border-none! p-0">
 		<Command.Root class="bg-glass/85! backdrop-blur-sm rounded" shouldFilter={false}>

@@ -146,19 +146,22 @@
 				}}
 			>
 				<Popover.Trigger>
-					<Button
-						variant="outline"
-						class="bg-glass/75 dark:bg-glass/75 backdrop-blur-sm shadow-md {domainSelectionOpen
-							? 'bg-glass/95!'
-							: ''} hover:bg-glass/95! border-none h-7.25 w-45 cursor-pointer justify-between rounded p-1.5!"
-						role="combobox"
-						aria-expanded={domainSelectionOpen}
-					>
-						<div class="truncate">
-							{$selectedDomain?.label || 'Select a domain...'}
-						</div>
-						<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
-					</Button>
+					{#snippet child({ props })}
+						<Button
+							{...props}
+							variant="outline"
+							class="bg-glass/75 dark:bg-glass/75 backdrop-blur-sm shadow-md {domainSelectionOpen
+								? 'bg-glass/95!'
+								: ''} hover:bg-glass/95! border-none h-7.25 w-45 cursor-pointer justify-between rounded p-1.5!"
+							role="combobox"
+							aria-expanded={domainSelectionOpen}
+						>
+							<div class="truncate">
+								{$selectedDomain?.label || 'Select a domain...'}
+							</div>
+							<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
+						</Button>
+					{/snippet}
 				</Popover.Trigger>
 				<Popover.Content
 					onOpenAutoFocus={(e) => {
@@ -242,21 +245,24 @@
 				}}
 			>
 				<Popover.Trigger class={domainSelectionOpen ? 'hidden' : ''}>
-					<Button
-						variant="outline"
-						class="bg-glass/75 dark:bg-glass/75 backdrop-blur-sm shadow-md  {variableSelectionOpen
-							? 'bg-glass/95!'
-							: ''} hover:bg-glass/95! h-7.25 w-45 cursor-pointer justify-between rounded border-none p-1.5!"
-						role="combobox"
-						aria-expanded={variableSelectionOpen}
-					>
-						<div class="truncate">
-							{$levelGroupSelected
-								? $levelGroupSelected?.label
-								: $selectedVariable?.label || 'Select a variable...'}
-						</div>
-						<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
-					</Button>
+					{#snippet child({ props })}
+						<Button
+							{...props}
+							variant="outline"
+							class="bg-glass/75 dark:bg-glass/75 backdrop-blur-sm shadow-md  {variableSelectionOpen
+								? 'bg-glass/95!'
+								: ''} hover:bg-glass/95! h-7.25 w-45 cursor-pointer justify-between rounded border-none p-1.5! {domainSelectionOpen ? 'hidden' : ''}"
+							role="combobox"
+							aria-expanded={variableSelectionOpen}
+						>
+							<div class="truncate">
+								{$levelGroupSelected
+									? $levelGroupSelected?.label
+									: $selectedVariable?.label || 'Select a variable...'}
+							</div>
+							<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
+						</Button>
+					{/snippet}
 				</Popover.Trigger>
 				<Popover.Content
 					tabindex={0}
@@ -369,19 +375,22 @@
 					}}
 				>
 					<Popover.Trigger class={domainSelectionOpen || variableSelectionOpen ? 'hidden' : ''}>
-						<Button
-							variant="outline"
-							class="bg-glass/75 dark:bg-glass/75 backdrop-blur-sm shadow-md {pressureLevelSelectionOpen
-								? 'bg-glass/95!'
-								: ''} hover:bg-glass/95! h-7.25 w-45 cursor-pointer justify-between rounded border-none p-1.5!"
-							role="combobox"
-							aria-expanded={pressureLevelSelectionOpen}
-						>
-							<div class="truncate">
-								{$level + ' ' + $unit || 'Select a level...'}
-							</div>
-							<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
-						</Button>
+						{#snippet child({ props })}
+							<Button
+								{...props}
+								variant="outline"
+								class="bg-glass/75 dark:bg-glass/75 backdrop-blur-sm shadow-md {pressureLevelSelectionOpen
+									? 'bg-glass/95!'
+									: ''} hover:bg-glass/95! h-7.25 w-45 cursor-pointer justify-between rounded border-none p-1.5! {domainSelectionOpen || variableSelectionOpen ? 'hidden' : ''}"
+								role="combobox"
+								aria-expanded={pressureLevelSelectionOpen}
+							>
+								<div class="truncate">
+									{$level + ' ' + $unit || 'Select a level...'}
+								</div>
+								<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
+							</Button>
+						{/snippet}
 					</Popover.Trigger>
 					<Popover.Content
 						tabindex={0}
