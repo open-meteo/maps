@@ -2,6 +2,8 @@
 	import UploadIcon from '@lucide/svelte/icons/upload';
 	import { toast } from 'svelte-sonner';
 
+	import { clippingPanelOpen } from '$lib/stores/clipping';
+
 	import type { GeoJsonFeature, GeoJsonGeometry } from '@openmeteo/weather-map-layer';
 
 	interface Props {
@@ -102,6 +104,7 @@
 		toast.success(
 			`Loaded ${features.length} polygon${features.length > 1 ? 's' : ''} from ${file.name}`
 		);
+		$clippingPanelOpen = true;
 		ondrop?.(features);
 	};
 

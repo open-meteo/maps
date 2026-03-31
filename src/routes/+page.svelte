@@ -5,11 +5,8 @@
 	import {
 		type Domain,
 		GridFactory,
-		type RenderableColorScale,
 		domainOptions,
 		omProtocol,
-		resolveClippingOptions,
-		setClippingBounds,
 		updateCurrentBounds
 	} from '@openmeteo/weather-map-layer';
 	import * as maplibregl from 'maplibre-gl';
@@ -18,7 +15,6 @@
 
 	import { version } from '$app/environment';
 
-	import { clippingCountryCodes, clippingPanelOpen } from '$lib/stores/clipping';
 	import { map } from '$lib/stores/map';
 	import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 	import {
@@ -41,7 +37,6 @@
 		SnapshotButton
 	} from '$lib/components/buttons';
 	import ClippingPanel from '$lib/components/clipping/clipping-panel.svelte';
-	import { loadCountriesFromCodes } from '$lib/components/clipping/country-data';
 	import Dropzone from '$lib/components/dropzone/dropzone.svelte';
 	import HelpDialog from '$lib/components/help/help-dialog.svelte';
 	import KeyboardHandler from '$lib/components/keyboard/keyboard-handler.svelte';
@@ -51,11 +46,6 @@
 	import Settings from '$lib/components/settings/settings.svelte';
 	import TimeSelector from '$lib/components/time/time-selector.svelte';
 
-	import {
-		CLIP_COUNTRIES_PARAM,
-		buildCountryClippingOptions,
-		serializeClipCountriesParam
-	} from '$lib/clipping';
 	import { checkHighDefinition } from '$lib/helpers';
 	import { addOmFileLayers, changeOMfileURL } from '$lib/layers';
 	import { addTerrainSource, getStyle, setMapControlSettings } from '$lib/map-controls';
@@ -67,7 +57,6 @@
 
 	import '../styles.css';
 
-	import type { Country } from '$lib/components/clipping/country-data';
 	import type { RequestParameters } from 'maplibre-gl';
 
 	let clippingPanel: ReturnType<typeof ClippingPanel>;
@@ -198,24 +187,6 @@
 		domainSubscription(); // unsubscribe
 		variableSubscription(); // unsubscribe
 	});
-
-	const handleCountrySelect = (countries: Country[]) => {
-		updateUrl(CLIP_COUNTRIES_PARAM, serializeClipCountriesParam($clippingCountryCodes));
-		const nextClipping = buildCountryClippingOptions(countries);
-		clippingPanel?.setCountryClipping(nextClipping);
-	};
-
-	onMount(async () => {
-		const hasClipCountries = $clippingCountryCodes.length > 0;
-		const hasDrawnFeatures = !!localStorage.getItem('om-clipping-drawn-features');
-		if (hasClipCountries || hasDrawnFeatures) {
-			$clippingPanelOpen = true;
-		}
-		if (hasClipCountries) {
-			const countries = await loadCountriesFromCodes($clippingCountryCodes);
-			handleCountrySelect(countries);
-		}
-	});
 </script>
 
 <svelte:head>
@@ -228,36 +199,15 @@
 
 <div class="map maplibregl-map" id="#map_container" bind:this={mapContainer}></div>
 
-<Scale
-	afterColorScaleChange={async (variable: string, colorScale: RenderableColorScale) => {
-		$omProtocolSettings.colorScales[variable] = colorScale;
-		await tick();
-		changeOMfileURL();
-		toast('Changed color scale');
-	}}
-/>
+<Scale />
 <VariableSelection />
-<ClippingPanel
-	bind:this={clippingPanel}
-	onselect={handleCountrySelect}
-	onclippingchange={async () => {
-		await tick();
-		const resolved = resolveClippingOptions($omProtocolSettings.clippingOptions);
-		setClippingBounds(resolved?.bounds);
-		await changeOMfileURL();
-		if ($map) $map.fire('dataloading');
-	}}
-/>
+<ClippingPanel bind:this={clippingPanel} />
 <TimeSelector />
 <Settings />
 <HelpDialog />
 <KeyboardHandler />
 <Dropzone
-	ondrop={async (features) => {
+	ondrop={(features) => {
 		clippingPanel?.addImportedFeatures(features);
-		$clippingPanelOpen = true;
-		await tick();
-		await changeOMfileURL();
-		if ($map) $map.fire('dataloading');
 	}}
 />

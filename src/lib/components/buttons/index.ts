@@ -231,6 +231,7 @@ export class ClippingButton {
 			const open = get(clippingPanelOpen);
 			clippingPanelOpen.set(!open);
 		});
+		updateIcon();
 		return div;
 	}
 	onRemove() {

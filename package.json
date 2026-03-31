@@ -37,6 +37,7 @@
 		"@tailwindcss/typography": "^0.5.15",
 		"@tailwindcss/vite": "^4.2.2",
 		"@trivago/prettier-plugin-sort-imports": "^6.0.0",
+		"@turf/turf": "^7.3.4",
 		"@types/node": "^25.5.0",
 		"@vitest/coverage-v8": "^4.1.0",
 		"bits-ui": "^2.16.1",

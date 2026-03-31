@@ -182,16 +182,14 @@ export const addPopup = (): void => {
 	map.on('click', async (e: maplibregl.MapMouseEvent) => {
 		if (!map) return;
 		if (get(terraDrawActive) || Date.now() < get(suppressPopupUntil)) {
-			popup?.remove();
+			removePopup();
 			return;
 		}
 
 		switchPopupMode();
 
 		if (get(popupMode) === null) {
-			const popup = get(p);
-			popup?.remove();
-			p.set(undefined);
+			removePopup();
 			return;
 		}
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { SvelteSet } from 'svelte/reactivity';
 	import { fade } from 'svelte/transition';
 
 	import CheckIcon from '@lucide/svelte/icons/check';
@@ -23,11 +24,14 @@
 
 	let open = $state(false);
 	let searchValue = $state('');
-	let loadingGeojson = $state(false);
 	let selectionRequestId = 0;
 
 	$effect(() => {
 		typing.set(open);
+
+		return () => {
+			typing.set(false);
+		};
 	});
 
 	$effect(() => {
@@ -64,7 +68,7 @@
 
 	// Calculate the total number of actual countries (deduplicated by filename)
 	const totalCountriesCount = $derived.by(() => {
-		const uniqueFiles = new Set<string>();
+		const uniqueFiles = new SvelteSet<string>();
 		for (const country of selectedCountryObjs) {
 			if (country.filenames && country.filenames.length > 0) {
 				for (const filename of country.filenames) {
@@ -83,11 +87,9 @@
 	}
 
 	async function loadCountryGeoJsonWithState(country: Country): Promise<Country> {
-		loadingGeojson = true;
 		try {
 			return await loadCountryGeoJson(country);
 		} finally {
-			loadingGeojson = false;
 		}
 	}
 

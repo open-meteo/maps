@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
+	import { onDestroy, onMount, tick } from 'svelte';
 
 	import MousePointerIcon from '@lucide/svelte/icons/mouse-pointer';
 	import PaintbrushIcon from '@lucide/svelte/icons/paintbrush';
@@ -28,8 +28,16 @@
 	import { map } from '$lib/stores/map';
 	import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 
+	import {
+		CLIP_COUNTRIES_PARAM,
+		buildCountryClippingOptions,
+		serializeClipCountriesParam
+	} from '$lib/clipping';
+	import { changeOMfileURL } from '$lib/layers';
 	import { removePopup } from '$lib/popup';
+	import { updateUrl } from '$lib/url';
 
+	import { loadCountriesFromCodes } from './country-data';
 	import CountrySelector from './country-selector.svelte';
 
 	import type { Country } from './country-data';
@@ -40,13 +48,6 @@
 	} from '@openmeteo/weather-map-layer';
 	import type { Polygon } from 'geojson';
 	import type { GeoJSONStoreFeatures } from 'terra-draw';
-
-	interface Props {
-		onselect?: (countries: Country[]) => void;
-		onclippingchange?: () => void;
-	}
-
-	let { onselect, onclippingchange }: Props = $props();
 
 	let countrySelectorRef = $state<ReturnType<typeof CountrySelector>>();
 
@@ -230,7 +231,7 @@
 	 * Rebuild clippingOptions from both country geojson and drawn features.
 	 * Called when either source changes.
 	 */
-	export const rebuildClippingOptions = () => {
+	export const rebuildClippingOptions = async () => {
 		// Collect country features from the stored country clipping
 		let countryFeatures: GeoJsonFeature[] = [];
 		const cg = countryClipping?.geojson;
@@ -265,13 +266,21 @@
 			}));
 		}
 
-		onclippingchange?.();
+		await tick();
+		await changeOMfileURL();
+		if ($map) $map.fire('dataloading');
 	};
 
 	/** Called by the parent when country selection produces new clipping. */
 	export const setCountryClipping = (clipping: ClippingOptions) => {
 		countryClipping = clipping;
 		rebuildClippingOptions();
+	};
+
+	const handleCountrySelect = (countries: Country[]) => {
+		updateUrl(CLIP_COUNTRIES_PARAM, serializeClipCountriesParam($clippingCountryCodes));
+		const nextClipping = buildCountryClippingOptions(countries);
+		setCountryClipping(nextClipping);
 	};
 
 	/** Import external polygon features (e.g. from a dropped GeoJSON file). */
@@ -370,9 +379,20 @@
 		}
 	};
 
-	onMount(() => {
+	onMount(async () => {
 		if (browser) {
 			window.addEventListener('keydown', handleEscapeKeydown, true);
+
+			const hasClipCountries = $clippingCountryCodes.length > 0;
+			const hasDrawnFeatures = !!localStorage.getItem(DRAWN_FEATURES_KEY);
+			if (hasClipCountries || hasDrawnFeatures) {
+				$clippingPanelOpen = true;
+			}
+			if (hasClipCountries) {
+				const countries = await loadCountriesFromCodes($clippingCountryCodes);
+				handleCountrySelect(countries);
+			}
+
 			// Restore persisted drawn features into clipping on load
 			if (drawnFeatures.length > 0) {
 				rebuildClippingOptions();
@@ -464,6 +484,6 @@
 				</button>
 			</div>
 		</div>
-		<CountrySelector bind:this={countrySelectorRef} {onselect} />
+		<CountrySelector bind:this={countrySelectorRef} onselect={handleCountrySelect} />
 	</div>
 {/if}
