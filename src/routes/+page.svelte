@@ -146,7 +146,7 @@
 
 			await addOmFileLayers();
 			addPopup();
-			changeOMfileURL();
+			void changeOMfileURL();
 		});
 	});
 
@@ -178,7 +178,7 @@
 			matchVariableOrFirst();
 		})();
 		await getInitialMetaDataPromise;
-		changeOMfileURL();
+		void changeOMfileURL();
 	});
 
 	const variableSubscription = variable.subscribe(async (newVar) => {
@@ -188,7 +188,7 @@
 			toast('Variable set to: ' + $selectedVariable.label);
 		}
 
-		changeOMfileURL();
+		void changeOMfileURL();
 	});
 
 	onDestroy(() => {
