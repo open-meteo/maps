@@ -69,7 +69,7 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 
 	if (isFinite(value)) {
 		const isDark = mode.current === 'dark';
-		const colorScale = getColorScale(get(v), isDark, omProtocolSettings.colorScales);
+		const colorScale = getColorScale(get(v), isDark, get(omProtocolSettings).colorScales);
 		const color = getColor(colorScale, value);
 
 		const popupOpacity =

@@ -1,6 +1,9 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { get } from 'svelte/store';
 	import { slide } from 'svelte/transition';
+
+	import { clearBlockCache } from '@openmeteo/weather-map-layer';
 
 	import { cacheBlockSizeKb, cacheMaxBytesMb } from '$lib/stores/om-protocol-settings';
 
@@ -12,6 +15,19 @@
 	const appliedMaxBytes = get(cacheMaxBytesMb);
 
 	const reload = () => window.location.reload();
+
+	let initialized = false;
+
+	$effect(() => {
+		const _blockSize = $cacheBlockSizeKb;
+		const _maxBytes = $cacheMaxBytesMb;
+		untrack(() => {
+			if (initialized) {
+				clearBlockCache();
+			}
+			initialized = true;
+		});
+	});
 </script>
 
 <div>

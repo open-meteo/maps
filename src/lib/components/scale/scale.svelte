@@ -1,10 +1,12 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
 
 	import { type RenderableColorScale, getColor, getColorScale } from '@openmeteo/weather-map-layer';
 	import { mode } from 'mode-watcher';
+	import { toast } from 'svelte-sonner';
 
-	import { customColorScales } from '$lib/stores/om-protocol-settings';
+	import { customColorScales, omProtocolSettings } from '$lib/stores/om-protocol-settings';
 	import { opacity, preferences } from '$lib/stores/preferences';
 	import {
 		convertValue,
@@ -19,16 +21,16 @@
 
 	import { getAlpha, hexToRgba, rgbaToHex } from '$lib/color';
 	import { textWhite } from '$lib/helpers';
+	import { changeOMfileURL } from '$lib/layers';
 	import { refreshPopup } from '$lib/popup';
 
 	import ColorPicker from './color-picker.svelte';
 
 	interface Props {
 		editable?: boolean;
-		afterColorScaleChange: (variable: string, colorScale: RenderableColorScale) => void;
 	}
 
-	let { editable = true, afterColorScaleChange }: Props = $props();
+	let { editable = true }: Props = $props();
 
 	const isDark = $derived(mode.current === 'dark');
 	const baseColorScale: RenderableColorScale = $derived(getColorScale($variable, isDark));
@@ -68,7 +70,7 @@
 		editingIndex = index;
 	};
 
-	const handleColorChange = (newHex: string, newAlpha: number) => {
+	const handleColorChange = async (newHex: string, newAlpha: number) => {
 		if (editingIndex === null) return;
 
 		const newScale = structuredClone(colorScale);
@@ -82,8 +84,10 @@
 			...scales,
 			[$variable]: newScale
 		}));
-		// console.log(`customColorScales[${$variable}]: `, JSON.stringify($customColorScales[$variable]));
-		afterColorScaleChange($variable, newScale);
+		$omProtocolSettings.colorScales[$variable] = newScale;
+		await tick();
+		await changeOMfileURL();
+		toast('Changed color scale');
 	};
 
 	const closePicker = () => {

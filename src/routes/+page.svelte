@@ -4,7 +4,6 @@
 
 	import {
 		GridFactory,
-		type RenderableColorScale,
 		domainOptions,
 		omProtocol,
 		updateCurrentBounds
@@ -17,7 +16,7 @@
 	import { version } from '$app/environment';
 
 	import { map } from '$lib/stores/map';
-	import { defaultColorHash, omProtocolSettings } from '$lib/stores/om-protocol-settings';
+	import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 	import {
 		loading,
 		localStorageVersion,
@@ -43,7 +42,7 @@
 	import Settings from '$lib/components/settings/settings.svelte';
 	import TimeSelector from '$lib/components/time/time-selector.svelte';
 
-	import { checkHighDefinition, hashValue } from '$lib/helpers';
+	import { checkHighDefinition } from '$lib/helpers';
 	import { addOmFileLayers, changeOMfileURL } from '$lib/layers';
 	import { addTerrainSource, getStyle, setMapControlSettings } from '$lib/map-controls';
 	import { getInitialMetaData, getMetaData, matchVariableOrFirst } from '$lib/metadata';
@@ -81,7 +80,7 @@
 
 	onMount(async () => {
 		maplibregl.addProtocol('om', (params: RequestParameters, abortController: AbortController) =>
-			omProtocol(params, abortController, omProtocolSettings)
+			omProtocol(params, abortController, $omProtocolSettings)
 		);
 
 		const style = await getStyle();
@@ -186,15 +185,7 @@
 
 <div class="map maplibregl-map" id="#map_container" bind:this={mapContainer}></div>
 
-<Scale
-	afterColorScaleChange={async (variable: string, colorScale: RenderableColorScale) => {
-		omProtocolSettings.colorScales[variable] = colorScale;
-		const colorHash = await hashValue(JSON.stringify(omProtocolSettings.colorScales));
-		updateUrl('color_hash', colorHash, defaultColorHash);
-		changeOMfileURL();
-		toast('Changed color scale');
-	}}
-/>
+<Scale />
 <VariableSelection />
 <TimeSelector />
 <Settings />
