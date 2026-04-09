@@ -20,9 +20,6 @@ export const DEFAULT_PREFERENCES = {
 	showScale: true
 };
 
-// Color hash default
-export const DEFAULT_COLOR_HASH = '';
-
 // Layer names for map rendering
 export const HILLSHADE_LAYER = 'hillshadeLayer';
 export const BEFORE_LAYER_RASTER = 'waterway-tunnel';
@@ -32,6 +29,10 @@ export const BEFORE_LAYER_VECTOR_WATER_CLIP = 'water-clip';
 // Default tile size and opacity
 export const DEFAULT_TILE_SIZE = 512;
 export const DEFAULT_OPACITY = 75;
+
+// Cache defaults (in KB and MB for UI display)
+export const DEFAULT_CACHE_BLOCK_SIZE_KB = 64;
+export const DEFAULT_CACHE_MAX_BYTES_MB = 400;
 
 // Complete default values for URL parameter checking
 export const COMPLETE_DEFAULT_VALUES: { [key: string]: boolean | string | number } = {
