@@ -9,7 +9,6 @@ import { persisted } from 'svelte-persisted-store';
 
 import { browser } from '$app/environment';
 
-import { DEFAULT_CACHE_BLOCK_SIZE_KB, DEFAULT_CACHE_MAX_BYTES_MB } from '$lib/constants';
 import { getNextOmUrls } from '$lib/url';
 
 import { metaJson } from './time';
@@ -27,27 +26,20 @@ export const customColorScales = persisted<Record<string, RenderableColorScale>>
 	{}
 );
 
-export const cacheBlockSizeKb = persisted('cache-block-size-kb', DEFAULT_CACHE_BLOCK_SIZE_KB);
-export const cacheMaxBytesMb = persisted('cache-max-bytes-mb', DEFAULT_CACHE_MAX_BYTES_MB);
-
 const initialCustomColorScales = get(customColorScales);
-
-function createBlockCache() {
-	if (!browser) return undefined;
-	return new BrowserBlockCache({
-		blockSize: get(cacheBlockSizeKb) * 1024,
-		cacheName: 'open-meteo-maps-cache-v1',
-		memCacheTtlMs: 1000,
-		maxBytes: get(cacheMaxBytesMb) * 1024 * 1024
-	});
-}
-
 export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
 	...defaultOmProtocolSettings,
 	// static
 	fileReaderConfig: {
 		useSAB: true,
-		cache: createBlockCache()
+		cache: browser
+			? new BrowserBlockCache({
+					blockSize: 64 * 1024, // 64Kb blocks
+					cacheName: 'open-meteo-maps-cache-v1',
+					memCacheTtlMs: 1000, // 1 second in-memory cache TTL
+					maxBytes: 400 * 1024 * 1024 // 400Mb maximum storage
+				})
+			: undefined
 	},
 
 	// dynamic (can be changed during runtime)

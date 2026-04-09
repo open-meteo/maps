@@ -4,7 +4,6 @@
 	import * as Sheet from '$lib/components/ui/sheet';
 
 	import ArrowsSettings from './arrows-settings.svelte';
-	import CacheSettings from './cache-settings.svelte';
 	import ContourSettings from './contour-settings.svelte';
 	import GridSettings from './grid-settings.svelte';
 	import OpacitySetting from './opacity-setting.svelte';
@@ -26,7 +25,6 @@
 			<PopupSettings />
 			<WaterClipSetting />
 			<OpacitySetting />
-			<CacheSettings />
 			<StateSettings />
 		</div>
 	</Sheet.Content>

@@ -7,15 +7,13 @@ import { type Persisted, persisted } from 'svelte-persisted-store';
 
 import {
 	COMPLETE_DEFAULT_VALUES,
-	DEFAULT_CACHE_BLOCK_SIZE_KB,
-	DEFAULT_CACHE_MAX_BYTES_MB,
 	DEFAULT_OPACITY,
 	DEFAULT_PREFERENCES,
 	DEFAULT_TILE_SIZE
 } from '$lib/constants';
 import { getInitialMetaData, getMetaData } from '$lib/metadata';
 
-import { cacheBlockSizeKb, cacheMaxBytesMb, customColorScales } from './om-protocol-settings';
+import { customColorScales } from './om-protocol-settings';
 import { inProgress, latest, metaJson, modelRun, modelRunLocked, now, time } from './time';
 import {
 	DEFAULT_PRECIPITATION_UNIT,
@@ -62,8 +60,6 @@ export const tileSizeSet = persisted('tile-size-set', false);
 
 export const opacity = persisted('opacity', DEFAULT_OPACITY);
 
-export { cacheBlockSizeKb, cacheMaxBytesMb } from './om-protocol-settings';
-
 export const localStorageVersion: Persisted<string | undefined> = persisted(
 	'local-storage-version',
 	undefined
@@ -104,9 +100,6 @@ export const resetStates = async () => {
 	tileSizeSet.set(false);
 
 	opacity.set(DEFAULT_OPACITY);
-
-	cacheBlockSizeKb.set(DEFAULT_CACHE_BLOCK_SIZE_KB);
-	cacheMaxBytesMb.set(DEFAULT_CACHE_MAX_BYTES_MB);
 
 	customColorScales.set({});
 
