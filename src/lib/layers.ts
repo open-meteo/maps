@@ -303,8 +303,7 @@ export const changeOMfileURL = async (vectorOnly = false, rasterOnly = false): P
 	if (!map) return;
 
 	const omUrl = await getOMUrl();
-	if (!omUrl) return;
-	if (get(currentOmUrl) == omUrl) return;
+	if (get(currentOmUrl) == omUrl || !omUrl) return;
 	currentOmUrl.set(omUrl);
 
 	loading.set(true);

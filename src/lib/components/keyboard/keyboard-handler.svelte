@@ -17,7 +17,6 @@
 	} from '$lib/stores/variables';
 
 	import { switchPopupMode } from '$lib/popup';
-	import { takeSnapshot } from '$lib/snapshot';
 
 	const keyDownEvent = (event: KeyboardEvent) => {
 		// Ignore shortcuts when focus is inside an editable element, except for Escape
@@ -28,13 +27,6 @@
 			target instanceof HTMLSelectElement ||
 			target.isContentEditable;
 		if (isEditable && event.key !== 'Escape') return;
-
-		// Global actions (Snapshot)
-		if (event.key === 's' && !event.ctrlKey) {
-			const m = get(map);
-			if (m) takeSnapshot(m);
-			return;
-		}
 
 		// Help Dialog and Popup actions
 		if (event.key === 'h') {

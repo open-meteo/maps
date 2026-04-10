@@ -24,6 +24,7 @@ import { modelRun as mR, modelRunLocked as mRL, time } from '$lib/stores/time';
 import { domain as d, variable as v } from '$lib/stores/variables';
 import { vectorOptions as vO } from '$lib/stores/vector';
 
+<<<<<<< HEAD
 import {
 	CLIP_COUNTRIES_PARAM,
 	parseClipCountriesParam,
@@ -31,6 +32,9 @@ import {
 } from './clipping';
 import { fmtModelRun, fmtSelectedTime, getBaseUri, hashValue } from './helpers';
 import { clippingCountryCodes } from './stores/clipping';
+=======
+import { fmtModelRun, fmtSelectedTime, getBaseUri, hashValue } from './helpers';
+>>>>>>> main
 import { omProtocolSettings } from './stores/om-protocol-settings';
 import { formatISOUTCWithZ, parseISOWithoutTimezone } from './time-format';
 
@@ -152,8 +156,13 @@ export const urlParamsToPreferences = () => {
 	p.set(preferences);
 };
 
+<<<<<<< HEAD
 let cachedClippingJson = '';
 let cachedClippingHash = '';
+=======
+let cachedColorJson = '';
+let cachedColorHash = '';
+>>>>>>> main
 
 const memorisedHash = async (json: string, cachedJson: string, cachedHash: string) => {
 	if (json === cachedJson) return { json, hash: cachedHash };
@@ -182,6 +191,7 @@ export const getOMUrl = async () => {
 	if (tileSize !== 256) result += `&tile_size=${tileSize}`;
 
 	const omProtocolSettingsState = get(omProtocolSettings);
+<<<<<<< HEAD
 	if (
 		omProtocolSettingsState.clippingOptions !== undefined &&
 		omProtocolSettingsState.clippingOptions !== defaultOmProtocolSettings.clippingOptions
@@ -191,6 +201,17 @@ export const getOMUrl = async () => {
 		cachedClippingJson = cached.json;
 		cachedClippingHash = cached.hash;
 		result += `&clipping_options_hash=${cached.hash}`;
+=======
+	const colorJson = JSON.stringify(omProtocolSettingsState.colorScales);
+	if (
+		omProtocolSettingsState.colorScales !== undefined &&
+		colorJson !== JSON.stringify(defaultOmProtocolSettings.colorScales)
+	) {
+		const cached = await memorisedHash(colorJson, cachedColorJson, cachedColorHash);
+		cachedColorJson = cached.json;
+		cachedColorHash = cached.hash;
+		result += `&color_hash=${cached.hash}`;
+>>>>>>> main
 	}
 
 	return result;

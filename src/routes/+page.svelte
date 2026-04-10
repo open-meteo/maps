@@ -33,8 +33,7 @@
 		DarkModeButton,
 		HelpButton,
 		HillshadeButton,
-		SettingsButton,
-		SnapshotButton
+		SettingsButton
 	} from '$lib/components/buttons';
 	import ClippingPanel from '$lib/components/clipping/clipping-panel.svelte';
 	import Dropzone from '$lib/components/dropzone/dropzone.svelte';
@@ -106,8 +105,7 @@
 			zoom: domainObject.grid.zoom,
 			keyboard: false,
 			hash: true,
-			maxPitch: 85,
-			canvasContextAttributes: { preserveDrawingBuffer: true }
+			maxPitch: 85
 		});
 
 		setMapControlSettings();
@@ -124,7 +122,6 @@
 			$map.addControl(new SettingsButton());
 			$map.addControl(new HelpButton());
 			$map.addControl(new ClippingButton());
-			$map.addControl(new SnapshotButton());
 
 			if (getInitialMetaDataPromise) await getInitialMetaDataPromise;
 
