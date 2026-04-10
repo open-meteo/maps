@@ -52,10 +52,11 @@
 					if (v) $cacheBlockSizeKb = Number(v);
 				}}
 			>
-				<Select.Trigger class="w-24">
-					{blockSizeOptions.find((o) => o.value === String($cacheBlockSizeKb))?.label ?? `${$cacheBlockSizeKb} KiB`}
+				<Select.Trigger class="w-24 bg-background/60" aria-label="Select cache block size">
+					{blockSizeOptions.find((o) => o.value === String($cacheBlockSizeKb))?.label ??
+						`${$cacheBlockSizeKb} KiB`}
 				</Select.Trigger>
-				<Select.Content>
+				<Select.Content class="z-110 bg-glass/50 backdrop-blur-sm rounded min-w-20 border-none">
 					{#each blockSizeOptions as option (option.value)}
 						<Select.Item value={option.value}>{option.label}</Select.Item>
 					{/each}
@@ -68,7 +69,7 @@
 				id="cache-max-bytes"
 				type="number"
 				min={1}
-				class="w-24"
+				class="w-24 bg-background/60"
 				bind:value={$cacheMaxBytesMb}
 			/>
 		</div>

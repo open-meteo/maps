@@ -34,9 +34,10 @@ export const DEFAULT_OPACITY = 75;
 export const DEFAULT_CACHE_BLOCK_SIZE_KB = 64;
 export const DEFAULT_CACHE_MAX_BYTES_MB = 400;
 
-// Estimated HTTP overhead per range request (~541 bytes request headers + ~1312 bytes response headers)
-// Subtracted from block size so total transfer approximates the nominal size
-export const HTTP_OVERHEAD_BYTES = 2048;
+// Measured HTTP/2 overhead per range request (~1342 bytes: HPACK headers + framing).
+// Rounded up to 1408 for safety margin (Range/Content-Range header lengths vary with file offset).
+// Subtracted from block size so total transfer fits within the nominal KiB boundary.
+export const HTTP_OVERHEAD_BYTES = 1408;
 
 // Complete default values for URL parameter checking
 export const COMPLETE_DEFAULT_VALUES: { [key: string]: boolean | string | number } = {
