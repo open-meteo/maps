@@ -9,7 +9,11 @@ import { persisted } from 'svelte-persisted-store';
 
 import { browser } from '$app/environment';
 
-import { DEFAULT_CACHE_BLOCK_SIZE_KB, DEFAULT_CACHE_MAX_BYTES_MB } from '$lib/constants';
+import {
+	DEFAULT_CACHE_BLOCK_SIZE_KB,
+	DEFAULT_CACHE_MAX_BYTES_MB,
+	HTTP_OVERHEAD_BYTES
+} from '$lib/constants';
 import { getNextOmUrls } from '$lib/url';
 
 import { metaJson } from './time';
@@ -35,7 +39,7 @@ const initialCustomColorScales = get(customColorScales);
 function createBlockCache() {
 	if (!browser) return undefined;
 	return new BrowserBlockCache({
-		blockSize: get(cacheBlockSizeKb) * 1024,
+		blockSize: get(cacheBlockSizeKb) * 1024 - HTTP_OVERHEAD_BYTES,
 		cacheName: 'open-meteo-maps-cache-v1',
 		memCacheTtlMs: 1000,
 		maxBytes: get(cacheMaxBytesMb) * 1024 * 1024
