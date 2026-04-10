@@ -1,6 +1,7 @@
 import { get } from 'svelte/store';
 
 import {
+	GridFactory,
 	createClippingTester,
 	getColor,
 	getColorScale,
@@ -13,7 +14,7 @@ import { mode } from 'mode-watcher';
 import { map as m, popup as p, popupMode } from '$lib/stores/map';
 import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 import { convertValue, getDisplayUnit, unitPreferences } from '$lib/stores/units';
-import { variable as v } from '$lib/stores/variables';
+import { selectedDomain, variable as v } from '$lib/stores/variables';
 
 import { textWhite } from './helpers';
 import { rasterManager } from './layers';
@@ -108,7 +109,16 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 	} else {
 		contentDiv.style.backgroundColor = '';
 		contentDiv.style.color = 'black';
-		valueSpan.innerText = 'Outside domain';
+
+		const domainBounds = GridFactory.create(get(selectedDomain).grid).getBounds();
+		const [minLon, minLat, maxLon, maxLat] = domainBounds;
+		const insideDomain =
+			coordinates.lat >= minLat &&
+			coordinates.lat <= maxLat &&
+			coordinates.lng >= minLon &&
+			coordinates.lng <= maxLon;
+
+		valueSpan.innerText = insideDomain ? 'No data' : 'Outside domain';
 		unitSpan.innerText = '';
 		elevationSpan.innerText = hasElevation ? `${Math.round(elevation)}m` : '';
 		elevationSpan.style.color = 'black';
