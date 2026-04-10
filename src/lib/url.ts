@@ -5,6 +5,7 @@ import {
 	type Domain,
 	type DomainMetaDataJson,
 	closestModelRun,
+	defaultOmProtocolSettings,
 	domainStep
 } from '@openmeteo/weather-map-layer';
 import { mode } from 'mode-watcher';
@@ -23,7 +24,8 @@ import { modelRun as mR, modelRunLocked as mRL, time } from '$lib/stores/time';
 import { domain as d, variable as v } from '$lib/stores/variables';
 import { vectorOptions as vO } from '$lib/stores/vector';
 
-import { fmtModelRun, fmtSelectedTime, getBaseUri } from './helpers';
+import { fmtModelRun, fmtSelectedTime, getBaseUri, hashValue } from './helpers';
+import { omProtocolSettings } from './stores/om-protocol-settings';
 import { formatISOUTCWithZ, parseISOWithoutTimezone } from './time-format';
 
 export const updateUrl = async (
@@ -134,10 +136,19 @@ export const urlParamsToPreferences = () => {
 	p.set(preferences);
 };
 
-export const getOMUrl = () => {
+let cachedColorJson = '';
+let cachedColorHash = '';
+
+const memorisedHash = async (json: string, cachedJson: string, cachedHash: string) => {
+	if (json === cachedJson) return { json, hash: cachedHash };
+	return { json, hash: await hashValue(json) };
+};
+
+export const getOMUrl = async () => {
 	const domain = get(d);
 	const base = `${getBaseUri(domain)}/data_spatial/${domain}`;
-	const modelRun = get(mR) as Date;
+	const modelRun = get(mR);
+	if (!modelRun) return undefined;
 	const selectedTime = get(time);
 
 	let result = `${base}/${fmtModelRun(modelRun)}/${fmtSelectedTime(selectedTime)}.om`;
@@ -153,6 +164,18 @@ export const getOMUrl = () => {
 
 	const tileSize = get(tS);
 	if (tileSize !== 256) result += `&tile_size=${tileSize}`;
+
+	const omProtocolSettingsState = get(omProtocolSettings);
+	const colorJson = JSON.stringify(omProtocolSettingsState.colorScales);
+	if (
+		omProtocolSettingsState.colorScales !== undefined &&
+		colorJson !== JSON.stringify(defaultOmProtocolSettings.colorScales)
+	) {
+		const cached = await memorisedHash(colorJson, cachedColorJson, cachedColorHash);
+		cachedColorJson = cached.json;
+		cachedColorHash = cached.hash;
+		result += `&color_hash=${cached.hash}`;
+	}
 
 	return result;
 };
