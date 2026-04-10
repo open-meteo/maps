@@ -154,8 +154,6 @@ export const urlParamsToPreferences = () => {
 
 let cachedClippingJson = '';
 let cachedClippingHash = '';
-let cachedColorJson = '';
-let cachedColorHash = '';
 
 const memorisedHash = async (json: string, cachedJson: string, cachedHash: string) => {
 	if (json === cachedJson) return { json, hash: cachedHash };
@@ -193,17 +191,6 @@ export const getOMUrl = async () => {
 		cachedClippingJson = cached.json;
 		cachedClippingHash = cached.hash;
 		result += `&clipping_options_hash=${cached.hash}`;
-	}
-
-	const colorJson = JSON.stringify(omProtocolSettingsState.colorScales);
-	if (
-		omProtocolSettingsState.colorScales !== undefined &&
-		colorJson !== JSON.stringify(defaultOmProtocolSettings.colorScales)
-	) {
-		const cached = await memorisedHash(colorJson, cachedColorJson, cachedColorHash);
-		cachedColorJson = cached.json;
-		cachedColorHash = cached.hash;
-		result += `&color_hash=${cached.hash}`;
 	}
 
 	return result;
