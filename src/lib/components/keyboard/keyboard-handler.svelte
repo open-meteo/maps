@@ -7,7 +7,7 @@
 	import { browser } from '$app/environment';
 
 	import { timeSelectorActions } from '$lib/stores/keyboard';
-	import { map, popup, popupMode } from '$lib/stores/map';
+	import { popup, popupMode } from '$lib/stores/map';
 	import { helpOpen } from '$lib/stores/preferences';
 	import {
 		domainSelectionOpen,
