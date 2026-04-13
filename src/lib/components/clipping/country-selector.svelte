@@ -87,10 +87,7 @@
 	}
 
 	async function loadCountryGeoJsonWithState(country: Country): Promise<Country> {
-		try {
-			return await loadCountryGeoJson(country);
-		} finally {
-		}
+		return await loadCountryGeoJson(country);
 	}
 
 	async function handleSelect(country: Country) {

@@ -171,9 +171,15 @@ export class HelpButton {
 	onRemove() {}
 }
 
-let clippingPanelOpenSubscribtion: () => void;
-let omProtocolSettingsSubscribtion: () => void;
 export class ClippingButton {
+	private clippingPanelOpenSubscription: () => void;
+	private omProtocolSettingsSubscription: () => void;
+
+	constructor() {
+		this.clippingPanelOpenSubscription = () => {};
+		this.omProtocolSettingsSubscription = () => {};
+	}
+
 	onAdd() {
 		const div = document.createElement('div');
 		div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
@@ -203,8 +209,8 @@ export class ClippingButton {
 			}
 		};
 
-		clippingPanelOpenSubscribtion = clippingPanelOpen.subscribe(updateIcon);
-		omProtocolSettingsSubscribtion = omProtocolSettings.subscribe(updateIcon);
+		this.clippingPanelOpenSubscription = clippingPanelOpen.subscribe(updateIcon);
+		this.omProtocolSettingsSubscription = omProtocolSettings.subscribe(updateIcon);
 
 		div.addEventListener('contextmenu', (e) => e.preventDefault());
 		div.addEventListener('click', () => {
@@ -215,7 +221,7 @@ export class ClippingButton {
 		return div;
 	}
 	onRemove() {
-		clippingPanelOpenSubscribtion?.();
-		omProtocolSettingsSubscribtion?.();
+		this.clippingPanelOpenSubscription?.();
+		this.omProtocolSettingsSubscription?.();
 	}
 }

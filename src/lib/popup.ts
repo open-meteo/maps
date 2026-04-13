@@ -28,6 +28,10 @@ let valueSpan: HTMLSpanElement | undefined;
 let unitSpan: HTMLSpanElement | undefined;
 let elevationSpan: HTMLSpanElement | undefined;
 
+// Cached clipping tester — recomputed only when clippingOptions reference changes.
+let cachedClippingOptionsRef: unknown = undefined;
+let cachedClippingTester: ((lon: number, lat: number) => boolean) | undefined;
+
 const initPopupDiv = (): void => {
 	el = document.createElement('div');
 	el.classList.add('popup');
@@ -79,9 +83,11 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 		const clippingOptions = omProtocolSettingsState.clippingOptions;
 
 		if (clippingOptions) {
-			const resolved = resolveClippingOptions(clippingOptions, false);
-			const isInsideClip = createClippingTester(resolved);
-			if (isInsideClip && !isInsideClip(coordinates.lng, coordinates.lat)) {
+			if (clippingOptions !== cachedClippingOptionsRef) {
+				cachedClippingOptionsRef = clippingOptions;
+				cachedClippingTester = createClippingTester(resolveClippingOptions(clippingOptions, false));
+			}
+			if (cachedClippingTester && !cachedClippingTester(coordinates.lng, coordinates.lat)) {
 				contentDiv.style.backgroundColor = '';
 				contentDiv.style.color = '';
 				valueSpan.innerText = 'Outside clip';

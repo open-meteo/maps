@@ -1,9 +1,42 @@
+type GeoJsonGeometry =
+	| {
+			type: 'Polygon' | 'MultiPolygon';
+			coordinates: unknown;
+			bbox?: number[];
+	  }
+	| {
+			type: 'GeometryCollection';
+			geometries: GeoJsonGeometry[];
+			bbox?: number[];
+	  };
+
+type GeoJson =
+	| GeoJsonGeometry
+	| {
+			type: 'Feature';
+			geometry: GeoJsonGeometry | null;
+			properties?: { [key: string]: unknown } | null;
+			id?: string | number;
+			bbox?: number[];
+	  }
+	| {
+			type: 'FeatureCollection';
+			features: Array<{
+				type: 'Feature';
+				geometry: GeoJsonGeometry | null;
+				properties?: { [key: string]: unknown } | null;
+				id?: string | number;
+				bbox?: number[];
+			}>;
+			bbox?: number[];
+	  };
+
 export interface Country {
 	name: string;
 	code: string;
 	filename?: string;
 	filenames?: string[];
-	geojson?: any;
+	geojson?: GeoJson;
 }
 
 export const countryList: Country[] = [

@@ -160,7 +160,7 @@
 			class="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-primary bg-background/80 px-12 py-10 shadow-lg"
 		>
 			<UploadIcon class="h-10 w-10 text-primary" />
-			<p class="text-lg font-semibold text-foreground">Drop File for processing</p>
+			<p class="text-lg font-semibold text-foreground">Drop file to process</p>
 			<p class="text-sm text-muted-foreground">'.geojson' or '.json' files supported</p>
 		</div>
 	</div>
