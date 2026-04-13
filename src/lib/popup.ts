@@ -114,7 +114,7 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 		elevationSpan.style.color = textWhite(color, isDark) ? 'white' : 'black';
 	} else {
 		contentDiv.style.backgroundColor = '';
-		contentDiv.style.color = 'black';
+		contentDiv.style.color = '';
 
 		const domainBounds = GridFactory.create(get(selectedDomain).grid).getBounds();
 		const [minLon, minLat, maxLon, maxLat] = domainBounds;
@@ -127,7 +127,7 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 		valueSpan.innerText = insideDomain ? 'No data' : 'Outside domain';
 		unitSpan.innerText = '';
 		elevationSpan.innerText = hasElevation ? `${Math.round(elevation)}m` : '';
-		elevationSpan.style.color = 'black';
+		elevationSpan.style.color = '';
 	}
 };
 
