@@ -19,12 +19,7 @@
 
 	import { browser } from '$app/environment';
 
-	import {
-		clippingCountryCodes,
-		clippingPanelOpen,
-		suppressPopupUntil,
-		terraDrawActive
-	} from '$lib/stores/clipping';
+	import { clippingCountryCodes, clippingPanelOpen, terraDrawActive } from '$lib/stores/clipping';
 	import { map } from '$lib/stores/map';
 	import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 
@@ -184,7 +179,6 @@
 
 		draw.on('finish', () => {
 			if (activeMode === 'select') {
-				suppressPopupUntil.set(Date.now() + 250);
 				syncEditedGeometryFromSnapshot();
 				return;
 			}
@@ -203,7 +197,6 @@
 
 		drawnFeatures = [...drawnFeatures, ...newPolygons];
 		saveDrawnFeatures();
-		suppressPopupUntil.set(Date.now() + 250);
 
 		draw.clear();
 		exitDrawingMode(true);
@@ -347,9 +340,7 @@
 		}
 		activeMode = '';
 		if (deferDeactivation) {
-			queueMicrotask(() => terraDrawActive.set(false));
-		} else {
-			terraDrawActive.set(false);
+			setTimeout(() => terraDrawActive.set(false), 50);
 		}
 		$map?.getCanvas().style.removeProperty('cursor');
 	};
@@ -411,7 +402,7 @@
 			draw.stop();
 			draw = undefined;
 		}
-		terraDrawActive.set(false);
+		setTimeout(() => terraDrawActive.set(false), 50);
 	});
 </script>
 

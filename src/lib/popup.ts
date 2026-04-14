@@ -3,10 +3,10 @@ import { get } from 'svelte/store';
 import {
 	GridFactory,
 	createClippingTester,
+	getCachedResolvedClipping,
 	getColor,
 	getColorScale,
-	getValueFromLatLong,
-	getCachedResolvedClipping,
+	getValueFromLatLong
 } from '@openmeteo/weather-map-layer';
 import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
@@ -18,7 +18,7 @@ import { selectedDomain, variable as v } from '$lib/stores/variables';
 
 import { textWhite } from './helpers';
 import { rasterManager } from './layers';
-import { suppressPopupUntil, terraDrawActive } from './stores/clipping';
+import { terraDrawActive } from './stores/clipping';
 import { desktop, opacity } from './stores/preferences';
 
 let el: HTMLDivElement | undefined;
@@ -197,7 +197,7 @@ export const addPopup = (): void => {
 
 	map.on('click', async (e: maplibregl.MapMouseEvent) => {
 		if (!map) return;
-		if (get(terraDrawActive) || Date.now() < get(suppressPopupUntil)) {
+		if (get(terraDrawActive)) {
 			removePopup();
 			return;
 		}
