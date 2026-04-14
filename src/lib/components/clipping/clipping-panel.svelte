@@ -29,7 +29,6 @@
 		serializeClipCountriesParam
 	} from '$lib/clipping';
 	import { changeOMfileURL } from '$lib/layers';
-	import { removePopup } from '$lib/popup';
 	import { updateUrl } from '$lib/url';
 
 	import { loadCountriesFromCodes } from './country-data';
@@ -306,7 +305,6 @@
 	};
 
 	const setMode = (mode: string) => {
-		removePopup();
 		if (!draw) return;
 		if (activeMode === mode) {
 			exitDrawingMode();
@@ -341,6 +339,8 @@
 		activeMode = '';
 		if (deferDeactivation) {
 			setTimeout(() => terraDrawActive.set(false), 50);
+		} else {
+			terraDrawActive.set(false);
 		}
 		$map?.getCanvas().style.removeProperty('cursor');
 	};

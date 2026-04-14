@@ -164,7 +164,7 @@ export const refreshPopup = async (): Promise<void> => {
 };
 
 const updatePopup = async (e: maplibregl.MapMouseEvent): Promise<void> => {
-	if (get(popupMode) === 'follow') {
+	if (get(popupMode) === 'follow' && !get(terraDrawActive)) {
 		const popup = get(p);
 		if (popup) {
 			popup.setLngLat(e.lngLat);
@@ -195,12 +195,8 @@ export const addPopup = (): void => {
 
 	map.on('mousemove', updatePopup);
 
-	map.on('click', async (e: maplibregl.MapMouseEvent) => {
-		if (!map) return;
-		if (get(terraDrawActive)) {
-			removePopup();
-			return;
-		}
+	map.on('click', async (e: maplibregl.MapLayerMouseEvent) => {
+		if (!map || get(terraDrawActive)) return;
 
 		switchPopupMode();
 
