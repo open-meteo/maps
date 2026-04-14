@@ -6,7 +6,7 @@ import {
 	getColor,
 	getColorScale,
 	getValueFromLatLong,
-	resolveClippingOptions
+	getCachedResolvedClipping,
 } from '@openmeteo/weather-map-layer';
 import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
@@ -85,7 +85,7 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 		if (clippingOptions) {
 			if (clippingOptions !== cachedClippingOptionsRef) {
 				cachedClippingOptionsRef = clippingOptions;
-				cachedClippingTester = createClippingTester(resolveClippingOptions(clippingOptions, false));
+				cachedClippingTester = createClippingTester(getCachedResolvedClipping(clippingOptions));
 			}
 			if (cachedClippingTester && !cachedClippingTester(coordinates.lng, coordinates.lat)) {
 				contentDiv.style.backgroundColor = '';
