@@ -31,7 +31,6 @@
 	import { changeOMfileURL } from '$lib/layers';
 	import { updateUrl } from '$lib/url';
 
-	import { loadCountriesFromCodes } from './country-data';
 	import CountrySelector from './country-selector.svelte';
 
 	import type { Country } from './country-data';
