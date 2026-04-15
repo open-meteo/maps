@@ -125,12 +125,11 @@
 			addTerrainSource($map);
 			addTerrainSource($map, 'terrainSource2');
 			$map.addControl(new HillshadeButton());
-			addOmFileLayers();
 			clippingPanel?.initTerraDraw();
 
 			await addOmFileLayers();
 			addPopup();
-			void changeOMfileURL();
+			changeOMfileURL();
 		});
 	});
 
@@ -162,7 +161,7 @@
 			matchVariableOrFirst();
 		})();
 		await getInitialMetaDataPromise;
-		void changeOMfileURL();
+		changeOMfileURL();
 	});
 
 	const variableSubscription = variable.subscribe(async (newVar) => {
@@ -172,7 +171,7 @@
 			toast('Variable set to: ' + $selectedVariable.label);
 		}
 
-		void changeOMfileURL();
+		changeOMfileURL();
 	});
 
 	onDestroy(() => {
