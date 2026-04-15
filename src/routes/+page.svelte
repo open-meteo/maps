@@ -62,7 +62,7 @@
 
 	let mapContainer: HTMLElement | null;
 
-	onMount(() => {
+	onMount(async () => {
 		$url = new URL(document.location.href);
 		urlParamsToPreferences();
 
@@ -73,9 +73,7 @@
 			}
 			tileSizeSet.set(true);
 		}
-	});
 
-	onMount(async () => {
 		// resets all the states when a new version is set in 'package.json' and version already set before
 		if (version !== $localStorageVersion) {
 			if ($localStorageVersion) {
@@ -83,9 +81,7 @@
 			}
 			$localStorageVersion = version;
 		}
-	});
 
-	onMount(async () => {
 		maplibregl.addProtocol('om', (params: RequestParameters, abortController: AbortController) =>
 			omProtocol(params, abortController, $omProtocolSettings)
 		);
@@ -110,6 +106,7 @@
 
 		setMapControlSettings();
 
+		// update bounds when new tiles are requested, to trigger new data ranges loading if necessary
 		$map.on('dataloading', () => {
 			const bounds = $map.getBounds();
 			const [minLng, minLat] = bounds.getSouthWest().toArray();
@@ -128,6 +125,7 @@
 			addTerrainSource($map);
 			addTerrainSource($map, 'terrainSource2');
 			$map.addControl(new HillshadeButton());
+			addOmFileLayers();
 			clippingPanel?.initTerraDraw();
 
 			await addOmFileLayers();
