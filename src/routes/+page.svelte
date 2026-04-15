@@ -127,7 +127,7 @@
 			$map.addControl(new HillshadeButton());
 			clippingPanel?.initTerraDraw();
 
-			await addOmFileLayers();
+			addOmFileLayers();
 			addPopup();
 			changeOMfileURL();
 		});

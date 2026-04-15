@@ -157,12 +157,12 @@ let cachedClippingHash = '';
 let cachedColorJson = '';
 let cachedColorHash = '';
 
-const memorisedHash = async (json: string, cachedJson: string, cachedHash: string) => {
+const memorisedHash = (json: string, cachedJson: string, cachedHash: string) => {
 	if (json === cachedJson) return { json, hash: cachedHash };
-	return { json, hash: await hashValue(json) };
+	return { json, hash: hashValue(json) };
 };
 
-export const getOMUrl = async () => {
+export const getOMUrl = () => {
 	const domain = get(d);
 	const base = `${getBaseUri(domain)}/data_spatial/${domain}`;
 	const modelRun = get(mR);
@@ -189,7 +189,7 @@ export const getOMUrl = async () => {
 		omProtocolSettingsState.clippingOptions !== defaultOmProtocolSettings.clippingOptions
 	) {
 		const clippingJson = JSON.stringify(omProtocolSettingsState.clippingOptions);
-		const cached = await memorisedHash(clippingJson, cachedClippingJson, cachedClippingHash);
+		const cached = memorisedHash(clippingJson, cachedClippingJson, cachedClippingHash);
 		cachedClippingJson = cached.json;
 		cachedClippingHash = cached.hash;
 		result += `&clipping_options_hash=${cached.hash}`;
@@ -200,7 +200,7 @@ export const getOMUrl = async () => {
 		omProtocolSettingsState.colorScales !== undefined &&
 		colorJson !== JSON.stringify(defaultOmProtocolSettings.colorScales)
 	) {
-		const cached = await memorisedHash(colorJson, cachedColorJson, cachedColorHash);
+		const cached = memorisedHash(colorJson, cachedColorJson, cachedColorHash);
 		cachedColorJson = cached.json;
 		cachedColorHash = cached.hash;
 		result += `&color_hash=${cached.hash}`;
