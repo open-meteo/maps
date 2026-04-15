@@ -7,6 +7,7 @@ export const DEFAULT_VECTOR_OPTIONS = {
 	grid: false,
 	arrows: true,
 	contours: false,
+	isobands: false,
 	breakpoints: true,
 	contourInterval: 2
 };

@@ -8,6 +8,7 @@ export interface VectorOptions {
 	grid: boolean;
 	arrows: boolean;
 	contours: boolean;
+	isobands: boolean;
 	breakpoints: boolean;
 	contourInterval: number;
 }

@@ -177,6 +177,7 @@ export const getOMUrl = () => {
 	if (vectorOptions.grid) result += '&grid=true';
 	if (vectorOptions.arrows) result += '&arrows=true';
 	if (vectorOptions.contours) result += '&contours=true';
+	if (vectorOptions.isobands) result += '&isobands=true';
 	if (vectorOptions.contours && !vectorOptions.breakpoints)
 		result += `&intervals=${vectorOptions.contourInterval}`;
 

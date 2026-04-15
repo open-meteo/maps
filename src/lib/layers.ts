@@ -206,6 +206,37 @@ const vectorContourLayer = (): SlotLayer => ({
 	}
 });
 
+const vectorIsobandFillLayer = (): SlotLayer => ({
+	id: 'omVectorIsobandFillLayer',
+	opacityProp: 'fill-opacity',
+	commitOpacity: getRasterOpacity(),
+	add: (map, sourceId, layerId, beforeLayer) => {
+		const vectorOptions = get(vO);
+		if (!vectorOptions.isobands) return;
+		map.addLayer(
+			{
+				id: layerId,
+				type: 'fill',
+				source: sourceId,
+				'source-layer': 'isobands',
+				paint: {
+					'fill-opacity': 0,
+					'fill-opacity-transition': { duration: 2, delay: 0 },
+					'fill-antialias': false,
+					'fill-color': [
+						'rgba',
+						['get', 'r'],
+						['get', 'g'],
+						['get', 'b'],
+						['/', ['get', 'a'], 255]
+					]
+				}
+			},
+			beforeLayer
+		);
+	}
+});
+
 const vectorContourLabelsLayer = (): SlotLayer => ({
 	id: 'omVectorContourLayerLabels',
 	opacityProp: 'text-opacity',
@@ -271,17 +302,28 @@ export const createManagers = (): void => {
 			toast.warning('Loading raster data might be limited by bandwidth or upstream server speed.')
 	});
 
+	const vectorOptions = get(vO);
 	vectorManager = new SlotManager(map, {
 		sourceIdPrefix: 'omVectorSource',
 		beforeLayer: preferences.clipWater ? BEFORE_LAYER_VECTOR_WATER_CLIP : BEFORE_LAYER_VECTOR,
 		layerFactory: () => [
+			vectorIsobandFillLayer(),
 			vectorArrowLayer(),
 			vectorGridLayer(),
 			vectorContourLayer(),
 			vectorContourLabelsLayer()
 		],
 		sourceSpec: (sourceUrl) => ({ url: sourceUrl, type: 'vector' }),
-		removeDelayMs: 250
+		removeDelayMs: 250,
+		...(vectorOptions.isobands
+			? {
+					onCommit: () => {
+						loading.set(false);
+						refreshPopup();
+					},
+					onError: () => loading.set(false)
+				}
+			: {})
 	});
 };
 
@@ -294,7 +336,8 @@ export const addOmFileLayers = (): void => {
 	if (!map) return;
 	const omUrl = getOMUrl();
 	createManagers();
-	rasterManager?.update('om://' + omUrl);
+	const vectorOptions = get(vO);
+	if (!vectorOptions.isobands) rasterManager?.update('om://' + omUrl);
 	vectorManager?.update('om://' + omUrl);
 };
 
@@ -314,6 +357,7 @@ export const changeOMfileURL = (vectorOnly = false, rasterOnly = false): void =>
 	);
 	rasterManager?.setBeforeLayer(preferences.hillshade ? HILLSHADE_LAYER : BEFORE_LAYER_RASTER);
 
-	if (!vectorOnly) rasterManager?.update('om://' + omUrl);
+	const vectorOptions = get(vO);
+	if (!vectorOnly && !vectorOptions.isobands) rasterManager?.update('om://' + omUrl);
 	if (!rasterOnly) vectorManager?.update('om://' + omUrl);
 };

@@ -1,0 +1,34 @@
+<script lang="ts">
+	import { toast } from 'svelte-sonner';
+
+	import { vectorOptions } from '$lib/stores/vector';
+
+	import { Label } from '$lib/components/ui/label';
+	import { Switch } from '$lib/components/ui/switch';
+
+	import { changeOMfileURL } from '$lib/layers';
+	import { updateUrl } from '$lib/url';
+
+	let isobands = $derived($vectorOptions.isobands);
+</script>
+
+<div>
+	<h2 class="text-lg font-bold">Isobands settings</h2>
+	<div class="mt-3 flex gap-3">
+		<Switch
+			id="isobands"
+			class="cursor-pointer"
+			bind:checked={$vectorOptions.isobands}
+			onCheckedChange={() => {
+				updateUrl('isobands', String(isobands));
+				changeOMfileURL();
+				toast.info(
+					'Isobands turned ' +
+						(isobands ? 'on' : 'off') +
+						(isobands ? ' (raster source disabled)' : '')
+				);
+			}}
+		/>
+		<Label class="cursor-pointer" for="isobands">Isobands {isobands ? 'on' : 'off'}</Label>
+	</div>
+</div>
