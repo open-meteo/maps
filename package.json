@@ -40,7 +40,7 @@
 		"@turf/turf": "^7.3.4",
 		"@types/node": "^25.6.0",
 		"@vitest/coverage-v8": "^4.1.0",
-		"bits-ui": "^2.17.2",
+		"bits-ui": "^2.18.0",
 		"clsx": "^2.1.1",
 		"eslint": "^10.2.0",
 		"eslint-config-prettier": "^10.0.1",
