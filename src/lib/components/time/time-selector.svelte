@@ -622,15 +622,10 @@
 			isScrolling = false;
 
 			if (!desktop.current && !isDown) {
-				if ($loading) {
-					centerDateButton($time);
-					currentDate = new SvelteDate($time);
-				} else {
-					let timeStep = findTimeStep(currentDate, timeSteps);
-					if (timeStep) currentDate = timeStep;
-					onDateChange(currentDate);
-					centerDateButton(currentDate);
-				}
+				let timeStep = findTimeStep(currentDate, timeSteps);
+				if (timeStep) currentDate = timeStep;
+				onDateChange(currentDate);
+				centerDateButton(currentDate);
 			}
 		};
 
