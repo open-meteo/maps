@@ -215,7 +215,6 @@
 													? 'bg-primary/10!'
 													: ''}"
 												onSelect={() => {
-													$loading = true;
 													$domain = value;
 													dSO.set(false);
 												}}
