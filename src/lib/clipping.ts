@@ -86,7 +86,9 @@ export const buildCountryClippingOptions = (countries: Country[]): ClippingOptio
 		if (!geometry) return false;
 		const lons: number[] = [];
 
-		const collect = (coords: number | number[] | number[][] | number[][][] | number[][][][]): void => {
+		const collect = (
+			coords: number | number[] | number[][] | number[][][] | number[][][][]
+		): void => {
 			if (!Array.isArray(coords)) return;
 			if (typeof coords[0] === 'number') {
 				// a single position [lon, lat]
