@@ -86,7 +86,7 @@ export const buildCountryClippingOptions = (countries: Country[]): ClippingOptio
 		if (!geometry) return false;
 		const lons: number[] = [];
 
-		const collect = (coords: any): void => {
+		const collect = (coords: number | number[] | number[][] | number[][][] | number[][][][]): void => {
 			if (!Array.isArray(coords)) return;
 			if (typeof coords[0] === 'number') {
 				// a single position [lon, lat]
@@ -102,7 +102,8 @@ export const buildCountryClippingOptions = (countries: Country[]): ClippingOptio
 			collect(geometry.coordinates as number[][][][]);
 		} else if (geometry.type === 'GeometryCollection') {
 			for (const g of geometry.geometries) {
-				if (g.type === 'Polygon' || g.type === 'MultiPolygon') collect((g as any).coordinates);
+				if (g.type === 'Polygon') collect(g.coordinates);
+				else if (g.type === 'MultiPolygon') collect(g.coordinates);
 			}
 		}
 
