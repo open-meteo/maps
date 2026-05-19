@@ -251,7 +251,9 @@
 							variant="outline"
 							class="bg-glass/75 dark:bg-glass/75 backdrop-blur-sm shadow-md  {variableSelectionOpen
 								? 'bg-glass/95!'
-								: ''} hover:bg-glass/95! h-7.25 w-45 cursor-pointer justify-between rounded border-none p-1.5! {domainSelectionOpen ? 'hidden' : ''}"
+								: ''} hover:bg-glass/95! h-7.25 w-45 cursor-pointer justify-between rounded border-none p-1.5! {domainSelectionOpen
+								? 'hidden'
+								: ''}"
 							role="combobox"
 							aria-expanded={variableSelectionOpen}
 						>
@@ -381,7 +383,10 @@
 								variant="outline"
 								class="bg-glass/75 dark:bg-glass/75 backdrop-blur-sm shadow-md {pressureLevelSelectionOpen
 									? 'bg-glass/95!'
-									: ''} hover:bg-glass/95! h-7.25 w-45 cursor-pointer justify-between rounded border-none p-1.5! {domainSelectionOpen || variableSelectionOpen ? 'hidden' : ''}"
+									: ''} hover:bg-glass/95! h-7.25 w-45 cursor-pointer justify-between rounded border-none p-1.5! {domainSelectionOpen ||
+								variableSelectionOpen
+									? 'hidden'
+									: ''}"
 								role="combobox"
 								aria-expanded={pressureLevelSelectionOpen}
 							>
