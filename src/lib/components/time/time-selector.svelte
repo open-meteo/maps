@@ -181,7 +181,7 @@
 	const checkClosestModelRun = async () => {
 		let timeStep = new Date($time);
 
-		let nearestModelRun = closestModelRun(timeStep, $selectedDomain.model_interval);
+		let nearestModelRun = closestModelRun(timeStep, $selectedDomain.model_interval!);
 		if (nearestModelRun.getTime() > latestReferenceTime.getTime()) {
 			nearestModelRun = latestReferenceTime;
 		}
@@ -194,7 +194,7 @@
 				toast.warning('Date selected too old, using 7 days ago time');
 				const nowTimeStep = domainStep(
 					new Date(date7DaysAgo),
-					$selectedDomain.time_interval,
+					$selectedDomain.time_interval!,
 					'floor'
 				);
 				time.set(nowTimeStep);

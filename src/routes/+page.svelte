@@ -55,6 +55,7 @@
 
 	import '../styles.css';
 
+	import type { Domain } from '@openmeteo/weather-map-layer';
 	import type { RequestParameters } from 'maplibre-gl';
 
 	let clippingPanel: ReturnType<typeof ClippingPanel>;
@@ -97,9 +98,9 @@
 				? domainObject.layers[domainObject.layers.length - 1].domainValue
 				: domainObject.value;
 		const gridDomain = domainOptions.find(({ value }) => value === gridDomainValue) as
-			| (typeof domainObject & { grid: NonNullable<unknown> })
+			| Domain
 			| undefined;
-		if (!gridDomain || !('grid' in gridDomain)) {
+		if (!gridDomain) {
 			throw new Error('Backing domain not found');
 		}
 		const grid = GridFactory.create(gridDomain.grid);

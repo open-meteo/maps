@@ -8,7 +8,7 @@ import { MILLISECONDS_PER_DAY } from './constants';
 import { fmtModelRun, fmtSelectedTime, getBaseUri } from './helpers';
 import { selectedDomain } from './stores/variables';
 
-import type { DomainMetaDataJson } from '@openmeteo/weather-map-layer';
+import type { Domain, DomainMetaDataJson } from '@openmeteo/weather-map-layer';
 
 export type PrefetchMode = 'today' | 'next24h' | 'prev24h' | 'completeModelRun';
 
@@ -121,7 +121,7 @@ export const prefetchData = async (
 
 	try {
 		const instance = getProtocolInstance(get(omProtocolSettings));
-		const ranges = getRanges(get(selectedDomain).grid, currentBounds);
+		const ranges = getRanges((get(selectedDomain) as Domain).grid, currentBounds);
 		const omFileReader = instance.omFileReader;
 
 		// Build base URL
