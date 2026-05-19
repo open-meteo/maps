@@ -17,7 +17,8 @@ export const DEFAULT_PREFERENCES = {
 	terrain: false,
 	hillshade: false,
 	clipWater: false,
-	showScale: true
+	showScale: true,
+	showSeamlessBorders: true
 };
 
 // Layer names for map rendering

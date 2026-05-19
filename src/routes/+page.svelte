@@ -3,7 +3,6 @@
 	import { get } from 'svelte/store';
 
 	import {
-		type Domain,
 		GridFactory,
 		domainOptions,
 		omProtocol,
@@ -88,17 +87,28 @@
 
 		const style = await getStyle();
 
-		const domainObject = domainOptions.find(({ value }: Domain) => value === $domain);
+		const domainObject = domainOptions.find(({ value }) => value === $domain);
 		if (!domainObject) {
 			throw new Error('Domain not found');
 		}
-		const grid = GridFactory.create(domainObject.grid);
+		// For seamless domains, use the global (last) backing domain for initial map position
+		const gridDomainValue =
+			'layers' in domainObject
+				? domainObject.layers[domainObject.layers.length - 1].domainValue
+				: domainObject.value;
+		const gridDomain = domainOptions.find(({ value }) => value === gridDomainValue) as
+			| (typeof domainObject & { grid: NonNullable<unknown> })
+			| undefined;
+		if (!gridDomain || !('grid' in gridDomain)) {
+			throw new Error('Backing domain not found');
+		}
+		const grid = GridFactory.create(gridDomain.grid);
 
 		$map = new maplibregl.Map({
 			container: mapContainer as HTMLElement,
 			style: style,
 			center: grid.getCenter(),
-			zoom: domainObject.grid.zoom,
+			zoom: gridDomain.grid.zoom,
 			keyboard: false,
 			hash: true,
 			maxPitch: 85

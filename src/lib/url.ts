@@ -2,10 +2,12 @@ import { tick } from 'svelte';
 import { get } from 'svelte/store';
 
 import {
+	type AnyDomain,
 	type Domain,
 	type DomainMetaDataJson,
 	closestModelRun,
 	defaultOmProtocolSettings,
+	domainOptions,
 	domainStep
 } from '@openmeteo/weather-map-layer';
 import { mode } from 'mode-watcher';
@@ -211,9 +213,19 @@ export const getOMUrl = () => {
 
 export const getNextOmUrls = (
 	_omUrl: string,
-	domain: Domain,
+	anyDomain: AnyDomain,
 	metaJson: DomainMetaDataJson | undefined
 ): [string | undefined, string | undefined] => {
+	// For seamless domains, resolve the last (global fallback) backing domain for
+	// URL construction and time-interval access.
+	const domain: Domain =
+		'layers' in anyDomain
+			? (domainOptions.find(
+					(d) =>
+						d.value === anyDomain.layers[anyDomain.layers.length - 1].domainValue &&
+						!('layers' in d)
+				) as Domain)
+			: anyDomain;
 	const base = `https://map-tiles.open-meteo.com/data_spatial/${domain.value}`;
 	const date = get(time);
 	const dateString = formatISOUTCWithZ(date);

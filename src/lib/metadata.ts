@@ -8,13 +8,25 @@ import { domain as d, selectedDomain, variable as v } from '$lib/stores/variable
 
 import { fmtModelRun, getBaseUri } from './helpers';
 
+/** For seamless domains, returns the last (global fallback) layer's domain value;
+ * for regular domains, returns the domain value unchanged. */
+const getMetaDomainValue = (domainValue: string): string => {
+	const domainObj = get(selectedDomain);
+	if (domainObj && 'layers' in domainObj && domainObj.layers.length > 0) {
+		return domainObj.layers[domainObj.layers.length - 1].domainValue;
+	}
+	return domainValue;
+};
+
 export const getInitialMetaData = async () => {
 	const domain = get(selectedDomain);
-	const uri = getBaseUri(domain.value);
+	const metaDomainValue =
+		'layers' in domain ? domain.layers[domain.layers.length - 1].domainValue : domain.value;
+	const uri = getBaseUri(metaDomainValue);
 
 	const [latestRes, inProgressRes] = await Promise.all([
-		fetch(`${uri}/data_spatial/${domain.value}/latest.json`),
-		fetch(`${uri}/data_spatial/${domain.value}/in-progress.json`)
+		fetch(`${uri}/data_spatial/${metaDomainValue}/latest.json`),
+		fetch(`${uri}/data_spatial/${metaDomainValue}/in-progress.json`)
 	]);
 
 	for (const res of [latestRes, inProgressRes]) {
@@ -51,7 +63,8 @@ const fetchMetaData = async (
 
 export const getMetaData = async (): Promise<DomainMetaDataJson> => {
 	const domain = get(d);
-	const uri = getBaseUri(domain);
+	const metaDomain = getMetaDomainValue(domain);
+	const uri = getBaseUri(metaDomain);
 
 	const latest = get(l);
 	const latestReferenceTime = toDate(latest?.reference_time);
@@ -68,7 +81,7 @@ export const getMetaData = async (): Promise<DomainMetaDataJson> => {
 		? (latest as DomainMetaDataJson)
 		: matchesModelRun(inProgressReferenceTime, modelRun)
 			? (inProgress as DomainMetaDataJson)
-			: await fetchMetaData(uri, domain, modelRun);
+			: await fetchMetaData(uri, metaDomain, modelRun);
 
 	result.valid_times.sort();
 	return result;

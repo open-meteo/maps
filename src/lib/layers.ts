@@ -1,11 +1,13 @@
 import { get } from 'svelte/store';
 
+import { type Domain, GridFactory, type SeamlessDomain } from '@openmeteo/weather-map-layer';
 import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
 import { toast } from 'svelte-sonner';
 
 import { map as m } from '$lib/stores/map';
 import { loading, opacity, preferences as p } from '$lib/stores/preferences';
+import { selectedDomain } from '$lib/stores/variables';
 import { vectorOptions as vO } from '$lib/stores/vector';
 
 import {
@@ -17,6 +19,7 @@ import {
 import { type SlotLayer, SlotManager } from '$lib/slot-manager';
 
 import { refreshPopup } from './popup';
+import { omProtocolSettings } from './stores/om-protocol-settings';
 import { currentOmUrl } from './stores/om-url';
 import { getOMUrl } from './url';
 
@@ -286,6 +289,151 @@ export const createManagers = (): void => {
 };
 
 // =============================================================================
+// Seamless domain border overlay
+// =============================================================================
+
+const SEAMLESS_BORDER_SOURCE_ID = 'seamlessBorderSource';
+
+const removeSeamlessBorderLayer = (): void => {
+	const map = get(m);
+	if (!map) return;
+	// Collect IDs first to avoid mutating the layer list while iterating
+	const toRemove = (map.getStyle()?.layers ?? [])
+		.map((l) => l.id)
+		.filter((id) => id.startsWith('seamless-border-'));
+	for (const id of toRemove) {
+		if (map.getLayer(id)) map.removeLayer(id);
+	}
+	if (map.getSource(SEAMLESS_BORDER_SOURCE_ID)) map.removeSource(SEAMLESS_BORDER_SOURCE_ID);
+};
+
+export const updateSeamlessBorderLayer = (): void => {
+	const map = get(m);
+	if (!map) return;
+
+	removeSeamlessBorderLayer();
+
+	const preferences = get(p);
+	if (!preferences.showSeamlessBorders) return;
+
+	const domain = get(selectedDomain);
+	if (!('layers' in domain)) return; // Not a seamless domain — nothing to draw
+
+	const seamlessDomain = domain as SeamlessDomain;
+	const settings = get(omProtocolSettings);
+
+	// Build a bounding-box polygon for each sub-layer except the global fallback
+	// (last layer), which covers the whole world and needs no border.
+	const features: GeoJSON.Feature<GeoJSON.Polygon>[] = [];
+	for (let i = 0; i < seamlessDomain.layers.length - 1; i++) {
+		const layer = seamlessDomain.layers[i];
+		const concreteDomain = settings.domainOptions.find(
+			(d) => d.value === layer.domainValue && !('layers' in d)
+		) as Domain | undefined;
+		if (!concreteDomain) continue;
+
+		const [minLon, minLat, maxLon, maxLat] = GridFactory.create(
+			concreteDomain.grid,
+			null
+		).getBounds();
+		features.push({
+			type: 'Feature',
+			geometry: {
+				type: 'Polygon',
+				coordinates: [
+					[
+						[minLon, minLat],
+						[maxLon, minLat],
+						[maxLon, maxLat],
+						[minLon, maxLat],
+						[minLon, minLat]
+					]
+				]
+			},
+			properties: {
+				layerIndex: i,
+				minZoom: layer.minZoom,
+				label: concreteDomain.label ?? concreteDomain.value
+			}
+		});
+	}
+
+	if (features.length === 0) return;
+
+	map.addSource(SEAMLESS_BORDER_SOURCE_ID, {
+		type: 'geojson',
+		data: { type: 'FeatureCollection', features }
+	});
+
+	// Add one line + one symbol MapLibre layer per boundary so each can carry its
+	// own zoom-dependent opacity that fades in 2 zoom levels before the sub-domain
+	// becomes active (i.e. when its minZoom threshold is reached by the user).
+	const lineColor = isDark() ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)';
+	const textColor = isDark() ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.75)';
+	const textHalo = isDark() ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)';
+
+	for (const feature of features) {
+		const i = feature.properties!.layerIndex as number;
+		const minZoom = feature.properties!.minZoom as number;
+		// Start fading in 2 zoom levels before the layer becomes active
+		const fadeStart = Math.max(0, minZoom - 2);
+
+		// When fadeStart === minZoom (only theoretically possible at minZoom 0),
+		// skip the interpolation and show at full opacity immediately.
+		const opacityExpr: maplibregl.ExpressionSpecification | number =
+			fadeStart < minZoom
+				? (['interpolate', ['linear'], ['zoom'], fadeStart, 0, minZoom, 1] as const)
+				: 1;
+
+		// Dashed bounding-box border
+		map.addLayer(
+			{
+				id: `seamless-border-line-${i}`,
+				type: 'line',
+				source: SEAMLESS_BORDER_SOURCE_ID,
+				minzoom: fadeStart,
+				filter: ['==', ['get', 'layerIndex'], i],
+				paint: {
+					'line-color': lineColor,
+					'line-width': 1.5,
+					'line-dasharray': [4, 3],
+					'line-opacity': opacityExpr
+				}
+			},
+			BEFORE_LAYER_VECTOR
+		);
+
+		// Domain name label placed along the border line
+		map.addLayer(
+			{
+				id: `seamless-border-label-${i}`,
+				type: 'symbol',
+				source: SEAMLESS_BORDER_SOURCE_ID,
+				minzoom: fadeStart,
+				filter: ['==', ['get', 'layerIndex'], i],
+				layout: {
+					'text-field': ['get', 'label'],
+					'text-size': 11,
+					'symbol-placement': 'line',
+					'symbol-spacing': 400,
+					'text-rotation-alignment': 'map',
+					'text-offset': [0, -0.8],
+					'text-allow-overlap': false,
+					'text-ignore-placement': true
+				},
+				paint: {
+					'text-color': textColor,
+					'text-halo-color': textHalo,
+					'text-halo-width': 1.5,
+					'text-opacity': opacityExpr
+				}
+			},
+			BEFORE_LAYER_VECTOR
+		);
+	}
+};
+
+// =============================================================================
 // Public layer API
 // =============================================================================
 
@@ -296,6 +444,7 @@ export const addOmFileLayers = (): void => {
 	createManagers();
 	rasterManager?.update('om://' + omUrl);
 	vectorManager?.update('om://' + omUrl);
+	updateSeamlessBorderLayer();
 };
 
 export const changeOMfileURL = (vectorOnly = false, rasterOnly = false): void => {
@@ -316,4 +465,5 @@ export const changeOMfileURL = (vectorOnly = false, rasterOnly = false): void =>
 
 	if (!vectorOnly) rasterManager?.update('om://' + omUrl);
 	if (!rasterOnly) vectorManager?.update('om://' + omUrl);
+	updateSeamlessBorderLayer();
 };

@@ -1,7 +1,9 @@
 import { get } from 'svelte/store';
 
 import {
+	type Domain,
 	GridFactory,
+	type SeamlessDomain,
 	createClippingTester,
 	getCachedResolvedClipping,
 	getColor,
@@ -76,7 +78,32 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 	const activeUrl = rasterManager?.getActiveSourceUrl();
 	if (!activeUrl) return;
 
-	const { value } = await getValueFromLatLong(coordinates.lat, coordinates.lng, activeUrl);
+	const domain = get(selectedDomain);
+	let value: number;
+	if ('layers' in domain) {
+		// Seamless domain: try each sub-layer finest-first — states are stored
+		// under the concrete domain keys, not the seamless URL key.
+		const seamlessDomain = domain as SeamlessDomain;
+		value = NaN;
+		for (const layer of seamlessDomain.layers) {
+			const subLayerUrl = activeUrl.replace(
+				`/data_spatial/${seamlessDomain.value}/`,
+				`/data_spatial/${layer.domainValue}/`
+			);
+			try {
+				const result = await getValueFromLatLong(coordinates.lat, coordinates.lng, subLayerUrl);
+				if (isFinite(result.value)) {
+					value = result.value;
+					break;
+				}
+			} catch {
+				// Sub-layer state not found (tile not yet loaded), try next
+			}
+		}
+	} else {
+		const result = await getValueFromLatLong(coordinates.lat, coordinates.lng, activeUrl);
+		value = result.value;
+	}
 
 	if (isFinite(value)) {
 		const omProtocolSettingsState = get(omProtocolSettings);
@@ -116,7 +143,18 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 		contentDiv.style.backgroundColor = '';
 		contentDiv.style.color = '';
 
-		const domainBounds = GridFactory.create(get(selectedDomain).grid).getBounds();
+		const activeDomain = get(selectedDomain);
+		const concreteDomain: Domain =
+			'layers' in activeDomain
+				? (get(omProtocolSettings).domainOptions.find(
+						(d) =>
+							d.value ===
+								(activeDomain as SeamlessDomain).layers[
+									(activeDomain as SeamlessDomain).layers.length - 1
+								].domainValue && !('layers' in d)
+					) as Domain)
+				: (activeDomain as Domain);
+		const domainBounds = GridFactory.create(concreteDomain.grid).getBounds();
 		const [minLon, minLat, maxLon, maxLat] = domainBounds;
 		const insideDomain =
 			coordinates.lat >= minLat &&
