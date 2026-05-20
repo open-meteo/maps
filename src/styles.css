@@ -220,6 +220,10 @@
 }
 
 /* Control positioning */
+.maplibregl-ctrl-top-right {
+	top: 44px;
+}
+
 .maplibregl-ctrl-bottom-right {
 	transition-duration: 500ms;
 	z-index: 0;
