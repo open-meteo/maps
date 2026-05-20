@@ -409,10 +409,12 @@
 	fill: rgba(240, 240, 240, 0.8);
 	color: #151513;
 }
-:global(.dark) .github-corner-svg {
+
+.dark .github-corner-svg {
 	fill: rgba(15, 15, 15, 0.8);
 	color: #fff;
 }
+
 .github-corner-blur {
 	position: absolute;
 	top: 0;
@@ -424,9 +426,11 @@
 	/* clip-path matches the SVG triangle: M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z */
 	clip-path: polygon(0% 0%, 46% 46%, 52% 46%, 57% 57%, 100% 100%, 100% 0%);
 }
+
 .github-corner:hover .octo-arm {
 	animation: octocat-wave 560ms ease-in-out;
 }
+
 @keyframes octocat-wave {
 	0%,
 	100% {
@@ -441,6 +445,7 @@
 		transform: rotate(10deg);
 	}
 }
+
 @media (max-width: 500px) {
 	.github-corner:hover .octo-arm {
 		animation: none;
