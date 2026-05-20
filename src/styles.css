@@ -334,16 +334,6 @@
 	.popup-stem {
 		bottom: 60px;
 	}
-
-	/*.popup-dot::after {
-		content: '';
-		position: absolute;
-		width: 250%;
-		height: 250%;
-		border-radius: 50%;
-		transform: translate(-27.5%, 200%);
-		background: rgba(100, 100, 100, 0.5);
-	}*/
 }
 
 .popup-elevation {
@@ -405,4 +395,57 @@
 	top: 7px !important;
 	border: none !important;
 	background: none !important;
+}
+
+/* =============================================================================
+   Github Corner
+   ============================================================================= */
+
+.github-corner-svg {
+	position: absolute;
+	top: 0;
+	right: 0;
+	border: 0;
+	fill: rgba(240, 240, 240, 0.8);
+	color: #151513;
+}
+:global(.dark) .github-corner-svg {
+	fill: rgba(15, 15, 15, 0.8);
+	color: #fff;
+}
+.github-corner-blur {
+	position: absolute;
+	top: 0;
+	right: 0;
+	width: 50px;
+	height: 50px;
+	backdrop-filter: blur(4px);
+	-webkit-backdrop-filter: blur(4px);
+	/* clip-path matches the SVG triangle: M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z */
+	clip-path: polygon(0% 0%, 46% 46%, 52% 46%, 57% 57%, 100% 100%, 100% 0%);
+}
+.github-corner:hover .octo-arm {
+	animation: octocat-wave 560ms ease-in-out;
+}
+@keyframes octocat-wave {
+	0%,
+	100% {
+		transform: rotate(0);
+	}
+	20%,
+	60% {
+		transform: rotate(-25deg);
+	}
+	40%,
+	80% {
+		transform: rotate(10deg);
+	}
+}
+@media (max-width: 500px) {
+	.github-corner:hover .octo-arm {
+		animation: none;
+	}
+	.github-corner .octo-arm {
+		animation: octocat-wave 560ms ease-in-out;
+	}
 }
