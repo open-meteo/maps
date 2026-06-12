@@ -330,23 +330,14 @@ export const updateSeamlessBorderLayer = (): void => {
 		const concreteDomain = resolveConcreteDomain(layer.domainValue, settings.domainOptions);
 		if (!concreteDomain) continue;
 
-		const [minLon, minLat, maxLon, maxLat] = GridFactory.create(
-			concreteDomain.grid,
-			null
-		).getBounds();
+		// Follow the domain's true outline: a curved perimeter for projected grids,
+		// the bounds rectangle for regular grids.
+		const ring = GridFactory.create(concreteDomain.grid, null).getBoundaryPolygon();
 		features.push({
 			type: 'Feature',
 			geometry: {
 				type: 'Polygon',
-				coordinates: [
-					[
-						[minLon, minLat],
-						[maxLon, minLat],
-						[maxLon, maxLat],
-						[minLon, maxLat],
-						[minLon, minLat]
-					]
-				]
+				coordinates: [ring]
 			},
 			properties: {
 				layerIndex: i,

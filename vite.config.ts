@@ -43,6 +43,15 @@ export default ({ mode }: { mode: string }) => {
 				allow: ['..']
 			}
 		},
-		build: { chunkSizeWarningLimit: 1500 }
+		build: {
+			chunkSizeWarningLimit: 1500,
+			rollupOptions: {
+				output: {
+					// Keep all of @openmeteo/weather-map-layer in a single chunk
+					manualChunks: (id: string) =>
+						id.includes('@openmeteo/weather-map-layer') ? 'weather-map-layer' : undefined
+				}
+			}
+		}
 	});
 };
