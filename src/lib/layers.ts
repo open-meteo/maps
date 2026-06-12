@@ -1,6 +1,6 @@
 import { get } from 'svelte/store';
 
-import { type Domain, GridFactory, type SeamlessDomain } from '@openmeteo/weather-map-layer';
+import { GridFactory, isSeamlessDomain, resolveConcreteDomain } from '@openmeteo/weather-map-layer';
 import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
 import { toast } from 'svelte-sonner';
@@ -317,9 +317,9 @@ export const updateSeamlessBorderLayer = (): void => {
 	if (!preferences.showSeamlessBorders) return;
 
 	const domain = get(selectedDomain);
-	if (!('layers' in domain)) return; // Not a seamless domain — nothing to draw
+	if (!isSeamlessDomain(domain)) return; // Not a seamless domain — nothing to draw
 
-	const seamlessDomain = domain as SeamlessDomain;
+	const seamlessDomain = domain;
 	const settings = get(omProtocolSettings);
 
 	// Build a bounding-box polygon for each sub-layer except the global fallback
@@ -327,9 +327,7 @@ export const updateSeamlessBorderLayer = (): void => {
 	const features: GeoJSON.Feature<GeoJSON.Polygon>[] = [];
 	for (let i = 0; i < seamlessDomain.layers.length - 1; i++) {
 		const layer = seamlessDomain.layers[i];
-		const concreteDomain = settings.domainOptions.find(
-			(d) => d.value === layer.domainValue && !('layers' in d)
-		) as Domain | undefined;
+		const concreteDomain = resolveConcreteDomain(layer.domainValue, settings.domainOptions);
 		if (!concreteDomain) continue;
 
 		const [minLon, minLat, maxLon, maxLat] = GridFactory.create(

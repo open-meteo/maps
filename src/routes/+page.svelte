@@ -5,6 +5,7 @@
 	import {
 		GridFactory,
 		domainOptions,
+		getFallbackDomain,
 		omProtocol,
 		updateCurrentBounds
 	} from '@openmeteo/weather-map-layer';
@@ -55,7 +56,6 @@
 
 	import '../styles.css';
 
-	import type { Domain } from '@openmeteo/weather-map-layer';
 	import type { RequestParameters } from 'maplibre-gl';
 
 	let clippingPanel: ReturnType<typeof ClippingPanel>;
@@ -93,13 +93,7 @@
 			throw new Error('Domain not found');
 		}
 		// For seamless domains, use the global (last) backing domain for initial map position
-		const gridDomainValue =
-			'layers' in domainObject
-				? domainObject.layers[domainObject.layers.length - 1].domainValue
-				: domainObject.value;
-		const gridDomain = domainOptions.find(({ value }) => value === gridDomainValue) as
-			| Domain
-			| undefined;
+		const gridDomain = getFallbackDomain(domainObject, domainOptions);
 		if (!gridDomain) {
 			throw new Error('Backing domain not found');
 		}

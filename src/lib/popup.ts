@@ -1,14 +1,14 @@
 import { get } from 'svelte/store';
 
 import {
-	type Domain,
 	GridFactory,
-	type SeamlessDomain,
 	createClippingTester,
 	getCachedResolvedClipping,
 	getColor,
 	getColorScale,
-	getValueFromLatLong
+	getFallbackDomain,
+	getValueFromLatLong,
+	isSeamlessDomain
 } from '@openmeteo/weather-map-layer';
 import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
@@ -80,14 +80,13 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 
 	const domain = get(selectedDomain);
 	let value: number;
-	if ('layers' in domain) {
+	if (isSeamlessDomain(domain)) {
 		// Seamless domain: try each sub-layer finest-first — states are stored
 		// under the concrete domain keys, not the seamless URL key.
-		const seamlessDomain = domain as SeamlessDomain;
 		value = NaN;
-		for (const layer of seamlessDomain.layers) {
+		for (const layer of domain.layers) {
 			const subLayerUrl = activeUrl.replace(
-				`/data_spatial/${seamlessDomain.value}/`,
+				`/data_spatial/${domain.value}/`,
 				`/data_spatial/${layer.domainValue}/`
 			);
 			try {
@@ -143,24 +142,19 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 		contentDiv.style.backgroundColor = '';
 		contentDiv.style.color = '';
 
-		const activeDomain = get(selectedDomain);
-		const concreteDomain: Domain =
-			'layers' in activeDomain
-				? (get(omProtocolSettings).domainOptions.find(
-						(d) =>
-							d.value ===
-								(activeDomain as SeamlessDomain).layers[
-									(activeDomain as SeamlessDomain).layers.length - 1
-								].domainValue && !('layers' in d)
-					) as Domain)
-				: (activeDomain as Domain);
-		const domainBounds = GridFactory.create(concreteDomain.grid).getBounds();
-		const [minLon, minLat, maxLon, maxLat] = domainBounds;
-		const insideDomain =
-			coordinates.lat >= minLat &&
-			coordinates.lat <= maxLat &&
-			coordinates.lng >= minLon &&
-			coordinates.lng <= maxLon;
+		const concreteDomain = getFallbackDomain(
+			get(selectedDomain),
+			get(omProtocolSettings).domainOptions
+		);
+		let insideDomain = false;
+		if (concreteDomain) {
+			const [minLon, minLat, maxLon, maxLat] = GridFactory.create(concreteDomain.grid).getBounds();
+			insideDomain =
+				coordinates.lat >= minLat &&
+				coordinates.lat <= maxLat &&
+				coordinates.lng >= minLon &&
+				coordinates.lng <= maxLon;
+		}
 
 		valueSpan.innerText = insideDomain ? 'No data' : 'Outside domain';
 		unitSpan.innerText = '';

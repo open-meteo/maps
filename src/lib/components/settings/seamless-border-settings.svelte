@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { derived } from 'svelte/store';
 
+	import { isSeamlessDomain } from '@openmeteo/weather-map-layer';
+
 	import { preferences } from '$lib/stores/preferences';
 	import { selectedDomain } from '$lib/stores/variables';
 
@@ -10,7 +12,7 @@
 	import { updateSeamlessBorderLayer } from '$lib/layers';
 
 	// Only show this setting when a seamless domain is selected
-	const isSeamless = derived(selectedDomain, ($d) => 'layers' in $d);
+	const isSeamless = derived(selectedDomain, ($d) => isSeamlessDomain($d));
 	const showBorders = $derived($preferences.showSeamlessBorders);
 </script>
 

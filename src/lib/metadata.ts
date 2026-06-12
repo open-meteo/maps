@@ -1,27 +1,19 @@
 import { get } from 'svelte/store';
 
-import { type DomainMetaDataJson, VARIABLE_PREFIX } from '@openmeteo/weather-map-layer';
+import {
+	type DomainMetaDataJson,
+	VARIABLE_PREFIX,
+	getFallbackDomainValue
+} from '@openmeteo/weather-map-layer';
 
 import { loading } from '$lib/stores/preferences';
 import { inProgress as iP, latest as l, metaJson as mJ, modelRun as mR } from '$lib/stores/time';
-import { domain as d, selectedDomain, variable as v } from '$lib/stores/variables';
+import { selectedDomain, variable as v } from '$lib/stores/variables';
 
 import { fmtModelRun, getBaseUri } from './helpers';
 
-/** For seamless domains, returns the last (global fallback) layer's domain value;
- * for regular domains, returns the domain value unchanged. */
-const getMetaDomainValue = (domainValue: string): string => {
-	const domainObj = get(selectedDomain);
-	if (domainObj && 'layers' in domainObj && domainObj.layers.length > 0) {
-		return domainObj.layers[domainObj.layers.length - 1].domainValue;
-	}
-	return domainValue;
-};
-
 export const getInitialMetaData = async () => {
-	const domain = get(selectedDomain);
-	const metaDomainValue =
-		'layers' in domain ? domain.layers[domain.layers.length - 1].domainValue : domain.value;
+	const metaDomainValue = getFallbackDomainValue(get(selectedDomain));
 	const uri = getBaseUri(metaDomainValue);
 
 	const [latestRes, inProgressRes] = await Promise.all([
@@ -62,8 +54,7 @@ const fetchMetaData = async (
 };
 
 export const getMetaData = async (): Promise<DomainMetaDataJson> => {
-	const domain = get(d);
-	const metaDomain = getMetaDomainValue(domain);
+	const metaDomain = getFallbackDomainValue(get(selectedDomain));
 	const uri = getBaseUri(metaDomain);
 
 	const latest = get(l);
