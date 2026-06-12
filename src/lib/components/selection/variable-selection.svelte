@@ -14,7 +14,7 @@
 		variableOptions
 	} from '@openmeteo/weather-map-layer';
 
-	import { desktop, loading } from '$lib/stores/preferences';
+	import { desktop } from '$lib/stores/preferences';
 	import { metaJson } from '$lib/stores/time';
 	import {
 		domainSelectionOpen as dSO,
@@ -215,7 +215,6 @@
 													? 'bg-primary/10!'
 													: ''}"
 												onSelect={() => {
-													$loading = true;
 													$domain = value;
 													dSO.set(false);
 												}}
