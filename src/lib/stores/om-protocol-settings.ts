@@ -1,7 +1,10 @@
 import { type Writable, get, writable } from 'svelte/store';
 
 import { BrowserBlockCache } from '@openmeteo/file-reader';
-import { WeatherMapLayerFileReader, defaultOmProtocolSettings } from '@openmeteo/weather-map-layer';
+import {
+	type WeatherMapLayerFileReader,
+	defaultOmProtocolSettings
+} from '@openmeteo/weather-map-layer';
 import { persisted } from 'svelte-persisted-store';
 
 import { browser } from '$app/environment';
