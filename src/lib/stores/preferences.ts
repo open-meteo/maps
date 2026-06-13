@@ -94,7 +94,7 @@ export const resetStates = async () => {
 	now.set(new Date());
 	time.set(new Date(currentTimeStep));
 
-	domain.set('dwd_icon');
+	domain.set('dwd_icon_seamless');
 	variable.set('temperature_2m');
 
 	domainSelectionOpen.set(false);

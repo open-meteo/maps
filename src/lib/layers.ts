@@ -1,6 +1,11 @@
 import { get } from 'svelte/store';
 
-import { GridFactory, isSeamlessDomain, resolveConcreteDomain } from '@openmeteo/weather-map-layer';
+import {
+	GridFactory,
+	getDomainFootprint,
+	isSeamlessDomain,
+	resolveConcreteDomain
+} from '@openmeteo/weather-map-layer';
 import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
 import { toast } from 'svelte-sonner';
@@ -307,17 +312,31 @@ const removeSeamlessBorderLayer = (): void => {
 	if (map.getSource(SEAMLESS_BORDER_SOURCE_ID)) map.removeSource(SEAMLESS_BORDER_SOURCE_ID);
 };
 
+// Tracks what the borders were last drawn for, so repeated calls (e.g. on every
+// timestep change via changeOMfileURL) don't needlessly remove + re-add the
+// layers — which restarts their fade-in transition and makes them flash.
+let lastBorderSignature: string | null = null;
+
+/** Forces the next updateSeamlessBorderLayer() to redraw (e.g. after a style reload). */
+export const resetSeamlessBorderLayer = (): void => {
+	lastBorderSignature = null;
+};
+
 export const updateSeamlessBorderLayer = (): void => {
 	const map = get(m);
 	if (!map) return;
 
-	removeSeamlessBorderLayer();
-
 	const preferences = get(p);
-	if (!preferences.showSeamlessBorders) return;
-
 	const domain = get(selectedDomain);
-	if (!isSeamlessDomain(domain)) return; // Not a seamless domain — nothing to draw
+	const draw = preferences.showSeamlessBorders && isSeamlessDomain(domain);
+	// Borders depend only on the domain + theme (colours) + toggle, never the
+	// timestep. Skip the flashing remove/re-add when none of those changed.
+	const signature = draw ? `${domain.value}|${isDark()}` : 'none';
+	if (signature === lastBorderSignature) return;
+	lastBorderSignature = signature;
+
+	removeSeamlessBorderLayer();
+	if (!isSeamlessDomain(domain) || !preferences.showSeamlessBorders) return;
 
 	const seamlessDomain = domain;
 	const settings = get(omProtocolSettings);
@@ -330,9 +349,12 @@ export const updateSeamlessBorderLayer = (): void => {
 		const concreteDomain = resolveConcreteDomain(layer.domainValue, settings.domainOptions);
 		if (!concreteDomain) continue;
 
-		// Follow the domain's true outline: a curved perimeter for projected grids,
-		// the bounds rectangle for regular grids.
-		const ring = GridFactory.create(concreteDomain.grid, null).getBoundaryPolygon();
+		// Follow the domain's true outline: a precomputed data-shape footprint for
+		// NULL-padded reprojected grids, otherwise a curved perimeter for projected
+		// grids / the bounds rectangle for plain regular grids.
+		const ring =
+			getDomainFootprint(concreteDomain.value) ??
+			GridFactory.create(concreteDomain.grid, null).getBoundaryPolygon();
 		features.push({
 			type: 'Feature',
 			geometry: {
@@ -368,7 +390,7 @@ export const updateSeamlessBorderLayer = (): void => {
 		const i = feature.properties!.layerIndex as number;
 		const minZoom = feature.properties!.minZoom as number;
 		// Start fading in 2 zoom levels before the layer becomes active
-		const fadeStart = Math.max(0, minZoom - 2.5);
+		const fadeStart = Math.max(0, minZoom - 3);
 
 		// When fadeStart === minZoom (only theoretically possible at minZoom 0),
 		// skip the interpolation and show at full opacity immediately.
@@ -452,6 +474,9 @@ export const addOmFileLayers = (): void => {
 	createManagers();
 	rasterManager?.update('om://' + omUrl);
 	vectorManager?.update('om://' + omUrl);
+	// (Re)creating the map layers (initial load or style reload) drops the border
+	// layers, so force them to be drawn again.
+	resetSeamlessBorderLayer();
 	updateSeamlessBorderLayer();
 };
 

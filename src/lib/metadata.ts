@@ -27,10 +27,15 @@ export const getInitialMetaData = async (): Promise<boolean> => {
 			fetch(`${uri}/data_spatial/${metaDomainValue}/in-progress.json`)
 		]);
 
-		for (const res of [latestRes, inProgressRes]) {
-			if (!res.ok) throw new Error(`HTTP ${res.status}`);
-			if (res.url.includes('latest.json')) l.set(await res.json());
-			if (res.url.includes('in-progress.json')) iP.set(await res.json());
+		// Tolerate a missing latest OR in-progress: a freshly-running model may only
+		// have in-progress (no completed `latest` yet). As long as one is available
+		// the UI can proceed; only a total failure (both missing) is an error.
+		l.set(latestRes.ok ? await latestRes.json() : undefined);
+		iP.set(inProgressRes.ok ? await inProgressRes.json() : undefined);
+
+		if (!get(l) && !get(iP)) {
+			loading.set(false);
+			return false;
 		}
 		return true;
 	} catch {
@@ -68,15 +73,20 @@ export const getMetaData = async (): Promise<DomainMetaDataJson | undefined> => 
 		const uri = getBaseUri(metaDomain);
 
 		const latest = get(l);
-		const latestReferenceTime = toDate(latest?.reference_time);
-
-		if (get(mR) === undefined) {
-			mR.set(latestReferenceTime);
-		}
-		const modelRun = get(mR) as Date;
-
 		const inProgress = get(iP);
+		const latestReferenceTime = toDate(latest?.reference_time);
 		const inProgressReferenceTime = toDate(inProgress?.reference_time);
+
+		// Default the model run to latest when present, otherwise in-progress, so a
+		// domain with only in-progress data still resolves to a valid run.
+		if (get(mR) === undefined) {
+			mR.set(latestReferenceTime ?? inProgressReferenceTime);
+		}
+		const modelRun = get(mR);
+		if (!modelRun) {
+			loading.set(false);
+			return undefined;
+		}
 
 		const result: DomainMetaDataJson = matchesModelRun(latestReferenceTime, modelRun)
 			? (latest as DomainMetaDataJson)
