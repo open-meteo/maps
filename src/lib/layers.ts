@@ -360,19 +360,38 @@ export const updateSeamlessBorderLayer = (): void => {
 	const lineColor = isDark() ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)';
 	const textColor = isDark() ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.75)';
 	const textHalo = isDark() ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)';
+	// Highlight colour once the sub-domain becomes active (zoom >= its minZoom).
+	const activeLineColor = 'rgba(30,120,255,0.8)';
+	const activeTextColor = 'rgba(30,120,255,1)';
 
 	for (const feature of features) {
 		const i = feature.properties!.layerIndex as number;
 		const minZoom = feature.properties!.minZoom as number;
 		// Start fading in 2 zoom levels before the layer becomes active
-		const fadeStart = Math.max(0, minZoom - 2);
+		const fadeStart = Math.max(0, minZoom - 2.5);
 
 		// When fadeStart === minZoom (only theoretically possible at minZoom 0),
 		// skip the interpolation and show at full opacity immediately.
 		const opacityExpr: maplibregl.ExpressionSpecification | number =
 			fadeStart < minZoom
-				? (['interpolate', ['linear'], ['zoom'], fadeStart, 0, minZoom, 1] as const)
+				? (['interpolate', ['linear'], ['zoom'], fadeStart, 0, minZoom - 0.5, 1] as const)
 				: 1;
+
+		// Turn the border/label blue at the zoom where this sub-domain takes over.
+		const lineColorExpr: maplibregl.ExpressionSpecification = [
+			'step',
+			['zoom'],
+			lineColor,
+			minZoom - 0.5,
+			activeLineColor
+		];
+		const textColorExpr: maplibregl.ExpressionSpecification = [
+			'step',
+			['zoom'],
+			textColor,
+			minZoom - 0.5,
+			activeTextColor
+		];
 
 		// Dashed bounding-box border
 		map.addLayer(
@@ -383,7 +402,7 @@ export const updateSeamlessBorderLayer = (): void => {
 				minzoom: fadeStart,
 				filter: ['==', ['get', 'layerIndex'], i],
 				paint: {
-					'line-color': lineColor,
+					'line-color': lineColorExpr,
 					'line-width': 1.5,
 					'line-dasharray': [4, 3],
 					'line-opacity': opacityExpr
@@ -411,7 +430,7 @@ export const updateSeamlessBorderLayer = (): void => {
 					'text-ignore-placement': true
 				},
 				paint: {
-					'text-color': textColor,
+					'text-color': textColorExpr,
 					'text-halo-color': textHalo,
 					'text-halo-width': 1.5,
 					'text-opacity': opacityExpr

@@ -12,22 +12,30 @@ import { selectedDomain, variable as v } from '$lib/stores/variables';
 
 import { fmtModelRun, getBaseUri } from './helpers';
 
-export const getInitialMetaData = async () => {
-	const metaDomainValue = getFallbackDomainValue(get(selectedDomain));
-	const uri = getBaseUri(metaDomainValue);
+/**
+ * Loads latest/in-progress metadata for the current domain. Returns `false`
+ * (and clears the loading state) instead of throwing when the request fails, so
+ * a domain without available data can never block the UI.
+ */
+export const getInitialMetaData = async (): Promise<boolean> => {
+	try {
+		const metaDomainValue = getFallbackDomainValue(get(selectedDomain));
+		const uri = getBaseUri(metaDomainValue);
 
-	const [latestRes, inProgressRes] = await Promise.all([
-		fetch(`${uri}/data_spatial/${metaDomainValue}/latest.json`),
-		fetch(`${uri}/data_spatial/${metaDomainValue}/in-progress.json`)
-	]);
+		const [latestRes, inProgressRes] = await Promise.all([
+			fetch(`${uri}/data_spatial/${metaDomainValue}/latest.json`),
+			fetch(`${uri}/data_spatial/${metaDomainValue}/in-progress.json`)
+		]);
 
-	for (const res of [latestRes, inProgressRes]) {
-		if (!res.ok) {
-			loading.set(false);
-			throw new Error(`HTTP ${res.status}`);
+		for (const res of [latestRes, inProgressRes]) {
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			if (res.url.includes('latest.json')) l.set(await res.json());
+			if (res.url.includes('in-progress.json')) iP.set(await res.json());
 		}
-		if (res.url.includes('latest.json')) l.set(await res.json());
-		if (res.url.includes('in-progress.json')) iP.set(await res.json());
+		return true;
+	} catch {
+		loading.set(false);
+		return false;
 	}
 };
 
@@ -45,37 +53,43 @@ const fetchMetaData = async (
 	const url = `${uri}/data_spatial/${domain}/${fmtModelRun(modelRun)}/meta.json`;
 	const res = await fetch(url);
 
-	if (!res.ok) {
-		loading.set(false);
-		throw new Error(`HTTP ${res.status}`);
-	}
+	if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
 	return res.json();
 };
 
-export const getMetaData = async (): Promise<DomainMetaDataJson> => {
-	const metaDomain = getFallbackDomainValue(get(selectedDomain));
-	const uri = getBaseUri(metaDomain);
+/**
+ * Resolves the metadata for the selected model run. Returns `undefined` (and
+ * clears the loading state) instead of throwing when the request fails.
+ */
+export const getMetaData = async (): Promise<DomainMetaDataJson | undefined> => {
+	try {
+		const metaDomain = getFallbackDomainValue(get(selectedDomain));
+		const uri = getBaseUri(metaDomain);
 
-	const latest = get(l);
-	const latestReferenceTime = toDate(latest?.reference_time);
+		const latest = get(l);
+		const latestReferenceTime = toDate(latest?.reference_time);
 
-	if (get(mR) === undefined) {
-		mR.set(latestReferenceTime);
+		if (get(mR) === undefined) {
+			mR.set(latestReferenceTime);
+		}
+		const modelRun = get(mR) as Date;
+
+		const inProgress = get(iP);
+		const inProgressReferenceTime = toDate(inProgress?.reference_time);
+
+		const result: DomainMetaDataJson = matchesModelRun(latestReferenceTime, modelRun)
+			? (latest as DomainMetaDataJson)
+			: matchesModelRun(inProgressReferenceTime, modelRun)
+				? (inProgress as DomainMetaDataJson)
+				: await fetchMetaData(uri, metaDomain, modelRun);
+
+		result.valid_times.sort();
+		return result;
+	} catch {
+		loading.set(false);
+		return undefined;
 	}
-	const modelRun = get(mR) as Date;
-
-	const inProgress = get(iP);
-	const inProgressReferenceTime = toDate(inProgress?.reference_time);
-
-	const result: DomainMetaDataJson = matchesModelRun(latestReferenceTime, modelRun)
-		? (latest as DomainMetaDataJson)
-		: matchesModelRun(inProgressReferenceTime, modelRun)
-			? (inProgress as DomainMetaDataJson)
-			: await fetchMetaData(uri, metaDomain, modelRun);
-
-	result.valid_times.sort();
-	return result;
 };
 
 export const matchVariableOrFirst = () => {

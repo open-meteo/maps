@@ -148,10 +148,18 @@
 		}
 
 		getInitialMetaDataPromise = (async () => {
-			await getInitialMetaData();
-			$metaJson = await getMetaData();
+			const ok = await getInitialMetaData();
+			const meta = ok ? await getMetaData() : undefined;
+			$metaJson = meta;
+			if (!meta) {
+				// Metadata unavailable (e.g. domain has no published data) — surface it
+				// and bail out without blocking the UI so another domain can be picked.
+				$loading = false;
+				toast.error('Could not load data for ' + $selectedDomain.label);
+				return;
+			}
 
-			const timeSteps = $metaJson?.valid_times.map((validTime: string) => new Date(validTime));
+			const timeSteps = meta.valid_times.map((validTime: string) => new Date(validTime));
 			const timeStep = findTimeStep($time, timeSteps);
 			// clamp time to valid times in meta data
 			if (timeStep) {
