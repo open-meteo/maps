@@ -221,13 +221,21 @@ export const switchPopupMode = (): void => {
 	}
 };
 
+// Touch double-tap-to-zoom and the tap-to-toggle-popup gesture overlap. On the
+// first tap we must NOT immediately create the popup marker: it is a draggable
+// marker that would swallow the second tap before MapLibre's touch double-tap
+// zoom recognizes it. Instead we defer the toggle past the double-tap window
+// (MapLibre's MAX_TAP_INTERVAL is 500ms) and skip it if a zoom started — a
+// double-tap fires `zoomstart`. Mouse input acts immediately (no such gesture).
+const DOUBLE_TAP_WINDOW_MS = 300;
+
 export const addPopup = (): void => {
 	const map = get(m);
 	if (!map) return;
 
 	map.on('mousemove', updatePopup);
 
-	map.on('click', async (e: maplibregl.MapLayerMouseEvent) => {
+	const togglePopupAt = async (lngLat: maplibregl.LngLat): Promise<void> => {
 		if (!map || get(terraDrawActive)) return;
 
 		switchPopupMode();
@@ -241,7 +249,44 @@ export const addPopup = (): void => {
 		map.off('mousemove', updatePopup);
 		map.on('mousemove', updatePopup);
 
-		await renderPopup(e.lngLat);
+		await renderPopup(lngLat);
+	};
+
+	let pendingTap: ReturnType<typeof setTimeout> | null = null;
+	// While set (just after a zoom/double-tap began) taps are ignored, so a
+	// double-tap zoom never also toggles the popup, regardless of event ordering.
+	let suppressTapsUntil = 0;
+
+	const cancelPendingTap = (): void => {
+		if (pendingTap !== null) {
+			clearTimeout(pendingTap);
+			pendingTap = null;
+		}
+	};
+	const onZoomOrDoubleClick = (): void => {
+		suppressTapsUntil = Date.now() + DOUBLE_TAP_WINDOW_MS;
+		cancelPendingTap();
+	};
+	map.on('zoomstart', onZoomOrDoubleClick);
+	map.on('dblclick', onZoomOrDoubleClick);
+
+	map.on('click', (e: maplibregl.MapLayerMouseEvent) => {
+		if (!map || get(terraDrawActive)) return;
+
+		// Mouse: toggle immediately. Touch: defer so a double-tap can zoom instead.
+		if (desktop.current) {
+			void togglePopupAt(e.lngLat);
+			return;
+		}
+
+		if (Date.now() < suppressTapsUntil) return; // part of an in-progress zoom
+		cancelPendingTap();
+		const { lngLat } = e;
+		pendingTap = setTimeout(() => {
+			pendingTap = null;
+			if (Date.now() < suppressTapsUntil) return; // a zoom slipped in while waiting
+			void togglePopupAt(lngLat);
+		}, DOUBLE_TAP_WINDOW_MS);
 	});
 };
 
