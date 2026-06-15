@@ -341,9 +341,9 @@ export const updateSeamlessBorderLayer = (): void => {
 	const seamlessDomain = domain;
 	const settings = get(omProtocolSettings);
 
-	// Build a bounding-box polygon for each sub-layer except the global fallback
+	// Build a boundary outline for each sub-layer except the global fallback
 	// (last layer), which covers the whole world and needs no border.
-	const features: GeoJSON.Feature<GeoJSON.Polygon>[] = [];
+	const features: GeoJSON.Feature<GeoJSON.LineString>[] = [];
 	for (let i = 0; i < seamlessDomain.layers.length - 1; i++) {
 		const layer = seamlessDomain.layers[i];
 		const concreteDomain = resolveConcreteDomain(layer.domainValue, settings.domainOptions);
@@ -352,14 +352,19 @@ export const updateSeamlessBorderLayer = (): void => {
 		// Follow the domain's true outline: a precomputed data-shape footprint for
 		// NULL-padded reprojected grids, otherwise a curved perimeter for projected
 		// grids / the bounds rectangle for plain regular grids.
+		//
+		// Drawn as a LineString rather than a Polygon: the ring already closes on
+		// itself, and a polygon's implicit ring-closing segment would jump ~360°
+		// across the map for boundaries that cross the antimeridian or encircle a
+		// pole (the perimeter's longitudes are continuous but may exceed ±180°).
 		const ring =
 			getDomainFootprint(concreteDomain.value) ??
 			GridFactory.create(concreteDomain.grid, null).getBoundaryPolygon();
 		features.push({
 			type: 'Feature',
 			geometry: {
-				type: 'Polygon',
-				coordinates: [ring]
+				type: 'LineString',
+				coordinates: ring
 			},
 			properties: {
 				layerIndex: i,
