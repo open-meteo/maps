@@ -3,12 +3,15 @@ import { get } from 'svelte/store';
 
 import {
 	type AnyDomain,
+	type Domain,
 	type DomainMetaDataJson,
 	closestModelRun,
 	defaultOmProtocolSettings,
 	domainOptions,
 	domainStep,
-	getFallbackDomain
+	getFallbackDomain,
+	isSeamlessDomain,
+	resolveConcreteDomain
 } from '@openmeteo/weather-map-layer';
 import { mode } from 'mode-watcher';
 
@@ -211,6 +214,37 @@ export const getOMUrl = () => {
 	return result;
 };
 
+/**
+ * Build the OM file URL for a concrete domain at a specific valid time, picking
+ * the closest model run (clamped to the current run when metadata is available).
+ * Returns undefined for an invalid date.
+ */
+const omUrlForDomainAtTime = (
+	domain: Domain,
+	date: Date,
+	metaJson: DomainMetaDataJson | undefined
+): string | undefined => {
+	if (isNaN(date.getTime())) return undefined;
+	const base = `${getBaseUri(domain.value)}/data_spatial/${domain.value}`;
+	const currentModelRun = metaJson ? new Date(metaJson.reference_time) : undefined;
+	let modelRun = closestModelRun(date, domain.model_interval);
+	if (currentModelRun && modelRun > currentModelRun) modelRun = currentModelRun;
+	return `${base}/${fmtModelRun(modelRun)}/${fmtSelectedTime(date)}.om`;
+};
+
+/** The valid times one step before/after `date`, from metadata if present. */
+const prevNextDates = (
+	date: Date,
+	step: Domain['time_interval'],
+	metaJson: DomainMetaDataJson | undefined
+): [prev: Date, next: Date] => {
+	if (metaJson) {
+		const idx = metaJson.valid_times.findIndex((s) => s === formatISOUTCWithZ(date));
+		return [new Date(metaJson.valid_times[idx + 1]), new Date(metaJson.valid_times[idx - 1])];
+	}
+	return [domainStep(date, step, 'backward'), domainStep(date, step, 'forward')];
+};
+
 export const getNextOmUrls = (
 	_omUrl: string,
 	anyDomain: AnyDomain,
@@ -220,36 +254,55 @@ export const getNextOmUrls = (
 	// URL construction and time-interval access.
 	const domain = getFallbackDomain(anyDomain, domainOptions);
 	if (!domain) return [undefined, undefined];
-	const base = `https://map-tiles.open-meteo.com/data_spatial/${domain.value}`;
+
 	const date = get(time);
-	const dateString = formatISOUTCWithZ(date);
+	const [prevDate, nextDate] = prevNextDates(date, domain.time_interval, metaJson);
 
-	let prevDate: Date;
-	let nextDate: Date;
+	return [
+		omUrlForDomainAtTime(domain, prevDate, metaJson),
+		omUrlForDomainAtTime(domain, nextDate, metaJson)
+	];
+};
 
-	if (metaJson) {
-		const idx = metaJson.valid_times.findIndex((s) => s === dateString);
-		prevDate = new Date(metaJson.valid_times[idx + 1]);
-		nextDate = new Date(metaJson.valid_times[idx - 1]);
-	} else {
-		prevDate = domainStep(date, domain.time_interval, 'backward');
-		nextDate = domainStep(date, domain.time_interval, 'forward');
+/**
+ * Cache-warmup URLs for a seamless composite domain.
+ *
+ * Returns, for every concrete sub-layer — including ones the viewport gate skips
+ * because they are off-screen — the current, previous and next timestep file
+ * URLs. Warming these file headers keeps panning to a regional model and stepping
+ * through time instant; the sub-layer's actual data is still loaded on demand by
+ * the protocol (and only when the layer is in view).
+ *
+ * `currentFallbackOmUrl` is the global fallback layer's current OM URL (i.e.
+ * `state.omFileUrl` from the protocol). The seamless protocol derives each
+ * sub-layer URL by swapping only the `/data_spatial/<domain>/` segment of the
+ * request URL — keeping host, model-run path and valid time — so we mirror that
+ * here exactly, guaranteeing the warmed file matches what the protocol fetches.
+ *
+ * Returns an empty list for non-seamless domains.
+ */
+export const getSeamlessWarmupOmUrls = (
+	anyDomain: AnyDomain,
+	currentFallbackOmUrl: string,
+	metaJson: DomainMetaDataJson | undefined
+): string[] => {
+	if (!isSeamlessDomain(anyDomain)) return [];
+	const fallback = getFallbackDomain(anyDomain, domainOptions);
+	if (!fallback) return [];
+
+	// Current + previous + next timestep file URLs for the global fallback domain,
+	// exactly as the protocol requests/prefetches them.
+	const fallbackTimestepUrls = [currentFallbackOmUrl, ...getNextOmUrls('', anyDomain, metaJson)];
+	const fromSegment = `/data_spatial/${fallback.value}/`;
+
+	const urls = new Set<string>();
+	for (const layer of anyDomain.layers) {
+		const sub = resolveConcreteDomain(layer.domainValue, domainOptions);
+		if (!sub) continue;
+		const toSegment = `/data_spatial/${sub.value}/`;
+		for (const url of fallbackTimestepUrls) {
+			if (url) urls.add(url.replace(fromSegment, toSegment));
+		}
 	}
-
-	const currentModelRun = metaJson ? new Date(metaJson.reference_time) : undefined;
-
-	const clampRun = (run: Date): Date =>
-		currentModelRun && run > currentModelRun ? currentModelRun : run;
-
-	const prevModelRun = clampRun(closestModelRun(prevDate, domain.model_interval));
-	const nextModelRun = clampRun(closestModelRun(nextDate, domain.model_interval));
-
-	const prevUrl = !isNaN(prevDate.getTime())
-		? `${base}/${fmtModelRun(prevModelRun)}/${fmtSelectedTime(prevDate)}.om`
-		: undefined;
-	const nextUrl = !isNaN(nextDate.getTime())
-		? `${base}/${fmtModelRun(nextModelRun)}/${fmtSelectedTime(nextDate)}.om`
-		: undefined;
-
-	return [prevUrl, nextUrl];
+	return [...urls];
 };

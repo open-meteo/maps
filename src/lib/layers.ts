@@ -12,6 +12,7 @@ import { toast } from 'svelte-sonner';
 
 import { map as m } from '$lib/stores/map';
 import { loading, opacity, preferences as p } from '$lib/stores/preferences';
+import { modelRun, time } from '$lib/stores/time';
 import { selectedDomain } from '$lib/stores/variables';
 import { vectorOptions as vO } from '$lib/stores/vector';
 
@@ -329,9 +330,34 @@ export const updateSeamlessBorderLayer = (): void => {
 	const preferences = get(p);
 	const domain = get(selectedDomain);
 	const draw = preferences.showSeamlessBorders && isSeamlessDomain(domain);
-	// Borders depend only on the domain + theme (colours) + toggle, never the
-	// timestep. Skip the flashing remove/re-add when none of those changed.
-	const signature = draw ? `${domain.value}|${isDark()}` : 'none';
+
+	// A regional sub-layer only has data up to its forecast horizon
+	// (maxForecastHours). Past it the seamless composite falls back to a coarser
+	// model, so the regional border must disappear too. Lead time is the gap
+	// between the selected valid time and the model run, matching the lead-time
+	// gate the seamless protocol applies when loading sub-layers.
+	const modelRunDate = get(modelRun);
+	const validTime = get(time);
+	const leadTimeHours =
+		modelRunDate && validTime
+			? (validTime.getTime() - modelRunDate.getTime()) / 3_600_000
+			: undefined;
+	const layerAvailable = (maxForecastHours: number | undefined): boolean =>
+		maxForecastHours === undefined ||
+		leadTimeHours === undefined ||
+		leadTimeHours <= maxForecastHours;
+
+	// Borders depend on the domain + theme (colours) + toggle, plus which sub-layers
+	// are available at the current lead time. Skip the flashing remove/re-add when
+	// none of those changed (most timestep changes keep the same availability).
+	const availabilityKey =
+		draw && isSeamlessDomain(domain)
+			? domain.layers
+					.slice(0, -1)
+					.map((l) => (layerAvailable(l.maxForecastHours) ? '1' : '0'))
+					.join('')
+			: '';
+	const signature = draw ? `${domain.value}|${isDark()}|${availabilityKey}` : 'none';
 	if (signature === lastBorderSignature) return;
 	lastBorderSignature = signature;
 
@@ -346,6 +372,8 @@ export const updateSeamlessBorderLayer = (): void => {
 	const features: GeoJSON.Feature<GeoJSON.LineString>[] = [];
 	for (let i = 0; i < seamlessDomain.layers.length - 1; i++) {
 		const layer = seamlessDomain.layers[i];
+		// Hide the border for a sub-layer whose data isn't available at this lead time.
+		if (!layerAvailable(layer.maxForecastHours)) continue;
 		const concreteDomain = resolveConcreteDomain(layer.domainValue, settings.domainOptions);
 		if (!concreteDomain) continue;
 
