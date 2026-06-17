@@ -273,35 +273,48 @@ export const getNextOmUrls = (
  * through time instant; the sub-layer's actual data is still loaded on demand by
  * the protocol (and only when the layer is in view).
  *
- * `currentFallbackOmUrl` is the global fallback layer's current OM URL (i.e.
- * `state.omFileUrl` from the protocol). The seamless protocol derives each
- * sub-layer URL by swapping only the `/data_spatial/<domain>/` segment of the
- * request URL — keeping host, model-run path and valid time — so we mirror that
- * here exactly, guaranteeing the warmed file matches what the protocol fetches.
+ * The seamless protocol builds each sub-layer URL by swapping only the
+ * `/data_spatial/<domain>/` segment of the seamless request URL — keeping the host,
+ * model-run path and valid time. We mirror that exactly: all sub-layers share the
+ * composite's host (`getBaseUri(seamless)`, which equals `getBaseUri(fallback)` for
+ * every composite) and the same run path, derived from the time/model-run stores
+ * the same way `getOMUrl` / `getNextOmUrls` derive them. This guarantees the warmed
+ * file matches what the protocol fetches, for every sub-layer of every composite.
  *
  * Returns an empty list for non-seamless domains.
  */
 export const getSeamlessWarmupOmUrls = (
 	anyDomain: AnyDomain,
-	currentFallbackOmUrl: string,
 	metaJson: DomainMetaDataJson | undefined
 ): string[] => {
 	if (!isSeamlessDomain(anyDomain)) return [];
 	const fallback = getFallbackDomain(anyDomain, domainOptions);
 	if (!fallback) return [];
 
-	// Current + previous + next timestep file URLs for the global fallback domain,
-	// exactly as the protocol requests/prefetches them.
-	const fallbackTimestepUrls = [currentFallbackOmUrl, ...getNextOmUrls('', anyDomain, metaJson)];
-	const fromSegment = `/data_spatial/${fallback.value}/`;
+	const modelRunDate = get(mR);
+	const date = get(time);
+	if (!modelRunDate || isNaN(date.getTime())) return [];
 
+	const currentModelRun = metaJson ? new Date(metaJson.reference_time) : undefined;
+	const runFor = (t: Date): Date => {
+		const run = closestModelRun(t, fallback.model_interval);
+		return currentModelRun && run > currentModelRun ? currentModelRun : run;
+	};
+
+	// (model-run, valid-time) for the current, previous and next timesteps. The
+	// current run is the selected one; prev/next mirror getNextOmUrls' derivation.
+	const [prevDate, nextDate] = prevNextDates(date, fallback.time_interval, metaJson);
+	const stamps: Array<[run: Date, validTime: Date]> = [[modelRunDate, date]];
+	if (!isNaN(prevDate.getTime())) stamps.push([runFor(prevDate), prevDate]);
+	if (!isNaN(nextDate.getTime())) stamps.push([runFor(nextDate), nextDate]);
+
+	const host = getBaseUri(anyDomain.value);
 	const urls = new Set<string>();
 	for (const layer of anyDomain.layers) {
 		const sub = resolveConcreteDomain(layer.domainValue, domainOptions);
 		if (!sub) continue;
-		const toSegment = `/data_spatial/${sub.value}/`;
-		for (const url of fallbackTimestepUrls) {
-			if (url) urls.add(url.replace(fromSegment, toSegment));
+		for (const [run, t] of stamps) {
+			urls.add(`${host}/data_spatial/${sub.value}/${fmtModelRun(run)}/${fmtSelectedTime(t)}.om`);
 		}
 	}
 	return [...urls];

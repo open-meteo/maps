@@ -92,24 +92,10 @@ export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
 	colorScales: { ...defaultOmProtocolSettings.colorScales, ...initialCustomColorScales },
 
 	postReadCallback: (omFileReader: WeatherMapLayerFileReader, data: Data, state: OmUrlState) => {
-		const selectedDom = get(selectedDomain);
-
-		// Seamless composite: the protocol invokes this once, after the global
-		// fallback layer loads. Warm the cache (file headers) for every concrete
-		// sub-layer — including ones the viewport gate skipped because they are
-		// off-screen — across the previous/current/next timesteps, so panning to a
-		// regional model and stepping through time are instant. Their data itself is
-		// still loaded on demand, only when in view.
-		if (isSeamlessDomain(selectedDom)) {
-			// state.omFileUrl is the global fallback layer's current URL; the helper
-			// swaps its domain segment to derive each sub-layer's file URLs.
-			for (const url of getSeamlessWarmupOmUrls(selectedDom, state.omFileUrl, get(metaJson))) {
-				warmOmUrl(url);
-			}
-			return;
-		}
-
-		const nextOmUrls = getNextOmUrls(state.omFileUrl, selectedDom, get(metaJson));
+		// Only fires for regular (non-seamless) domains — the seamless protocol never
+		// runs this callback. Seamless cache warming is driven by warmSeamlessSubLayers
+		// on timestep/domain change instead (see below).
+		const nextOmUrls = getNextOmUrls(state.omFileUrl, get(selectedDomain), get(metaJson));
 		for (const nextOmUrl of nextOmUrls) {
 			if (nextOmUrl === undefined) continue;
 			omFileReader.setToOmFile(nextOmUrl);
@@ -127,3 +113,23 @@ export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
 		}
 	}
 });
+
+/**
+ * Warm the cache (file headers) for every concrete sub-layer of the currently
+ * selected seamless composite — including ones the viewport gate skips because
+ * they are off-screen — across the previous/current/next timesteps, so panning to
+ * a regional model and stepping through time are instant. Sub-layer data itself is
+ * still loaded on demand by the protocol, only when in view.
+ *
+ * Driven by the app on timestep/domain change (see layers.ts) rather than the
+ * protocol's postReadCallback: the seamless load path is per-tile and runs once
+ * per raster AND per vector request, so hooking it there fired redundantly. A
+ * no-op for non-seamless domains.
+ */
+export const warmSeamlessSubLayers = (): void => {
+	const domain = get(selectedDomain);
+	if (!isSeamlessDomain(domain)) return;
+	for (const url of getSeamlessWarmupOmUrls(domain, get(metaJson))) {
+		warmOmUrl(url);
+	}
+};
