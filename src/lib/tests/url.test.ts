@@ -2,6 +2,7 @@ import { domainOptions, isSeamlessDomain } from '@openmeteo/weather-map-layer';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { modelRun, time } from '$lib/stores/time';
+
 import { getSeamlessWarmupOmUrls } from '$lib/url';
 
 import type { SeamlessDomain } from '@openmeteo/weather-map-layer';
