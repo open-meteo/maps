@@ -7,6 +7,7 @@
 	import CacheSettings from './cache-settings.svelte';
 	import ContourSettings from './contour-settings.svelte';
 	import GridSettings from './grid-settings.svelte';
+	import InterpolationSettings from './interpolation-settings.svelte';
 	import OpacitySetting from './opacity-setting.svelte';
 	import PopupSettings from './popup-settings.svelte';
 	import StateSettings from './state-settings.svelte';
@@ -23,6 +24,7 @@
 			<ArrowsSettings />
 			<ContourSettings />
 			<TileSizeSettings />
+			<InterpolationSettings />
 			<PopupSettings />
 			<WaterClipSetting />
 			<OpacitySetting />

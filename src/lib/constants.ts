@@ -30,6 +30,16 @@ export const BEFORE_LAYER_VECTOR_WATER_CLIP = 'water-clip';
 export const DEFAULT_TILE_SIZE = 512;
 export const DEFAULT_OPACITY = 75;
 
+// Default raster interpolation method ('none' | 'linear' | 'cubic' | 'smooth')
+export const DEFAULT_INTERPOLATION = 'linear' as const;
+
+// 'smooth' area-average box half-width in grid cells.
+export const DEFAULT_SMOOTH_FOOTPRINT = 0.75;
+export const SMOOTH_FOOTPRINT_OPTIONS = [0.5, 0.75, 1.5, 3];
+
+// Interpolate colours between colour-scale breakpoints instead of hard bands.
+export const DEFAULT_COLOR_BLEND = false;
+
 // Cache defaults (in KB and MB for UI display)
 export const DEFAULT_CACHE_BLOCK_SIZE_KB = 64;
 export const DEFAULT_CACHE_MAX_BYTES_MB = 400;

@@ -15,8 +15,11 @@ import { replaceState } from '$app/navigation';
 import { map as m } from '$lib/stores/map';
 import {
 	type Preferences,
+	colorBlend as cB,
 	completeDefaultValues,
+	interpolation as iP,
 	preferences as p,
+	smoothFootprint as sF,
 	tileSize as tS,
 	url as u
 } from '$lib/stores/preferences';
@@ -182,6 +185,15 @@ export const getOMUrl = () => {
 
 	const tileSize = get(tS);
 	if (tileSize !== 256) result += `&tile_size=${tileSize}`;
+
+	const interpolation = get(iP);
+	if (interpolation !== 'linear') result += `&interpolation=${interpolation}`;
+
+	const smoothFootprint = get(sF);
+	if (interpolation === 'smooth' && smoothFootprint !== 0.75)
+		result += `&smooth_footprint=${smoothFootprint}`;
+
+	if (get(cB)) result += `&color_blend=true`;
 
 	const omProtocolSettingsState = get(omProtocolSettings);
 	if (
