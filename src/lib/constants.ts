@@ -31,7 +31,7 @@ export const DEFAULT_TILE_SIZE = 512;
 export const DEFAULT_OPACITY = 75;
 
 // Default raster interpolation method ('none' | 'linear' | 'cubic' | 'smooth')
-export const DEFAULT_INTERPOLATION = 'linear' as const;
+export const DEFAULT_INTERPOLATION = 'smooth' as const;
 
 // 'smooth' area-average box half-width in grid cells.
 export const DEFAULT_SMOOTH_FOOTPRINT = 0.75;
