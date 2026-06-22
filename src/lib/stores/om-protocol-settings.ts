@@ -39,7 +39,7 @@ const initialCustomColorScales = get(customColorScales);
 // Round decoded data values to this absolute precision in the post-read
 // callback (0 disables). Experiment to check whether band-edge speckle on the
 // high-resolution local models is sub-precision floating-point noise.
-const QUANTIZE_PRECISION: number = 0.01;
+// const QUANTIZE_PRECISION: number = 0.01;
 
 function createBlockCache() {
 	if (!browser) return undefined;
