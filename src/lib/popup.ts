@@ -189,12 +189,12 @@ export const switchPopupMode = (): void => {
 	}
 };
 
-// Touch double-tap-to-zoom and the tap-to-toggle-popup gesture overlap. On the
-// first tap we must NOT immediately create the popup marker: it is a draggable
-// marker that would swallow the second tap before MapLibre's touch double-tap
-// zoom recognizes it. Instead we defer the toggle past the double-tap window
+// Double-tap-to-zoom and the tap-to-toggle-popup gesture overlap. On the first
+// tap we must NOT immediately create the popup marker: it is a draggable marker
+// that would swallow the second tap before MapLibre's double-tap zoom recognizes
+// it. Instead we defer the toggle past the double-tap window
 // (MapLibre's MAX_TAP_INTERVAL is 500ms) and skip it if a zoom started — a
-// double-tap fires `zoomstart`. Mouse input acts immediately (no such gesture).
+// double-tap fires `zoomstart`.
 const DOUBLE_TAP_WINDOW_MS = 300;
 
 export const addPopup = (): void => {
@@ -241,8 +241,8 @@ export const addPopup = (): void => {
 	map.on('click', (e: maplibregl.MapLayerMouseEvent) => {
 		if (!map || get(terraDrawActive)) return;
 
-		// Mouse: toggle immediately. Touch: defer so a double-tap can zoom instead.
-		if (desktop.current) {
+		// When the popup is already active, toggle immediately.
+		if (get(popupMode) !== null) {
 			void togglePopupAt(e.lngLat);
 			return;
 		}
