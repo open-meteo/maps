@@ -30,7 +30,7 @@ export const BEFORE_LAYER_VECTOR_WATER_CLIP = 'water-clip';
 export const DEFAULT_TILE_SIZE = 512;
 export const DEFAULT_OPACITY = 75;
 
-// Default raster interpolation method ('none' | 'linear' | 'cubic' | 'smooth')
+// Default raster interpolation method ('nearest' | 'linear' | 'cubic' | 'smooth')
 export const DEFAULT_INTERPOLATION = 'smooth' as const;
 
 // 'smooth' area-average box half-width in grid cells.

@@ -36,11 +36,6 @@ export const cacheMaxBytesMb = persisted('cache-max-bytes-mb', DEFAULT_CACHE_MAX
 
 const initialCustomColorScales = get(customColorScales);
 
-// Round decoded data values to this absolute precision in the post-read
-// callback (0 disables). Experiment to check whether band-edge speckle on the
-// high-resolution local models is sub-precision floating-point noise.
-// const QUANTIZE_PRECISION: number = 0.01;
-
 function createBlockCache() {
 	if (!browser) return undefined;
 	return new BrowserBlockCache({
@@ -79,16 +74,5 @@ export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
 				data.values = data.values?.map((value) => value / 100);
 			}
 		}
-
-		// Experiment: snap values to a fixed precision to test whether the
-		// local-model band-edge speckle comes from sub-precision float noise.
-		// Set QUANTIZE_PRECISION to 0 to disable.
-		// if (QUANTIZE_PRECISION > 0 && data.values) {
-		// 	const inv = 1 / QUANTIZE_PRECISION;
-		// 	const v = data.values;
-		// 	for (let i = 0; i < v.length; i++) {
-		// 		v[i] = Math.round(v[i] * inv) / inv;
-		// 	}
-		// }
 	}
 });

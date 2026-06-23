@@ -16,22 +16,16 @@
 
 	import type { InterpolationMethod } from '@openmeteo/weather-map-layer';
 
-	// 'none' is nearest-neighbour (no interpolation); 'nearest' is kept as a
-	// hidden alias for backwards compatibility with persisted/shared values.
 	const methods: { value: InterpolationMethod; label: string }[] = [
-		{ value: 'none', label: 'None' },
+		{ value: 'nearest', label: 'Nearest' },
 		{ value: 'linear', label: 'Linear' },
 		{ value: 'cubic', label: 'Cubic' },
 		{ value: 'smooth', label: 'Smooth' }
 	];
 
-	let interpolation = $state(get(iP));
-	let smoothFootprint = $state(get(sF));
-	let colorBlend = $state(get(cB));
-
-	iP.subscribe((v) => (interpolation = v));
-	sF.subscribe((v) => (smoothFootprint = v));
-	cB.subscribe((v) => (colorBlend = v));
+	let interpolation = $derived($iP);
+	let smoothFootprint = $derived($sF);
+	let colorBlend = $derived($cB);
 
 	const setInterpolation = (method: InterpolationMethod) => {
 		iP.set(method);
