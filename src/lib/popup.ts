@@ -195,7 +195,7 @@ export const switchPopupMode = (): void => {
 // it. Instead we defer the toggle past the double-tap window
 // (MapLibre's MAX_TAP_INTERVAL is 500ms) and skip it if a zoom started — a
 // double-tap fires `zoomstart`.
-const DOUBLE_TAP_WINDOW_MS = 300;
+const DOUBLE_TAP_WINDOW_MS = 400;
 
 export const addPopup = (): void => {
 	const map = get(m);
