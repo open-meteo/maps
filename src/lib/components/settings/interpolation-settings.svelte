@@ -16,11 +16,12 @@
 
 	import type { InterpolationMethod } from '@openmeteo/weather-map-layer';
 
-	const methods: { value: InterpolationMethod; label: string }[] = [
-		{ value: 'nearest', label: 'Nearest' },
-		{ value: 'linear', label: 'Linear' },
-		{ value: 'cubic', label: 'Cubic' },
-		{ value: 'smooth', label: 'Smooth' }
+	// `cost` is the approximate render cost relative to nearest-neighbour.
+	const methods: { value: InterpolationMethod; label: string; cost: number }[] = [
+		{ value: 'nearest', label: 'Nearest', cost: 1 },
+		{ value: 'linear', label: 'Linear', cost: 1.3 },
+		{ value: 'cubic', label: 'Cubic', cost: 2 },
+		{ value: 'smooth', label: 'Smooth', cost: 3.3 }
 	];
 
 	let interpolation = $derived($iP);
@@ -55,10 +56,12 @@
 				class="min-w-24 cursor-pointer {interpolation === method.value
 					? 'bg-primary'
 					: 'bg-primary/75'}"
-				onclick={() => setInterpolation(method.value)}>{method.label}</Button
+				onclick={() => setInterpolation(method.value)}
+				>{method.label}<span class="ml-1 text-xs opacity-60">{method.cost}×</span></Button
 			>
 		{/each}
 	</div>
+	<p class="mt-1 text-xs opacity-60">×N = approx. render cost relative to nearest</p>
 
 	{#if interpolation === 'smooth'}
 		<h3 class="mt-4 font-semibold">Smooth strength</h3>
