@@ -21,6 +21,7 @@
 		{ value: 'nearest', label: 'Nearest', cost: 1 },
 		{ value: 'linear', label: 'Linear', cost: 1.3 },
 		{ value: 'cubic', label: 'Cubic', cost: 1.7 },
+		{ value: 'monotone', label: 'Monotone', cost: 2.0 },
 		{ value: 'smooth', label: 'Smooth', cost: 2.2 }
 	];
 
@@ -47,8 +48,9 @@
 <div>
 	<h2 class="text-lg font-bold">Interpolation</h2>
 	<p class="mt-1 text-sm opacity-75">
-		How raster pixels are sampled between grid points. Cubic removes bilinear faceting; Smooth
-		area-averages (∝ 1/cos lat) to blend out the regridding blocks that grow towards the poles.
+		How raster pixels are sampled between grid points. Cubic removes bilinear faceting; Monotone is
+		shape-preserving cubic (smooth but never overshoots). Smooth uses area-averages (∝ 1/cos lat) to
+		blend out the regridding blocks that grow towards the poles.
 	</p>
 	<div class="mt-3 flex flex-wrap gap-3">
 		{#each methods as method (method.value)}
