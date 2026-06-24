@@ -20,8 +20,8 @@
 	const methods: { value: InterpolationMethod; label: string; cost: number }[] = [
 		{ value: 'nearest', label: 'Nearest', cost: 1 },
 		{ value: 'linear', label: 'Linear', cost: 1.3 },
-		{ value: 'cubic', label: 'Cubic', cost: 2 },
-		{ value: 'smooth', label: 'Smooth', cost: 3.3 }
+		{ value: 'cubic', label: 'Cubic', cost: 1.7 },
+		{ value: 'smooth', label: 'Smooth', cost: 2.2 }
 	];
 
 	let interpolation = $derived($iP);
