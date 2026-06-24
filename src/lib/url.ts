@@ -31,6 +31,7 @@ import {
 } from './clipping';
 import { fmtModelRun, fmtSelectedTime, getBaseUri, hashValue } from './helpers';
 import { clippingCountryCodes } from './stores/clipping';
+import { localOmBase } from './stores/local-file';
 import { omProtocolSettings } from './stores/om-protocol-settings';
 import { formatISOUTCWithZ, parseISOWithoutTimezone } from './time-format';
 
@@ -163,14 +164,22 @@ const memorisedHash = (json: string, cachedJson: string, cachedHash: string) => 
 };
 
 export const getOMUrl = () => {
-	const domain = get(d);
-	const base = `${getBaseUri(domain)}/data_spatial/${domain}`;
-	const modelRun = get(mR);
-	if (!modelRun) return undefined;
-	const selectedTime = get(time);
+	let result: string;
 
-	let result = `${base}/${fmtModelRun(modelRun)}/${fmtSelectedTime(selectedTime)}.om`;
-	result += `?variable=${get(v)}`;
+	const localBase = get(localOmBase);
+	if (localBase) {
+		// Locally dropped file: read straight from memory, no server path.
+		result = `${localBase}?variable=${get(v)}`;
+	} else {
+		const domain = get(d);
+		const base = `${getBaseUri(domain)}/data_spatial/${domain}`;
+		const modelRun = get(mR);
+		if (!modelRun) return undefined;
+		const selectedTime = get(time);
+
+		result = `${base}/${fmtModelRun(modelRun)}/${fmtSelectedTime(selectedTime)}.om`;
+		result += `?variable=${get(v)}`;
+	}
 
 	if (mode.current === 'dark') result += '&dark=true';
 	const vectorOptions = get(vO);

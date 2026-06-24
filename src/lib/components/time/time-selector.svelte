@@ -8,6 +8,7 @@
 	import { toast } from 'svelte-sonner';
 
 	import { timeSelectorActions } from '$lib/stores/keyboard';
+	import { localOmBase } from '$lib/stores/local-file';
 	import { desktop, loading } from '$lib/stores/preferences';
 	import { metaJson, modelRunLocked } from '$lib/stores/time';
 	import { inProgress, latest, modelRun, now, time } from '$lib/stores/time';
@@ -263,6 +264,9 @@
 
 	// updates the selected time and synchronizes with URL and OM file
 	const onDateChange = async (date: Date) => {
+		// A dropped file has a single fixed timestep; ignore selection changes.
+		if (localMode) return;
+
 		if ($modelRunLocked) {
 			if (date.getTime() < metaFirstTime.getTime()) {
 				toast.warning("Model run locked, can't go before first time");
@@ -357,38 +361,76 @@
 			jumpToCurrentTime,
 			toggleModelRunLock,
 			setLatestModelRun,
-			timeNavigationDisabled: disabled
+			timeNavigationDisabled: disabled || localMode
 		});
 		return () => timeSelectorActions.set({});
 	});
 
+	// Center the track on the selected time when a local file is active (the
+	// track can't be scrolled by hand in local mode).
+	$effect(() => {
+		if (localMode && localCenterTime && dayContainer) {
+			isScrolling = true;
+			tick().then(() => centerDateButton(localCenterTime, false));
+		}
+	});
+
 	const latestReferenceTime = $derived(new Date($latest?.reference_time as string));
 
-	const metaReferenceTime = $derived(new Date($metaJson?.reference_time as string));
+	// A dropped `.om` file is a single timestep. In local mode we synthesize 3
+	// days of hourly steps centered on the selected time purely for layout; only
+	// the selected (center) time is actually selectable, everything else is
+	// greyed out and non-interactive.
+	const localMode = $derived($localOmBase !== undefined);
 
-	const metaFirstTime = $derived(new Date($metaJson?.valid_times[0] as string));
+	const localCenterTime = $derived.by(() => {
+		const center = new SvelteDate($time);
+		center.setMinutes(0, 0, 0);
+		return center;
+	});
+
+	const syntheticMetaJson = $derived.by(() => {
+		const center = localCenterTime;
+		const validTimes: string[] = [];
+		for (let h = -36; h <= 36; h++) {
+			const d = new SvelteDate(center);
+			d.setHours(d.getHours() + h);
+			validTimes.push(d.toISOString());
+		}
+		return {
+			reference_time: center.toISOString(),
+			valid_times: validTimes,
+			variables: []
+		} as unknown as NonNullable<typeof $metaJson>;
+	});
+
+	// Effective meta data used for rendering the time track.
+	const mj = $derived(localMode ? syntheticMetaJson : $metaJson);
+
+	const isStepSelectable = (timeStep: Date): boolean => {
+		if (localMode) return timeStep.getTime() === localCenterTime.getTime();
+		return !!timeSteps?.find((tS) => tS.getTime() === timeStep.getTime());
+	};
+
+	const metaReferenceTime = $derived(new Date(mj?.reference_time as string));
+
+	const metaFirstTime = $derived(new Date(mj?.valid_times[0] as string));
 	const metaFirstResolution = $derived.by(() => {
-		const metaSecondTime = new Date($metaJson?.valid_times[1] as string);
+		const metaSecondTime = new Date(mj?.valid_times[1] as string);
 		return metaSecondTime.getTime() - metaFirstTime.getTime();
 	});
 	const metaFirstResolutionHours = $derived(metaFirstResolution / MILLISECONDS_PER_HOUR);
 
-	const metaLastTime = $derived(
-		new Date($metaJson?.valid_times[$metaJson?.valid_times.length - 1] as string)
-	);
+	const metaLastTime = $derived(new Date(mj?.valid_times[mj?.valid_times.length - 1] as string));
 	const metaLastResolution = $derived.by(() => {
-		const metaSecondToLastTime = new Date(
-			$metaJson?.valid_times[$metaJson?.valid_times.length - 2] as string
-		);
+		const metaSecondToLastTime = new Date(mj?.valid_times[mj?.valid_times.length - 2] as string);
 		return metaLastTime.getTime() - metaSecondToLastTime.getTime();
 	});
 
 	// Calculates the pixel width of each day in the calendar based on time interval
 	let dayWidth = $derived(metaFirstResolutionHours === 0.25 ? 340 : 170);
 
-	const timeSteps = $derived(
-		$metaJson?.valid_times.map((validTime: string) => new SvelteDate(validTime))
-	);
+	const timeSteps = $derived(mj?.valid_times.map((validTime: string) => new SvelteDate(validTime)));
 
 	const currentIndex = $derived(
 		timeSteps ? timeSteps.findLastIndex((tS) => tS.getTime() <= $time.getTime()) : 0
@@ -521,7 +563,8 @@
 
 	let currentPercentage = $derived(currentPosition / hoursHoverContainerWidth);
 
-	const timeValid = (date: Date) => isValidTimeStep(date, timeSteps);
+	const timeValid = (date: Date) =>
+		localMode ? isStepSelectable(date) : isValidTimeStep(date, timeSteps);
 
 	let resizeTimeout: ReturnType<typeof setTimeout> | undefined;
 	const horizontalScrollSpeed = 1;
@@ -724,12 +767,12 @@
 		<div
 			bind:this={hoursHoverContainer}
 			bind:clientWidth={hoursHoverContainerWidth}
-			class="absolute {!desktop.current
-				? 'pointer-events-none'
+			class="absolute {!desktop.current || localMode ? 'pointer-events-none' : ''} {localMode
+				? 'cursor-not-allowed'
 				: ''} bottom-5 w-full h-8.5 z-20 cursor-pointer duration-500"
 		>
 			<!-- Hover Tooltip -->
-			{#if $metaJson}
+			{#if mj}
 				{#if hoverX && desktop.current}
 					<div
 						transition:fade={{ duration: 200 }}
@@ -794,121 +837,123 @@
 				</div>
 			{:else}{/if}
 		</div>
-		<!-- Model Run Selection Dropdown -->
-		<div
-			class="-top-4.5 h-4.5 z-10 right-0 absolute flex rounded-t-lg items-center px-2 gap-0.5 bg-glass/65 backdrop-blur-sm"
-		>
-			<PrefetchButton />
+		{#if !localMode}
+			<!-- Model Run Selection Dropdown -->
+			<div
+				class="-top-4.5 h-4.5 z-10 right-0 absolute flex rounded-t-lg items-center px-2 gap-0.5 bg-glass/65 backdrop-blur-sm"
+			>
+				<PrefetchButton />
 
-			<Select.Root
-				type="single"
-				value={$modelRun ? $modelRun.getTime().toString() : ''}
-				onValueChange={(v) => {
-					if (v) {
-						const timestamp = parseInt(v);
-						const selectedDate = new Date(timestamp);
-						onModelRunChange(selectedDate);
-					}
-				}}
-			>
-				<Select.Trigger
-					class="h-4.5! text-xs pl-1.5 pr-0.75 py-0 gap-1 border-none bg-transparent shadow-none hover:bg-accent/50 focus-visible:ring-0 focus-visible:ring-offset-0 cursor-pointer"
-					aria-label="Select model run"
+				<Select.Root
+					type="single"
+					value={$modelRun ? $modelRun.getTime().toString() : ''}
+					onValueChange={(v) => {
+						if (v) {
+							const timestamp = parseInt(v);
+							const selectedDate = new Date(timestamp);
+							onModelRunChange(selectedDate);
+						}
+					}}
 				>
-					{#if !$metaJson}
-						<!-- Loading skeleton -->
-						<div class="flex gap-1 items-center">
-							<div class="h-3 w-12 bg-foreground/10 rounded animate-pulse"></div>
-							<div class="h-3 w-8 bg-foreground/10 rounded animate-pulse"></div>
-						</div>
-					{:else if $modelRun}
-						{formatUTCDate($modelRun)}
-						{formatUTCTime($modelRun)}Z
+					<Select.Trigger
+						class="h-4.5! text-xs pl-1.5 pr-0.75 py-0 gap-1 border-none bg-transparent shadow-none hover:bg-accent/50 focus-visible:ring-0 focus-visible:ring-offset-0 cursor-pointer"
+						aria-label="Select model run"
+					>
+						{#if !$metaJson}
+							<!-- Loading skeleton -->
+							<div class="flex gap-1 items-center">
+								<div class="h-3 w-12 bg-foreground/10 rounded animate-pulse"></div>
+								<div class="h-3 w-8 bg-foreground/10 rounded animate-pulse"></div>
+							</div>
+						{:else if $modelRun}
+							{formatUTCDate($modelRun)}
+							{formatUTCTime($modelRun)}Z
+						{:else}
+							Select model run
+						{/if}
+					</Select.Trigger>
+					<Select.Content
+						class="left-5 border-none max-h-60 bg-glass/65 backdrop-blur-sm"
+						sideOffset={4}
+						align="end"
+					>
+						{#if inProgressReferenceTime && $modelRun}
+							<Select.Item
+								value={inProgressReferenceTime.getTime().toString()}
+								label={`IP ${formatUTCDate(inProgressReferenceTime)} ${formatUTCTime(inProgressReferenceTime)}`}
+								class="cursor-pointer border-l-4 border-l-orange-600 dark:border-l-orange-400 [&_svg]:text-orange-600 dark:[&_svg]:text-orange-400 {inProgressReferenceTime.getTime() ===
+								metaFirstTime.getTime()
+									? 'text-orange-600 dark:text-orange-400 font-semibold'
+									: ''}"
+							>
+								<small class="min-w-8">{formatUTCDate(inProgressReferenceTime)}</small>
+								{formatUTCTime(inProgressReferenceTime)}Z
+							</Select.Item>
+						{/if}
+						{#each previousModelSteps as previousModelStep, i (i)}
+							<Select.Item
+								value={previousModelStep.getTime().toString()}
+								label={formatUTCDateTime(previousModelStep)}
+								class="cursor-pointer border-l-4 {previousModelStep.getTime() ===
+								latestReferenceTime.getTime()
+									? 'border-l-green-700 dark:border-l-green-500 [&_svg]:text-green-700 dark:[&_svg]:text-green-500'
+									: 'border-l-transparent'} {previousModelStep.getTime() ===
+									latestReferenceTime.getTime() &&
+								previousModelStep.getTime() === metaFirstTime.getTime()
+									? 'text-green-700 dark:text-green-500 font-semibold'
+									: ''}"
+							>
+								<small class="min-w-8">{formatUTCDate(previousModelStep)}</small>
+								{formatUTCTime(previousModelStep)}Z
+							</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+				<button
+					class="cursor-pointer w-3.5 -ml-0.5 h-4.5 pr-0.5 flex items-center justify-center"
+					onclick={(e) => {
+						e.preventDefault();
+						e.stopPropagation();
+						toggleModelRunLock();
+					}}
+					aria-label="Model Run Lock"
+				>
+					{#if $modelRunLocked}
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							width="14"
+							height="14"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2.5"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							class="text-red-800 dark:text-red-500 lucide lucide-lock-icon lucide-lock"
+							><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path
+								d="M7 11V7a5 5 0 0 1 10 0v4"
+							/></svg
+						>
 					{:else}
-						Select model run
-					{/if}
-				</Select.Trigger>
-				<Select.Content
-					class="left-5 border-none max-h-60 bg-glass/65 backdrop-blur-sm"
-					sideOffset={4}
-					align="end"
-				>
-					{#if inProgressReferenceTime && $modelRun}
-						<Select.Item
-							value={inProgressReferenceTime.getTime().toString()}
-							label={`IP ${formatUTCDate(inProgressReferenceTime)} ${formatUTCTime(inProgressReferenceTime)}`}
-							class="cursor-pointer border-l-4 border-l-orange-600 dark:border-l-orange-400 [&_svg]:text-orange-600 dark:[&_svg]:text-orange-400 {inProgressReferenceTime.getTime() ===
-							metaFirstTime.getTime()
-								? 'text-orange-600 dark:text-orange-400 font-semibold'
-								: ''}"
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							width="14"
+							height="14"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2.5"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							class="text-green-800 dark:text-green-600 lucide lucide-lock-open-icon lucide-lock-open"
+							><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path
+								d="M7 11V7a5 5 0 0 1 9.9-1"
+							/></svg
 						>
-							<small class="min-w-8">{formatUTCDate(inProgressReferenceTime)}</small>
-							{formatUTCTime(inProgressReferenceTime)}Z
-						</Select.Item>
 					{/if}
-					{#each previousModelSteps as previousModelStep, i (i)}
-						<Select.Item
-							value={previousModelStep.getTime().toString()}
-							label={formatUTCDateTime(previousModelStep)}
-							class="cursor-pointer border-l-4 {previousModelStep.getTime() ===
-							latestReferenceTime.getTime()
-								? 'border-l-green-700 dark:border-l-green-500 [&_svg]:text-green-700 dark:[&_svg]:text-green-500'
-								: 'border-l-transparent'} {previousModelStep.getTime() ===
-								latestReferenceTime.getTime() &&
-							previousModelStep.getTime() === metaFirstTime.getTime()
-								? 'text-green-700 dark:text-green-500 font-semibold'
-								: ''}"
-						>
-							<small class="min-w-8">{formatUTCDate(previousModelStep)}</small>
-							{formatUTCTime(previousModelStep)}Z
-						</Select.Item>
-					{/each}
-				</Select.Content>
-			</Select.Root>
-			<button
-				class="cursor-pointer w-3.5 -ml-0.5 h-4.5 pr-0.5 flex items-center justify-center"
-				onclick={(e) => {
-					e.preventDefault();
-					e.stopPropagation();
-					toggleModelRunLock();
-				}}
-				aria-label="Model Run Lock"
-			>
-				{#if $modelRunLocked}
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						width="14"
-						height="14"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						class="text-red-800 dark:text-red-500 lucide lucide-lock-icon lucide-lock"
-						><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path
-							d="M7 11V7a5 5 0 0 1 10 0v4"
-						/></svg
-					>
-				{:else}
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						width="14"
-						height="14"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						class="text-green-800 dark:text-green-600 lucide lucide-lock-open-icon lucide-lock-open"
-						><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path
-							d="M7 11V7a5 5 0 0 1 9.9-1"
-						/></svg
-					>
-				{/if}
-			</button>
-		</div>
+				</button>
+			</div>
+		{/if}
 		<div
 			style={desktop.current
 				? ''
@@ -920,7 +965,8 @@
 				: 'left-0 w-12 backdrop-blur-xxs'}"
 		>
 			<button
-				class="flex items-center {desktop.current ? 'h-12.5  ' : 'top-3.5 w-12 h-full'} {disabled
+				class="flex items-center {desktop.current ? 'h-12.5  ' : 'top-3.5 w-12 h-full'} {disabled ||
+				localMode
 					? 'cursor-not-allowed'
 					: 'cursor-pointer'} "
 				onclick={previousHour}
@@ -954,7 +1000,9 @@
 			<button
 				class="flex items-center justify-end w-7 {desktop.current
 					? '-right-7 h-12.5'
-					: 'right-0 w-12 h-full'} {disabled ? 'cursor-not-allowed' : 'cursor-pointer'} "
+					: 'right-0 w-12 h-full'} {disabled || localMode
+					? 'cursor-not-allowed'
+					: 'cursor-pointer'} "
 				onclick={nextHour}
 				aria-label="Next Hour"
 			>
@@ -1007,9 +1055,11 @@
 
 			<div
 				bind:this={dayContainer}
-				class="flex overflow-x-scroll {desktop.current ? '' : 'px-[50vw]'}"
+				class="flex overflow-x-scroll {desktop.current ? '' : 'px-[50vw]'} {localMode
+					? 'pointer-events-none! cursor-not-allowed'
+					: ''}"
 			>
-				{#if !$metaJson || !$modelRun}
+				{#if !mj || (!$modelRun && !localMode)}
 					<!-- Loading Skeleton -->
 					{#each Array(7) as _, dayIndex (dayIndex)}
 						<div
@@ -1085,7 +1135,7 @@
 												: ''} {metaFirstResolutionHours === 0.25 && j % 16 === 0 && j !== 0
 												? 'h-3.25'
 												: ''} border-l-2
-												{!timeSteps?.find((tS) => timeStep.getTime() === tS.getTime()) ? 'border-foreground/20' : ''}"
+												{!isStepSelectable(timeStep) ? 'border-foreground/20' : ''}"
 										></div>
 									{/if}
 								{/each}

@@ -11,9 +11,11 @@
 		domainGroups,
 		domainOptions,
 		levelGroupVariables,
+		unregisterLocalOmFile,
 		variableOptions
 	} from '@openmeteo/weather-map-layer';
 
+	import { localOmBase, localOmFilename, localOmVariables } from '$lib/stores/local-file';
 	import { desktop } from '$lib/stores/preferences';
 	import { metaJson } from '$lib/stores/time';
 	import {
@@ -36,11 +38,15 @@
 
 	import VariableSelectionEmpty from './variable-selection-empty.svelte';
 
+	// Source variable names: from the dropped file in local mode, otherwise from
+	// the domain meta data.
+	let availableVariables = $derived($localOmBase ? $localOmVariables : $metaJson?.variables);
+
 	// list of variables, with the level groups filtered out, and adding a prefix for the group
 	let variableList = $derived.by(() => {
-		if ($metaJson) {
+		if (availableVariables) {
 			const variables: string[] = [];
-			for (let mjVariable of $metaJson.variables) {
+			for (let mjVariable of availableVariables) {
 				let match = mjVariable.match(LEVEL_REGEX);
 				if (match) {
 					const prefixMatch = mjVariable.match(LEVEL_PREFIX);
@@ -58,9 +64,9 @@
 	});
 
 	const levelGroupsList = $derived.by(() => {
-		if ($metaJson) {
+		if (availableVariables) {
 			const groups: { [key: string]: [{ value: string; label: string }] } = {};
-			for (let mjVariable of $metaJson.variables) {
+			for (let mjVariable of availableVariables) {
 				let match = mjVariable.match(LEVEL_REGEX);
 				if (match && match.groups) {
 					const prefixMatch = mjVariable.match(LEVEL_PREFIX);
@@ -109,6 +115,16 @@
 		}
 	});
 
+	// Leave local-file mode (e.g. when the user picks a server domain) so the
+	// normal domain/model-run/time flow takes over again.
+	const exitLocalMode = () => {
+		const base = get(localOmBase);
+		if (base) unregisterLocalOmFile(base);
+		localOmBase.set(undefined);
+		localOmFilename.set(undefined);
+		localOmVariables.set([]);
+	};
+
 	const checkDefaultLevel = (value: string) => {
 		if (levelGroupsList && $levelGroupSelected) {
 			const levelGroup = levelGroupsList[$levelGroupSelected.value];
@@ -135,7 +151,7 @@
 		? 'left-2.5'
 		: '-left-45.5'} "
 >
-	{#if !$metaJson}
+	{#if !$metaJson && !$localOmBase}
 		<VariableSelectionEmpty />
 	{:else}
 		<div class="flex flex-col gap-2.5">
@@ -155,9 +171,10 @@
 								: ''} hover:bg-glass/95! border-none h-7.25 w-45 cursor-pointer justify-between rounded p-1.5!"
 							role="combobox"
 							aria-expanded={domainSelectionOpen}
+							title={$localOmBase ? $localOmFilename : undefined}
 						>
 							<div class="truncate">
-								{$selectedDomain?.label || 'Select a domain...'}
+								{$localOmBase ? $localOmFilename : $selectedDomain?.label || 'Select a domain...'}
 							</div>
 							<ChevronsUpDownIcon class="-ml-2 size-4 shrink-0 opacity-50" />
 						</Button>
@@ -215,6 +232,7 @@
 													? 'bg-primary/10!'
 													: ''}"
 												onSelect={() => {
+													exitLocalMode();
 													$domain = value;
 													dSO.set(false);
 												}}

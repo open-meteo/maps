@@ -16,6 +16,7 @@ import {
 } from '$lib/constants';
 import { getNextOmUrls } from '$lib/url';
 
+import { localOmBase } from './local-file';
 import { metaJson } from './time';
 import { selectedDomain } from './variables';
 
@@ -58,6 +59,10 @@ export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
 	colorScales: { ...defaultOmProtocolSettings.colorScales, ...initialCustomColorScales },
 
 	postReadCallback: (omFileReader: WeatherMapLayerFileReader, data: Data, state: OmUrlState) => {
+		// Locally dropped files are a single timestep with no domain/model run,
+		// so neighbour prefetching and domain-specific fixups don't apply.
+		if (get(localOmBase)) return;
+
 		const nextOmUrls = getNextOmUrls(state.omFileUrl, get(selectedDomain), get(metaJson));
 		for (const nextOmUrl of nextOmUrls) {
 			if (nextOmUrl === undefined) continue;
@@ -67,7 +72,7 @@ export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
 			omFileReader.prefetchVariable('not_a_real_variable');
 		}
 		if (
-			state.dataOptions.domain.value === 'ecmwf_ifs' &&
+			state.dataOptions.domain?.value === 'ecmwf_ifs' &&
 			state.dataOptions.variable === 'pressure_msl'
 		) {
 			if (data.values) {
