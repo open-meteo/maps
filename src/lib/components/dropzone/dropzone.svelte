@@ -22,6 +22,9 @@
 		return ACCEPTED_EXTENSIONS.some((ext) => name.endsWith(ext));
 	};
 
+	// Only react to drags that actually carry files
+	const isFileDrag = (e: DragEvent): boolean => e.dataTransfer?.types?.includes('Files') ?? false;
+
 	const isPolygonGeometry = (type: string): boolean =>
 		type === 'Polygon' || type === 'MultiPolygon';
 
@@ -109,16 +112,19 @@
 	};
 
 	const handleDragEnter = (e: DragEvent) => {
+		if (!isFileDrag(e)) return;
 		e.preventDefault();
 		dragCounter++;
 		dragging = true;
 	};
 
 	const handleDragOver = (e: DragEvent) => {
+		if (!isFileDrag(e)) return;
 		e.preventDefault();
 	};
 
 	const handleDragLeave = (e: DragEvent) => {
+		if (!isFileDrag(e)) return;
 		e.preventDefault();
 		dragCounter--;
 		if (dragCounter <= 0) {
@@ -128,6 +134,7 @@
 	};
 
 	const handleDrop = async (e: DragEvent) => {
+		if (!isFileDrag(e)) return;
 		e.preventDefault();
 		dragCounter = 0;
 		dragging = false;
