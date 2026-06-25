@@ -6,9 +6,7 @@
 		type Domain,
 		GridFactory,
 		domainOptions,
-		getProtocolInstance,
 		omProtocol,
-		registerLocalOmFile,
 		updateCurrentBounds
 	} from '@openmeteo/weather-map-layer';
 	import * as maplibregl from 'maplibre-gl';
@@ -17,7 +15,6 @@
 
 	import { version } from '$app/environment';
 
-	import { localOmBase, localOmFilename, localOmVariables } from '$lib/stores/local-file';
 	import { map } from '$lib/stores/map';
 	import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 	import {
@@ -50,10 +47,11 @@
 
 	import { checkHighDefinition } from '$lib/helpers';
 	import { addOmFileLayers, changeOMfileURL } from '$lib/layers';
+	import { loadLocalOmFile } from '$lib/load-local-file';
 	import { addTerrainSource, getStyle, setMapControlSettings } from '$lib/map-controls';
 	import { getInitialMetaData, getMetaData, matchVariableOrFirst } from '$lib/metadata';
 	import { addPopup } from '$lib/popup';
-	import { formatISOWithoutTimezone, parseISOWithoutTimezone } from '$lib/time-format';
+	import { formatISOWithoutTimezone } from '$lib/time-format';
 	import { findTimeStep } from '$lib/time-utils';
 	import { updateUrl, urlParamsToPreferences } from '$lib/url';
 
@@ -177,52 +175,6 @@
 		changeOMfileURL();
 	});
 
-	// Handle a locally dropped `.om` file: register it, read its variable list
-	// and switch the map to render it instead of fetching tiles from the server.
-	const handleOmFileDrop = async (file: File) => {
-		try {
-			$loading = true;
-			const base = registerLocalOmFile(file);
-
-			const reader = getProtocolInstance($omProtocolSettings).omFileReader;
-			await reader.setToOmFile(base);
-			const variables = await reader.listVariables();
-
-			if (variables.length === 0) {
-				toast.error(`No readable variables found in ${file.name}`);
-				$loading = false;
-				return;
-			}
-
-			localOmFilename.set(file.name);
-			localOmVariables.set(variables);
-			localOmBase.set(base);
-
-			// Best-effort: derive the timestep from the filename (YYYY-MM-DDTHHMM.om)
-			// so the time selector centers on (and updates to) the dropped file.
-			const timeMatch = file.name.match(/(\d{4}-\d{2}-\d{2}T\d{2}\d{2})/);
-			if (timeMatch) {
-				try {
-					const parsed = parseISOWithoutTimezone(timeMatch[1]);
-					time.set(parsed);
-					updateUrl('time', formatISOWithoutTimezone(parsed));
-				} catch {
-					// Unparseable filename – keep the current time.
-				}
-			}
-
-			// Keep the current variable if the file has it, otherwise use the first.
-			const nextVariable = variables.includes($variable) ? $variable : variables[0];
-			variable.set(nextVariable);
-
-			changeOMfileURL();
-			toast.success(`Loaded ${file.name}`);
-		} catch (e) {
-			$loading = false;
-			toast.error(`Failed to load ${file.name}: ${(e as Error).message}`);
-		}
-	};
-
 	onDestroy(() => {
 		if ($map) {
 			$map.remove();
@@ -271,5 +223,5 @@
 	ondrop={(features) => {
 		clippingPanel?.addImportedFeatures(features);
 	}}
-	onOmFile={handleOmFileDrop}
+	onOmFile={loadLocalOmFile}
 />

@@ -11,11 +11,15 @@
 		domainGroups,
 		domainOptions,
 		levelGroupVariables,
-		unregisterLocalOmFile,
 		variableOptions
 	} from '@openmeteo/weather-map-layer';
 
-	import { localOmBase, localOmFilename, localOmVariables } from '$lib/stores/local-file';
+	import {
+		localOmBase,
+		localOmFilename,
+		localOmVariables,
+		recentLocalFiles
+	} from '$lib/stores/local-file';
 	import { desktop } from '$lib/stores/preferences';
 	import { metaJson } from '$lib/stores/time';
 	import {
@@ -35,6 +39,8 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Command from '$lib/components/ui/command';
 	import * as Popover from '$lib/components/ui/popover';
+
+	import { activateLocalOmFile } from '$lib/load-local-file';
 
 	import VariableSelectionEmpty from './variable-selection-empty.svelte';
 
@@ -116,10 +122,9 @@
 	});
 
 	// Leave local-file mode (e.g. when the user picks a server domain) so the
-	// normal domain/model-run/time flow takes over again.
+	// normal domain/model-run/time flow takes over again. The file stays
+	// registered + in the recents list so it can be re-loaded later.
 	const exitLocalMode = () => {
-		const base = get(localOmBase);
-		if (base) unregisterLocalOmFile(base);
 		localOmBase.set(undefined);
 		localOmFilename.set(undefined);
 		localOmVariables.set([]);
@@ -222,6 +227,32 @@
 						<Command.Input class="border-none ring-0" placeholder="Search domains..." />
 						<Command.List>
 							<Command.Empty>No domains found.</Command.Empty>
+							{#if $recentLocalFiles.length > 0}
+								<Command.Group heading="Local files">
+									{#each $recentLocalFiles as localFile (localFile.base)}
+										<Command.Item
+											value={localFile.filename}
+											class="hover:bg-primary/25! cursor-pointer {$localOmBase === localFile.base
+												? 'bg-primary/10!'
+												: ''}"
+											onSelect={() => {
+												activateLocalOmFile(localFile.base, localFile.filename);
+												dSO.set(false);
+											}}
+											aria-selected={$localOmBase === localFile.base}
+										>
+											<div class="flex w-full items-center justify-between gap-2">
+												<span class="truncate">{localFile.filename}</span>
+												<CheckIcon
+													class="size-4 shrink-0 {$localOmBase !== localFile.base
+														? 'text-transparent'
+														: ''}"
+												/>
+											</div>
+										</Command.Item>
+									{/each}
+								</Command.Group>
+							{/if}
 							{#each domainGroups as { value: group, label: groupLabel } (group)}
 								<Command.Group heading={groupLabel}>
 									{#each domainOptions as { value, label } (value)}

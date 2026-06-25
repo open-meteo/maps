@@ -17,3 +17,18 @@ export const localOmFilename = writable<string | undefined>(undefined);
 
 /** Variables available in the dropped file, used to populate the selector. */
 export const localOmVariables = writable<string[]>([]);
+
+/** A dropped file that is still held in memory and can be re-selected. */
+export interface RecentLocalFile {
+	/** Registry base url (`local/<uuid>`) the file is registered under. */
+	base: string;
+	filename: string;
+}
+
+/**
+ * Files dropped during this session, most-recent first. Shown at the top of the
+ * domain selector so they can be re-loaded. Not persisted: a dropped File can
+ * only be re-read while still held in memory (the browser exposes no usable
+ * filesystem path), so these are lost on a full page reload.
+ */
+export const recentLocalFiles = writable<RecentLocalFile[]>([]);
