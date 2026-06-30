@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy, onMount, tick } from 'svelte';
+	import { onDestroy, onMount, tick, untrack } from 'svelte';
 	import { SvelteDate } from 'svelte/reactivity';
 	import { fade } from 'svelte/transition';
 
@@ -49,7 +49,11 @@
 	// load, or jumps from other components). User interactions update currentDate
 	// directly before committing to $time, so when they match this is a no-op.
 	$effect(() => {
-		if (currentDate.getTime() !== $time.getTime()) {
+		const timeMs = $time.getTime();
+		// Read currentDate untracked so this only reacts to external $time changes.
+		// Otherwise mobile drag updates to currentDate would retrigger this effect and
+		// snap currentDate back to $time, breaking drag-to-select.
+		if (untrack(() => currentDate.getTime()) !== timeMs) {
 			currentDate = new SvelteDate($time);
 		}
 	});
