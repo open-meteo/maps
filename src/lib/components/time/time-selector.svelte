@@ -89,7 +89,11 @@
 			$modelRun ? $modelRun.getTime() === pMS.getTime() : false
 		);
 		if (currentIndex !== -1) {
-			onModelRunChange(previousModelSteps[currentIndex + 1]);
+			if (currentIndex + 1 < previousModelSteps.length) {
+				onModelRunChange(previousModelSteps[currentIndex + 1]);
+			} else {
+				toast.warning('Already on oldest model run');
+			}
 		}
 		if (
 			$modelRun &&
