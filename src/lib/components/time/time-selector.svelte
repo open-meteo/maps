@@ -332,8 +332,15 @@
 
 	const jumpToCurrentTime = () => {
 		let date = new SvelteDate($now);
-		const timeStep = findTimeStep(date, timeSteps);
-		if (timeStep) date = new SvelteDate(timeStep);
+		// Snap to the next available step at or after now (valid_times is sorted
+		// ascending). Falls back to the nearest step when now is past the last step.
+		const nextStep = timeSteps?.find((tS) => tS.getTime() >= date.getTime());
+		if (nextStep) {
+			date = new SvelteDate(nextStep);
+		} else {
+			const timeStep = findTimeStep(date, timeSteps);
+			if (timeStep) date = new SvelteDate(timeStep);
+		}
 		onDateChange(date);
 		isScrolling = true;
 		centerDateButton(date);
