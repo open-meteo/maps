@@ -17,6 +17,11 @@ export const getInitialMetaData = async () => {
 		fetch(`${uri}/data_spatial/${domain.value}/in-progress.json`)
 	]);
 
+	// The domain may have changed while these requests were in flight (e.g. the
+	// initial persisted-domain load racing a URL-driven domain change). Discard the
+	// stale response so it can't clobber the current domain's metadata.
+	if (get(d) !== domain.value) return;
+
 	for (const res of [latestRes, inProgressRes]) {
 		if (!res.ok) {
 			loading.set(false);
