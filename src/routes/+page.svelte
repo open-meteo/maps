@@ -47,6 +47,7 @@
 
 	import { checkHighDefinition } from '$lib/helpers';
 	import { addOmFileLayers, changeOMfileURL } from '$lib/layers';
+	import { loadLocalOmFile } from '$lib/load-local-file';
 	import { addTerrainSource, getStyle, setMapControlSettings } from '$lib/map-controls';
 	import { getInitialMetaData, getMetaData, matchVariableOrFirst } from '$lib/metadata';
 	import { addPopup } from '$lib/popup';
@@ -236,4 +237,5 @@
 	ondrop={(features) => {
 		clippingPanel?.addImportedFeatures(features);
 	}}
+	onOmFile={loadLocalOmFile}
 />
