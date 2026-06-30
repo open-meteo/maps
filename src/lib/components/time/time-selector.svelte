@@ -45,6 +45,15 @@
 	// Tracks the currently selected date for display and navigation
 	let currentDate = $state(new Date($time));
 
+	// Reconcile currentDate with external $time changes (e.g. parsed from the URL on
+	// load, or jumps from other components). User interactions update currentDate
+	// directly before committing to $time, so when they match this is a no-op.
+	$effect(() => {
+		if (currentDate.getTime() !== $time.getTime()) {
+			currentDate = new SvelteDate($time);
+		}
+	});
+
 	// Converts the selected domain's model interval to hours for calculations
 	let modelInterval = $derived.by(() => {
 		let mI = $selectedDomain.model_interval;
@@ -203,6 +212,7 @@
 				);
 				time.set(nowTimeStep);
 				timeStep = nowTimeStep;
+				updateUrl('time', formatISOWithoutTimezone(nowTimeStep));
 			}
 		}
 
@@ -214,6 +224,7 @@
 					toast.warning('Date selected too new, using latest available time');
 					time.set(new Date(metaLastTime));
 					timeStep = new Date(metaLastTime);
+					updateUrl('time', formatISOWithoutTimezone(metaLastTime));
 				}
 			}
 		}
@@ -321,7 +332,6 @@
 
 	const jumpToCurrentTime = () => {
 		let date = new SvelteDate($now);
-		date.setTime(date.getTime() + metaFirstResolution); // next time step
 		const timeStep = findTimeStep(date, timeSteps);
 		if (timeStep) date = new SvelteDate(timeStep);
 		onDateChange(date);
@@ -372,7 +382,9 @@
 
 	const metaFirstTime = $derived(new Date($metaJson?.valid_times[0] as string));
 	const metaFirstResolution = $derived.by(() => {
-		const metaSecondTime = new Date($metaJson?.valid_times[1] as string);
+		// Fall back to a 1-hour step for runs that expose a single valid time.
+		if (!$metaJson || $metaJson.valid_times.length < 2) return MILLISECONDS_PER_HOUR;
+		const metaSecondTime = new Date($metaJson.valid_times[1] as string);
 		return metaSecondTime.getTime() - metaFirstTime.getTime();
 	});
 	const metaFirstResolutionHours = $derived(metaFirstResolution / MILLISECONDS_PER_HOUR);
@@ -381,8 +393,10 @@
 		new Date($metaJson?.valid_times[$metaJson?.valid_times.length - 1] as string)
 	);
 	const metaLastResolution = $derived.by(() => {
+		// Fall back to a 1-hour step for runs that expose a single valid time.
+		if (!$metaJson || $metaJson.valid_times.length < 2) return MILLISECONDS_PER_HOUR;
 		const metaSecondToLastTime = new Date(
-			$metaJson?.valid_times[$metaJson?.valid_times.length - 2] as string
+			$metaJson.valid_times[$metaJson.valid_times.length - 2] as string
 		);
 		return metaLastTime.getTime() - metaSecondToLastTime.getTime();
 	});
@@ -398,7 +412,7 @@
 		timeSteps ? timeSteps.findLastIndex((tS) => tS.getTime() <= $time.getTime()) : 0
 	);
 
-	metaJson.subscribe(async () => {
+	const unsubscribeMetaJson = metaJson.subscribe(async () => {
 		await tick();
 		if (dayContainer) {
 			dayContainerScrollLeft = dayContainer.scrollLeft;
@@ -530,69 +544,90 @@
 	let resizeTimeout: ReturnType<typeof setTimeout> | undefined;
 	const horizontalScrollSpeed = 1;
 
+	// Collects DOM listeners + the observer so they can be torn down on destroy.
+	const listenerController = new AbortController();
+	const signal = listenerController.signal;
+	let resizeObserver: ResizeObserver | undefined;
+
 	const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 	onMount(() => {
 		if (hoursHoverContainer) {
-			hoursHoverContainer.addEventListener('mousemove', (e) => {
-				if (hoursHoverContainerWidth)
-					hoverX = e.layerX + (isSafari ? hoursHoverContainerWidth / 2 : 0);
-			});
-			hoursHoverContainer.addEventListener('mouseout', () => {
-				hoverX = 0;
-			});
-			hoursHoverContainer.addEventListener('click', () => {
-				if (desktop.current) {
-					let validTime = false;
-					let timeStep =
-						timeStepsComplete[
-							Math.round(
-								(timeStepsComplete.length * (hoverX + dayContainerScrollLeft)) /
-									dayContainerScrollWidth
-							)
-						];
+			hoursHoverContainer.addEventListener(
+				'mousemove',
+				(e) => {
+					if (hoursHoverContainerWidth)
+						hoverX = e.layerX + (isSafari ? hoursHoverContainerWidth / 2 : 0);
+				},
+				{ signal }
+			);
+			hoursHoverContainer.addEventListener(
+				'mouseout',
+				() => {
+					hoverX = 0;
+				},
+				{ signal }
+			);
+			hoursHoverContainer.addEventListener(
+				'click',
+				() => {
+					if (desktop.current) {
+						let validTime = false;
+						let timeStep =
+							timeStepsComplete[
+								Math.round(
+									(timeStepsComplete.length * (hoverX + dayContainerScrollLeft)) /
+										dayContainerScrollWidth
+								)
+							];
 
-					if (timeStep && timeSteps)
-						for (let tS of timeSteps) {
-							if (tS.getTime() === timeStep.getTime()) {
-								validTime = true;
+						if (timeStep && timeSteps)
+							for (let tS of timeSteps) {
+								if (tS.getTime() === timeStep.getTime()) {
+									validTime = true;
+								}
 							}
-						}
 
-					if (
-						timeStep &&
-						!validTime &&
-						timeStep.getTime() > metaFirstTime.getTime() &&
-						timeStep.getTime() < metaLastTime.getTime()
-					) {
-						const foundTimeStep = findTimeStep(timeStep, timeSteps);
-						if (foundTimeStep) timeStep = new SvelteDate(foundTimeStep);
+						if (
+							timeStep &&
+							!validTime &&
+							timeStep.getTime() > metaFirstTime.getTime() &&
+							timeStep.getTime() < metaLastTime.getTime()
+						) {
+							const foundTimeStep = findTimeStep(timeStep, timeSteps);
+							if (foundTimeStep) timeStep = new SvelteDate(foundTimeStep);
+						}
+						if (timeStep) {
+							currentDate = timeStep;
+							onDateChange(timeStep);
+							centerDateButton(timeStep);
+						}
 					}
-					if (timeStep) {
-						currentDate = timeStep;
-						onDateChange(timeStep);
-						centerDateButton(timeStep);
-					}
-				}
-			});
+				},
+				{ signal }
+			);
 		}
 
-		window.addEventListener('resize', () => {
-			viewWidth = window.innerWidth;
-			if (dayContainer) {
-				dayContainerScrollLeft = dayContainer.scrollLeft;
-				dayContainerScrollWidth = dayContainer.scrollWidth;
-			}
-
-			clearTimeout(resizeTimeout);
-			resizeTimeout = setTimeout(() => {
-				if (dayContainer && !desktop.current) {
-					isScrolling = true;
-					centerDateButton(currentDate, false);
+		window.addEventListener(
+			'resize',
+			() => {
+				viewWidth = window.innerWidth;
+				if (dayContainer) {
+					dayContainerScrollLeft = dayContainer.scrollLeft;
+					dayContainerScrollWidth = dayContainer.scrollWidth;
 				}
-			}, 100);
-		});
 
-		const resizeObserver = new ResizeObserver(() => {
+				clearTimeout(resizeTimeout);
+				resizeTimeout = setTimeout(() => {
+					if (dayContainer && !desktop.current) {
+						isScrolling = true;
+						centerDateButton(currentDate, false);
+					}
+				}, 100);
+			},
+			{ signal }
+		);
+
+		resizeObserver = new ResizeObserver(() => {
 			if (dayContainer) {
 				dayContainerScrollLeft = dayContainer.scrollLeft;
 				dayContainerScrollWidth = dayContainer.scrollWidth;
@@ -646,50 +681,69 @@
 				onScrollEndEvent();
 			}, 150);
 
-			dayContainer.addEventListener('scroll', (e) => {
-				if (dayContainer) {
-					dayContainerScrollLeft = dayContainer.scrollLeft;
-				}
-				if (!desktop.current) {
-					throttledScrollEvent(e);
-				}
-			});
-			dayContainer.addEventListener('scrollend', throttledScrollEndEvent);
-			dayContainer.addEventListener('mousedown', (e) => {
-				if (!desktop.current) {
-					if (!dayContainer) return;
-					isDown = true;
-					startX = e.pageX - dayContainer.offsetLeft;
-					startY = e.pageY - dayContainer.offsetTop;
-					scrollLeft = dayContainer.scrollLeft;
-					scrollTop = dayContainer.scrollTop;
-					if (dayContainer) dayContainer.style.cursor = 'grabbing';
-				}
-			});
-			dayContainer.addEventListener('mouseup', () => {
-				if (!desktop.current) {
-					isDown = false;
-					if (dayContainer) dayContainer.style.cursor = 'grab';
-					onScrollEndEvent();
-				}
-			});
-			dayContainer.addEventListener('mousemove', (e) => {
-				if (!desktop.current) {
-					if (!isDown || !dayContainer) return;
-					e.preventDefault();
-					const x = e.pageX - dayContainer.offsetLeft;
-					const y = e.pageY - dayContainer.offsetTop;
-					const walkX = (x - startX) * horizontalScrollSpeed;
-					const walkY = (y - startY) * horizontalScrollSpeed;
-					dayContainer.scrollLeft = scrollLeft - walkX;
-					dayContainer.scrollTop = scrollTop - walkY;
-				}
-			});
+			dayContainer.addEventListener(
+				'scroll',
+				(e) => {
+					if (dayContainer) {
+						dayContainerScrollLeft = dayContainer.scrollLeft;
+					}
+					if (!desktop.current) {
+						throttledScrollEvent(e);
+					}
+				},
+				{ signal }
+			);
+			dayContainer.addEventListener('scrollend', throttledScrollEndEvent, { signal });
+			dayContainer.addEventListener(
+				'mousedown',
+				(e) => {
+					if (!desktop.current) {
+						if (!dayContainer) return;
+						isDown = true;
+						startX = e.pageX - dayContainer.offsetLeft;
+						startY = e.pageY - dayContainer.offsetTop;
+						scrollLeft = dayContainer.scrollLeft;
+						scrollTop = dayContainer.scrollTop;
+						if (dayContainer) dayContainer.style.cursor = 'grabbing';
+					}
+				},
+				{ signal }
+			);
+			dayContainer.addEventListener(
+				'mouseup',
+				() => {
+					if (!desktop.current) {
+						isDown = false;
+						if (dayContainer) dayContainer.style.cursor = 'grab';
+						onScrollEndEvent();
+					}
+				},
+				{ signal }
+			);
+			dayContainer.addEventListener(
+				'mousemove',
+				(e) => {
+					if (!desktop.current) {
+						if (!isDown || !dayContainer) return;
+						e.preventDefault();
+						const x = e.pageX - dayContainer.offsetLeft;
+						const y = e.pageY - dayContainer.offsetTop;
+						const walkX = (x - startX) * horizontalScrollSpeed;
+						const walkY = (y - startY) * horizontalScrollSpeed;
+						dayContainer.scrollLeft = scrollLeft - walkX;
+						dayContainer.scrollTop = scrollTop - walkY;
+					}
+				},
+				{ signal }
+			);
 		}
 	});
 
 	onDestroy(() => {
 		if (resizeTimeout) clearTimeout(resizeTimeout);
+		listenerController.abort();
+		resizeObserver?.disconnect();
+		unsubscribeMetaJson();
 	});
 
 	let previousModelSteps = $derived.by(() => {

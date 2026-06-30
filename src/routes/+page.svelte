@@ -153,7 +153,12 @@
 
 		getInitialMetaDataPromise = (async () => {
 			await getInitialMetaData();
-			$metaJson = await getMetaData();
+			// Bail out if a newer domain change superseded this load while metadata was
+			// being fetched, so we don't commit another domain's metadata/time.
+			if (get(domain) !== newDomain) return;
+			const meta = await getMetaData();
+			if (get(domain) !== newDomain) return;
+			$metaJson = meta;
 
 			const timeSteps = $metaJson?.valid_times.map((validTime: string) => new Date(validTime));
 			const timeStep = findTimeStep($time, timeSteps);
