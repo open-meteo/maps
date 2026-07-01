@@ -11,25 +11,29 @@ import { BEFORE_LAYER_RASTER, HILLSHADE_LAYER } from '$lib/constants';
 import { addOmFileLayers } from './layers';
 import { updateUrl } from './url';
 
-export const setMapControlSettings = () => {
+export const setMapControlSettings = (addControls = true) => {
 	const map = get(m);
 	if (!map) return;
 
 	map.touchZoomRotate.disableRotation();
-	map.addControl(
-		new maplibregl.NavigationControl({ visualizePitch: true, showZoom: true, showCompass: true })
-	);
-	map.addControl(
-		new maplibregl.GeolocateControl({
-			fitBoundsOptions: { maxZoom: 13.5 },
-			positionOptions: { enableHighAccuracy: true },
-			trackUserLocation: true
-		})
-	);
 
-	const globeControl = new maplibregl.GlobeControl();
-	map.addControl(globeControl);
-	globeControl._globeButton.addEventListener('click', () => globeHandler());
+	// Screenshot mode passes addControls=false so no chrome ends up in the captured image.
+	if (addControls) {
+		map.addControl(
+			new maplibregl.NavigationControl({ visualizePitch: true, showZoom: true, showCompass: true })
+		);
+		map.addControl(
+			new maplibregl.GeolocateControl({
+				fitBoundsOptions: { maxZoom: 13.5 },
+				positionOptions: { enableHighAccuracy: true },
+				trackUserLocation: true
+			})
+		);
+
+		const globeControl = new maplibregl.GlobeControl();
+		map.addControl(globeControl);
+		globeControl._globeButton.addEventListener('click', () => globeHandler());
+	}
 
 	map.scrollZoom.setZoomRate(1 / 85);
 	map.scrollZoom.setWheelZoomRate(1 / 85);

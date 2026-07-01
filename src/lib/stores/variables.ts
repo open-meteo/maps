@@ -5,6 +5,7 @@ import {
 	LEVEL_REGEX,
 	LEVEL_UNIT_REGEX,
 	domainOptions,
+	getFallbackDomain,
 	variableOptions
 } from '@openmeteo/weather-map-layer';
 import { type Persisted, persisted } from 'svelte-persisted-store';
@@ -19,11 +20,18 @@ export const variable = persisted('variable', defaultVariable);
 
 export const selectedDomain = derived(domain, ($domain) => {
 	const object = domainOptions.find(({ value }) => value === $domain);
-	if (object) {
-		return object;
-	} else {
+	if (!object) {
 		throw new Error('Domain not found');
 	}
+	// Resolve to the concrete backing domain: identity for a regular domain, or the
+	// global-fallback layer for a seamless composite. This guarantees consumers a
+	// grid and time/model intervals to work with (seamless composites carry neither
+	// directly and aren't separately loaded on this branch).
+	const concrete = getFallbackDomain(object, domainOptions);
+	if (!concrete) {
+		throw new Error('Concrete domain not found for ' + $domain);
+	}
+	return concrete;
 });
 
 export const selectedVariable = derived(variable, ($variable) => {
