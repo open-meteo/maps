@@ -7,6 +7,7 @@ import {
 	getDomainFootprint,
 	getFallbackDomain
 } from '@openmeteo/weather-map-layer';
+import { mode } from 'mode-watcher';
 
 import { loading } from '$lib/stores/preferences';
 import { selectedDomain } from '$lib/stores/variables';
@@ -38,7 +39,7 @@ const SCREENSHOT_LINE_ID = 'domainBorderLine';
  * map coastlines/labels and the domain border stay readable underneath. Override
  * per-capture with the `?opacity=` URL param.
  */
-export const SCREENSHOT_RASTER_OPACITY = 55;
+export const SCREENSHOT_RASTER_OPACITY = 60;
 
 /**
  * Domains that should reuse another domain's boundary. The Météo-France AROME
@@ -90,10 +91,37 @@ const domainBoundaryRing = (): Array<[number, number]> | undefined => {
 	}
 };
 
+// Web-Mercator vertical position as a 0..1 fraction (0 = north edge), clamped to the
+// projection's usable latitude range.
+const MAX_MERCATOR_LAT = 85;
+const mercatorY = (lat: number): number => {
+	const rad = (Math.max(-MAX_MERCATOR_LAT, Math.min(MAX_MERCATOR_LAT, lat)) * Math.PI) / 180;
+	return (1 - Math.asinh(Math.tan(rad)) / Math.PI) / 2;
+};
+const mercatorLat = (y: number): number =>
+	(Math.atan(Math.sinh((1 - 2 * y) * Math.PI)) * 180) / Math.PI;
+
+/** Great-circle centroid of a ring of [lng, lat] points (wrap/pole safe). */
+const sphericalCentroid = (ring: Array<[number, number]>): { lng: number; lat: number } => {
+	let x = 0,
+		y = 0,
+		z = 0;
+	for (const [lng, lat] of ring) {
+		const la = (lat * Math.PI) / 180;
+		const lo = (lng * Math.PI) / 180;
+		x += Math.cos(la) * Math.cos(lo);
+		y += Math.cos(la) * Math.sin(lo);
+		z += Math.sin(la);
+	}
+	return {
+		lng: (Math.atan2(y, x) * 180) / Math.PI,
+		lat: (Math.atan2(z, Math.hypot(x, y)) * 180) / Math.PI
+	};
+};
+
 /** Frame the map on the selected domain's footprint. */
 export const fitToDomain = (map: maplibregl.Map): void => {
 	const domain = get(selectedDomain);
-	let bounds: maplibregl.LngLatBoundsLike | undefined;
 
 	const ring = domainBoundaryRing();
 	if (ring && ring.length > 0) {
@@ -107,37 +135,47 @@ export const fitToDomain = (map: maplibregl.Map): void => {
 			if (lng > maxLng) maxLng = lng;
 			if (lat > maxLat) maxLat = lat;
 		}
-		// A ring spanning (near) the whole globe – or one that wraps the antimeridian
-		// and so reports an implausibly wide span – is framed as the whole world.
+
+		// A footprint that wraps ~360° of longitude can't be framed by its bounding box
+		// (the box would span the whole world). This happens for genuinely global grids
+		// and for rotated-pole regional grids (e.g. GEM RDPS) whose perimeter fans across
+		// the pole. Center on the true (spherical) centroid and pick a zoom that fits the
+		// latitude range — so RDPS lands over North America instead of at [0, 0].
 		if (maxLng - minLng >= 359) {
-			minLng = -180;
-			maxLng = 180;
+			const center = sphericalCentroid(ring);
+			const yTop = mercatorY(maxLat);
+			const yBot = mercatorY(minLat);
+			const latFraction = Math.abs(yBot - yTop) || 1;
+			const usableHeight = Math.max(50, map.getContainer().clientHeight - 2 * framePadding());
+			// maplibre worldSize = 512 * 2^zoom. Zoom out a bit extra so the wide parts
+			// of a pole-fanning footprint (e.g. RDPS's east/west edges) stay in frame.
+			const zoom = Math.log2(usableHeight / latFraction / 512) - 1.0;
+			map.jumpTo({ center: [center.lng, mercatorLat((yTop + yBot) / 2)], zoom });
+			return;
 		}
-		// Clamp to valid Web Mercator ranges: latitudes at/near the poles project to
-		// infinity and make fitBounds throw (e.g. global grids reaching ±90°).
-		minLng = Math.max(-180, Math.min(180, minLng));
-		maxLng = Math.max(-180, Math.min(180, maxLng));
-		minLat = Math.max(-85, Math.min(85, minLat));
-		maxLat = Math.max(-85, Math.min(85, maxLat));
+
+		// Clamp to valid Web Mercator latitudes (poles project to infinity).
+		minLat = Math.max(-MAX_MERCATOR_LAT, minLat);
+		maxLat = Math.min(MAX_MERCATOR_LAT, maxLat);
 		if (
 			[minLng, minLat, maxLng, maxLat].every(Number.isFinite) &&
 			maxLng > minLng &&
 			maxLat > minLat
 		) {
-			bounds = [
-				[minLng, minLat],
-				[maxLng, maxLat]
-			];
+			map.fitBounds(
+				[
+					[minLng, minLat],
+					[maxLng, maxLat]
+				],
+				{ padding: framePadding(), duration: 0, maxZoom: 12 }
+			);
+			return;
 		}
 	}
 
-	if (bounds) {
-		map.fitBounds(bounds, { padding: framePadding(), duration: 0, maxZoom: 12 });
-	} else {
-		// Fall back to the grid's own center/zoom if no boundary is available.
-		const grid = GridFactory.create(domain.grid);
-		map.jumpTo({ center: grid.getCenter(), zoom: domain.grid.zoom });
-	}
+	// Fall back to the grid's own center/zoom if no usable boundary is available.
+	const grid = GridFactory.create(domain.grid);
+	map.jumpTo({ center: grid.getCenter(), zoom: domain.grid.zoom });
 };
 
 /** Draw a clean outline around the selected domain's footprint. */
@@ -167,8 +205,9 @@ export const drawDomainBorder = (map: maplibregl.Map): void => {
 			source: SCREENSHOT_SOURCE_ID,
 			layout: { 'line-cap': 'round', 'line-join': 'round' },
 			paint: {
-				// Blue outline matching the seamless-domain active-border colour.
-				'line-color': 'rgba(30,120,255,0.9)',
+				// Deep blue on the light base map; a much brighter blue so it stays legible
+				// against the dark base map.
+				'line-color': mode.current === 'dark' ? 'rgba(120,195,255,1)' : 'rgba(15,80,205,0.95)',
 				'line-width': 2.5,
 				'line-dasharray': [4, 3]
 			}
@@ -177,11 +216,21 @@ export const drawDomainBorder = (map: maplibregl.Map): void => {
 	);
 };
 
-/** Whether a domain's grid spans (essentially) the whole globe. */
+/**
+ * Whether a domain's grid spans (essentially) the whole globe.
+ *
+ * A regular lat/lon grid whose longitude span is ~360° genuinely covers every
+ * longitude (e.g. global wave bands), so that alone marks it global. A projected /
+ * rotated-pole grid, however, can have a geographic bounding box that wraps ~360°
+ * near the pole while only covering a region (e.g. GEM RDPS over North America), so
+ * for those we additionally require a wide latitude span before calling it global.
+ */
 const isGlobalDomain = (grid: Domain['grid']): boolean => {
 	try {
-		const [minLng, , maxLng] = GridFactory.create(grid).getBounds();
-		return maxLng - minLng >= 350;
+		const [minLng, minLat, maxLng, maxLat] = GridFactory.create(grid).getBounds();
+		if (maxLng - minLng < 350) return false;
+		const isProjected = 'projection' in grid && grid.projection != null;
+		return isProjected ? maxLat - minLat >= 140 : true;
 	} catch {
 		return false;
 	}

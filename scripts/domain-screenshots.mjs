@@ -17,6 +17,7 @@
  *   --out=<dir>        output directory (default: ../open-meteo-website/static/images/models)
  *   --only=a,b,c       only capture these domains
  *   --skip-existing    don't overwrite files that already exist
+ *   --dark             capture the dark theme, writing <domain>_dark.webp
  *   --include-global   also capture global models (skipped by default)
  *   --include-seamless also capture the *_seamless composites (skipped by default)
  *   --include-eps      also capture ensemble (*_eps) variants (skipped by default)
@@ -55,12 +56,39 @@ const loadSharp = () => {
 };
 
 // --- argument parsing --------------------------------------------------------
-const args = new Map(
-	process.argv.slice(2).map((a) => {
-		const [k, v] = a.replace(/^--/, '').split('=');
-		return [k, v ?? true];
-	})
-);
+// Supports both `--key=value` and `--key value`. Flags with no value (or followed
+// by another `--flag`) become booleans; the ones below never consume a value.
+const BOOLEAN_FLAGS = new Set([
+	'list',
+	'skip-existing',
+	'include-global',
+	'include-seamless',
+	'include-eps',
+	'include-upper-level'
+]);
+const args = new Map();
+{
+	const argv = process.argv.slice(2);
+	for (let i = 0; i < argv.length; i++) {
+		const token = argv[i];
+		if (!token.startsWith('--')) continue;
+		const body = token.slice(2);
+		const eq = body.indexOf('=');
+		if (eq !== -1) {
+			args.set(body.slice(0, eq), body.slice(eq + 1));
+		} else if (BOOLEAN_FLAGS.has(body)) {
+			args.set(body, true);
+		} else {
+			const next = argv[i + 1];
+			if (next !== undefined && !next.startsWith('--')) {
+				args.set(body, next);
+				i++;
+			} else {
+				args.set(body, true);
+			}
+		}
+	}
+}
 const opt = (name, fallback) => (args.has(name) ? args.get(name) : fallback);
 
 const OUT_DIR = resolve(
@@ -74,12 +102,14 @@ const ONLY = opt('only', null)
 			.filter(Boolean)
 	: null;
 const SKIP_EXISTING = args.has('skip-existing');
+// Capture the dark-themed map and write `<domain>_dark.webp` instead of `<domain>.webp`.
+const DARK = args.has('dark');
 // Defaults chosen to roughly match the size of the previous model-area images
 // (~50–100 KB). Bump --scale / --quality / --width for higher-resolution captures.
-const WIDTH = Number(opt('width', 820));
-const HEIGHT = Number(opt('height', 720));
+const WIDTH = Number(opt('width', 1025));
+const HEIGHT = Number(opt('height', 900));
 const SCALE = Number(opt('scale', 1));
-const QUALITY = Number(opt('quality', 0.8));
+const QUALITY = Number(opt('quality', 0.85));
 // Margin (CSS px) kept around the domain footprint when framing it.
 const PADDING = Number(opt('padding', 90));
 // Default to 5173: the maps tile/style hosts allow-list localhost:5173 for CORS,
@@ -150,7 +180,8 @@ const run = async () => {
 	const context = await browser.newContext({
 		viewport: { width: WIDTH, height: HEIGHT },
 		deviceScaleFactor: SCALE,
-		colorScheme: 'light'
+		// mode-watcher follows the OS preference, so this selects the map's light/dark theme.
+		colorScheme: DARK ? 'dark' : 'light'
 	});
 	const page = await context.newPage();
 	page.setDefaultTimeout(READY_TIMEOUT_MS);
@@ -202,7 +233,7 @@ const run = async () => {
 		console.log(`Capturing ${domains.length} domain(s) into ${OUT_DIR}`);
 		const failed = [];
 		for (const [i, d] of domains.entries()) {
-			const file = resolve(OUT_DIR, `${d.value}.webp`);
+			const file = resolve(OUT_DIR, `${d.value}${DARK ? '_dark' : ''}.webp`);
 			if (SKIP_EXISTING && existsSync(file)) {
 				console.log(`  [${i + 1}/${domains.length}] ${d.value} — skipped (exists)`);
 				continue;
@@ -224,7 +255,7 @@ const run = async () => {
 				const note = ready ? '' : ' (captured without ready signal)';
 				if (!ready) failed.push(d.value);
 				console.log(
-					`  [${i + 1}/${domains.length}] ${d.value} (${variable}) → ${d.value}.webp${note}`
+					`  [${i + 1}/${domains.length}] ${d.value} (${variable}) → ${d.value}${DARK ? '_dark' : ''}.webp${note}`
 				);
 			} catch (err) {
 				failed.push(d.value);

@@ -9,6 +9,10 @@
 
 	import { METADATA_REFRESH_INTERVAL, MILLISECONDS_PER_MINUTE } from '$lib/constants';
 	import { getInitialMetaData } from '$lib/metadata';
+	import { isScreenshotMode } from '$lib/screenshot';
+
+	// In screenshot mode, don't mount the toaster so toasts never appear in captures.
+	const showToaster = !isScreenshotMode();
 
 	let { children } = $props();
 
@@ -31,12 +35,14 @@
 	});
 </script>
 
-<Toaster
-	closeButton={true}
-	richColors={true}
-	offset={{ bottom: '85px', right: '10px' }}
-	mobileOffset={{ bottom: '85px' }}
-/>
+{#if showToaster}
+	<Toaster
+		closeButton={true}
+		richColors={true}
+		offset={{ bottom: '85px', right: '10px' }}
+		mobileOffset={{ bottom: '85px' }}
+	/>
+{/if}
 
 {@render children()}
 <ModeWatcher />
