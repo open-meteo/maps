@@ -46,6 +46,11 @@
 	import { getInitialMetaData, getMetaData, matchVariableOrFirst } from '$lib/metadata';
 	import { addPopup } from '$lib/popup';
 	import {
+		drawSatelliteCoverage,
+		fitSatelliteView,
+		isSatelliteScreenshot
+	} from '$lib/satellite-screenshot';
+	import {
 		SCREENSHOT_RASTER_OPACITY,
 		drawDomainBorder,
 		exposeDomainList,
@@ -68,10 +73,41 @@
 	// Screenshot mode (`?screenshot=1`) strips the UI and frames a single domain so
 	// screenshots can be captured reproducibly (see scripts/domain-screenshots.mjs).
 	const screenshot = isScreenshotMode();
+	// A special screenshot view that draws the geostationary satellites instead of a
+	// weather-model domain (see satellite-screenshot.ts). It needs no domain data or
+	// weather layers, so it runs a minimal self-contained setup and skips the rest.
+	const satelliteView = isSatelliteScreenshot();
+
+	const setupSatelliteView = async () => {
+		const style = await getStyle();
+		$map = new maplibregl.Map({
+			container: mapContainer as HTMLElement,
+			style,
+			center: [5, 0],
+			zoom: 0,
+			keyboard: false,
+			hash: false,
+			attributionControl: false,
+			maxPitch: 0
+		});
+		$map.on('load', () => {
+			fitSatelliteView($map);
+			drawSatelliteCoverage($map);
+			// There's no weather data to fetch here, but `loading` starts true; clear it so
+			// the screenshot readiness check (markReadyWhenSettled) can settle.
+			loading.set(false);
+			markReadyWhenSettled($map);
+		});
+	};
 
 	onMount(async () => {
 		$url = new URL(document.location.href);
 		urlParamsToPreferences();
+
+		if (satelliteView) {
+			await setupSatelliteView();
+			return;
+		}
 
 		if (screenshot) {
 			exposeDomainList();
@@ -171,6 +207,8 @@
 	// the URL. Only genuine, user-initiated domain switches should reset the run.
 	let initialLoadComplete = false;
 	const domainSubscription = domain.subscribe(async (newDomain) => {
+		// The satellite screenshot view has no domain data to load.
+		if (satelliteView) return;
 		if ($domain !== newDomain) {
 			await tick(); // await the selectedDomain to be set
 			updateUrl('domain', newDomain);
@@ -208,6 +246,8 @@
 	});
 
 	const variableSubscription = variable.subscribe(async (newVar) => {
+		// The satellite screenshot view has no weather layer to reconfigure.
+		if (satelliteView) return;
 		if ($variable !== newVar) {
 			await tick(); // await the selectedVariable to be set
 			updateUrl('variable', newVar);

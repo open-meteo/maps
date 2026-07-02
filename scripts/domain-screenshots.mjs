@@ -17,6 +17,8 @@
  *   --out=<dir>        output directory (default: ../open-meteo-website/static/images/models)
  *   --only=a,b,c       only capture these domains
  *   --skip-existing    don't overwrite files that already exist
+ *   --satellites       capture the geostationary-satellite coverage view instead of the
+ *                      domains, writing geostationary_satellites[_dark].webp
  *   --dark             capture the dark theme, writing <domain>_dark.webp
  *   --include-global   also capture global models (skipped by default)
  *   --include-seamless also capture the *_seamless composites (skipped by default)
@@ -64,7 +66,8 @@ const BOOLEAN_FLAGS = new Set([
 	'include-global',
 	'include-seamless',
 	'include-eps',
-	'include-upper-level'
+	'include-upper-level',
+	'satellites'
 ]);
 const args = new Map();
 {
@@ -203,6 +206,31 @@ const run = async () => {
 	};
 
 	try {
+		// Satellite-coverage view: a single wide-world capture, not the domain loop.
+		if (args.has('satellites')) {
+			const file = resolve(OUT_DIR, `geostationary_satellites${DARK ? '_dark' : ''}.webp`);
+			// The world map wants a wide (roughly 2:1) frame; use satellite-specific defaults
+			// unless the caller overrode --width/--height explicitly.
+			await page.setViewportSize({
+				// A wide frame (one world fills the width) with enough height to leave margin
+				// above/below the coverage disks (which reach ~±72° latitude).
+				width: args.has('width') ? WIDTH : 1240,
+				height: args.has('height') ? HEIGHT : 820
+			});
+			const url = `${base}/?screenshot=satellites`;
+			let ready = await loadDomain(url);
+			if (!ready) ready = await loadDomain(url);
+			await page.waitForTimeout(ready ? 600 : 1500);
+			const png = await page.screenshot({ type: 'png' });
+			await sharp(png)
+				.webp({ quality: Math.round(QUALITY * 100) })
+				.toFile(file);
+			console.log(
+				`Satellites → geostationary_satellites${DARK ? '_dark' : ''}.webp${ready ? '' : ' (captured without ready signal)'}`
+			);
+			return;
+		}
+
 		// Bootstrap once to read the full domain list from the app.
 		await page.goto(`${base}/?screenshot=1`, { waitUntil: 'domcontentloaded' });
 		await page.waitForFunction('Array.isArray(window.__omDomains) && window.__omDomains.length', {
