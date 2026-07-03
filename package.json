@@ -30,7 +30,7 @@
 	"devDependencies": {
 		"@lucide/svelte": "^1.18.0",
 		"@openmeteo/file-reader": "^0.0.16",
-		"@openmeteo/weather-map-layer": "github:open-meteo/weather-map-layer#2ce85d1b03400c1cbe8f10445b82e69f5644fd76",
+		"@openmeteo/weather-map-layer": "github:open-meteo/weather-map-layer#6fff7a31164133c739ce0f2d293043514c88ea98",
 		"@sveltejs/adapter-static": "^3.0.8",
 		"@sveltejs/kit": "^2.65.1",
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
