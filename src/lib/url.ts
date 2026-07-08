@@ -19,7 +19,6 @@ import {
 	completeDefaultValues,
 	interpolation as iP,
 	preferences as p,
-	smoothFootprint as sF,
 	tileSize as tS,
 	url as u
 } from '$lib/stores/preferences';
@@ -32,7 +31,6 @@ import {
 	parseClipCountriesParam,
 	serializeClipCountriesParam
 } from './clipping';
-import { DEFAULT_SMOOTH_FOOTPRINT } from './constants';
 import { fmtModelRun, fmtSelectedTime, getBaseUri, hashValue } from './helpers';
 import { clippingCountryCodes } from './stores/clipping';
 import { omProtocolSettings } from './stores/om-protocol-settings';
@@ -189,10 +187,6 @@ export const getOMUrl = () => {
 
 	const interpolation = get(iP);
 	if (interpolation !== 'linear') result += `&interpolation=${interpolation}`;
-
-	const smoothFootprint = get(sF);
-	if (interpolation === 'smooth' && smoothFootprint !== DEFAULT_SMOOTH_FOOTPRINT)
-		result += `&smooth_footprint=${smoothFootprint}`;
 
 	if (get(cB)) result += `&color_blend=true`;
 

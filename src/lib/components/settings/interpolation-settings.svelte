@@ -1,17 +1,12 @@
 <script lang="ts">
 	import { get } from 'svelte/store';
 
-	import {
-		colorBlend as cB,
-		interpolation as iP,
-		smoothFootprint as sF
-	} from '$lib/stores/preferences';
+	import { colorBlend as cB, interpolation as iP } from '$lib/stores/preferences';
 
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { Label } from '$lib/components/ui/label';
 	import { Switch } from '$lib/components/ui/switch';
 
-	import { SMOOTH_FOOTPRINT_OPTIONS } from '$lib/constants';
 	import { changeOMfileURL } from '$lib/layers';
 
 	import type { InterpolationMethod } from '@openmeteo/weather-map-layer';
@@ -19,23 +14,16 @@
 	// `cost` is the approximate render cost relative to nearest-neighbour.
 	const methods: { value: InterpolationMethod; label: string; cost: number }[] = [
 		{ value: 'nearest', label: 'Nearest', cost: 1 },
-		{ value: 'linear', label: 'Linear', cost: 1.3 },
-		{ value: 'cubic', label: 'Cubic', cost: 1.7 },
-		{ value: 'monotone', label: 'Monotone', cost: 2.0 },
-		{ value: 'smooth', label: 'Smooth', cost: 2.2 }
+		{ value: 'cubic', label: 'Cubic', cost: 1.6 },
+		{ value: 'linear', label: 'Linear', cost: 2.1 },
+		{ value: 'monotone', label: 'Monotone', cost: 2.4 }
 	];
 
 	let interpolation = $derived($iP);
-	let smoothFootprint = $derived($sF);
 	let colorBlend = $derived($cB);
 
 	const setInterpolation = (method: InterpolationMethod) => {
 		iP.set(method);
-		changeOMfileURL();
-	};
-
-	const setSmoothFootprint = (cells: number) => {
-		sF.set(cells);
 		changeOMfileURL();
 	};
 
@@ -49,8 +37,7 @@
 	<h2 class="text-lg font-bold">Interpolation</h2>
 	<p class="mt-1 text-sm opacity-75">
 		How raster pixels are sampled between grid points. Cubic removes bilinear faceting; Monotone is
-		shape-preserving cubic (smooth but never overshoots). Smooth uses area-averages (∝ 1/cos lat) to
-		blend out the regridding blocks that grow towards the poles.
+		shape-preserving cubic (smooth but never overshoots).
 	</p>
 	<div class="mt-3 flex flex-wrap gap-3">
 		{#each methods as method (method.value)}
@@ -64,21 +51,6 @@
 		{/each}
 	</div>
 	<p class="mt-1 text-xs opacity-60">×N = approx. render cost relative to nearest</p>
-
-	{#if interpolation === 'smooth'}
-		<h3 class="mt-4 font-semibold">Smooth strength</h3>
-		<p class="text-xs opacity-75">Area-average footprint in grid cells.</p>
-		<div class="mt-2 flex flex-wrap gap-3">
-			{#each SMOOTH_FOOTPRINT_OPTIONS as cells (cells)}
-				<Button
-					class="min-w-16 cursor-pointer {smoothFootprint === cells
-						? 'bg-primary'
-						: 'bg-primary/75'}"
-					onclick={() => setSmoothFootprint(cells)}>{cells}</Button
-				>
-			{/each}
-		</div>
-	{/if}
 
 	<h3 class="mt-4 font-semibold">Colour blending</h3>
 	<p class="text-xs opacity-75">

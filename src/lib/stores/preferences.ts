@@ -13,7 +13,6 @@ import {
 	DEFAULT_INTERPOLATION,
 	DEFAULT_OPACITY,
 	DEFAULT_PREFERENCES,
-	DEFAULT_SMOOTH_FOOTPRINT,
 	DEFAULT_TILE_SIZE
 } from '$lib/constants';
 import { getInitialMetaData, getMetaData } from '$lib/metadata';
@@ -68,12 +67,6 @@ export const interpolation: Persisted<InterpolationMethod> = persisted<Interpola
 	DEFAULT_INTERPOLATION
 );
 
-// 'smooth' area-average footprint half-width in grid cells
-export const smoothFootprint: Persisted<number> = persisted(
-	'smooth_footprint',
-	DEFAULT_SMOOTH_FOOTPRINT
-);
-
 // Interpolate colours between colour-scale breakpoints
 export const colorBlend: Persisted<boolean> = persisted('color_blend', DEFAULT_COLOR_BLEND);
 
@@ -121,7 +114,6 @@ export const resetStates = async () => {
 	tileSizeSet.set(false);
 
 	interpolation.set(DEFAULT_INTERPOLATION);
-	smoothFootprint.set(DEFAULT_SMOOTH_FOOTPRINT);
 	colorBlend.set(DEFAULT_COLOR_BLEND);
 
 	opacity.set(DEFAULT_OPACITY);
