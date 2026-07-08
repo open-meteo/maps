@@ -121,6 +121,9 @@
 			$map.addControl(new ClippingButton());
 
 			if (getInitialMetaDataPromise) await getInitialMetaDataPromise;
+			// Initial URL-driven setup is finished; from now on domain changes are
+			// user-initiated and should reset the selected model run.
+			initialLoadComplete = true;
 
 			addTerrainSource($map);
 			addTerrainSource($map, 'terrainSource2');
@@ -134,17 +137,28 @@
 	});
 
 	let getInitialMetaDataPromise: Promise<void> | undefined;
+	// Guards the domain subscription so the very first domain change (driven by the
+	// URL on page load) does not discard a model_run/time that was just parsed from
+	// the URL. Only genuine, user-initiated domain switches should reset the run.
+	let initialLoadComplete = false;
 	const domainSubscription = domain.subscribe(async (newDomain) => {
 		if ($domain !== newDomain) {
 			await tick(); // await the selectedDomain to be set
 			updateUrl('domain', newDomain);
-			$modelRun = undefined;
-			toast('Domain set to: ' + $selectedDomain.label);
+			if (initialLoadComplete) {
+				$modelRun = undefined;
+				toast('Domain set to: ' + $selectedDomain.label);
+			}
 		}
 
 		getInitialMetaDataPromise = (async () => {
 			await getInitialMetaData();
-			$metaJson = await getMetaData();
+			// Bail out if a newer domain change superseded this load while metadata was
+			// being fetched, so we don't commit another domain's metadata/time.
+			if (get(domain) !== newDomain) return;
+			const meta = await getMetaData();
+			if (get(domain) !== newDomain) return;
+			$metaJson = meta;
 
 			const timeSteps = $metaJson?.valid_times.map((validTime: string) => new Date(validTime));
 			const timeStep = findTimeStep($time, timeSteps);
