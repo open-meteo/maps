@@ -1,6 +1,6 @@
 {
 	"name": "@openmeteo/maps",
-	"version": "0.0.2",
+	"version": "0.0.3",
 	"type": "module",
 	"author": "Open-Meteo <info@open-meteo.com>",
 	"repository": "git://github.com/open-meteo/maps",
