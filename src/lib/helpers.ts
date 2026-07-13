@@ -14,7 +14,7 @@ export const fmtSelectedTime = (t: Date): string =>
 export const getBaseUri = (domainValue: string): string =>
 	dev && domainValue.startsWith('dwd_icon') && !domainValue.endsWith('eps')
 		? 'https://s3.servert.ch'
-		: 'https://map-tiles.open-meteo.com';
+		: 'https://openmeteo-data-spatial.b-cdn.net/';
 
 export const hashValue = (val: string): string => {
 	// FNV-1a 32-bit – synchronous, fast, and sufficient for cache-busting keys.
