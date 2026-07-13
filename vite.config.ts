@@ -44,18 +44,7 @@ export default ({ mode }: { mode: string }) => {
 			}
 		},
 		build: {
-			chunkSizeWarningLimit: 1500,
-			rollupOptions: {
-				output: {
-					// Keep all of @openmeteo/weather-map-layer in a single chunk to avoid a
-					// rolldown scope-hoisting bug that drops a module-level constant (see the
-					// seamless "vr is not defined" crash). Match "weather-map-layer" so it also
-					// covers the symlink-resolved real path used during local `npm link` dev,
-					// not just the installed "@openmeteo/weather-map-layer" node_modules path.
-					manualChunks: (id: string) =>
-						id.includes('weather-map-layer') ? 'weather-map-layer' : undefined
-				}
-			}
+			chunkSizeWarningLimit: 1500
 		}
 	});
 };
