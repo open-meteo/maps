@@ -166,7 +166,7 @@ const memorisedHash = (json: string, cachedJson: string, cachedHash: string) => 
 
 export const getOMUrl = () => {
 	const domain = get(d);
-	const base = `${getBaseUri(domain)}/data_spatial/${domain}`;
+	const base = `${getBaseUri(domain)}/${domain}`;
 	const modelRun = get(mR);
 	if (!modelRun) return undefined;
 	const selectedTime = get(time);
@@ -221,7 +221,7 @@ export const getNextOmUrls = (
 	domain: Domain,
 	metaJson: DomainMetaDataJson | undefined
 ): [string | undefined, string | undefined] => {
-	const base = `https://map-tiles.open-meteo.com/data_spatial/${domain.value}`;
+	const base = `${getBaseUri(domain.value)}/${domain.value}`;
 	const date = get(time);
 	const dateString = formatISOUTCWithZ(date);
 
