@@ -108,7 +108,7 @@ export const resetStates = async () => {
 
 	domainSelectionOpen.set(false);
 	variableSelectionOpen.set(false);
-	variableSelectionExtended.set(undefined);
+	variableSelectionExtended.set(null);
 
 	tileSize.set(DEFAULT_TILE_SIZE);
 	tileSizeSet.set(false);
