@@ -13,8 +13,8 @@ export const getInitialMetaData = async () => {
 	const uri = getBaseUri(domain.value);
 
 	const [latestRes, inProgressRes] = await Promise.all([
-		fetch(`${uri}/data_spatial/${domain.value}/latest.json`),
-		fetch(`${uri}/data_spatial/${domain.value}/in-progress.json`)
+		fetch(`${uri}/${domain.value}/latest.json`),
+		fetch(`${uri}/${domain.value}/in-progress.json`)
 	]);
 
 	// The domain may have changed while these requests were in flight (e.g. the
@@ -43,7 +43,7 @@ const fetchMetaData = async (
 	domain: string,
 	modelRun: Date
 ): Promise<DomainMetaDataJson> => {
-	const url = `${uri}/data_spatial/${domain}/${fmtModelRun(modelRun)}/meta.json`;
+	const url = `${uri}/${domain}/${fmtModelRun(modelRun)}/meta.json`;
 	const res = await fetch(url);
 
 	if (!res.ok) {
