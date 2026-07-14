@@ -15,7 +15,7 @@
  *
  * Options (env or flags):
  *   --out=<dir>        output directory (default: ../open-meteo-website/static/images/models)
- *   --only=a,b,c       only capture these domains
+ *   --only=a,b,c       only capture these domains (bypasses the default skip filters)
  *   --skip-existing    don't overwrite files that already exist
  *   --satellites       capture the geostationary-satellite coverage view instead of the
  *                      domains, writing geostationary_satellites[_dark].webp
@@ -238,25 +238,31 @@ const run = async () => {
 		});
 		let domains = await page.evaluate(() => window.__omDomains);
 
-		// The `*_seamless` composites are blended multi-domain views rather than a
-		// single domain footprint; skip them unless explicitly requested.
-		if (!args.has('include-seamless')) domains = domains.filter((d) => !/_seamless$/.test(d.value));
+		if (ONLY) {
+			// Explicitly requested domains are always captured, bypassing the default
+			// skip filters (global / seamless / eps / upper-level) below.
+			domains = domains.filter((d) => ONLY.includes(d.value));
+		} else {
+			// The `*_seamless` composites are blended multi-domain views rather than a
+			// single domain footprint; skip them unless explicitly requested.
+			if (!args.has('include-seamless'))
+				domains = domains.filter((d) => !/_seamless$/.test(d.value));
 
-		// Global models don't have a meaningful regional footprint to frame; skip them
-		// unless explicitly requested with --include-global.
-		if (!args.has('include-global')) domains = domains.filter((d) => !d.global);
+			// Global models don't have a meaningful regional footprint to frame; skip them
+			// unless explicitly requested with --include-global.
+			if (!args.has('include-global')) domains = domains.filter((d) => !d.global);
 
-		// Ensemble (*_eps) and *_upper_level variants share the footprint of their base
-		// domain, so they'd be duplicate images; skip them unless explicitly requested.
-		if (!args.has('include-eps')) domains = domains.filter((d) => !/_eps$/.test(d.value));
-		if (!args.has('include-upper-level'))
-			domains = domains.filter((d) => !/_upper_level$/.test(d.value));
+			// Ensemble (*_eps) and *_upper_level variants share the footprint of their base
+			// domain, so they'd be duplicate images; skip them unless explicitly requested.
+			if (!args.has('include-eps')) domains = domains.filter((d) => !/_eps$/.test(d.value));
+			if (!args.has('include-upper-level'))
+				domains = domains.filter((d) => !/_upper_level$/.test(d.value));
+		}
 
 		if (args.has('list')) {
 			for (const d of domains) console.log(`${d.value}\t${d.label}`);
 			return;
 		}
-		if (ONLY) domains = domains.filter((d) => ONLY.includes(d.value));
 
 		console.log(`Capturing ${domains.length} domain(s) into ${OUT_DIR}`);
 		const failed = [];

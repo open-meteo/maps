@@ -136,12 +136,14 @@ export const fitToDomain = (map: maplibregl.Map): void => {
 			if (lat > maxLat) maxLat = lat;
 		}
 
-		// A footprint that wraps ~360° of longitude can't be framed by its bounding box
-		// (the box would span the whole world). This happens for genuinely global grids
-		// and for rotated-pole regional grids (e.g. GEM RDPS) whose perimeter fans across
-		// the pole. Center on the true (spherical) centroid and pick a zoom that fits the
-		// latitude range — so RDPS lands over North America instead of at [0, 0].
-		if (maxLng - minLng >= 359) {
+		// A projected/rotated-pole footprint can wrap ~360° of longitude while only
+		// covering a region (e.g. GEM RDPS, whose perimeter fans across the pole), so its
+		// bounding box would span the whole world. Center on the true (spherical) centroid
+		// and pick a zoom that fits the latitude range — so RDPS lands over North America
+		// instead of at [0, 0]. Non-projected grids covering all longitudes (global grids
+		// and latitude bands like GFS Wave 0.16°) frame fine via their bounding box below.
+		const isProjected = 'projection' in domain.grid && domain.grid.projection != null;
+		if (maxLng - minLng >= 359 && isProjected) {
 			const center = sphericalCentroid(ring);
 			const yTop = mercatorY(maxLat);
 			const yBot = mercatorY(minLat);
@@ -219,18 +221,16 @@ export const drawDomainBorder = (map: maplibregl.Map): void => {
 /**
  * Whether a domain's grid spans (essentially) the whole globe.
  *
- * A regular lat/lon grid whose longitude span is ~360° genuinely covers every
- * longitude (e.g. global wave bands), so that alone marks it global. A projected /
- * rotated-pole grid, however, can have a geographic bounding box that wraps ~360°
- * near the pole while only covering a region (e.g. GEM RDPS over North America), so
- * for those we additionally require a wide latitude span before calling it global.
+ * Covering every longitude alone is not enough: a latitude-band grid (e.g. GFS Wave
+ * 0.16°, −15°…52.5°) still has a meaningful footprint to frame, and a projected /
+ * rotated-pole grid can have a geographic bounding box that wraps ~360° near the
+ * pole while only covering a region (e.g. GEM RDPS over North America). Only grids
+ * that also span (nearly) all latitudes are treated as global.
  */
 const isGlobalDomain = (grid: Domain['grid']): boolean => {
 	try {
 		const [minLng, minLat, maxLng, maxLat] = GridFactory.create(grid).getBounds();
-		if (maxLng - minLng < 350) return false;
-		const isProjected = 'projection' in grid && grid.projection != null;
-		return isProjected ? maxLat - minLat >= 140 : true;
+		return maxLng - minLng >= 350 && maxLat - minLat >= 140;
 	} catch {
 		return false;
 	}
