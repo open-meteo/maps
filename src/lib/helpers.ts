@@ -13,7 +13,7 @@ export const fmtSelectedTime = (t: Date): string =>
 
 export const getBaseUri = (domainValue: string): string =>
 	dev && domainValue.startsWith('dwd_icon') && !domainValue.endsWith('eps')
-		? 'https://s3.servert.ch'
+		? 'http://localhost:8090'
 		: 'https://map-tiles.open-meteo.com';
 
 export const hashValue = (val: string): string => {

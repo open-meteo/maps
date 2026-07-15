@@ -92,6 +92,8 @@
 		if (!domainObject) {
 			throw new Error('Domain not found');
 		}
+		// icon-mesh domains (native ICON-D2/EU) fetch their triangle geometry first
+		await GridFactory.preload(domainObject.grid);
 		const grid = GridFactory.create(domainObject.grid);
 
 		$map = new maplibregl.Map({

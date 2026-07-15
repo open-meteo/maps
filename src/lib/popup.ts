@@ -116,6 +116,7 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 		contentDiv.style.backgroundColor = '';
 		contentDiv.style.color = '';
 
+		await GridFactory.preload(get(selectedDomain).grid);
 		const domainBounds = GridFactory.create(get(selectedDomain).grid).getBounds();
 		const [minLon, minLat, maxLon, maxLat] = domainBounds;
 		const insideDomain =

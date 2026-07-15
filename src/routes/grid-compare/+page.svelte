@@ -1,67 +1,162 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 
-	import { IconGrid, IconGridAnalytical, IconGridGeometric } from '@openmeteo/weather-map-layer';
+	import {
+		IconGrid,
+		IconGridAnalytical,
+		IconGridGeometric,
+		IconMeshGrid,
+		parseIconMeshGeometry
+	} from '@openmeteo/weather-map-layer';
 	import * as maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
 
 	import { getStyle } from '$lib/map-controls';
 
-	// Debug view for the native ICON R3B07 grid (issue #278): draws a selectable
-	// grid implementation next to the actual DWD grid (vertices + topology
-	// extracted from icon_grid_0026_R03B07_G.nc, served by
-	// icon-native-test/serve.mjs) plus the centre displacement, so the residual
-	// vs the operational grid can be inspected per solution:
-	//   - warp table   (IconGrid):           ~35 m mean / 0.53 km max
-	//   - polynomial   (IconGridAnalytical): ~0.75 km mean / ~1.7 km max
-	//   - geometric    (IconGridGeometric):  ~21 km mean / 65 km max (raw)
+	// Debug view for the native ICON grids (issue #278): draws a selectable grid
+	// implementation next to the actual DWD grid (vertices + topology extracted
+	// from the official grid NetCDF files, served by icon-native-test/serve.mjs)
+	// plus the centre displacement.
+	//
+	// Domains:
+	//  - Global R3B07: warp table (~35 m) / polynomial (~0.75 km) / geometric
+	//    (~21 km) vs icon_grid_0026.
+	//  - EU nest 0037 (13 km, R3B07 N02): the nest cells coincide with global
+	//    R3B07 cells (~29 m), so the same three implementations are compared —
+	//    paired per cell via findCell on the nest centres.
+	//  - D2 0047 (R19B07, 2.2 km): limited-area grid with no analytical
+	//    construction — compares the file-based IconMeshGrid (what the map
+	//    renders) against an independent extraction of the same grid file, an
+	//    end-to-end pipeline check (expect metre-scale f32 rounding only).
 
 	const DATA_BASE = 'http://localhost:8090/grid-viz';
-	const N = 2949120;
-	const MAX_CELLS = 9000; // ~zoom 6+; more gets slow and unreadable
+	const MAX_CELLS = 9000; // more gets slow and unreadable
 	const R_KM = 6371.229;
+	const rad2deg = 180 / Math.PI;
+	const deg2rad = Math.PI / 180;
 
-	const gridData = { type: 'icon', nx: N, ny: 1, iconRoot: 3, iconBisections: 7 } as const;
-	const SOLUTIONS = {
+	type AnyGrid = IconGrid | IconGridAnalytical | IconGridGeometric | IconMeshGrid;
+	interface Solution {
+		label: string;
+		ramp: [number, number, number]; // displacement colour stops (km)
+		grid: () => Promise<AnyGrid>;
+	}
+
+	const globalGridData = {
+		type: 'icon',
+		nx: 2949120,
+		ny: 1,
+		iconRoot: 3,
+		iconBisections: 7
+	} as const;
+	// the three global implementations are shared by the global + EU domains
+	const globalSolutions: Record<string, Solution> = {
 		table: {
 			label: 'warp table — IconGrid (~35 m)',
-			grid: new IconGrid(gridData),
-			// displacement colour ramp stops (km): green → yellow → red
-			ramp: [0, 0.25, 0.5]
+			ramp: [0, 0.25, 0.5],
+			grid: async () => tableGrid
 		},
 		analytical: {
 			label: 'polynomial — IconGridAnalytical (~0.75 km)',
-			grid: new IconGridAnalytical(gridData),
-			ramp: [0, 1, 2]
+			ramp: [0, 1, 2],
+			grid: async () => new IconGridAnalytical(globalGridData)
 		},
 		geometric: {
 			label: 'pure geometric — IconGridGeometric (~21 km)',
-			grid: new IconGridGeometric(gridData),
-			ramp: [0, 30, 65]
+			ramp: [0, 30, 65],
+			grid: async () => new IconGridGeometric(globalGridData)
 		}
 	};
-	type SolutionKey = keyof typeof SOLUTIONS;
+	const tableGrid = new IconGrid(globalGridData);
+
+	// D2: the file-based mesh the map actually renders with
+	const d2MeshSolution: Record<string, Solution> = {
+		mesh: {
+			label: 'file mesh — IconMeshGrid (pipeline check)',
+			ramp: [0, 0.1, 0.25],
+			grid: async () => {
+				const r = await fetch('/grid-geometry/dwd_icon_d2.bin');
+				if (!r.ok) throw new Error(`dwd_icon_d2.bin: HTTP ${r.status}`);
+				const geometry = parseIconMeshGeometry(await r.arrayBuffer());
+				return new IconMeshGrid(
+					{ type: 'icon-mesh', nx: geometry.nCells, ny: 1, geometry: 'inline' },
+					geometry
+				);
+			}
+		}
+	};
+
+	interface DomainDef {
+		label: string;
+		tag: string; // grid-viz file suffix of the actual (NetCDF) data
+		actualN: number;
+		// cells per full sphere at this density, for the zoom gate
+		effectiveN: number;
+		solutions: Record<string, Solution>;
+		// pair a solution/BFS cell index with the actual-array index
+		pairing: 'identity' | 'nest-map';
+		home: { center: [number, number]; zoom: number };
+	}
+	const DOMAINS: Record<string, DomainDef> = {
+		global: {
+			label: 'Global — R3B07 13 km (icon_grid_0026)',
+			tag: 'r3b7',
+			actualN: 2949120,
+			effectiveN: 2949120,
+			solutions: globalSolutions,
+			pairing: 'identity',
+			home: { center: [8.5, 47.3], zoom: 7 }
+		},
+		eu: {
+			label: 'EU nest — R3B07 N02 13 km (icon_grid_0037)',
+			tag: 'eu',
+			actualN: 164984,
+			effectiveN: 2949120,
+			solutions: globalSolutions,
+			pairing: 'nest-map',
+			home: { center: [10, 50], zoom: 7 }
+		},
+		d2: {
+			label: 'D2 — R19B07 2.2 km (icon_grid_0047)',
+			tag: 'd2',
+			actualN: 542040,
+			// 542k cells over the D2 bbox (~0.07 sr) → global-equivalent density
+			effectiveN: 97_000_000,
+			solutions: d2MeshSolution,
+			pairing: 'identity',
+			home: { center: [10.5, 50.5], zoom: 9 }
+		}
+	};
+	type DomainKey = keyof typeof DOMAINS;
 
 	let mapContainer: HTMLElement;
 	let map: maplibregl.Map | undefined;
 	let loadError = $state('');
 	let loading = $state(true);
 	let tooManyCells = $state(false);
+	let outsideDomain = $state(false);
 	let stats = $state({ cells: 0, meanKm: 0, maxKm: 0 });
-	let solution = $state<SolutionKey>('table');
+	let domain = $state<DomainKey>('global');
+	let solution = $state('table');
 	let showSolution = $state(true);
 	let showActual = $state(true);
 	let showDisplacement = $state(true);
 
-	// actual grid data (radians), fetched once
-	let clat: Float32Array;
-	let clon: Float32Array;
-	let vlat: Float32Array;
-	let vlon: Float32Array;
-	let vertexOfCell: Int32Array; // layout [3, N], 1-based
-
-	const rad2deg = 180 / Math.PI;
-	const deg2rad = Math.PI / 180;
+	// actual grid data (from the NetCDF extractions), per domain tag
+	interface ActualData {
+		clat: Float32Array; // radians
+		clon: Float32Array;
+		vlat: Float32Array;
+		vlon: Float32Array;
+		vertexOfCell: Int32Array; // layout [3, N], 1-based
+		// global cell index -> actual index (only for 'nest-map' pairing)
+		nestMap: Map<number, number> | null;
+	}
+	// plain module-level caches, never rendered — reactivity unwanted
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity
+	const actualCache = new Map<string, ActualData>();
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity
+	const gridCache = new Map<string, AnyGrid>();
 
 	// note: no generic arrow function here — svelte's TS stripping drops the
 	// runtime parameters of `async <T extends ...>(...)` along with the types
@@ -69,6 +164,47 @@
 		const r = await fetch(`${DATA_BASE}/${name}`);
 		if (!r.ok) throw new Error(`${name}: HTTP ${r.status}`);
 		return r.arrayBuffer();
+	};
+
+	const loadActual = async (dom: DomainDef): Promise<ActualData> => {
+		const cached = actualCache.get(dom.tag);
+		if (cached) return cached;
+		const [clatBuf, clonBuf, vlatBuf, vlonBuf, vocBuf] = await Promise.all([
+			fetchBuffer(`clat_${dom.tag}.f32`),
+			fetchBuffer(`clon_${dom.tag}.f32`),
+			fetchBuffer(`vlat_${dom.tag}.f32`),
+			fetchBuffer(`vlon_${dom.tag}.f32`),
+			fetchBuffer(`vertex_of_cell_${dom.tag}.i32`)
+		]);
+		const data: ActualData = {
+			clat: new Float32Array(clatBuf),
+			clon: new Float32Array(clonBuf),
+			vlat: new Float32Array(vlatBuf),
+			vlon: new Float32Array(vlonBuf),
+			vertexOfCell: new Int32Array(vocBuf),
+			nestMap: null
+		};
+		if (dom.pairing === 'nest-map') {
+			// nest cells coincide with global R3B07 cells: pair via point lookup
+			// (plain lookup table, never rendered)
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity
+			const m = new Map<number, number>();
+			for (let i = 0; i < data.clat.length; i++) {
+				m.set(tableGrid.findCell(data.clat[i] * rad2deg, data.clon[i] * rad2deg), i);
+			}
+			data.nestMap = m;
+		}
+		actualCache.set(dom.tag, data);
+		return data;
+	};
+
+	const loadSolutionGrid = async (domKey: DomainKey, solKey: string): Promise<AnyGrid> => {
+		const key = `${domKey === 'd2' ? 'd2' : 'global'}:${solKey}`;
+		const cached = gridCache.get(key);
+		if (cached) return cached;
+		const grid = await DOMAINS[domKey].solutions[solKey].grid();
+		gridCache.set(key, grid);
+		return grid;
 	};
 
 	const gcDistKm = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
@@ -84,9 +220,10 @@
 	const unwrap = (lon: number, ref: number) => lon - 360 * Math.round((lon - ref) / 360);
 
 	// neighbour of a cell across the great-circle edge (a, b): reflect the cell
-	// centre across the edge plane and locate the resulting point
+	// centre across the edge plane and locate the resulting point (-1 outside a
+	// limited-area domain)
 	const neighborAcross = (
-		grid: IconGrid | IconGridAnalytical | IconGridGeometric,
+		grid: AnyGrid,
 		center: { lat: number; lon: number },
 		a: { lat: number; lon: number },
 		b: { lat: number; lon: number }
@@ -114,10 +251,9 @@
 	};
 
 	// cells whose centre lies in the padded view box, found by BFS over
-	// edge-neighbours starting from the view centre (index numbering matches
-	// the actual grid, so the same set indexes both meshes)
+	// edge-neighbours starting from the view centre
 	const visibleCells = (
-		grid: IconGrid | IconGridAnalytical | IconGridGeometric,
+		grid: AnyGrid,
 		bounds: maplibregl.LngLatBounds,
 		centerCell: number
 	): number[] => {
@@ -143,7 +279,7 @@
 			const verts = grid.cellVertices(cell);
 			for (let e = 0; e < 3; e++) {
 				const nb = neighborAcross(grid, center, verts[e], verts[(e + 1) % 3]);
-				if (!visited.has(nb)) {
+				if (nb >= 0 && !visited.has(nb)) {
 					visited.add(nb);
 					queue.push(nb);
 				}
@@ -163,56 +299,77 @@
 		return ring;
 	};
 
-	const update = () => {
-		if (!map || !clat) return;
-		const grid = SOLUTIONS[solution].grid;
+	let updateToken = 0;
+	const update = async () => {
+		if (!map || loading) return;
+		const token = ++updateToken;
+		const dom = DOMAINS[domain];
 		const bounds = map.getBounds();
-		// expected cell count from the view's solid angle
+		// expected cell count from the view's solid angle at the domain's density
 		const area =
 			(bounds.getEast() - bounds.getWest()) *
 			deg2rad *
 			(Math.sin(bounds.getNorth() * deg2rad) - Math.sin(bounds.getSouth() * deg2rad));
-		if ((area / ((4 * Math.PI) / N)) * 1.2 > MAX_CELLS) {
-			tooManyCells = true;
+		const clear = () => {
 			for (const s of ['solution-mesh', 'actual-mesh', 'displacement', 'true-centers']) {
-				(map.getSource(s) as maplibregl.GeoJSONSource)?.setData({
+				(map!.getSource(s) as maplibregl.GeoJSONSource)?.setData({
 					type: 'FeatureCollection',
 					features: []
 				});
 			}
 			stats = { cells: 0, meanKm: 0, maxKm: 0 };
+		};
+		if ((area / ((4 * Math.PI) / dom.effectiveN)) * 1.2 > MAX_CELLS) {
+			tooManyCells = true;
+			outsideDomain = false;
+			clear();
 			return;
 		}
 		tooManyCells = false;
 
+		const [grid, actual] = await Promise.all([loadSolutionGrid(domain, solution), loadActual(dom)]);
+		if (token !== updateToken || !map) return; // superseded while loading
+
 		const c = map.getCenter();
-		const cells = visibleCells(grid, bounds, grid.findCell(c.lat, c.lng));
+		const startCell = grid.findCell(c.lat, c.lng);
+		if (startCell < 0) {
+			outsideDomain = true;
+			clear();
+			return;
+		}
+		outsideDomain = false;
+		const cells = visibleCells(grid, bounds, startCell);
 		const lonRef = c.lng;
+		const N = actual.clat.length;
 
 		const solutionMesh: GeoJSON.Feature[] = [];
-		const actual: GeoJSON.Feature[] = [];
+		const actualMesh: GeoJSON.Feature[] = [];
 		const displacement: GeoJSON.Feature[] = [];
 		const centers: GeoJSON.Feature[] = [];
 		let sum = 0;
 		let max = 0;
+		let paired = 0;
 		for (const cell of cells) {
+			const actualIdx = actual.nestMap ? (actual.nestMap.get(cell) ?? -1) : cell;
+			if (actualIdx < 0 || actualIdx >= N) continue; // outside the nest / domain
+			paired++;
 			solutionMesh.push({
 				type: 'Feature',
 				properties: {},
 				geometry: { type: 'LineString', coordinates: triangleRing(grid.cellVertices(cell), lonRef) }
 			});
 			const trueTri = [0, 1, 2].map((v) => {
-				const vi = vertexOfCell[v * N + cell] - 1;
-				return { lat: vlat[vi] * rad2deg, lon: vlon[vi] * rad2deg };
+				const vi = actual.vertexOfCell[v * N + actualIdx] - 1;
+				return { lat: actual.vlat[vi] * rad2deg, lon: actual.vlon[vi] * rad2deg };
 			});
-			actual.push({
+			actualMesh.push({
 				type: 'Feature',
 				properties: {},
 				geometry: { type: 'LineString', coordinates: triangleRing(trueTri, lonRef) }
 			});
 			const ana = grid.cellCoordinates(cell);
-			const tLat = clat[cell] * rad2deg;
-			const tLon = clon[cell] * rad2deg;
+			const tLat = actual.clat[actualIdx] * rad2deg;
+			const tLon = actual.clon[actualIdx] * rad2deg;
 			const km = gcDistKm(ana.lat, ana.lon, tLat, tLon);
 			sum += km;
 			if (km > max) max = km;
@@ -234,7 +391,7 @@
 				geometry: { type: 'Point', coordinates: [unwrap(tLon, lonRef), tLat] }
 			});
 		}
-		stats = { cells: cells.length, meanKm: sum / (cells.length || 1), maxKm: max };
+		stats = { cells: paired, meanKm: sum / (paired || 1), maxKm: max };
 
 		const set = (id: string, features: GeoJSON.Feature[]) =>
 			(map!.getSource(id) as maplibregl.GeoJSONSource)?.setData({
@@ -242,7 +399,7 @@
 				features
 			});
 		set('solution-mesh', solutionMesh);
-		set('actual-mesh', actual);
+		set('actual-mesh', actualMesh);
 		set('displacement', displacement);
 		set('true-centers', centers);
 	};
@@ -258,7 +415,7 @@
 
 	const setDisplacementRamp = () => {
 		if (!map?.getLayer('displacement')) return;
-		const ramp = SOLUTIONS[solution].ramp;
+		const ramp = DOMAINS[domain].solutions[solution].ramp;
 		map.setPaintProperty('displacement', 'line-color', [
 			'interpolate',
 			['linear'],
@@ -272,11 +429,36 @@
 		]);
 	};
 
+	const onDomainChange = () => {
+		const dom = DOMAINS[domain];
+		if (!dom.solutions[solution]) solution = Object.keys(dom.solutions)[0];
+		// jump to the domain if the current view can't show it
+		if (map) {
+			const c = map.getCenter();
+			const inView =
+				domain === 'global' ||
+				(DOMAINS[domain].pairing === 'nest-map'
+					? c.lat > 28 && c.lat < 71 && c.lng > -25 && c.lng < 63
+					: c.lat > 43.2 && c.lat < 58 && c.lng > -3.9 && c.lng < 20.3);
+			if (!inView || map.getZoom() < 5) {
+				map.jumpTo({ center: dom.home.center, zoom: dom.home.zoom });
+				return; // moveend fires update
+			}
+		}
+	};
+
 	$effect(() => {
 		void showSolution;
 		void showActual;
 		void showDisplacement;
 		setVisibility();
+	});
+
+	$effect(() => {
+		void domain;
+		onDomainChange();
+		setDisplacementRamp();
+		update();
 	});
 
 	$effect(() => {
@@ -287,18 +469,8 @@
 
 	onMount(async () => {
 		try {
-			const [clatBuf, clonBuf, vlatBuf, vlonBuf, vocBuf] = await Promise.all([
-				fetchBuffer('clat_r3b7.f32'),
-				fetchBuffer('clon_r3b7.f32'),
-				fetchBuffer('vlat_r3b7.f32'),
-				fetchBuffer('vlon_r3b7.f32'),
-				fetchBuffer('vertex_of_cell_r3b7.i32')
-			]);
-			clat = new Float32Array(clatBuf);
-			clon = new Float32Array(clonBuf);
-			vlat = new Float32Array(vlatBuf);
-			vlon = new Float32Array(vlonBuf);
-			vertexOfCell = new Int32Array(vocBuf);
+			// verify the data server before building the map (clear error otherwise)
+			await loadActual(DOMAINS.global);
 		} catch (e) {
 			loadError = `Failed to load grid data from ${DATA_BASE} — is icon-native-test/serve.mjs running? (${e})`;
 			loading = false;
@@ -308,8 +480,8 @@
 		map = new maplibregl.Map({
 			container: mapContainer,
 			style: await getStyle(),
-			center: [8.5, 47.3],
-			zoom: 7,
+			center: DOMAINS.global.home.center,
+			zoom: DOMAINS.global.home.zoom,
 			maxPitch: 0
 		});
 		map.on('load', () => {
@@ -357,9 +529,14 @@
 <div class="page">
 	<div class="map" bind:this={mapContainer}></div>
 	<div class="panel">
-		<h1>ICON R3B07: implementations vs actual</h1>
+		<h1>ICON: implementations vs actual grid</h1>
+		<select bind:value={domain}>
+			{#each Object.entries(DOMAINS) as [key, d] (key)}
+				<option value={key}>{d.label}</option>
+			{/each}
+		</select>
 		<select bind:value={solution}>
-			{#each Object.entries(SOLUTIONS) as [key, s] (key)}
+			{#each Object.entries(DOMAINS[domain].solutions) as [key, s] (key)}
 				<option value={key}>{s.label}</option>
 			{/each}
 		</select>
@@ -369,18 +546,20 @@
 		>
 		<label
 			><input type="checkbox" bind:checked={showActual} /> <span class="swatch red"></span> actual grid
-			(icon_grid_0026)</label
+			(NetCDF)</label
 		>
 		<label
 			><input type="checkbox" bind:checked={showDisplacement} />
 			<span class="swatch gradient"></span> centre displacement</label
 		>
 		{#if loading}
-			<p>loading grid data (~70 MB, one-off)…</p>
+			<p>loading grid data (one-off per domain)…</p>
 		{:else if loadError}
 			<p class="error">{loadError}</p>
 		{:else if tooManyCells}
-			<p>zoom in (≥ ~z6) to draw the grids</p>
+			<p>zoom in to draw the grids</p>
+		{:else if outsideDomain}
+			<p>view centre is outside this domain — pick the domain again to jump there</p>
 		{:else}
 			<p>
 				{stats.cells} cells — deviation mean {stats.meanKm < 1
@@ -390,10 +569,13 @@
 			</p>
 		{/if}
 		<p class="hint">
-			displacement colour: <span style="color:#22c55e">{SOLUTIONS[solution].ramp[0]}</span> ·
-			<span style="color:#eab308">{SOLUTIONS[solution].ramp[1]}</span> ·
-			<span style="color:#dc2626">{SOLUTIONS[solution].ramp[2]} km</span>. Full per-point
-			deviations: icon-native-test/grid-accuracy/*.csv.gz
+			displacement colour: <span style="color:#22c55e"
+				>{DOMAINS[domain].solutions[solution]?.ramp[0]}</span
+			>
+			·
+			<span style="color:#eab308">{DOMAINS[domain].solutions[solution]?.ramp[1]}</span> ·
+			<span style="color:#dc2626">{DOMAINS[domain].solutions[solution]?.ramp[2]} km</span>. Full
+			per-point deviations: icon-native-test/grid-accuracy/*.csv.gz
 		</p>
 	</div>
 </div>
@@ -417,7 +599,7 @@
 		font:
 			13px/1.5 system-ui,
 			sans-serif;
-		max-width: 340px;
+		max-width: 360px;
 		box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
 	}
 	.panel h1 {
