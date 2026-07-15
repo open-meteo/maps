@@ -14,6 +14,7 @@ import { selectedDomain } from '$lib/stores/variables';
 
 import { BEFORE_LAYER_VECTOR } from '$lib/constants';
 
+import type { LineString, MultiLineString } from 'geojson';
 import type * as maplibregl from 'maplibre-gl';
 
 /**
@@ -78,14 +79,32 @@ const framePadding = (): number => {
 	return Number.isFinite(value) ? value : fallback;
 };
 
+/**
+ * Valid-data latitude extent for domains whose files are padded with all-noData
+ * rows: the model fills less than the declared grid, so the outline would
+ * otherwise float outside the visible raster. Values are the outer cell edges of
+ * the first/last rows that contain data, measured by scanning the spatial om
+ * files across several runs and lead times (the mask is a stable property of the
+ * model, not of individual runs).
+ */
+const VALID_DATA_EXTENT: Record<string, { latMin: number; latMax: number }> = {
+	// Grid declares −15…52.5 but rows south of −12.5 / north of 52.17 are noData.
+	ncep_gfswave016: { latMin: -15 + 14.5 / 6, latMax: -15 + 403.5 / 6 }
+};
+
 /** Boundary ring ([lng, lat] pairs) for the currently selected domain. */
 const domainBoundaryRing = (): Array<[number, number]> | undefined => {
 	const domain = get(selectedDomain);
 	const footprintKey = BOUNDARY_ALIASES[domain.value] ?? domain.value;
 	try {
-		return (
-			getDomainFootprint(footprintKey) ?? GridFactory.create(domain.grid, null).getBoundaryPolygon()
-		);
+		const ring =
+			getDomainFootprint(footprintKey) ??
+			GridFactory.create(domain.grid, null).getBoundaryPolygon();
+		const extent = VALID_DATA_EXTENT[domain.value];
+		if (ring && extent) {
+			return ring.map(([lng, lat]) => [lng, Math.min(extent.latMax, Math.max(extent.latMin, lat))]);
+		}
+		return ring;
 	} catch {
 		return undefined;
 	}
@@ -180,6 +199,50 @@ export const fitToDomain = (map: maplibregl.Map): void => {
 	map.jumpTo({ center: grid.getCenter(), zoom: domain.grid.zoom });
 };
 
+/**
+ * Border geometry for a boundary ring. Drawn as line strings (not a Polygon): the
+ * ring already closes on itself and a polygon's implicit closing segment can jump
+ * ~360° for boundaries crossing the antimeridian or encircling a pole.
+ *
+ * For a non-projected grid covering every longitude (global grids and latitude
+ * bands like GFS Wave 0.16°) the ring's west and east edges are the same meridian,
+ * so the segments running along ±180° are dropped — they would render as a
+ * spurious vertical dashed line on every world copy. Projected footprints (e.g.
+ * GEM RDPS) whose bounding box merely wraps ~360° near the pole keep their full
+ * outline.
+ */
+const domainBorderGeometry = (ring: Array<[number, number]>): LineString | MultiLineString => {
+	const domain = get(selectedDomain);
+	const isProjected = 'projection' in domain.grid && domain.grid.projection != null;
+	let minLng = Infinity,
+		maxLng = -Infinity;
+	for (const [lng] of ring) {
+		if (lng < minLng) minLng = lng;
+		if (lng > maxLng) maxLng = lng;
+	}
+	if (isProjected || maxLng - minLng < 359) return { type: 'LineString', coordinates: ring };
+
+	// Segment lies on the antimeridian: constant longitude at ±180°.
+	const onAntimeridian = (a: [number, number], b: [number, number]) =>
+		Math.abs(a[0] - b[0]) < 1e-9 && Math.abs(Math.abs(a[0]) - 180) < 1e-6;
+
+	const lines: Array<Array<[number, number]>> = [];
+	let run: Array<[number, number]> = [];
+	for (let i = 0; i < ring.length - 1; i++) {
+		const a = ring[i];
+		const b = ring[i + 1];
+		if (onAntimeridian(a, b)) {
+			if (run.length > 1) lines.push(run);
+			run = [];
+			continue;
+		}
+		if (run.length === 0) run.push(a);
+		run.push(b);
+	}
+	if (run.length > 1) lines.push(run);
+	return { type: 'MultiLineString', coordinates: lines };
+};
+
 /** Draw a clean outline around the selected domain's footprint. */
 export const drawDomainBorder = (map: maplibregl.Map): void => {
 	if (map.getLayer(SCREENSHOT_LINE_ID)) map.removeLayer(SCREENSHOT_LINE_ID);
@@ -190,13 +253,10 @@ export const drawDomainBorder = (map: maplibregl.Map): void => {
 
 	map.addSource(SCREENSHOT_SOURCE_ID, {
 		type: 'geojson',
-		// Drawn as a LineString (not a Polygon): the ring already closes on itself and
-		// a polygon's implicit closing segment can jump ~360° for boundaries crossing
-		// the antimeridian or encircling a pole.
 		data: {
 			type: 'Feature',
 			properties: {},
-			geometry: { type: 'LineString', coordinates: ring }
+			geometry: domainBorderGeometry(ring)
 		}
 	});
 
