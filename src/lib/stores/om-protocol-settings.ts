@@ -51,9 +51,8 @@ const blockCache = createBlockCache();
 
 // Dedicated reader used only to warm the cache. It shares the same BlockCache as
 // the protocol's main reader (so warming populates the cache the real reads use),
-// but keeps its own OmFileReader: fetching a file header here never disturbs the
-// file the main reader is mid-read on — important for the sequential seamless
-// sub-layer loads, which would otherwise race on a shared, stateful reader.
+// but keeps its own OmFileReader: setToOmFile() is stateful, so warming through
+// the main reader would repoint the file the protocol is reading.
 const prefetchReader = browser
 	? new WeatherMapLayerFileReader({ useSAB: true, cache: blockCache })
 	: undefined;
@@ -91,15 +90,12 @@ export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
 	// dynamic (can be changed during runtime)
 	colorScales: { ...defaultOmProtocolSettings.colorScales, ...initialCustomColorScales },
 
-	postReadCallback: (omFileReader: WeatherMapLayerFileReader, data: Data, state: OmUrlState) => {
+	postReadCallback: (_omFileReader: WeatherMapLayerFileReader, data: Data, state: OmUrlState) => {
 		// Only fires for regular (non-seamless) domains — the seamless protocol never
 		// runs this callback. Seamless cache warming is driven by warmSeamlessSubLayers
 		// on timestep/domain change instead (see below).
 		for (const nextOmUrl of getNextOmUrls(get(selectedDomain), get(metaJson))) {
-			omFileReader.setToOmFile(nextOmUrl);
-			// This will trigger a request to the tail of the file and cache it
-			// Not requesting a real variable ensures that we don't request any additional data.
-			omFileReader.prefetchVariable('not_a_real_variable');
+			warmOmUrl(nextOmUrl);
 		}
 		if (
 			state.dataOptions.domain.value === 'ecmwf_ifs' &&
