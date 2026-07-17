@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { modelRun, time } from '$lib/stores/time';
 
-import { getSeamlessWarmupOmUrls } from '$lib/url';
+import { getNextOmUrls } from '$lib/url';
 
 import type { SeamlessDomain } from '@openmeteo/weather-map-layer';
 
@@ -12,7 +12,7 @@ import type { SeamlessDomain } from '@openmeteo/weather-map-layer';
 const WELL_FORMED =
 	/^https:\/\/[^/]+\/data_spatial\/[^/]+\/\d{4}\/\d{2}\/\d{2}\/\d{4}Z\/\d{4}-\d{2}-\d{2}T\d{4}\.om$/;
 
-describe('getSeamlessWarmupOmUrls', () => {
+describe('getNextOmUrls', () => {
 	const gfsSeamless = domainOptions.find((d) => d.value === 'ncep_gfs_seamless') as SeamlessDomain;
 
 	beforeEach(() => {
@@ -21,18 +21,23 @@ describe('getSeamlessWarmupOmUrls', () => {
 		time.set(new Date('2025-01-01T00:00:00Z'));
 	});
 
-	it('returns an empty list for a non-seamless domain', () => {
+	it('returns the previous/next timestep files for a regular domain', () => {
 		const regular = domainOptions.find((d) => d.value === 'ncep_gfs025')!;
-		expect(getSeamlessWarmupOmUrls(regular, undefined)).toEqual([]);
+		const urls = getNextOmUrls(regular, undefined);
+		expect(urls).toHaveLength(2);
+		for (const url of urls) {
+			expect(url).toMatch(WELL_FORMED);
+			expect(url).toContain('/data_spatial/ncep_gfs025/');
+		}
 	});
 
-	it('returns an empty list when no model run is selected', () => {
+	it('returns an empty list for a seamless domain when no model run is selected', () => {
 		modelRun.set(undefined);
-		expect(getSeamlessWarmupOmUrls(gfsSeamless, undefined)).toEqual([]);
+		expect(getNextOmUrls(gfsSeamless, undefined)).toEqual([]);
 	});
 
 	it('warms the current timestep for every concrete sub-layer', () => {
-		const urls = getSeamlessWarmupOmUrls(gfsSeamless, undefined);
+		const urls = getNextOmUrls(gfsSeamless, undefined);
 		// Including the regional HRRR the viewport gate may skip when loading data.
 		expect(urls).toContain(
 			'https://map-tiles.open-meteo.com/data_spatial/ncep_hrrr_conus/2025/01/01/0000Z/2025-01-01T0000.om'
@@ -43,14 +48,14 @@ describe('getSeamlessWarmupOmUrls', () => {
 	});
 
 	it('produces well-formed URLs that never reference the composite itself', () => {
-		for (const url of getSeamlessWarmupOmUrls(gfsSeamless, undefined)) {
+		for (const url of getNextOmUrls(gfsSeamless, undefined)) {
 			expect(url).toMatch(WELL_FORMED);
 			expect(url).not.toContain('/ncep_gfs_seamless/');
 		}
 	});
 
 	it('does not duplicate URLs', () => {
-		const urls = getSeamlessWarmupOmUrls(gfsSeamless, undefined);
+		const urls = getNextOmUrls(gfsSeamless, undefined);
 		expect(urls.length).toBe(new Set(urls).size);
 	});
 
@@ -60,7 +65,7 @@ describe('getSeamlessWarmupOmUrls', () => {
 	it.each(seamlessDomains.map((d) => [d.value, d] as const))(
 		'covers every sub-layer of %s with a well-formed URL',
 		(_value, domain) => {
-			const urls = getSeamlessWarmupOmUrls(domain, undefined);
+			const urls = getNextOmUrls(domain, undefined);
 			expect(urls.length).toBeGreaterThan(0);
 			for (const url of urls) expect(url).toMatch(WELL_FORMED);
 			for (const layer of domain.layers) {
