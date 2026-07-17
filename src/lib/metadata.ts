@@ -8,7 +8,7 @@ import {
 
 import { loading } from '$lib/stores/preferences';
 import { inProgress as iP, latest as l, metaJson as mJ, modelRun as mR } from '$lib/stores/time';
-import { selectedDomain, variable as v } from '$lib/stores/variables';
+import { domain as d, selectedDomain, variable as v } from '$lib/stores/variables';
 
 import { fmtModelRun, getBaseUri } from './helpers';
 
@@ -19,6 +19,7 @@ import { fmtModelRun, getBaseUri } from './helpers';
  */
 export const getInitialMetaData = async (): Promise<boolean> => {
 	try {
+		const domainValue = get(d);
 		const metaDomainValue = getFallbackDomainValue(get(selectedDomain));
 		const uri = getBaseUri(metaDomainValue);
 
@@ -26,6 +27,11 @@ export const getInitialMetaData = async (): Promise<boolean> => {
 			fetch(`${uri}/data_spatial/${metaDomainValue}/latest.json`),
 			fetch(`${uri}/data_spatial/${metaDomainValue}/in-progress.json`)
 		]);
+
+		// The domain may have changed while these requests were in flight (e.g. the
+		// initial persisted-domain load racing a URL-driven domain change). Discard the
+		// stale response so it can't clobber the current domain's metadata.
+		if (get(d) !== domainValue) return false;
 
 		// Tolerate a missing latest OR in-progress: a freshly-running model may only
 		// have in-progress (no completed `latest` yet). As long as one is available

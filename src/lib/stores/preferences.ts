@@ -1,7 +1,7 @@
 import { MediaQuery } from 'svelte/reactivity';
 import { type Writable, writable } from 'svelte/store';
 
-import { clearBlockCache } from '@openmeteo/weather-map-layer';
+import { type InterpolationMethod, clearBlockCache } from '@openmeteo/weather-map-layer';
 import { setMode } from 'mode-watcher';
 import { type Persisted, persisted } from 'svelte-persisted-store';
 
@@ -9,6 +9,8 @@ import {
 	COMPLETE_DEFAULT_VALUES,
 	DEFAULT_CACHE_BLOCK_SIZE_KB,
 	DEFAULT_CACHE_MAX_BYTES_MB,
+	DEFAULT_COLOR_BLEND,
+	DEFAULT_INTERPOLATION,
 	DEFAULT_OPACITY,
 	DEFAULT_PREFERENCES,
 	DEFAULT_TILE_SIZE
@@ -61,6 +63,14 @@ export const tileSize: Persisted<64 | 128 | 256 | 512 | 1024 | 2048> = persisted
 // check for retina / hd on first load, afterwards the tile-size won't be set
 export const tileSizeSet = persisted('tile-size-set', false);
 
+export const interpolation: Persisted<InterpolationMethod> = persisted<InterpolationMethod>(
+	'interpolation',
+	DEFAULT_INTERPOLATION
+);
+
+// Interpolate colours between colour-scale breakpoints
+export const colorBlend: Persisted<boolean> = persisted('color_blend', DEFAULT_COLOR_BLEND);
+
 export const opacity = persisted('opacity', DEFAULT_OPACITY);
 
 export { cacheBlockSizeKb, cacheMaxBytesMb } from './om-protocol-settings';
@@ -99,10 +109,13 @@ export const resetStates = async () => {
 
 	domainSelectionOpen.set(false);
 	variableSelectionOpen.set(false);
-	variableSelectionExtended.set(undefined);
+	variableSelectionExtended.set(null);
 
 	tileSize.set(DEFAULT_TILE_SIZE);
 	tileSizeSet.set(false);
+
+	interpolation.set(DEFAULT_INTERPOLATION);
+	colorBlend.set(DEFAULT_COLOR_BLEND);
 
 	opacity.set(DEFAULT_OPACITY);
 

@@ -20,7 +20,9 @@ import { replaceState } from '$app/navigation';
 import { map as m } from '$lib/stores/map';
 import {
 	type Preferences,
+	colorBlend as cB,
 	completeDefaultValues,
+	interpolation as iP,
 	preferences as p,
 	tileSize as tS,
 	url as u
@@ -187,6 +189,11 @@ export const getOMUrl = () => {
 
 	const tileSize = get(tS);
 	if (tileSize !== 256) result += `&tile_size=${tileSize}`;
+
+	const interpolation = get(iP);
+	if (interpolation !== 'linear') result += `&interpolation=${interpolation}`;
+
+	if (get(cB)) result += `&color_blend=true`;
 
 	const omProtocolSettingsState = get(omProtocolSettings);
 	if (

@@ -104,7 +104,7 @@
 	});
 
 	onMount(() => {
-		if (desktop.current && typeof get(vSE) === 'undefined') {
+		if (desktop.current && get(vSE) === null) {
 			vSE.set(true);
 		}
 	});
