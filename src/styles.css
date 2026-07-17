@@ -229,6 +229,15 @@
 	z-index: 0;
 }
 
+/* Raised above the time selector when the two would overlap horizontally
+   (class toggled in attribution.ts). On very wide screens the attribution
+   keeps its default bottom-right corner position. */
+@media (min-width: 769px) {
+	.attrib-raised .maplibregl-ctrl-bottom-right {
+		bottom: 75px;
+	}
+}
+
 @media (max-width: 768px) {
 	.maplibregl-ctrl-bottom-right {
 		bottom: 93px;
@@ -236,6 +245,12 @@
 
 	.maplibregl-ctrl.maplibregl-ctrl-attrib {
 		margin-right: 5px;
+		/* keep the expanded attribution clear of the scale on the left */
+		max-width: calc(100vw - 88px);
+	}
+
+	.maplibregl-ctrl.maplibregl-ctrl-attrib.open {
+		padding-left: 8px;
 	}
 }
 
