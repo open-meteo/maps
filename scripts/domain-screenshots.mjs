@@ -24,10 +24,18 @@
  *   --include-seamless also capture the *_seamless composites (skipped by default)
  *   --include-eps      also capture ensemble (*_eps) variants (skipped by default)
  *   --include-upper-level also capture *_upper_level variants (skipped by default)
+ *                      (domains listed in DUPLICATE_AREA_DOMAINS — variants covering the
+ *                      same area as another domain — are also skipped by default and only
+ *                      captured when explicitly requested via --only)
  *   --width / --height viewport size in CSS px (default 820x720)
  *   --scale            device pixel ratio (default 1)
  *   --quality          webp quality 0..1 (default 0.8)
  *   --padding          margin in CSS px around the domain footprint (default 90)
+ *   --time             fixed valid time (UTC, YYYY-MM-DDTHHMM) shared by all captures so
+ *                      the weather coincides across images; defaults to the next 00:00 UTC
+ *                      (within every model's forecast horizon). The app clamps to each
+ *                      domain's nearest available step. --time=latest keeps the app's
+ *                      default time per domain (varies with capture moment).
  *   --port             dev server port (default 5173; must be a CORS-allowed origin)
  *   --timeout          per-domain readiness timeout in ms (default 90000)
  */
@@ -118,6 +126,19 @@ const PADDING = Number(opt('padding', 90));
 // Default to 5173: the maps tile/style hosts allow-list localhost:5173 for CORS,
 // so the base map only loads on that origin. Override with --port if it's taken.
 const PORT = Number(opt('port', 5173));
+// One fixed valid time shared by all captures (next 00:00 UTC unless overridden),
+// computed once so captures spanning midnight still target the same instant. The
+// app URL format is YYYY-MM-DDTHHMM, interpreted as UTC.
+const nextUtcMidnight = () => {
+	const d = new Date();
+	d.setUTCHours(24, 0, 0, 0);
+	return d.toISOString().replace(/[:Z]/g, '').slice(0, 15);
+};
+const TIME = String(opt('time', nextUtcMidnight()));
+if (TIME !== 'latest' && !/^\d{4}-\d{2}-\d{2}T\d{4}$/.test(TIME)) {
+	console.error(`Invalid --time "${TIME}": expected YYYY-MM-DDTHHMM (UTC) or "latest"`);
+	process.exit(1);
+}
 const READY_TIMEOUT_MS = Number(opt('timeout', 90_000));
 
 // A representative default variable for each kind of domain. The app falls back to
@@ -131,6 +152,20 @@ const defaultVariable = (domain) => {
 	if (/wave|wam|gfswave/.test(domain)) return 'wave_height';
 	return 'temperature_2m';
 };
+
+// Domains covering (essentially) the same area as another captured domain — their
+// images would be duplicates. Skipped by default; explicitly requesting one via
+// --only bypasses this, like the other default skip filters.
+const DUPLICATE_AREA_DOMAINS = new Set([
+	'meteofrance_arome_france0025_15min', // = meteofrance_arome_france0025
+	'meteofrance_arome_france_hd', // = meteofrance_arome_france0025
+	'meteofrance_arome_france_hd_15min', // = meteofrance_arome_france0025
+	'meteoswiss_icon_ch1_ensemble', // = meteoswiss_icon_ch1
+	'meteoswiss_icon_ch2', // = meteoswiss_icon_ch1
+	'meteoswiss_icon_ch2_ensemble', // = meteoswiss_icon_ch1
+	'ncep_hrrr_conus_15min', // = ncep_hrrr_conus
+	'ncep_nam_conus' // = ncep_hrrr_conus
+]);
 
 // --- dev server --------------------------------------------------------------
 const waitForServer = async (url, timeoutMs = 120_000) => {
@@ -179,7 +214,24 @@ const run = async () => {
 	const sharp = args.has('list') ? null : loadSharp();
 
 	const { base, stop } = await startServer();
-	const browser = await chromium.launch({ headless: true });
+	// Sandboxed environments (e.g. Claude Code) only allow egress through an
+	// authenticated HTTP proxy; Chromium doesn't pick that up from the environment,
+	// so pass it explicitly — keeping localhost (the dev server) direct.
+	const proxyUrl = process.env.HTTPS_PROXY ?? process.env.HTTP_PROXY;
+	const proxy = proxyUrl
+		? (({ protocol, hostname, port, username, password }) => ({
+				server: `${protocol}//${hostname}:${port}`,
+				username: decodeURIComponent(username),
+				password: decodeURIComponent(password),
+				bypass: 'localhost,127.0.0.1'
+			}))(new URL(proxyUrl))
+		: undefined;
+	// Headless Chromium needs no display server, but with DISPLAY set ANGLE tries to
+	// reach X (Vulkan-XCB) — where that socket is blocked (sandboxes, CI) the failure
+	// takes WebGL down with it and maplibre renders nothing. Strip it so GL always
+	// initializes via the headless path (hardware if available, SwiftShader otherwise).
+	const { DISPLAY, WAYLAND_DISPLAY, ...browserEnv } = process.env;
+	const browser = await chromium.launch({ headless: true, proxy, env: browserEnv });
 	const context = await browser.newContext({
 		viewport: { width: WIDTH, height: HEIGHT },
 		deviceScaleFactor: SCALE,
@@ -257,6 +309,10 @@ const run = async () => {
 			if (!args.has('include-eps')) domains = domains.filter((d) => !/_eps$/.test(d.value));
 			if (!args.has('include-upper-level'))
 				domains = domains.filter((d) => !/_upper_level$/.test(d.value));
+
+			// Variants that cover the same area as another domain would produce duplicate
+			// images; only captured when explicitly requested via --only.
+			domains = domains.filter((d) => !DUPLICATE_AREA_DOMAINS.has(d.value));
 		}
 
 		if (args.has('list')) {
@@ -273,11 +329,18 @@ const run = async () => {
 				continue;
 			}
 			const variable = defaultVariable(d.value);
-			const url = `${base}/?screenshot=1&domain=${encodeURIComponent(d.value)}&variable=${encodeURIComponent(variable)}&padding=${PADDING}`;
+			const timeParam = TIME === 'latest' ? '' : `&time=${encodeURIComponent(TIME)}`;
+			const url = `${base}/?screenshot=1&domain=${encodeURIComponent(d.value)}&variable=${encodeURIComponent(variable)}&padding=${PADDING}${timeParam}`;
 			try {
 				// One retry: slow/cold data occasionally misses the readiness window.
 				let ready = await loadDomain(url);
 				if (!ready) ready = await loadDomain(url);
+				if (process.env.DEBUG) {
+					// The app rewrites `time` to the step it actually applied, so the final
+					// URL params show whether the requested time hit an exact step.
+					const finalSearch = await page.evaluate(() => location.search);
+					console.log(`    applied params: ${finalSearch}`);
+				}
 				// A short extra settle so the final frame is fully painted before capture.
 				await page.waitForTimeout(ready ? 600 : 1500);
 				// Capture via the compositor (reliable in headless, unlike WebGL canvas

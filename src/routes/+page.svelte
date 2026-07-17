@@ -7,7 +7,7 @@
 	import 'maplibre-gl/dist/maplibre-gl.css';
 	import { toast } from 'svelte-sonner';
 
-	import { version } from '$app/environment';
+	import { browser, version } from '$app/environment';
 
 	import { map } from '$lib/stores/map';
 	import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
@@ -87,7 +87,8 @@
 			zoom: 0,
 			keyboard: false,
 			hash: false,
-			attributionControl: false,
+			// Keep the attribution expanded so captures credit the base-map sources.
+			attributionControl: { compact: false },
 			maxPitch: 0
 		});
 		$map.on('load', () => {
@@ -103,6 +104,9 @@
 	onMount(async () => {
 		$url = new URL(document.location.href);
 		urlParamsToPreferences();
+
+		// Scopes screenshot-only styling (e.g. the smaller attribution, see styles.css).
+		if (screenshot) mapContainer?.classList.add('screenshot-mode');
 
 		if (satelliteView) {
 			await setupSatelliteView();
@@ -150,10 +154,10 @@
 			center: grid.getCenter(),
 			zoom: domainObject.grid.zoom,
 			keyboard: false,
-			// Screenshot mode frames the domain explicitly (no URL hash) and drops the
-			// attribution control so nothing overlays the captured image.
+			// Screenshot mode frames the domain explicitly (no URL hash) and keeps the
+			// attribution expanded so captures credit the base-map sources.
 			hash: !screenshot,
-			attributionControl: screenshot ? false : undefined,
+			attributionControl: screenshot ? { compact: false } : undefined,
 			maxPitch: 85
 		});
 
@@ -207,6 +211,10 @@
 	// the URL. Only genuine, user-initiated domain switches should reset the run.
 	let initialLoadComplete = false;
 	const domainSubscription = domain.subscribe(async (newDomain) => {
+		// Data loads client-side only: fetching during SSR is wasted work (SvelteKit
+		// warns about it), and if the fetch rejects (e.g. no network) the unhandled
+		// rejection kills the vite dev server.
+		if (!browser) return;
 		// The satellite screenshot view has no domain data to load.
 		if (satelliteView) return;
 		if ($domain !== newDomain) {
@@ -246,6 +254,8 @@
 	});
 
 	const variableSubscription = variable.subscribe(async (newVar) => {
+		// Client-side only, like the domain subscription above.
+		if (!browser) return;
 		// The satellite screenshot view has no weather layer to reconfigure.
 		if (satelliteView) return;
 		if ($variable !== newVar) {

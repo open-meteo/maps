@@ -219,6 +219,14 @@
 	backdrop-filter: blur(2px);
 }
 
+/* Screenshot mode (?screenshot=1): slightly smaller attribution in the captures,
+   with the exposed corner rounded (the box sits flush in the bottom-right). */
+.screenshot-mode .maplibregl-ctrl.maplibregl-ctrl-attrib {
+	transform: scale(0.75);
+	transform-origin: bottom right;
+	border-radius: 6px 0 0 0;
+}
+
 /* Control positioning */
 .maplibregl-ctrl-top-right {
 	top: 36px;
