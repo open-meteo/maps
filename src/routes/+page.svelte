@@ -45,6 +45,7 @@
 	import Settings from '$lib/components/settings/settings.svelte';
 	import TimeSelector from '$lib/components/time/time-selector.svelte';
 
+	import { unwatchAttributionOverlap, watchAttributionOverlap } from '$lib/attribution';
 	import { checkHighDefinition } from '$lib/helpers';
 	import { addOmFileLayers, changeOMfileURL } from '$lib/layers';
 	import { addTerrainSource, getStyle, setMapControlSettings } from '$lib/map-controls';
@@ -138,6 +139,8 @@
 			addOmFileLayers();
 			addPopup();
 			changeOMfileURL();
+
+			watchAttributionOverlap();
 		});
 	});
 
@@ -201,6 +204,7 @@
 	});
 
 	onDestroy(() => {
+		unwatchAttributionOverlap();
 		if ($map) {
 			$map.remove();
 		}
