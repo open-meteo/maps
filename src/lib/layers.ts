@@ -25,7 +25,7 @@ import {
 import { type SlotLayer, SlotManager } from '$lib/slot-manager';
 
 import { refreshPopup } from './popup';
-import { omProtocolSettings, warmSeamlessSubLayers } from './stores/om-protocol-settings';
+import { omProtocolSettings } from './stores/om-protocol-settings';
 import { currentOmUrl } from './stores/om-url';
 import { getOMUrl } from './url';
 
@@ -505,13 +505,14 @@ export const addOmFileLayers = (): void => {
 	if (!map) return;
 	const omUrl = getOMUrl();
 	createManagers();
+
 	rasterManager?.update('om://' + omUrl);
 	vectorManager?.update('om://' + omUrl);
+
 	// (Re)creating the map layers (initial load or style reload) drops the border
 	// layers, so force them to be drawn again.
 	resetSeamlessBorderLayer();
 	updateSeamlessBorderLayer();
-	warmSeamlessSubLayers();
 };
 
 export const changeOMfileURL = (vectorOnly = false, rasterOnly = false): void => {
@@ -532,6 +533,6 @@ export const changeOMfileURL = (vectorOnly = false, rasterOnly = false): void =>
 
 	if (!vectorOnly) rasterManager?.update('om://' + omUrl);
 	if (!rasterOnly) vectorManager?.update('om://' + omUrl);
+
 	updateSeamlessBorderLayer();
-	warmSeamlessSubLayers();
 };
