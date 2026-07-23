@@ -1,6 +1,6 @@
 {
 	"name": "@openmeteo/maps",
-	"version": "0.0.2",
+	"version": "0.0.3",
 	"type": "module",
 	"author": "Open-Meteo <info@open-meteo.com>",
 	"repository": "git://github.com/open-meteo/maps",
@@ -30,7 +30,7 @@
 	"devDependencies": {
 		"@lucide/svelte": "^1.23.0",
 		"@openmeteo/file-reader": "^0.0.16",
-		"@openmeteo/weather-map-layer": "github:open-meteo/weather-map-layer#6b99d4d6ac349bbc729c083cf86e5da1ed345af6",
+		"@openmeteo/weather-map-layer": "github:open-meteo/weather-map-layer#7e59f1e53d957dcee722199dcfdbc965f2ec8cac",
 		"@sveltejs/adapter-static": "^3.0.8",
 		"@sveltejs/kit": "^2.69.1",
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",

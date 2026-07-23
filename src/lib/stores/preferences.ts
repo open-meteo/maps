@@ -44,6 +44,7 @@ export interface Preferences {
 	hillshade: boolean;
 	clipWater: boolean;
 	showScale: boolean;
+	showSeamlessBorders: boolean;
 }
 
 export const preferences = persisted('preferences', defaultPreferences);
