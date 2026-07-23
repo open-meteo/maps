@@ -11,9 +11,10 @@
 	} from '@openmeteo/weather-map-layer';
 	import * as maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
+	import { setMode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
-	import { version } from '$app/environment';
+	import { browser, version } from '$app/environment';
 
 	import { map } from '$lib/stores/map';
 	import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
@@ -48,7 +49,13 @@
 	import { unwatchAttributionOverlap, watchAttributionOverlap } from '$lib/attribution';
 	import { checkHighDefinition } from '$lib/helpers';
 	import { addOmFileLayers, changeOMfileURL } from '$lib/layers';
-	import { addTerrainSource, getStyle, setMapControlSettings } from '$lib/map-controls';
+	import {
+		addTerrainSource,
+		getAppliedStyleMode,
+		getStyle,
+		reloadStyles,
+		setMapControlSettings
+	} from '$lib/map-controls';
 	import { getInitialMetaData, getMetaData, matchVariableOrFirst } from '$lib/metadata';
 	import { addPopup } from '$lib/popup';
 	import { formatISOWithoutTimezone } from '$lib/time-format';
@@ -62,6 +69,60 @@
 	let clippingPanel: ReturnType<typeof ClippingPanel>;
 
 	let mapContainer: HTMLElement | null;
+
+	// Domains this build can actually render. Seamless composites are excluded
+	// until the app supports them; drop the filter once they work and embedders
+	// will pick them up automatically through the ready handshake below.
+	const supportedDomainValues = new Set(
+		domainOptions
+			.filter((domainOption) => !('type' in domainOption && domainOption.type === 'seamless'))
+			.map(({ value }) => value)
+	);
+
+	const darkModeButton = new DarkModeButton();
+
+	// Embedder API: a parent window can steer the map with
+	// { type: 'om-maps:set', domain?, theme? }. Any origin may send this; the
+	// payload is validated and each field has the same effect as the matching
+	// UI interaction.
+	const onEmbedderMessage = (event: MessageEvent) => {
+		const {
+			type,
+			domain: requestedDomain,
+			theme: requestedTheme
+		} = (event.data ?? {}) as {
+			type?: string;
+			domain?: string;
+			theme?: string;
+		};
+		if (type !== 'om-maps:set') return;
+		if (
+			requestedDomain &&
+			supportedDomainValues.has(requestedDomain) &&
+			get(domain) !== requestedDomain
+		) {
+			domain.set(requestedDomain);
+		}
+		if (requestedTheme === 'light' || requestedTheme === 'dark' || requestedTheme === 'system') {
+			// resolve 'system' ourselves instead of relying on mode.current
+			// updating synchronously after setMode
+			const resolved =
+				requestedTheme === 'system'
+					? window.matchMedia('(prefers-color-scheme: dark)').matches
+						? 'dark'
+						: 'light'
+					: requestedTheme;
+			setMode(requestedTheme);
+			darkModeButton.refresh();
+			// Compare against the style that is actually loaded, not
+			// mode.current: the embedder's color-scheme propagates into our
+			// prefers-color-scheme, so the UI mode may have flipped already
+			// while the basemap style never reloaded.
+			if (resolved !== getAppliedStyleMode()) {
+				reloadStyles();
+			}
+		}
+	};
 
 	onMount(async () => {
 		$url = new URL(document.location.href);
@@ -107,6 +168,21 @@
 
 		setMapControlSettings();
 
+		// When embedded in another site, mirror the position
+		// hash to the parent window so the embedder can reflect it in its own
+		// URL. The payload is harmless, so any parent origin may receive it.
+		if (window.parent !== window) {
+			const postHashToParent = () => {
+				window.parent.postMessage({ type: 'om-maps:hash', hash: window.location.hash }, '*');
+			};
+			// maplibre's own hash handler runs on moveend first, so
+			// location.hash is already up to date when this fires
+			$map.on('moveend', postHashToParent);
+			postHashToParent();
+
+			window.addEventListener('message', onEmbedderMessage);
+		}
+
 		// update bounds when new tiles are requested, to trigger new data ranges loading if necessary
 		$map.on('dataloading', () => {
 			const bounds = $map.getBounds();
@@ -116,7 +192,7 @@
 		});
 
 		$map.on('load', async () => {
-			$map.addControl(new DarkModeButton());
+			$map.addControl(darkModeButton);
 			$map.addControl(new SettingsButton());
 			$map.addControl(new HelpButton());
 			$map.addControl(new ClippingButton());
@@ -136,6 +212,16 @@
 			changeOMfileURL();
 
 			watchAttributionOverlap();
+
+			// Handshake for embedders: advertise what this build supports so a
+			// parent can translate its own model ids and knows the map is now
+			// listening for om-maps:set (posting earlier would race startup).
+			if (window.parent !== window) {
+				window.parent.postMessage(
+					{ type: 'om-maps:ready', version, domains: [...supportedDomainValues] },
+					'*'
+				);
+			}
 		});
 	});
 
@@ -192,6 +278,10 @@
 	});
 
 	onDestroy(() => {
+		// onDestroy also runs after server-side rendering, where window is absent
+		if (browser) {
+			window.removeEventListener('message', onEmbedderMessage);
+		}
 		unwatchAttributionOverlap();
 		if ($map) {
 			$map.remove();

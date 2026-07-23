@@ -70,10 +70,19 @@ export const addHillshadeLayer = () => {
 	);
 };
 
+// Mode the currently applied basemap style was fetched for. Can drift from
+// mode.current: when an embedding page's color-scheme propagates into our
+// prefers-color-scheme, mode-watcher flips the UI mode without any style
+// reload happening.
+let appliedStyleMode: 'light' | 'dark' = 'light';
+
+export const getAppliedStyleMode = () => appliedStyleMode;
+
 export const getStyle = async () => {
 	const preferences = get(p);
+	appliedStyleMode = mode.current === 'dark' ? 'dark' : 'light';
 	const style = await fetch(
-		`https://map-assets.open-meteo.com/styles/minimal-planet-maps${mode.current === 'dark' ? '-dark' : ''}${preferences.clipWater ? '-water-clip' : ''}.json`
+		`https://map-assets.open-meteo.com/styles/minimal-planet-maps${appliedStyleMode === 'dark' ? '-dark' : ''}${preferences.clipWater ? '-water-clip' : ''}.json`
 	).then((r) => r.json());
 
 	return preferences.globe ? { ...style, projection: { type: 'globe' } } : style;
