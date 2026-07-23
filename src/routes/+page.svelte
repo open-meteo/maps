@@ -168,7 +168,7 @@
 
 		setMapControlSettings();
 
-		// When embedded in another site (e.g. ombrella), mirror the position
+		// When embedded in another site, mirror the position
 		// hash to the parent window so the embedder can reflect it in its own
 		// URL. The payload is harmless, so any parent origin may receive it.
 		if (window.parent !== window) {
