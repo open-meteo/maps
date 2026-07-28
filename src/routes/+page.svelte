@@ -3,9 +3,9 @@
 	import { get } from 'svelte/store';
 
 	import {
-		type Domain,
 		GridFactory,
 		domainOptions,
+		getFallbackDomain,
 		omProtocol,
 		updateCurrentBounds
 	} from '@openmeteo/weather-map-layer';
@@ -89,17 +89,22 @@
 
 		const style = await getStyle();
 
-		const domainObject = domainOptions.find(({ value }: Domain) => value === $domain);
+		const domainObject = domainOptions.find(({ value }) => value === $domain);
 		if (!domainObject) {
 			throw new Error('Domain not found');
 		}
-		const grid = GridFactory.create(domainObject.grid);
+		// For seamless domains, use the global (last) backing domain for initial map position
+		const gridDomain = getFallbackDomain(domainObject, domainOptions);
+		if (!gridDomain) {
+			throw new Error('Backing domain not found');
+		}
+		const grid = GridFactory.create(gridDomain.grid);
 
 		$map = new maplibregl.Map({
 			container: mapContainer as HTMLElement,
 			style: style,
 			center: grid.getCenter(),
-			zoom: domainObject.grid.zoom,
+			zoom: gridDomain.grid.zoom,
 			keyboard: false,
 			hash: true,
 			maxPitch: 85
@@ -155,15 +160,22 @@
 		}
 
 		getInitialMetaDataPromise = (async () => {
-			await getInitialMetaData();
+			const ok = await getInitialMetaData();
 			// Bail out if a newer domain change superseded this load while metadata was
 			// being fetched, so we don't commit another domain's metadata/time.
 			if (get(domain) !== newDomain) return;
-			const meta = await getMetaData();
+			const meta = ok ? await getMetaData() : undefined;
 			if (get(domain) !== newDomain) return;
 			$metaJson = meta;
+			if (!meta) {
+				// Metadata unavailable (e.g. domain has no published data) — surface it
+				// and bail out without blocking the UI so another domain can be picked.
+				$loading = false;
+				toast.error('Could not load data for ' + $selectedDomain.label);
+				return;
+			}
 
-			const timeSteps = $metaJson?.valid_times.map((validTime: string) => new Date(validTime));
+			const timeSteps = meta.valid_times.map((validTime: string) => new Date(validTime));
 			const timeStep = findTimeStep($time, timeSteps);
 			// clamp time to valid times in meta data
 			if (timeStep) {

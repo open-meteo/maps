@@ -2,11 +2,16 @@ import { tick } from 'svelte';
 import { get } from 'svelte/store';
 
 import {
+	type AnyDomain,
 	type Domain,
 	type DomainMetaDataJson,
 	closestModelRun,
 	defaultOmProtocolSettings,
-	domainStep
+	domainOptions,
+	domainStep,
+	getFallbackDomain,
+	isSeamlessDomain,
+	resolveConcreteDomain
 } from '@openmeteo/weather-map-layer';
 import { mode } from 'mode-watcher';
 
@@ -216,41 +221,73 @@ export const getOMUrl = () => {
 	return result;
 };
 
-export const getNextOmUrls = (
-	_omUrl: string,
-	domain: Domain,
+/** The valid times one step before/after `date`, from metadata if present. */
+const prevNextDates = (
+	date: Date,
+	step: Domain['time_interval'],
 	metaJson: DomainMetaDataJson | undefined
-): [string | undefined, string | undefined] => {
-	const base = `https://map-tiles.open-meteo.com/data_spatial/${domain.value}`;
-	const date = get(time);
-	const dateString = formatISOUTCWithZ(date);
-
-	let prevDate: Date;
-	let nextDate: Date;
-
+): [prev: Date, next: Date] => {
 	if (metaJson) {
-		const idx = metaJson.valid_times.findIndex((s) => s === dateString);
-		prevDate = new Date(metaJson.valid_times[idx + 1]);
-		nextDate = new Date(metaJson.valid_times[idx - 1]);
-	} else {
-		prevDate = domainStep(date, domain.time_interval, 'backward');
-		nextDate = domainStep(date, domain.time_interval, 'forward');
+		const idx = metaJson.valid_times.findIndex((s) => s === formatISOUTCWithZ(date));
+		return [new Date(metaJson.valid_times[idx + 1]), new Date(metaJson.valid_times[idx - 1])];
 	}
+	return [domainStep(date, step, 'backward'), domainStep(date, step, 'forward')];
+};
+
+/**
+ * OM file URLs to cache-warm around the current selection, as a grid of
+ * (model-run, valid-time) stamps × domain paths:
+ *
+ * - Regular domain: the previous/next timestep files of the domain itself, so
+ *   stepping through time is instant.
+ * - Seamless composite: those same timesteps plus the current one, for every
+ *   concrete sub-layer — including ones the viewport gate skips because they are
+ *   off-screen — so panning to a regional model is instant too.
+ *
+ * The seamless protocol builds each sub-layer URL by swapping only the
+ * `/data_spatial/<domain>/` segment of the request URL, keeping the composite's
+ * host and model-run path. Deriving every stamp from the fallback domain mirrors
+ * that, so the warmed files match exactly what the protocol fetches. Each
+ * timestep uses its closest model run, clamped to the currently published run so
+ * we never point past data that exists.
+ */
+export const getNextOmUrls = (
+	anyDomain: AnyDomain,
+	metaJson: DomainMetaDataJson | undefined
+): string[] => {
+	const fallback = getFallbackDomain(anyDomain, domainOptions);
+	const date = get(time);
+	if (!fallback || isNaN(date.getTime())) return [];
 
 	const currentModelRun = metaJson ? new Date(metaJson.reference_time) : undefined;
+	const runFor = (t: Date): Date => {
+		const run = closestModelRun(t, fallback.model_interval);
+		return currentModelRun && run > currentModelRun ? currentModelRun : run;
+	};
 
-	const clampRun = (run: Date): Date =>
-		currentModelRun && run > currentModelRun ? currentModelRun : run;
+	const [prevDate, nextDate] = prevNextDates(date, fallback.time_interval, metaJson);
+	const stamps = [prevDate, nextDate]
+		.filter((t) => !isNaN(t.getTime()))
+		.map((t): [run: Date, validTime: Date] => [runFor(t), t]);
+	let domainValues = [fallback.value];
 
-	const prevModelRun = clampRun(closestModelRun(prevDate, domain.model_interval));
-	const nextModelRun = clampRun(closestModelRun(nextDate, domain.model_interval));
+	if (isSeamlessDomain(anyDomain)) {
+		// Off-screen sub-layers have not even loaded the current timestep yet, so
+		// warm it as well — with the selected model run, as the protocol requests it.
+		const selectedRun = get(mR);
+		if (!selectedRun) return [];
+		stamps.unshift([selectedRun, date]);
+		domainValues = anyDomain.layers
+			.map((layer) => resolveConcreteDomain(layer.domainValue, domainOptions)?.value)
+			.filter((value): value is string => value !== undefined);
+	}
 
-	const prevUrl = !isNaN(prevDate.getTime())
-		? `${base}/${fmtModelRun(prevModelRun)}/${fmtSelectedTime(prevDate)}.om`
-		: undefined;
-	const nextUrl = !isNaN(nextDate.getTime())
-		? `${base}/${fmtModelRun(nextModelRun)}/${fmtSelectedTime(nextDate)}.om`
-		: undefined;
-
-	return [prevUrl, nextUrl];
+	const host = getBaseUri(anyDomain.value);
+	const urls = new Set<string>();
+	for (const domainValue of domainValues) {
+		for (const [run, t] of stamps) {
+			urls.add(`${host}/data_spatial/${domainValue}/${fmtModelRun(run)}/${fmtSelectedTime(t)}.om`);
+		}
+	}
+	return [...urls];
 };

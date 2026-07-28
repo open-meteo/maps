@@ -198,7 +198,7 @@
 	const checkClosestModelRun = async () => {
 		let timeStep = new Date($time);
 
-		let nearestModelRun = closestModelRun(timeStep, $selectedDomain.model_interval);
+		let nearestModelRun = closestModelRun(timeStep, $selectedDomain.model_interval!);
 		if (nearestModelRun.getTime() > latestReferenceTime.getTime()) {
 			nearestModelRun = latestReferenceTime;
 		}
@@ -211,7 +211,7 @@
 				toast.warning('Date selected too old, using 7 days ago time');
 				const nowTimeStep = domainStep(
 					new Date(date7DaysAgo),
-					$selectedDomain.time_interval,
+					$selectedDomain.time_interval!,
 					'floor'
 				);
 				time.set(nowTimeStep);
@@ -260,11 +260,11 @@
 
 		if (!$modelRunLocked && $modelRun && setToModelRun.getTime() !== $modelRun.getTime()) {
 			$modelRun = new Date(setToModelRun);
-			try {
-				$metaJson = await getMetaData();
-			} catch (e) {
-				const error = e as Error;
-				toast.warning(error.message);
+			const meta = await getMetaData();
+			if (meta) {
+				$metaJson = meta;
+			} else {
+				toast.warning('Could not load model run, using latest');
 				// set to latest
 				$time = new Date(latestReferenceTime);
 				$modelRun = new Date(latestReferenceTime);
@@ -309,10 +309,16 @@
 		$loading = true;
 		$modelRunLocked = true;
 		$modelRun = step;
-		$metaJson = await getMetaData();
+		const meta = await getMetaData();
+		$metaJson = meta;
+		if (!meta) {
+			$loading = false;
+			toast.warning('Could not load model run');
+			return;
+		}
 
 		let closestTime = new SvelteDate($modelRun);
-		for (const vT of $metaJson.valid_times) {
+		for (const vT of meta.valid_times) {
 			const validTime = new Date(vT);
 			if (validTime.getTime() <= $time.getTime()) {
 				closestTime.setTime(validTime.getTime());
