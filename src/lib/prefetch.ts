@@ -134,9 +134,7 @@ export const prefetchData = async (
 		const prefetchSingle = async (timeStep: Date): Promise<boolean> => {
 			if (signal?.aborted) return false;
 
-			const url = `${uri}/data_spatial/${domain}/${fmtModelRun(modelRun)}/${fmtSelectedTime(
-				timeStep
-			)}.om`;
+			const url = `${uri}/${domain}/${fmtModelRun(modelRun)}/${fmtSelectedTime(timeStep)}.om`;
 
 			try {
 				await omFileReader.setToOmFile(url);
