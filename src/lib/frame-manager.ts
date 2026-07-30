@@ -46,6 +46,12 @@ export interface FrameManagerOptions {
 	crossFadeMs?: number;
 	/** Retained non-visible frames beyond the current one. Default 3. */
 	retainMax?: number;
+	/**
+	 * Ground-truth data availability per channel url (from the om protocol).
+	 * MapLibre counts failed tiles as complete, so tile state alone cannot
+	 * distinguish "everything rendered" from "everything failed".
+	 */
+	getChannelDataState?: (url: string) => 'loaded' | 'loading' | 'error' | 'missing';
 	onLoadingChange?: (loading: boolean) => void;
 	/** Fired when a frame becomes visible. */
 	onCommit?: () => void;
@@ -71,6 +77,8 @@ interface Frame {
 	sourceIds: string[];
 	layers: FrameLayer[];
 	onData?: () => void;
+	/** A source of this frame failed; it must not commit (retried on re-show). */
+	errored?: boolean;
 }
 
 export class FrameManager {
@@ -84,6 +92,8 @@ export class FrameManager {
 	private frameOrdinal = 0;
 	private slowLoadTimer: ReturnType<typeof setTimeout> | undefined;
 	private dissolve?: { raf: number; newRasters: FrameLayer[]; oldRasters: FrameLayer[] };
+	/** Frame whose commit waits for the running dissolve to finish. */
+	private queuedCommit?: Frame;
 	private hideTimers = new Map<string, ReturnType<typeof setTimeout>>();
 	private onMapError: (e: maplibregl.MapSourceDataEvent) => void;
 
@@ -91,12 +101,21 @@ export class FrameManager {
 		this.map = map;
 		this.opts = opts;
 		this.onMapError = (e) => {
-			const pending = this.pendingFrame();
-			if (!pending || !e.sourceId || !pending.sourceIds.includes(e.sourceId)) return;
-			this.removeFrame(pending.key);
-			this.pendingKey = null;
-			this.setLoading(false);
-			this.opts.onError?.();
+			// Attribute the error to its frame; tile-level errors do not always
+			// carry a sourceId, then blame the pending frame (conservative: a
+			// failed switch holds the previous frame instead of flashing).
+			let frame: Frame | undefined;
+			if (e.sourceId) {
+				frame = [...this.frames.values()].find((f) => f.sourceIds.includes(e.sourceId as string));
+			} else {
+				frame = this.pendingFrame();
+			}
+			if (!frame) return;
+			frame.errored = true;
+
+			if (this.pendingKey === frame.key) {
+				this.failPending(frame);
+			}
 		};
 		this.map.on('error', this.onMapError);
 	}
@@ -127,6 +146,8 @@ export class FrameManager {
 			frame = this.buildFrame(key, channels);
 		} else {
 			this.cancelHide(key);
+			// A previously failed frame gets another chance
+			frame.errored = false;
 			this.setFrameVisibility(frame, true);
 			this.raiseFrame(frame);
 		}
@@ -148,6 +169,7 @@ export class FrameManager {
 			cancelAnimationFrame(this.dissolve.raf);
 			this.dissolve = undefined;
 		}
+		this.queuedCommit = undefined;
 		this.abandonPending();
 		for (const key of [...this.frames.keys()]) this.removeFrame(key);
 		this.currentKey = null;
@@ -211,13 +233,43 @@ export class FrameManager {
 		}
 	}
 
+	/** The underlying variable data of every channel has loaded. */
+	private frameDataState(frame: Frame): 'loaded' | 'loading' | 'error' {
+		const getState = this.opts.getChannelDataState;
+		if (!getState) return 'loaded';
+		let result: 'loaded' | 'loading' = 'loaded';
+		for (const channel of frame.channels) {
+			const state = getState(channel.url);
+			if (state === 'error') return 'error';
+			if (state !== 'loaded') result = 'loading';
+		}
+		return result;
+	}
+
 	private isFrameLoaded(frame: Frame): boolean {
 		// Source.loaded() only covers the source metadata (TileJSON); the map
-		// must additionally have all requested tiles, otherwise a frame can
-		// commit with e.g. arrows present but raster tiles still missing.
+		// must additionally have all requested tiles AND the protocol must
+		// hold actual data for every channel. Failed tiles count as
+		// "complete" in areTilesLoaded(), so without the data check an empty
+		// frame would commit and fade the previous data out. Errored frames
+		// never commit.
 		return (
-			frame.sourceIds.every((id) => this.map.getSource(id)?.loaded()) && this.map.areTilesLoaded()
+			!frame.errored &&
+			this.frameDataState(frame) === 'loaded' &&
+			frame.sourceIds.every((id) => this.map.getSource(id)?.loaded()) &&
+			this.map.areTilesLoaded()
 		);
+	}
+
+	/** Fail the pending switch: keep showing the previous frame. */
+	private failPending(frame: Frame): void {
+		this.unwatchFrame(frame);
+		this.removeFrame(frame.key);
+		this.pendingKey = null;
+		this.queuedCommit = undefined;
+		this.clearSlowLoadTimer();
+		this.setLoading(false);
+		this.opts.onError?.();
 	}
 
 	/** Re-check on sourcedata and idle until every tile of the frame loaded. */
@@ -226,6 +278,10 @@ export class FrameManager {
 		const check = (): void => {
 			if (this.pendingKey !== frame.key) {
 				this.unwatchFrame(frame);
+				return;
+			}
+			if (frame.errored || this.frameDataState(frame) === 'error') {
+				this.failPending(frame);
 				return;
 			}
 			if (this.isFrameLoaded(frame)) {
@@ -246,9 +302,15 @@ export class FrameManager {
 	}
 
 	private commit(frame: Frame): void {
+		// Never interrupt a running dissolve (snapping it mid-way is a visible
+		// jump). The commit waits for it — at most crossFadeMs — and chains.
+		if (this.dissolve) {
+			this.queuedCommit = frame;
+			return;
+		}
+		this.queuedCommit = undefined;
 		this.pendingKey = null;
 		this.clearSlowLoadTimer();
-		this.finishDissolve();
 
 		const previous = this.currentFrame();
 		this.currentKey = frame.key;
@@ -328,29 +390,23 @@ export class FrameManager {
 				this.dissolve = { raf: requestAnimationFrame(step), newRasters, oldRasters };
 			} else {
 				this.dissolve = undefined;
+				this.runQueuedCommit();
 			}
 		};
 		this.dissolve = { raf: requestAnimationFrame(step), newRasters, oldRasters };
 	}
 
-	/** Stop a running dissolve, snapping both sides to their final state. */
-	private finishDissolve(): void {
-		if (!this.dissolve) return;
-		cancelAnimationFrame(this.dissolve.raf);
-		for (const layer of this.dissolve.newRasters) {
-			if (this.map.getLayer(layer.layerId)) {
-				this.map.setPaintProperty(layer.layerId, layer.opacityProp, layer.peak);
-			}
+	private runQueuedCommit(): void {
+		const queued = this.queuedCommit;
+		this.queuedCommit = undefined;
+		// Only when no newer show() superseded it in the meantime
+		if (queued && this.pendingKey === queued.key && this.frames.has(queued.key)) {
+			this.commit(queued);
 		}
-		for (const layer of this.dissolve.oldRasters) {
-			if (this.map.getLayer(layer.layerId)) {
-				this.map.setPaintProperty(layer.layerId, layer.opacityProp, 0);
-			}
-		}
-		this.dissolve = undefined;
 	}
 
 	private abandonPending(): void {
+		this.queuedCommit = undefined;
 		if (!this.pendingKey) return;
 		const pending = this.pendingFrame();
 		if (pending) this.unwatchFrame(pending);
