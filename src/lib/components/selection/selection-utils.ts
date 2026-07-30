@@ -87,8 +87,10 @@ export const scrollSelectedToTop = (selectedValue: string | undefined): void => 
 		const [delay, ...rest] = delays;
 		if (delay === undefined) return;
 		setTimeout(() => {
+			// bits-ui also renders a zero-size `display: contents` wrapper with
+			// the same data-value; only the real item carries data-command-item
 			const item = document.querySelector(
-				`[data-value="${CSS.escape(selectedValue)}"]`
+				`[data-command-item][data-value="${CSS.escape(selectedValue)}"]`
 			) as HTMLElement | null;
 			const list = item?.closest('[data-slot="command-list"]') as HTMLElement | null;
 			if (item && list) {
