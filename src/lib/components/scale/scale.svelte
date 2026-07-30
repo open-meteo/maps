@@ -35,7 +35,7 @@
 	<div
 		class="absolute z-60 {!desktop.current
 			? 'bottom-22.5'
-			: 'bottom-2.5'} duration-500 left-2.5 z-10 flex items-end gap-1.5"
+			: 'bottom-2.5'} duration-500 left-2.5 z-10 flex items-end gap-0.5"
 	>
 		{#each legendVariables as legendVariable (legendVariable)}
 			<ScaleLegend

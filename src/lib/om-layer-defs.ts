@@ -43,7 +43,8 @@ export const rasterChannel = (
 						source: sourceId,
 						paint: {
 							'raster-opacity': 0,
-							'raster-opacity-transition': { duration: FADE_MS, delay: 0 }
+							'raster-opacity-transition': { duration: FADE_MS, delay: 0 },
+							'raster-fade-duration': 0
 						}
 					},
 					before

@@ -59,14 +59,18 @@ interface FrameLayer {
 	layerId: string;
 	opacityProp: string;
 	peak: number;
+	beforeLayer?: string;
 }
+
+/** Contour/arrow/label/grid layers, as opposed to raster fills. */
+const isLineLayer = (layer: FrameLayer): boolean => layer.opacityProp !== 'raster-opacity';
 
 interface Frame {
 	key: string;
 	channels: FrameChannel[];
 	sourceIds: string[];
 	layers: FrameLayer[];
-	onData?: (e: maplibregl.MapSourceDataEvent) => void;
+	onData?: () => void;
 }
 
 export class FrameManager {
@@ -79,6 +83,7 @@ export class FrameManager {
 	private pendingKey: string | null = null;
 	private frameOrdinal = 0;
 	private slowLoadTimer: ReturnType<typeof setTimeout> | undefined;
+	private dissolve?: { raf: number; newRasters: FrameLayer[]; oldRasters: FrameLayer[] };
 	private hideTimers = new Map<string, ReturnType<typeof setTimeout>>();
 	private onMapError: (e: maplibregl.MapSourceDataEvent) => void;
 
@@ -123,6 +128,7 @@ export class FrameManager {
 		} else {
 			this.cancelHide(key);
 			this.setFrameVisibility(frame, true);
+			this.raiseFrame(frame);
 		}
 		this.touchLru(key);
 
@@ -138,6 +144,10 @@ export class FrameManager {
 
 	/** Remove every frame (also used before/after a basemap style reload). */
 	reset(): void {
+		if (this.dissolve) {
+			cancelAnimationFrame(this.dissolve.raf);
+			this.dissolve = undefined;
+		}
 		this.abandonPending();
 		for (const key of [...this.frames.keys()]) this.removeFrame(key);
 		this.currentKey = null;
@@ -177,7 +187,12 @@ export class FrameManager {
 				const layerId = `${sourceId}_${layerDef.id}`;
 				layerDef.add(this.map, sourceId, layerId, layerDef.beforeLayer);
 				if (this.map.getLayer(layerId)) {
-					layers.push({ layerId, opacityProp: layerDef.opacityProp, peak: layerDef.peakOpacity });
+					layers.push({
+						layerId,
+						opacityProp: layerDef.opacityProp,
+						peak: layerDef.peakOpacity,
+						beforeLayer: layerDef.beforeLayer
+					});
 				}
 			}
 		}
@@ -187,15 +202,28 @@ export class FrameManager {
 		return frame;
 	}
 
-	private isFrameLoaded(frame: Frame): boolean {
-		return frame.sourceIds.every((id) => this.map.getSource(id)?.loaded());
+	/** Move the frame's layers to the top of their respective om stacks. */
+	private raiseFrame(frame: Frame): void {
+		for (const { layerId, beforeLayer } of frame.layers) {
+			if (this.map.getLayer(layerId)) {
+				this.map.moveLayer(layerId, beforeLayer);
+			}
+		}
 	}
 
-	/** Wait via sourcedata events until every source of the frame loaded. */
+	private isFrameLoaded(frame: Frame): boolean {
+		// Source.loaded() only covers the source metadata (TileJSON); the map
+		// must additionally have all requested tiles, otherwise a frame can
+		// commit with e.g. arrows present but raster tiles still missing.
+		return (
+			frame.sourceIds.every((id) => this.map.getSource(id)?.loaded()) && this.map.areTilesLoaded()
+		);
+	}
+
+	/** Re-check on sourcedata and idle until every tile of the frame loaded. */
 	private watchFrame(frame: Frame): void {
 		if (frame.onData) return;
-		const onData = (e: maplibregl.MapSourceDataEvent): void => {
-			if (!e.sourceId || !frame.sourceIds.includes(e.sourceId) || !e.isSourceLoaded) return;
+		const check = (): void => {
 			if (this.pendingKey !== frame.key) {
 				this.unwatchFrame(frame);
 				return;
@@ -205,33 +233,121 @@ export class FrameManager {
 				this.commit(frame);
 			}
 		};
-		frame.onData = onData;
-		this.map.on('sourcedata', onData);
+		frame.onData = check;
+		this.map.on('sourcedata', check);
+		this.map.on('idle', check);
 	}
 
 	private unwatchFrame(frame: Frame): void {
 		if (!frame.onData) return;
 		this.map.off('sourcedata', frame.onData);
+		this.map.off('idle', frame.onData);
 		frame.onData = undefined;
 	}
 
 	private commit(frame: Frame): void {
 		this.pendingKey = null;
 		this.clearSlowLoadTimer();
+		this.finishDissolve();
 
 		const previous = this.currentFrame();
 		this.currentKey = frame.key;
 		this.cancelHide(frame.key);
 
-		this.setFrameOpacity(frame, 1);
-		if (previous && previous.key !== frame.key) {
-			this.setFrameOpacity(previous, 0);
+		const duration = this.opts.crossFadeMs ?? 250;
+		// Timestep switches reuse the same layer layout with new data. A plain
+		// simultaneous cross-fade of two translucent rasters dips their
+		// combined alpha mid-fade (the basemap flashes through between
+		// near-identical images), so their fills get an opacity-compensated
+		// dissolve instead. Layout changes (variable/chart switches) keep the
+		// plain cross-fade.
+		const sameLayout =
+			previous !== undefined &&
+			previous.key !== frame.key &&
+			this.channelSignature(previous) === this.channelSignature(frame);
+
+		if (sameLayout && previous) {
+			// Lines cross-fade (holding both fully visible would double them)
+			this.setFrameOpacity(frame, 1, duration, isLineLayer);
+			this.setFrameOpacity(previous, 0, duration, isLineLayer);
+			this.dissolveRasters(frame, previous, duration);
 			this.scheduleHide(previous.key);
+		} else {
+			this.setFrameOpacity(frame, 1, duration);
+			if (previous && previous.key !== frame.key) {
+				this.setFrameOpacity(previous, 0, duration);
+				this.scheduleHide(previous.key);
+			}
 		}
 
 		this.evict();
 		this.setLoading(false);
 		this.opts.onCommit?.();
+	}
+
+	/**
+	 * Dissolve the raster fills of two same-layout frames with constant
+	 * combined coverage: the new fill fades in on top while the old one
+	 * underneath follows the compensation curve b = p(1-e) / (1 - p*e), so
+	 * the basemap never shines through and the fills never over-darken.
+	 * Needs rAF driving — paint transitions cannot express the curve.
+	 */
+	private dissolveRasters(newFrame: Frame, oldFrame: Frame, duration: number): void {
+		const newRasters = newFrame.layers.filter((layer) => !isLineLayer(layer));
+		const oldRasters = oldFrame.layers.filter((layer) => !isLineLayer(layer));
+
+		// Direct per-frame updates; the declarative transition must not smooth them
+		for (const layer of [...newRasters, ...oldRasters]) {
+			if (this.map.getLayer(layer.layerId)) {
+				this.map.setPaintProperty(layer.layerId, layer.opacityProp + '-transition', {
+					duration: 0,
+					delay: 0
+				});
+			}
+		}
+
+		const setOpacity = (layer: FrameLayer, value: number): void => {
+			if (this.map.getLayer(layer.layerId)) {
+				this.map.setPaintProperty(layer.layerId, layer.opacityProp, value);
+			}
+		};
+
+		const start = performance.now();
+		const step = (now: number): void => {
+			const t = Math.min((now - start) / duration, 1);
+			const e = t * t * (3 - 2 * t); // smoothstep
+			for (const layer of newRasters) setOpacity(layer, layer.peak * e);
+			for (const layer of oldRasters) {
+				const denominator = 1 - layer.peak * e;
+				setOpacity(
+					layer,
+					t >= 1 || denominator <= 0.001 ? 0 : (layer.peak * (1 - e)) / denominator
+				);
+			}
+			if (t < 1) {
+				this.dissolve = { raf: requestAnimationFrame(step), newRasters, oldRasters };
+			} else {
+				this.dissolve = undefined;
+			}
+		};
+		this.dissolve = { raf: requestAnimationFrame(step), newRasters, oldRasters };
+	}
+
+	/** Stop a running dissolve, snapping both sides to their final state. */
+	private finishDissolve(): void {
+		if (!this.dissolve) return;
+		cancelAnimationFrame(this.dissolve.raf);
+		for (const layer of this.dissolve.newRasters) {
+			if (this.map.getLayer(layer.layerId)) {
+				this.map.setPaintProperty(layer.layerId, layer.opacityProp, layer.peak);
+			}
+		}
+		for (const layer of this.dissolve.oldRasters) {
+			if (this.map.getLayer(layer.layerId)) {
+				this.map.setPaintProperty(layer.layerId, layer.opacityProp, 0);
+			}
+		}
+		this.dissolve = undefined;
 	}
 
 	private abandonPending(): void {
@@ -245,12 +361,28 @@ export class FrameManager {
 		this.setLoading(false);
 	}
 
-	private setFrameOpacity(frame: Frame, mul: number): void {
-		for (const { layerId, opacityProp, peak } of frame.layers) {
-			if (this.map.getLayer(layerId)) {
-				this.map.setPaintProperty(layerId, opacityProp, peak * mul);
+	private setFrameOpacity(
+		frame: Frame,
+		mul: number,
+		durationMs?: number,
+		filter?: (layer: FrameLayer) => boolean
+	): void {
+		for (const layer of frame.layers) {
+			if (filter && !filter(layer)) continue;
+			if (!this.map.getLayer(layer.layerId)) continue;
+			if (durationMs !== undefined) {
+				this.map.setPaintProperty(layer.layerId, layer.opacityProp + '-transition', {
+					duration: durationMs,
+					delay: 0
+				});
 			}
+			this.map.setPaintProperty(layer.layerId, layer.opacityProp, layer.peak * mul);
 		}
+	}
+
+	/** Layer layout identity: channel keys without the (time-dependent) URLs. */
+	private channelSignature(frame: Frame): string {
+		return frame.channels.map((channel) => channel.key).join('|');
 	}
 
 	private setFrameVisibility(frame: Frame, visible: boolean): void {

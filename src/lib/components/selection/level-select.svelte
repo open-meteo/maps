@@ -57,7 +57,7 @@
 			</div>
 			<ChevronsUpDownIcon class="size-4 shrink-0 opacity-50" />
 		</Popover.Trigger>
-		<Popover.Content align="start" class="z-80 bg-transparent! w-62.5 rounded border-none p-0">
+		<Popover.Content align="start" class="z-80 bg-transparent! w-64 rounded border-none p-0">
 			<Command.Root class="bg-glass/85! max-h-75 rounded backdrop-blur-sm">
 				<Command.Input class="border-none ring-0" placeholder="Search levels..." />
 				<Command.List>

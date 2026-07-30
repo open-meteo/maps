@@ -31,7 +31,7 @@
 		</div>
 		<ChevronsUpDownIcon class="size-4 shrink-0 opacity-50" />
 	</Popover.Trigger>
-	<Popover.Content align="start" class="bg-transparent! z-80 w-62.5 rounded border-none! p-0">
+	<Popover.Content align="start" class="bg-transparent! z-80 w-64 rounded border-none! p-0">
 		<Command.Root class="bg-glass/85! backdrop-blur-sm max-h-75 rounded">
 			<Command.Input class="border-none ring-0" placeholder="Search domains..." />
 			<Command.List>

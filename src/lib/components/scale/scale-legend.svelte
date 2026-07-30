@@ -104,8 +104,9 @@
 	const unitOptions = $derived(getUnitOptions(colorScale.unit));
 	const valueLength = $derived(String(Math.round(labeledColors.at(-1)?.value ?? 1)).length);
 	const labelWidth = $derived(
-		(compact ? 13 : 17) +
-			Math.max(valueLength, displayUnit.length + 1, digits + 2) * (compact ? 3.4 : 4)
+		compact
+			? 6 + Math.max(valueLength, displayUnit.length, digits + 1) * 2.8
+			: 17 + Math.max(valueLength, displayUnit.length + 1, digits + 2) * 4
 	);
 	const desktop = new MediaQuery('min-width: 768px');
 	const isMobile = $derived(!desktop.current);
@@ -119,7 +120,7 @@
 <div class="relative flex items-end gap-0.5 select-none" style="max-height: {totalHeight + 100}px;">
 	{#if label}
 		<div
-			class="bg-glass/60 text-foreground/80 self-stretch overflow-hidden rounded-sm px-px py-1 font-semibold backdrop-blur-sm {compact
+			class="bg-glass/60 text-foreground/80 overflow-hidden rounded-sm px-0.5 py-px font-semibold backdrop-blur-sm {compact
 				? 'text-[9px]'
 				: 'text-[10px]'}"
 			style="writing-mode: vertical-rl; transform: rotate(180deg); max-height: {totalHeight}px;"
@@ -137,7 +138,7 @@
 					disabled={!editable && colorScale.type !== 'breakpoint'}
 					onclick={(e) => handleColorClick(i, e)}
 					style={`background: rgb({lc.color[0]}, {lc.color[1]}, {lc
-						.color[2]}); opacity: {alphaValue};min-width: 28px; width: ${labelWidth}px; height: ${colorBlockHeight}px;`}
+						.color[2]}); opacity: {alphaValue};min-width: ${compact ? 16 : 28}px; width: ${labelWidth}px; height: ${colorBlockHeight}px;`}
 					class="relative border-none outline-none transition-all {editable
 						? 'cursor-pointer hover:brightness-110 hover:z-10 hover:ring-3 hover:ring-white/65'
 						: 'cursor-default'} {editingIndex === i ? 'ring-2 ring-white/40  z-20' : ''}"
@@ -168,7 +169,9 @@
 			{#each labeledColors as lc, i (lc)}
 				{#if i > 0 && !(labeledColors.length > 20 && i % 2 === 1 && !desktop.current)}
 					<div
-						class="absolute flex items-center justify-center text-xs z-20 pointer-events-none"
+						class="absolute flex items-center justify-center {compact
+							? 'text-[9px]'
+							: 'text-xs'} z-20 pointer-events-none"
 						style={`bottom: ${i * colorBlockHeight - 6}px; height: 12px; width: ${labelWidth}px;
 						color: ${textWhite(lc.color, isDark, $opacity) ? 'white' : 'black'};`}
 					>
@@ -180,7 +183,9 @@
 
 		{#if colorScale.unit}
 			<div
-				class="bg-glass/75 rounded-t backdrop-blur-sm shadow-md h-6 w-full overflow-hidden text-center text-xs"
+				class="bg-glass/75 rounded-t backdrop-blur-sm shadow-md w-full overflow-hidden text-center {compact
+					? 'h-4 text-[9px]'
+					: 'h-6 text-xs'}"
 			>
 				{#if unitOptions}
 					<Select.Root
@@ -194,7 +199,9 @@
 						}}
 					>
 						<Select.Trigger
-							class="h-6! cursor-pointer w-full p-0 text-xs flex items-center justify-center px-1 py-0 gap-0.5 border-none bg-transparent shadow-none focus-visible:ring-0"
+							class="{compact
+								? 'h-4! text-[9px]'
+								: 'h-6! text-xs'} cursor-pointer w-full p-0 flex items-center justify-center px-0.5 py-0 gap-0.5 border-none bg-transparent shadow-none focus-visible:ring-0"
 							aria-label="Change unit"
 							icon={false}
 						>
@@ -210,7 +217,7 @@
 						</Select.Content>
 					</Select.Root>
 				{:else}
-					<span class={compact ? 'leading-5' : 'leading-6'}>{displayUnit}</span>
+					<span class={compact ? 'leading-4' : 'leading-6'}>{displayUnit}</span>
 				{/if}
 			</div>
 		{/if}

@@ -30,6 +30,7 @@ let valueSpan: HTMLSpanElement | undefined;
 let unitSpan: HTMLSpanElement | undefined;
 let elevationSpan: HTMLSpanElement | undefined;
 let extrasDiv: HTMLDivElement | undefined;
+let stemDiv: HTMLDivElement | undefined;
 
 // Cached clipping tester — recomputed only when clippingOptions reference changes.
 let cachedClippingOptionsRef: unknown = undefined;
@@ -39,7 +40,7 @@ const initPopupDiv = (): void => {
 	el = document.createElement('div');
 	el.classList.add('popup');
 
-	const stemDiv = document.createElement('div');
+	stemDiv = document.createElement('div');
 	stemDiv.classList.add('popup-stem');
 	const dotDiv = document.createElement('div');
 	dotDiv.classList.add('popup-dot');
@@ -71,6 +72,32 @@ const initPopupDiv = (): void => {
 	el.append(wrapperDiv);
 };
 
+const STEM_BASE_HEIGHT = 24;
+
+/**
+ * Shorten a long variable label while keeping its level suffix, e.g.
+ * "Geopotential Height (500hPa)" -> "Geopotenti… (500hPa)".
+ */
+const truncateLabel = (label: string, max = 20): string => {
+	if (label.length <= max) return label;
+	const suffix = label.match(/\s*\(\d+\s*(?:m|cm|hPa)\)$/)?.[0] ?? '';
+	const base = suffix ? label.slice(0, label.length - suffix.length) : label;
+	const room = Math.max(max - suffix.length - 1, 4);
+	if (base.length <= room + 1) return label;
+	return base.slice(0, room).trimEnd() + '…' + suffix;
+};
+
+/**
+ * Lift the popup box and lengthen the stem by the height of the extra source
+ * lines, so the box never crowds the anchor dot.
+ */
+const adjustStemForExtras = (): void => {
+	if (!wrapperDiv || !stemDiv || !extrasDiv) return;
+	const extraHeight = extrasDiv.offsetHeight;
+	wrapperDiv.style.transform = extraHeight ? `translateY(-${extraHeight}px)` : '';
+	stemDiv.style.height = `${STEM_BASE_HEIGHT + extraHeight}px`;
+};
+
 /**
  * Values of the chart's secondary sources (everything except the primary
  * variable shown in the coloured chip), one `label value unit` line each.
@@ -86,6 +113,7 @@ const updateExtraSources = async (coordinates: maplibregl.LngLat): Promise<void>
 
 	if (!extras.length) {
 		extrasDiv.replaceChildren();
+		adjustStemForExtras();
 		return;
 	}
 
@@ -110,7 +138,7 @@ const updateExtraSources = async (coordinates: maplibregl.LngLat): Promise<void>
 					variableOptions.find((option) => option.value === source.variable)?.label ??
 					source.variable;
 				const displayValue = convertValue(value, colorScale.unit, units);
-				return `${label}: ${displayValue.toFixed(1)} ${getDisplayUnit(colorScale.unit, units)}`;
+				return `${truncateLabel(label)}: ${displayValue.toFixed(1)} ${getDisplayUnit(colorScale.unit, units)}`;
 			} catch {
 				return undefined;
 			}
@@ -127,6 +155,7 @@ const updateExtraSources = async (coordinates: maplibregl.LngLat): Promise<void>
 				return lineDiv;
 			})
 	);
+	adjustStemForExtras();
 };
 
 /** Update the popup content for the given coordinates without moving the marker. */
