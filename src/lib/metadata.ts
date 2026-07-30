@@ -3,10 +3,19 @@ import { get } from 'svelte/store';
 import { type DomainMetaDataJson, VARIABLE_PREFIX } from '@openmeteo/weather-map-layer';
 
 import { loading } from '$lib/stores/preferences';
-import { inProgress as iP, latest as l, metaJson as mJ, modelRun as mR } from '$lib/stores/time';
+import {
+	inProgress as iP,
+	latest as l,
+	metaJson as mJ,
+	modelRun as mR,
+	time as t
+} from '$lib/stores/time';
 import { domain as d, selectedDomain, variable as v } from '$lib/stores/variables';
 
 import { fmtModelRun, getBaseUri } from './helpers';
+import { formatISOWithoutTimezone } from './time-format';
+import { findTimeStep } from './time-utils';
+import { updateUrl } from './url';
 
 export const getInitialMetaData = async () => {
 	const domain = get(selectedDomain);
@@ -77,6 +86,27 @@ export const getMetaData = async (): Promise<DomainMetaDataJson> => {
 
 	result.valid_times.sort();
 	return result;
+};
+
+// Full metadata refresh for a domain: fetches the latest/in-progress run info
+// and the run's meta.json, clamps the selected time to the valid times in the
+// metadata (falling back to the first valid time), and re-matches the
+// variable. Bails out if a newer domain change superseded this load while
+// metadata was being fetched, so we don't commit another domain's
+// metadata/time.
+export const loadDomainMetaData = async (newDomain: string) => {
+	await getInitialMetaData();
+	if (get(d) !== newDomain) return;
+	const meta = await getMetaData();
+	if (get(d) !== newDomain) return;
+	mJ.set(meta);
+
+	const timeSteps = meta.valid_times.map((validTime: string) => new Date(validTime));
+	const timeStep = findTimeStep(get(t), timeSteps) ?? timeSteps[0];
+	t.set(timeStep);
+	updateUrl('time', formatISOWithoutTimezone(timeStep));
+
+	matchVariableOrFirst();
 };
 
 export const matchVariableOrFirst = () => {

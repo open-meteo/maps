@@ -1,15 +1,63 @@
 import { get } from 'svelte/store';
 
+import {
+	type Domain,
+	GridFactory,
+	domainOptions,
+	omProtocol,
+	updateCurrentBounds
+} from '@openmeteo/weather-map-layer';
 import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
 
 import { map as m } from '$lib/stores/map';
+import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 import { defaultPreferences, preferences as p } from '$lib/stores/preferences';
+import { domain as d } from '$lib/stores/variables';
 
 import { BEFORE_LAYER_RASTER, HILLSHADE_LAYER } from '$lib/constants';
 
 import { addOmFileLayers } from './layers';
 import { updateUrl } from './url';
+
+import type { RequestParameters } from 'maplibre-gl';
+
+export const createMap = async (container: HTMLElement) => {
+	maplibregl.addProtocol('om', (params: RequestParameters, abortController: AbortController) =>
+		omProtocol(params, abortController, get(omProtocolSettings))
+	);
+
+	const style = await getStyle();
+
+	const domainObject = domainOptions.find(({ value }: Domain) => value === get(d));
+	if (!domainObject) {
+		throw new Error('Domain not found');
+	}
+	const grid = GridFactory.create(domainObject.grid);
+
+	const map = new maplibregl.Map({
+		container,
+		style,
+		center: grid.getCenter(),
+		zoom: domainObject.grid.zoom,
+		keyboard: false,
+		hash: true,
+		maxPitch: 85
+	});
+	m.set(map);
+
+	setMapControlSettings();
+
+	// update bounds when new tiles are requested, to trigger new data ranges loading if necessary
+	map.on('dataloading', () => {
+		const bounds = map.getBounds();
+		const [minLng, minLat] = bounds.getSouthWest().toArray();
+		const [maxLng, maxLat] = bounds.getNorthEast().toArray();
+		updateCurrentBounds([minLng, minLat, maxLng, maxLat]);
+	});
+
+	return map;
+};
 
 export const setMapControlSettings = () => {
 	const map = get(m);
@@ -70,10 +118,19 @@ export const addHillshadeLayer = () => {
 	);
 };
 
+// Mode the currently applied basemap style was fetched for. Can drift from
+// mode.current: when an embedding page's color-scheme propagates into our
+// prefers-color-scheme, mode-watcher flips the UI mode without any style
+// reload happening.
+let appliedStyleMode: 'light' | 'dark' = 'light';
+
+export const getAppliedStyleMode = () => appliedStyleMode;
+
 export const getStyle = async () => {
 	const preferences = get(p);
+	appliedStyleMode = mode.current === 'dark' ? 'dark' : 'light';
 	const style = await fetch(
-		`https://map-assets.open-meteo.com/styles/minimal-planet-maps${mode.current === 'dark' ? '-dark' : ''}${preferences.clipWater ? '-water-clip' : ''}.json`
+		`https://map-assets.open-meteo.com/styles/minimal-planet-maps${appliedStyleMode === 'dark' ? '-dark' : ''}${preferences.clipWater ? '-water-clip' : ''}.json`
 	).then((r) => r.json());
 
 	return preferences.globe ? { ...style, projection: { type: 'globe' } } : style;
