@@ -263,6 +263,16 @@ export const switchPopupMode = (): void => {
 // double-tap fires `zoomstart`.
 const DOUBLE_TAP_WINDOW_MS = 400;
 
+// While set (just after a zoom/double-tap began, or after a tap that closed
+// the selection panel) taps are ignored, so such gestures never also toggle
+// the popup, regardless of event ordering.
+let suppressTapsUntil = 0;
+
+/** Ignore popup-toggling taps for a moment (e.g. the tap closing the panel). */
+export const suppressPopupTap = (ms: number = DOUBLE_TAP_WINDOW_MS): void => {
+	suppressTapsUntil = Date.now() + ms;
+};
+
 export const addPopup = (): void => {
 	const map = get(m);
 	if (!map) return;
@@ -287,9 +297,6 @@ export const addPopup = (): void => {
 	};
 
 	let pendingTap: ReturnType<typeof setTimeout> | null = null;
-	// While set (just after a zoom/double-tap began) taps are ignored, so a
-	// double-tap zoom never also toggles the popup, regardless of event ordering.
-	let suppressTapsUntil = 0;
 
 	const cancelPendingTap = (): void => {
 		if (pendingTap !== null) {
@@ -298,7 +305,7 @@ export const addPopup = (): void => {
 		}
 	};
 	const onZoomOrDoubleClick = (): void => {
-		suppressTapsUntil = Date.now() + DOUBLE_TAP_WINDOW_MS;
+		suppressPopupTap();
 		cancelPendingTap();
 	};
 	map.on('zoomstart', onZoomOrDoubleClick);

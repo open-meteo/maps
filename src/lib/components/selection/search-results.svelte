@@ -66,6 +66,24 @@
 
 <Command.List class="max-h-full">
 	<Command.Empty>Nothing found.</Command.Empty>
+	<Command.Group heading="Variables">
+		{#each variableList as entry (entry)}
+			{#if levelGroupVariables.includes(entry) || (!entry.includes('_v_') && !entry.includes('_direction'))}
+				{@const active = isVariableActive(entry)}
+				<Command.Item
+					value={entry}
+					keywords={[variableLabel(entry)]}
+					class="hover:bg-primary/20! cursor-pointer {active ? 'bg-primary/10!' : ''}"
+					onSelect={() => selectVariable(entry)}
+				>
+					<div class="flex w-full items-center justify-between">
+						{variableLabel(entry)}
+						<CheckIcon class="size-4 shrink-0 {active ? '' : 'text-transparent'}" />
+					</div>
+				</Command.Item>
+			{/if}
+		{/each}
+	</Command.Group>
 	{#if availableSavedCharts.length || availablePresets.length}
 		<Command.Group heading="Charts">
 			{#each availableSavedCharts as chart (chart.id)}
@@ -109,22 +127,4 @@
 			{/each}
 		</Command.Group>
 	{/if}
-	<Command.Group heading="Variables">
-		{#each variableList as entry (entry)}
-			{#if levelGroupVariables.includes(entry) || (!entry.includes('_v_') && !entry.includes('_direction'))}
-				{@const active = isVariableActive(entry)}
-				<Command.Item
-					value={entry}
-					keywords={[variableLabel(entry)]}
-					class="hover:bg-primary/20! cursor-pointer {active ? 'bg-primary/10!' : ''}"
-					onSelect={() => selectVariable(entry)}
-				>
-					<div class="flex w-full items-center justify-between">
-						{variableLabel(entry)}
-						<CheckIcon class="size-4 shrink-0 {active ? '' : 'text-transparent'}" />
-					</div>
-				</Command.Item>
-			{/if}
-		{/each}
-	</Command.Group>
 </Command.List>

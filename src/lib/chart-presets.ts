@@ -92,7 +92,7 @@ export const chartPresets: ChartPreset[] = [
 		label: 'Mean Sea Level Pressure',
 		description: 'Surface pressure field with isobars',
 		group: 'Surface',
-		sources: [{ variable: 'pressure_msl', raster: true, contours: true, contourInterval: 5 }]
+		sources: [{ variable: 'pressure_msl', raster: true, contours: true, contourInterval: 2 }]
 	},
 	{
 		id: 't2m_wind10m',
@@ -213,6 +213,8 @@ export const getChartPreset = (id: string): ChartPreset | undefined =>
 export interface PopularVariable {
 	/** Variable id, or level-group prefix when `levelGroup` is true. */
 	id: string;
+	/** Apply this chart preset instead of a plain variable. */
+	presetId?: string;
 	/** Label override; defaults to the variableOptions label. */
 	label?: string;
 	/** True when `id` is a level-group prefix (e.g. `wind`, `temperature`). */
@@ -230,7 +232,7 @@ export const popularVariables: PopularVariable[] = [
 	{ id: 'precipitation' },
 	{ id: 'wind', label: 'Wind', levelGroup: true, defaultLevel: '10m' },
 	{ id: 'wind_gusts_10m', label: 'Wind Gusts' },
-	{ id: 'pressure_msl' },
+	{ id: 'pressure_msl', label: 'Pressure Mean Sea Level', presetId: 'mslp' },
 	{ id: 'cloud_cover' },
 	{ id: 'relative_humidity', label: 'Relative Humidity', levelGroup: true, defaultLevel: '2m' },
 	{ id: 'cape' },

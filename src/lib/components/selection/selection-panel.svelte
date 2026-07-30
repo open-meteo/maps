@@ -20,6 +20,7 @@
 	import { Separator } from '$lib/components/ui/separator';
 
 	import { popularVariables } from '$lib/chart-presets';
+	import { suppressPopupTap } from '$lib/popup';
 
 	import AllVariablesDialog from './all-variables-dialog.svelte';
 	import ChartEditor from './chart-editor.svelte';
@@ -31,10 +32,32 @@
 	let extended = $state(get(vSE));
 	vSE.subscribe((value) => (extended = value));
 
+	let panelEl: HTMLDivElement | undefined = $state();
+
+	// On mobile, a tap beside the open panel collapses it. Taps inside
+	// portalled popovers/dialogs belong to panel flows and are ignored.
+	const onDocumentPointerDown = (e: PointerEvent) => {
+		if (desktop.current || !get(vSE)) return;
+		const target = e.target as HTMLElement | null;
+		if (!target || panelEl?.contains(target)) return;
+		if (
+			target.closest(
+				'[data-slot="popover-content"], [data-slot="dialog-content"], [data-slot="dialog-overlay"], [data-sonner-toast]'
+			)
+		) {
+			return;
+		}
+		vSE.set(false);
+		// The same tap must not also toggle the map value popup
+		suppressPopupTap();
+	};
+
 	onMount(() => {
 		if (desktop.current && get(vSE) === null) {
 			vSE.set(true);
 		}
+		document.addEventListener('pointerdown', onDocumentPointerDown, true);
+		return () => document.removeEventListener('pointerdown', onDocumentPointerDown, true);
 	});
 
 	let searchQuery = $state('');
@@ -69,7 +92,10 @@
 	});
 </script>
 
-<div class="absolute top-2.5 z-70 flex gap-2.5 duration-300 {extended ? 'left-2.5' : '-left-64.5'}">
+<div
+	bind:this={panelEl}
+	class="absolute top-2.5 z-70 flex gap-2.5 duration-300 {extended ? 'left-2.5' : '-left-64.5'}"
+>
 	<div
 		class="bg-glass/75 dark:bg-glass/75 flex w-64 flex-col overflow-hidden rounded shadow-md backdrop-blur-sm"
 	>
@@ -97,7 +123,11 @@
 						}
 					}}
 				/>
-				<ScrollArea class="max-h-[calc(100dvh-15rem)] min-h-0">
+				<ScrollArea
+					type="always"
+					class="max-h-[calc(100dvh-21rem)] min-h-0 md:max-h-[calc(100dvh-15rem)]"
+					scrollbarYClasses="opacity-80"
+				>
 					{#if searching}
 						<SearchResults onDone={() => (searchQuery = '')} />
 					{:else}

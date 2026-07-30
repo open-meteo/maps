@@ -28,9 +28,13 @@
 	interface Props {
 		variable: string;
 		editable?: boolean;
+		/** Smaller blocks/labels, used when several legends compete for space. */
+		compact?: boolean;
+		/** Variable name shown vertically beside the bar (multi-scale charts). */
+		label?: string;
 	}
 
-	let { variable, editable = true }: Props = $props();
+	let { variable, editable = true, compact = false, label = undefined }: Props = $props();
 
 	const isDark = $derived(mode.current === 'dark');
 	const baseColorScale: RenderableColorScale = $derived(getColorScale(variable, isDark));
@@ -99,15 +103,32 @@
 	const displayUnit = $derived(getDisplayUnit(colorScale.unit, $unitPreferences));
 	const unitOptions = $derived(getUnitOptions(colorScale.unit));
 	const valueLength = $derived(String(Math.round(labeledColors.at(-1)?.value ?? 1)).length);
-	const labelWidth = $derived(17 + Math.max(valueLength, displayUnit.length + 1, digits + 2) * 4);
+	const labelWidth = $derived(
+		(compact ? 13 : 17) +
+			Math.max(valueLength, displayUnit.length + 1, digits + 2) * (compact ? 3.4 : 4)
+	);
 	const desktop = new MediaQuery('min-width: 768px');
 	const isMobile = $derived(!desktop.current);
-	const colorBlockHeight = $derived(isMobile && labeledColors.length >= 20 ? 10 : 20);
+	const colorBlockHeight = $derived.by(() => {
+		if (compact) return labeledColors.length >= 20 ? 7 : 12;
+		return isMobile && labeledColors.length >= 20 ? 10 : 20;
+	});
 	const totalHeight = $derived(colorBlockHeight * labeledColors.length);
 </script>
 
-<div class="relative select-none rounded" style="max-height: {totalHeight + 100}px;">
-	<div class="flex flex-col-reverse shadow-md">
+<div class="relative flex items-end gap-0.5 select-none" style="max-height: {totalHeight + 100}px;">
+	{#if label}
+		<div
+			class="bg-glass/60 text-foreground/80 self-stretch overflow-hidden rounded-sm px-px py-1 font-semibold backdrop-blur-sm {compact
+				? 'text-[9px]'
+				: 'text-[10px]'}"
+			style="writing-mode: vertical-rl; transform: rotate(180deg); max-height: {totalHeight}px;"
+			title={label}
+		>
+			{label}
+		</div>
+	{/if}
+	<div class="flex flex-col-reverse rounded shadow-md">
 		<div class="flex flex-col-reverse bg-glass/30 backdrop-blur-sm rounded-b">
 			{#each labeledColors as lc, i (lc)}
 				{@const alphaValue = getAlpha(lc.color)}
@@ -189,7 +210,7 @@
 						</Select.Content>
 					</Select.Root>
 				{:else}
-					<span class="leading-6">{displayUnit}</span>
+					<span class={compact ? 'leading-5' : 'leading-6'}>{displayUnit}</span>
 				{/if}
 			</div>
 		{/if}

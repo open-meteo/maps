@@ -5,6 +5,8 @@
 	import { preferences } from '$lib/stores/preferences';
 	import { variable } from '$lib/stores/variables';
 
+	import { variableLabel } from '$lib/components/selection/selection-utils';
+
 	import ScaleLegend from './scale-legend.svelte';
 
 	interface Props {
@@ -22,6 +24,11 @@
 		if (!rasters.length) return [$variable];
 		return [...rasters].sort((a, b) => (a === $variable ? -1 : b === $variable ? 1 : 0));
 	});
+
+	// With several sources each legend names its variable; on mobile multiple
+	// legends switch to the compact size.
+	const showLabels = $derived(legendVariables.length > 1 || $chartSources.length > 1);
+	const compact = $derived(!desktop.current && legendVariables.length > 1);
 </script>
 
 {#if $preferences.showScale}
@@ -31,7 +38,12 @@
 			: 'bottom-2.5'} duration-500 left-2.5 z-10 flex items-end gap-1.5"
 	>
 		{#each legendVariables as legendVariable (legendVariable)}
-			<ScaleLegend variable={legendVariable} {editable} />
+			<ScaleLegend
+				variable={legendVariable}
+				{editable}
+				{compact}
+				label={showLabels ? variableLabel(legendVariable) : undefined}
+			/>
 		{/each}
 	</div>
 {/if}

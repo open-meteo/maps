@@ -1,11 +1,16 @@
 <script lang="ts">
 	import CheckIcon from '@lucide/svelte/icons/check';
 
-	import { activeChart, isDefaultsPlainChart, setPlainVariable } from '$lib/stores/chart';
+	import {
+		activeChart,
+		applyPreset,
+		isDefaultsPlainChart,
+		setPlainVariable
+	} from '$lib/stores/chart';
 	import { metaJson } from '$lib/stores/time';
 	import { levelGroupSelected, variable } from '$lib/stores/variables';
 
-	import { popularVariables } from '$lib/chart-presets';
+	import { getChartPreset, popularVariables } from '$lib/chart-presets';
 
 	import LevelSelect from './level-select.svelte';
 	import { buildLevelGroups, pickDefaultLevel, variableLabel } from './selection-utils';
@@ -19,13 +24,36 @@
 
 	const levelGroups = $derived($metaJson ? buildLevelGroups($metaJson.variables) : {});
 
+	interface PopularEntry {
+		id: string;
+		label: string;
+		target: string;
+		levelGroup: boolean;
+		presetId?: string;
+	}
+
 	// Popular entries the current domain actually serves; level groups resolve
-	// to their preferred level variant on click.
+	// to their preferred level variant on click, preset-backed rows apply
+	// their chart preset instead of a plain variable.
 	const entries = $derived.by(() => {
 		if (!$metaJson) return [];
-		const available = [];
+		const available: PopularEntry[] = [];
 		for (const entry of popularVariables) {
-			if (entry.levelGroup) {
+			if (entry.presetId) {
+				const preset = getChartPreset(entry.presetId);
+				if (
+					preset &&
+					preset.sources.every((source) => $metaJson.variables.includes(source.variable))
+				) {
+					available.push({
+						id: entry.id,
+						label: entry.label ?? preset.label,
+						target: '',
+						levelGroup: false,
+						presetId: entry.presetId
+					});
+				}
+			} else if (entry.levelGroup) {
 				const target = levelGroups[entry.id]
 					? pickDefaultLevel(levelGroups[entry.id], entry.defaultLevel)
 					: undefined;
@@ -51,10 +79,19 @@
 
 	// A level-group row stays active on any of its levels, so the nested level
 	// selector remains in place when another pressure/height level is picked.
-	const isActive = (entry: { id: string; target: string; levelGroup: boolean }): boolean => {
+	const isActive = (entry: PopularEntry): boolean => {
+		if (entry.presetId) return $activeChart.presetId === entry.presetId;
 		if (!isDefaultsPlainChart($activeChart)) return false;
 		if (entry.levelGroup) return $levelGroupSelected?.value === entry.id;
 		return $variable === entry.id;
+	};
+
+	const select = (entry: PopularEntry): void => {
+		if (entry.presetId) {
+			applyPreset(entry.presetId);
+		} else {
+			setPlainVariable(entry.target);
+		}
 	};
 </script>
 
@@ -67,7 +104,7 @@
 					? 'bg-primary/10'
 					: ''}"
 				onclick={() => {
-					if (!active) setPlainVariable(entry.target);
+					if (!active) select(entry);
 				}}
 			>
 				<div class="truncate text-left">{entry.label}</div>
