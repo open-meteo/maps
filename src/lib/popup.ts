@@ -6,18 +6,20 @@ import {
 	getCachedResolvedClipping,
 	getColor,
 	getColorScale,
-	getValueFromLatLong
+	getValueFromLatLong,
+	variableOptions
 } from '@openmeteo/weather-map-layer';
 import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
 
+import { chartSources } from '$lib/stores/chart';
 import { map as m, popup as p, popupMode } from '$lib/stores/map';
 import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 import { convertValue, getDisplayUnit, unitPreferences } from '$lib/stores/units';
 import { selectedDomain, variable as v } from '$lib/stores/variables';
 
 import { textWhite } from './helpers';
-import { rasterManager } from './layers';
+import { getActiveOmUrls } from './layers';
 import { terraDrawActive } from './stores/clipping';
 import { desktop, opacity } from './stores/preferences';
 
@@ -27,6 +29,7 @@ let contentDiv: HTMLDivElement | undefined;
 let valueSpan: HTMLSpanElement | undefined;
 let unitSpan: HTMLSpanElement | undefined;
 let elevationSpan: HTMLSpanElement | undefined;
+let extrasDiv: HTMLDivElement | undefined;
 
 // Cached clipping tester — recomputed only when clippingOptions reference changes.
 let cachedClippingOptionsRef: unknown = undefined;
@@ -60,8 +63,70 @@ const initPopupDiv = (): void => {
 	contentDiv.append(unitSpan);
 	contentDiv.append(elevationSpan);
 
+	extrasDiv = document.createElement('div');
+	extrasDiv.classList.add('popup-extras');
+
 	wrapperDiv.append(contentDiv);
+	wrapperDiv.append(extrasDiv);
 	el.append(wrapperDiv);
+};
+
+/**
+ * Values of the chart's secondary sources (everything except the primary
+ * variable shown in the coloured chip), one `label value unit` line each.
+ */
+const updateExtraSources = async (coordinates: maplibregl.LngLat): Promise<void> => {
+	if (!extrasDiv) return;
+
+	const primary = get(v);
+	const activeUrls = getActiveOmUrls();
+	const extras = get(chartSources).filter(
+		(source) => source.variable !== primary && activeUrls.has(source.variable)
+	);
+
+	if (!extras.length) {
+		extrasDiv.replaceChildren();
+		return;
+	}
+
+	const omProtocolSettingsState = get(omProtocolSettings);
+	const units = get(unitPreferences);
+
+	const lines = await Promise.all(
+		extras.map(async (source) => {
+			try {
+				const { value } = await getValueFromLatLong(
+					coordinates.lat,
+					coordinates.lng,
+					activeUrls.get(source.variable) as string
+				);
+				if (!isFinite(value)) return undefined;
+				const colorScale = getColorScale(
+					source.variable,
+					mode.current === 'dark',
+					omProtocolSettingsState.colorScales
+				);
+				const label =
+					variableOptions.find((option) => option.value === source.variable)?.label ??
+					source.variable;
+				const displayValue = convertValue(value, colorScale.unit, units);
+				return `${label}: ${displayValue.toFixed(1)} ${getDisplayUnit(colorScale.unit, units)}`;
+			} catch {
+				return undefined;
+			}
+		})
+	);
+
+	extrasDiv.replaceChildren(
+		...lines
+			.filter((line): line is string => line !== undefined)
+			.map((line) => {
+				const lineDiv = document.createElement('div');
+				lineDiv.classList.add('popup-extra-line');
+				lineDiv.innerText = line;
+				return lineDiv;
+			})
+	);
 };
 
 /** Update the popup content for the given coordinates without moving the marker. */
@@ -73,10 +138,11 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 	const elevation = map?.queryTerrainElevation(coordinates);
 	const hasElevation = typeof elevation === 'number' && isFinite(elevation);
 
-	const activeUrl = rasterManager?.getActiveSourceUrl();
+	const activeUrl = getActiveOmUrls().get(get(v));
 	if (!activeUrl) return;
 
 	const { value } = await getValueFromLatLong(coordinates.lat, coordinates.lng, activeUrl);
+	await updateExtraSources(coordinates);
 
 	if (isFinite(value)) {
 		const omProtocolSettingsState = get(omProtocolSettings);

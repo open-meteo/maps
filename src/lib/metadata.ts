@@ -2,6 +2,7 @@ import { get } from 'svelte/store';
 
 import { type DomainMetaDataJson, VARIABLE_PREFIX } from '@openmeteo/weather-map-layer';
 
+import { activeChart, pickPrimaryVariable, setPlainVariable, setSources } from '$lib/stores/chart';
 import { loading } from '$lib/stores/preferences';
 import {
 	inProgress as iP,
@@ -10,7 +11,7 @@ import {
 	modelRun as mR,
 	time as t
 } from '$lib/stores/time';
-import { domain as d, selectedDomain, variable as v } from '$lib/stores/variables';
+import { domain as d, selectedDomain } from '$lib/stores/variables';
 
 import { fmtModelRun, getBaseUri } from './helpers';
 import { formatISOWithoutTimezone } from './time-format';
@@ -106,20 +107,29 @@ export const loadDomainMetaData = async (newDomain: string) => {
 	t.set(timeStep);
 	updateUrl('time', formatISOWithoutTimezone(timeStep));
 
-	matchVariableOrFirst();
+	matchChartOrFallback();
 };
 
-export const matchVariableOrFirst = () => {
-	const variable = get(v);
+/**
+ * After a domain switch, keep only the chart sources the new domain actually
+ * serves. When nothing survives, fall back to a plain chart via a
+ * prefix-match on the primary variable (as the old single-variable flow did).
+ */
+export const matchChartOrFallback = () => {
 	const metaJson = get(mJ);
-	if (!metaJson || metaJson.variables.includes(variable)) return;
+	if (!metaJson) return;
 
-	let matched: string | undefined;
-	const prefix = variable.match(VARIABLE_PREFIX)?.groups?.prefix;
+	const chart = get(activeChart);
+	const surviving = chart.sources.filter((source) => metaJson.variables.includes(source.variable));
+	if (surviving.length === chart.sources.length) return;
 
-	if (prefix) {
-		matched = metaJson.variables.find((mv) => mv.startsWith(prefix));
+	if (surviving.length > 0) {
+		setSources(surviving);
+		return;
 	}
 
-	v.set(matched ?? metaJson.variables[0]);
+	const primary = pickPrimaryVariable(chart);
+	const prefix = primary.match(VARIABLE_PREFIX)?.groups?.prefix;
+	const matched = prefix ? metaJson.variables.find((mv) => mv.startsWith(prefix)) : undefined;
+	setPlainVariable(matched ?? metaJson.variables[0]);
 };

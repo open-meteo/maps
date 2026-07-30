@@ -1,13 +1,15 @@
 <script lang="ts">
 	import { onDestroy, onMount, tick } from 'svelte';
 
+	import { variableOptions } from '@openmeteo/weather-map-layer';
 	import 'maplibre-gl/dist/maplibre-gl.css';
 	import { toast } from 'svelte-sonner';
 
+	import { activeChart } from '$lib/stores/chart';
 	import { map } from '$lib/stores/map';
 	import { initStoredState, loading, url } from '$lib/stores/preferences';
 	import { modelRun } from '$lib/stores/time';
-	import { domain, selectedDomain, selectedVariable, variable } from '$lib/stores/variables';
+	import { domain, selectedDomain } from '$lib/stores/variables';
 
 	import {
 		ClippingButton,
@@ -23,19 +25,22 @@
 	import KeyboardHandler from '$lib/components/keyboard/keyboard-handler.svelte';
 	import Spinner from '$lib/components/loading/spinner.svelte';
 	import Scale from '$lib/components/scale/scale.svelte';
-	import VariableSelection from '$lib/components/selection/variable-selection.svelte';
+	import SelectionPanel from '$lib/components/selection/selection-panel.svelte';
 	import Settings from '$lib/components/settings/settings.svelte';
 	import TimeSelector from '$lib/components/time/time-selector.svelte';
 
 	import { unwatchAttributionOverlap, watchAttributionOverlap } from '$lib/attribution';
+	import { getChartPreset } from '$lib/chart-presets';
 	import { postEmbedderReady, startEmbedderBridge, stopEmbedderBridge } from '$lib/embed';
 	import { addOmFileLayers, changeOMfileURL } from '$lib/layers';
 	import { addTerrainSource, createMap } from '$lib/map-controls';
 	import { loadDomainMetaData } from '$lib/metadata';
 	import { addPopup } from '$lib/popup';
-	import { updateUrl, urlParamsToPreferences } from '$lib/url';
+	import { syncChartToUrl, updateUrl, urlParamsToPreferences } from '$lib/url';
 
 	import '../styles.css';
+
+	import type { ChartState } from '$lib/chart-types';
 
 	let clippingPanel: ReturnType<typeof ClippingPanel>;
 
@@ -96,11 +101,32 @@
 		changeOMfileURL();
 	});
 
-	const variableSubscription = variable.subscribe(async (newVar) => {
-		if ($variable !== newVar) {
-			await tick(); // await the selectedVariable to be set
-			updateUrl('variable', newVar);
-			toast('Variable set to: ' + $selectedVariable.label);
+	const chartToastMessage = (chart: ChartState): string => {
+		if (chart.presetId) {
+			return 'Chart set to: ' + (getChartPreset(chart.presetId)?.label ?? chart.presetId);
+		}
+		if (chart.name) return 'Chart set to: ' + chart.name;
+		if (chart.sources.length === 1) {
+			const variable = chart.sources[0].variable;
+			const label = variableOptions.find(({ value }) => value === variable)?.label ?? variable;
+			return 'Variable set to: ' + label;
+		}
+		return 'Custom chart applied';
+	};
+
+	// Serialized sources of the last seen chart. Undefined only before the
+	// subscription's initial synchronous call, which must not toast or touch
+	// the URL (urlParamsToPreferences just parsed it).
+	let lastChartSources: string | undefined;
+	const chartSubscription = activeChart.subscribe(async (chart) => {
+		const serialized = JSON.stringify(chart.sources);
+		const changed = lastChartSources !== undefined && serialized !== lastChartSources;
+		lastChartSources = serialized;
+
+		if (changed) {
+			await tick();
+			syncChartToUrl(chart);
+			toast(chartToastMessage(chart));
 		}
 
 		changeOMfileURL();
@@ -113,7 +139,7 @@
 			$map.remove();
 		}
 		domainSubscription(); // unsubscribe
-		variableSubscription(); // unsubscribe
+		chartSubscription(); // unsubscribe
 	});
 </script>
 
@@ -129,7 +155,7 @@
 
 <GithubCorner />
 <Scale />
-<VariableSelection />
+<SelectionPanel />
 <ClippingPanel bind:this={clippingPanel} />
 <TimeSelector />
 <Settings />

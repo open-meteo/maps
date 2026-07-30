@@ -61,7 +61,10 @@
 
 		if (canNavigateSelection && !event.ctrlKey) {
 			if (event.key === 'v') {
-				variableSelectionOpen.set(true);
+				// Focus the panel's search field (searches variables and charts)
+				event.preventDefault();
+				const searchInput = document.querySelector('[data-panel-search]') as HTMLElement | null;
+				searchInput?.focus();
 				return;
 			}
 			if (event.key === 'd') {

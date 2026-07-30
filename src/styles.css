@@ -294,14 +294,16 @@
 .popup-wrapper {
 	top: 0;
 	min-width: 50px;
-	border: 3px solid rgba(100, 100, 100, 1);
-	border-radius: 4px;
-	backdrop-filter: blur(2px);
-	background: rgba(255, 253, 248, 0.8);
+	border-radius: 6px;
+	backdrop-filter: blur(4px);
+	background: rgba(240, 240, 240, 0.75);
+	box-shadow:
+		0 4px 6px -1px rgb(0 0 0 / 0.1),
+		0 2px 4px -2px rgb(0 0 0 / 0.1);
 }
 
 .dark .popup-wrapper {
-	background: rgba(26, 26, 24, 0.8);
+	background: rgba(15, 15, 15, 0.75);
 }
 
 .popup-content {
@@ -349,6 +351,25 @@
 	.popup-stem {
 		bottom: 60px;
 	}
+}
+
+.popup-extras {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+	padding: 0 0.3rem;
+}
+
+.popup-extras:not(:empty) {
+	padding-bottom: 0.15rem;
+}
+
+.popup-extra-line {
+	font-size: 0.7rem;
+	line-height: 1.2;
+	white-space: nowrap;
+	opacity: 0.9;
+	text-align: center;
 }
 
 .popup-elevation {

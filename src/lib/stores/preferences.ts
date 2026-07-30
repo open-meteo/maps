@@ -20,6 +20,7 @@ import {
 import { checkHighDefinition } from '$lib/helpers';
 import { getInitialMetaData, getMetaData } from '$lib/metadata';
 
+import { activeChart, defaultChart } from './chart';
 import { cacheBlockSizeKb, cacheMaxBytesMb, customColorScales } from './om-protocol-settings';
 import { inProgress, latest, metaJson, modelRun, modelRunLocked, now, time } from './time';
 import {
@@ -128,6 +129,9 @@ export const resetStates = async () => {
 
 	domain.set('dwd_icon');
 	variable.set('temperature_2m');
+	// After the vector defaults above so the plain chart is built from them.
+	// Saved charts are user data and deliberately survive a reset.
+	activeChart.set(defaultChart());
 
 	domainSelectionOpen.set(false);
 	variableSelectionOpen.set(false);
