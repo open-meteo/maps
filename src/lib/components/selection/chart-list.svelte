@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { slide } from 'svelte/transition';
+
 	import CheckIcon from '@lucide/svelte/icons/check';
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 	import XIcon from '@lucide/svelte/icons/x';
@@ -13,28 +15,35 @@
 	} from '$lib/stores/chart';
 	import { metaJson } from '$lib/stores/time';
 
-	import * as Collapsible from '$lib/components/ui/collapsible';
-
 	import { chartPresets } from '$lib/chart-presets';
 
 	// Which chart groups are expanded, persisted across sessions
 	const openGroups = persisted<Record<string, boolean>>('chart-groups-open', {});
 
+	interface GroupedPreset {
+		preset: (typeof chartPresets)[number];
+		/** The domain serves every variable of the preset. */
+		available: boolean;
+	}
+
 	const presetGroups = $derived.by(() => {
-		const groups: { name: string; presets: typeof chartPresets }[] = [];
+		const groups: { name: string; presets: GroupedPreset[] }[] = [];
 		if (!$metaJson) return groups;
 		for (const preset of chartPresets) {
-			// A preset is offered when the domain serves all its variables
-			if (!preset.sources.every((source) => $metaJson.variables.includes(source.variable))) {
-				continue;
-			}
+			const available = preset.sources.every((source) =>
+				$metaJson.variables.includes(source.variable)
+			);
 			const name = preset.group ?? 'Other';
 			const group = groups.find((g) => g.name === name);
 			if (group) {
-				group.presets.push(preset);
+				group.presets.push({ preset, available });
 			} else {
-				groups.push({ name, presets: [preset] });
+				groups.push({ name, presets: [{ preset, available }] });
 			}
+		}
+		// Unavailable presets sink to the bottom of their group
+		for (const group of groups) {
+			group.presets.sort((a, b) => Number(b.available) - Number(a.available));
 		}
 		return groups;
 	});
@@ -46,27 +55,35 @@
 
 <div class="flex flex-col py-1">
 	{#each presetGroups as group (group.name)}
-		<Collapsible.Root
-			open={$openGroups[group.name] ?? false}
-			onOpenChange={() => toggleGroup(group.name)}
+		{@const availableInGroup = group.presets.some((entry) => entry.available)}
+		{@const groupOpen = availableInGroup && ($openGroups[group.name] ?? false)}
+		{@const availableCount = group.presets.filter((entry) => entry.available).length}
+		<button
+			class="text-muted-foreground flex h-7.5 w-full items-center gap-1.5 px-2 text-xs font-semibold tracking-wide uppercase {availableInGroup
+				? 'hover:bg-primary/10 cursor-pointer'
+				: 'cursor-not-allowed opacity-40'}"
+			disabled={!availableInGroup}
+			title={availableInGroup ? undefined : 'No charts available in this domain'}
+			onclick={() => toggleGroup(group.name)}
 		>
-			<Collapsible.Trigger
-				class="hover:bg-primary/10 text-muted-foreground flex h-7.5 w-full cursor-pointer items-center gap-1.5 px-2 text-xs font-semibold tracking-wide uppercase"
-			>
-				<ChevronRightIcon
-					class="size-3.5 duration-200 {($openGroups[group.name] ?? false) ? 'rotate-90' : ''}"
-				/>
-				{group.name}
-				<span class="ml-auto pr-1 font-normal opacity-60">{group.presets.length}</span>
-			</Collapsible.Trigger>
-			<Collapsible.Content class="pb-1">
-				{#each group.presets as preset (preset.id)}
+			<ChevronRightIcon class="size-3.5 duration-200 {groupOpen ? 'rotate-90' : ''}" />
+			{group.name}
+			<span class="ml-auto pr-1 font-normal opacity-60">
+				{availableCount === group.presets.length
+					? group.presets.length
+					: `${availableCount}/${group.presets.length}`}
+			</span>
+		</button>
+		{#if groupOpen}
+			<div class="pb-1" transition:slide={{ duration: 200 }}>
+				{#each group.presets as { preset, available } (preset.id)}
 					{@const active = $activeChart.presetId === preset.id}
 					<button
-						class="hover:bg-primary/10 flex w-full cursor-pointer items-center justify-between gap-1.5 px-3 py-1 {active
-							? 'bg-primary/10'
-							: ''}"
-						title={preset.label}
+						class="flex w-full items-center justify-between gap-1.5 px-3 py-1 {available
+							? 'hover:bg-primary/10 cursor-pointer'
+							: 'cursor-not-allowed opacity-40'} {active ? 'bg-primary/10' : ''}"
+						title={available ? preset.label : 'Not available in this domain'}
+						disabled={!available}
 						onclick={() => applyPreset(preset.id)}
 					>
 						<div class="min-w-0 text-left">
@@ -80,25 +97,23 @@
 						<CheckIcon class="size-4 shrink-0 {active ? '' : 'text-transparent'}" />
 					</button>
 				{/each}
-			</Collapsible.Content>
-		</Collapsible.Root>
+			</div>
+		{/if}
 	{/each}
 
 	{#if $savedCharts.charts.length}
-		<Collapsible.Root
-			open={$openGroups['My charts'] ?? true}
-			onOpenChange={() => toggleGroup('My charts')}
+		<button
+			class="hover:bg-primary/10 text-muted-foreground flex h-7.5 w-full cursor-pointer items-center gap-1.5 px-2 text-xs font-semibold tracking-wide uppercase"
+			onclick={() => toggleGroup('My charts')}
 		>
-			<Collapsible.Trigger
-				class="hover:bg-primary/10 text-muted-foreground flex h-7.5 w-full cursor-pointer items-center gap-1.5 px-2 text-xs font-semibold tracking-wide uppercase"
-			>
-				<ChevronRightIcon
-					class="size-3.5 duration-200 {($openGroups['My charts'] ?? true) ? 'rotate-90' : ''}"
-				/>
-				My charts
-				<span class="ml-auto pr-1 font-normal opacity-60">{$savedCharts.charts.length}</span>
-			</Collapsible.Trigger>
-			<Collapsible.Content class="pb-1">
+			<ChevronRightIcon
+				class="size-3.5 duration-200 {($openGroups['My charts'] ?? true) ? 'rotate-90' : ''}"
+			/>
+			My charts
+			<span class="ml-auto pr-1 font-normal opacity-60">{$savedCharts.charts.length}</span>
+		</button>
+		{#if $openGroups['My charts'] ?? true}
+			<div class="pb-1" transition:slide={{ duration: 200 }}>
 				{#each $savedCharts.charts as chart (chart.id)}
 					{@const active = $activeChart.name === chart.name}
 					<div
@@ -129,7 +144,7 @@
 						{/if}
 					</div>
 				{/each}
-			</Collapsible.Content>
-		</Collapsible.Root>
+			</div>
+		{/if}
 	{/if}
 </div>

@@ -1,0 +1,138 @@
+<script lang="ts">
+	import { slide } from 'svelte/transition';
+
+	import CheckIcon from '@lucide/svelte/icons/check';
+	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
+	import { levelGroupVariables } from '@openmeteo/weather-map-layer';
+	import { persisted } from 'svelte-persisted-store';
+
+	import { activeChart, isDefaultsPlainChart, setPlainVariable } from '$lib/stores/chart';
+	import { metaJson } from '$lib/stores/time';
+	import { domain, levelGroupSelected, variable } from '$lib/stores/variables';
+
+	import { popularVariables } from '$lib/chart-presets';
+
+	import LevelSelect from './level-select.svelte';
+	import {
+		buildLevelGroups,
+		buildVariableList,
+		pickDefaultLevel,
+		variableLabel
+	} from './selection-utils';
+
+	interface Props {
+		/** Entry id whose row hosts the nested level selector. */
+		levelHostId?: string;
+	}
+
+	let { levelHostId = undefined }: Props = $props();
+
+	const open = persisted('other-variables-open', false);
+
+	const levelGroups = $derived($metaJson ? buildLevelGroups($metaJson.variables) : {});
+
+	// Everything the domain serves that the popular list does not already
+	// represent, level-collapsed and alphabetical.
+	const entries = $derived.by(() => {
+		if (!$metaJson) return [];
+		const popularIds = new Set(popularVariables.map((entry) => entry.id));
+		const popularPlainIds = new Set(
+			popularVariables.filter((entry) => !entry.levelGroup && !entry.presetId).map((e) => e.id)
+		);
+
+		const available: { id: string; label: string; target: string }[] = [];
+		for (const id of buildVariableList($metaJson.variables)) {
+			if (popularIds.has(id)) continue;
+
+			if (levelGroupVariables.includes(id) && levelGroups[id]) {
+				// Skip level variants the popular list already offers as plain rows
+				const usable = levelGroups[id].filter((entry) => !popularPlainIds.has(entry.value));
+				const target = pickDefaultLevel(usable);
+				if (target) available.push({ id, label: variableLabel(id), target });
+			} else if (!id.includes('_v_') && !id.includes('_direction')) {
+				available.push({ id, label: variableLabel(id), target: id });
+			}
+		}
+		return available.sort((a, b) => a.label.localeCompare(b.label));
+	});
+
+	const isActive = (entry: { id: string; target: string }): boolean => {
+		if (!isDefaultsPlainChart($activeChart)) return false;
+		if (levelGroupVariables.includes(entry.id)) return $levelGroupSelected?.value === entry.id;
+		return $variable === entry.id;
+	};
+
+	// Auto-expand once when the active variable moves into this section (e.g.
+	// picked through search), without trapping the section open.
+	let lastHostId: string | undefined;
+	$effect(() => {
+		const hosts = levelHostId !== undefined && entries.some((entry) => entry.id === levelHostId);
+		if (hosts && levelHostId !== lastHostId) open.set(true);
+		lastHostId = hosts ? levelHostId : undefined;
+	});
+
+	// A popular row represents the active selection.
+	const popularRowActive = (): boolean =>
+		popularVariables.some((entry) => {
+			if (entry.presetId && $activeChart.presetId === entry.presetId) return true;
+			if (!isDefaultsPlainChart($activeChart)) return false;
+			if (entry.levelGroup) return $levelGroupSelected?.value === entry.id;
+			// Preset-backed rows also stand in for their plain variable
+			return $variable === entry.id;
+		});
+
+	// Collapse on model change when the (possibly re-matched) selection landed
+	// on a popular row; the check re-runs once the fallback variable settles.
+	let lastDomain: string | undefined;
+	let pendingDomainCollapse = false;
+	$effect(() => {
+		const covered = popularRowActive();
+		if ($domain !== lastDomain) {
+			const isFirstRun = lastDomain === undefined;
+			lastDomain = $domain;
+			if (isFirstRun) return;
+			if (covered) {
+				open.set(false);
+			} else {
+				pendingDomainCollapse = true;
+			}
+		} else if (pendingDomainCollapse) {
+			pendingDomainCollapse = false;
+			if (covered) open.set(false);
+		}
+	});
+</script>
+
+{#if entries.length}
+	<button
+		class="hover:bg-primary/10 text-muted-foreground flex h-7.5 w-full cursor-pointer items-center gap-1.5 px-2 text-xs font-semibold tracking-wide uppercase"
+		onclick={() => open.set(!$open)}
+	>
+		<ChevronRightIcon class="size-3.5 duration-200 {$open ? 'rotate-90' : ''}" />
+		All variables
+		<span class="ml-auto pr-1 font-normal opacity-60">{entries.length}</span>
+	</button>
+	{#if $open}
+		<div class="pb-1" transition:slide={{ duration: 200 }}>
+			{#each entries as entry (entry.id)}
+				{@const active = isActive(entry)}
+				<button
+					class="hover:bg-primary/10 flex h-7 w-full cursor-pointer items-center justify-between px-3 text-sm {active
+						? 'bg-primary/10'
+						: ''}"
+					onclick={() => {
+						if (!active) setPlainVariable(entry.target);
+					}}
+				>
+					<div class="truncate text-left">{entry.label}</div>
+					<CheckIcon class="size-4 shrink-0 {active ? '' : 'text-transparent'}" />
+				</button>
+				{#if levelHostId === entry.id}
+					<div transition:slide={{ duration: 200 }}>
+						<LevelSelect nested />
+					</div>
+				{/if}
+			{/each}
+		</div>
+	{/if}
+{/if}

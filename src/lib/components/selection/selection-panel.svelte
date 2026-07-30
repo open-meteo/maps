@@ -19,13 +19,13 @@
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import { Separator } from '$lib/components/ui/separator';
 
-	import { popularVariables } from '$lib/chart-presets';
 	import { suppressPopupTap } from '$lib/popup';
 
 	import AllVariablesDialog from './all-variables-dialog.svelte';
 	import ChartEditor from './chart-editor.svelte';
 	import ChartList from './chart-list.svelte';
 	import DomainSelect from './domain-select.svelte';
+	import OtherVariables from './other-variables.svelte';
 	import PopularVariables from './popular-variables.svelte';
 	import SearchResults from './search-results.svelte';
 
@@ -75,20 +75,13 @@
 		if (!open) addingToChart = false;
 	});
 
-	// Popular row hosting the nested level selector: the active level-group
-	// entry, so the selector stays put while switching levels within a group.
+	// Row hosting the nested level selector: the active level group (stays put
+	// while switching levels within it), else the plain active variable. Both
+	// the popular and the all-variables list render it under their matching
+	// row; the selector itself hides when there is nothing to pick.
 	const levelHostId = $derived.by(() => {
 		if (!isDefaultsPlainChart($activeChart)) return undefined;
-		if ($levelGroupSelected) {
-			const group = popularVariables.find(
-				(entry) => entry.levelGroup && entry.id === $levelGroupSelected?.value
-			);
-			if (group) return group.id;
-		}
-		if (popularVariables.some((entry) => !entry.levelGroup && entry.id === $variable)) {
-			return $variable;
-		}
-		return undefined;
+		return $levelGroupSelected?.value ?? $variable;
 	});
 </script>
 
@@ -132,6 +125,7 @@
 						<SearchResults onDone={() => (searchQuery = '')} />
 					{:else}
 						<PopularVariables {levelHostId} />
+						<OtherVariables {levelHostId} />
 						<Separator class="bg-primary/10" />
 						<ChartList />
 						<Separator class="bg-primary/10" />

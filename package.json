@@ -25,7 +25,7 @@
 		"lint": "prettier --check . && eslint .",
 		"test": "vitest",
 		"coverage": "vitest run --coverage",
-		"upgrade:ui": "npx shadcn-svelte@latest add button collapsible command dialog input kbd label popover scroll-area select separator sheet sonner switch -y -o"
+		"upgrade:ui": "npx shadcn-svelte@latest add button command dialog input kbd label popover scroll-area select separator sheet sonner switch -y -o"
 	},
 	"devDependencies": {
 		"@internationalized/date": "^3.12.2",

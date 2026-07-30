@@ -48,6 +48,25 @@
 	/** Label without the level suffix; the level chip shows it instead. */
 	const baseLabel = (variable: string): string =>
 		variableLabel(variable).replace(/\s*\(\d+\s*(?:m|cm|hPa)\)$/, '');
+
+	/**
+	 * Interval stepping: whole numbers above 3, halves down to 1, quarters
+	 * below, stopping at 0.25 (finer values down to 0.1 can be typed).
+	 */
+	const stepInterval = (current: number, up: boolean): number => {
+		const next = up
+			? current >= 3
+				? current + 1
+				: current >= 1
+					? current + 0.5
+					: current + 0.25
+			: current > 3
+				? current - 1
+				: current > 1
+					? current - 0.5
+					: current - 0.25;
+		return Math.max(0.25, Math.round(next * 100) / 100);
+	};
 </script>
 
 <div class="flex flex-col gap-1 py-1 pb-1.5">
@@ -65,15 +84,25 @@
 				{#if source.contours}
 					<Input
 						type="number"
-						class="h-5! bg-background/50 w-9 rounded-sm border-none px-0.5 text-center text-xs!"
+						step="any"
+						min="0.1"
+						class="h-5! bg-background/50 w-9 rounded-sm border-none px-0.5 text-center text-xs! [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
 						placeholder="auto"
 						title="Contour interval (empty = colorscale breakpoints)"
 						value={source.contourInterval ?? ''}
+						onkeydown={(e) => {
+							if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+							e.preventDefault();
+							updateSource(i, {
+								contourInterval: stepInterval(source.contourInterval ?? 2, e.key === 'ArrowUp')
+							});
+						}}
 						onchange={(e) => {
 							const raw = (e.currentTarget as HTMLInputElement).value;
 							const parsed = Number(raw);
 							updateSource(i, {
-								contourInterval: raw === '' || !isFinite(parsed) || parsed <= 0 ? undefined : parsed
+								contourInterval:
+									raw === '' || !isFinite(parsed) || parsed <= 0 ? undefined : Math.max(0.1, parsed)
 							});
 						}}
 					/>

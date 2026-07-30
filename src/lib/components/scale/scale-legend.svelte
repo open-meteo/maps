@@ -120,7 +120,7 @@
 <div class="relative flex items-end gap-0.5 select-none" style="max-height: {totalHeight + 100}px;">
 	{#if label}
 		<div
-			class="bg-glass/60 text-foreground/80 overflow-hidden rounded-sm px-0.5 py-px font-semibold backdrop-blur-sm {compact
+			class="bg-glass/60 text-foreground/80 overflow-hidden rounded-sm px-px py-0.5 font-semibold backdrop-blur-sm {compact
 				? 'text-[9px]'
 				: 'text-[10px]'}"
 			style="writing-mode: vertical-rl; transform: rotate(180deg); max-height: {totalHeight}px;"

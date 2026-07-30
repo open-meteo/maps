@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { slide } from 'svelte/transition';
+
 	import CheckIcon from '@lucide/svelte/icons/check';
 
 	import {
@@ -111,7 +113,9 @@
 				<CheckIcon class="size-4 shrink-0 {active ? '' : 'text-transparent'}" />
 			</button>
 			{#if levelHostId === entry.id}
-				<LevelSelect nested />
+				<div transition:slide={{ duration: 200 }}>
+					<LevelSelect nested />
+				</div>
 			{/if}
 		{/each}
 	</div>
