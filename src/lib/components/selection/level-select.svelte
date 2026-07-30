@@ -28,6 +28,10 @@
 	let open = $state(false);
 	pLSO.subscribe((value) => (open = value));
 
+	$effect(() => {
+		if (open) scrollSelectedToTop($variable);
+	});
+
 	const levelGroups = $derived($metaJson ? buildLevelGroups($metaJson.variables) : undefined);
 	const entries = $derived(
 		levelGroups && $levelGroupSelected ? levelGroups[$levelGroupSelected.value] : undefined
@@ -44,6 +48,7 @@
 				? 'bg-primary/15'
 				: ''} {nested ? 'bg-primary/5 h-7 py-0.5 pr-3 pl-6' : 'h-7.5 px-3'}"
 			role="combobox"
+			data-level-select
 			aria-expanded={open}
 		>
 			<div class="flex items-center gap-2 truncate">
@@ -52,11 +57,7 @@
 			</div>
 			<ChevronsUpDownIcon class="size-4 shrink-0 opacity-50" />
 		</Popover.Trigger>
-		<Popover.Content
-			align="start"
-			onOpenAutoFocus={() => scrollSelectedToTop($variable)}
-			class="z-80 bg-transparent! w-62.5 rounded border-none p-0"
-		>
+		<Popover.Content align="start" class="z-80 bg-transparent! w-62.5 rounded border-none p-0">
 			<Command.Root class="bg-glass/85! max-h-75 rounded backdrop-blur-sm">
 				<Command.Input class="border-none ring-0" placeholder="Search levels..." />
 				<Command.List>

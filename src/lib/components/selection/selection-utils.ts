@@ -79,12 +79,27 @@ export const buildLevelGroups = (metaVariables: string[]): Record<string, Variab
  */
 export const scrollSelectedToTop = (selectedValue: string | undefined): void => {
 	if (!selectedValue) return;
-	setTimeout(() => {
-		const item = document.querySelector(
-			`[data-value="${CSS.escape(selectedValue)}"]`
-		) as HTMLElement | null;
-		item?.scrollIntoView({ block: 'start' });
-	}, 10);
+
+	// The popover content mounts in a portal after the open state flips, and
+	// the command list applies its own initial highlight scroll — retry a few
+	// times so the final position wins.
+	const attempt = (delays: number[]): void => {
+		const [delay, ...rest] = delays;
+		if (delay === undefined) return;
+		setTimeout(() => {
+			const item = document.querySelector(
+				`[data-value="${CSS.escape(selectedValue)}"]`
+			) as HTMLElement | null;
+			const list = item?.closest('[data-slot="command-list"]') as HTMLElement | null;
+			if (item && list) {
+				// Relative rect math instead of scrollIntoView: it also works while
+				// the popover's opening animation is transforming the content
+				list.scrollTop += item.getBoundingClientRect().top - list.getBoundingClientRect().top;
+			}
+			attempt(rest);
+		}, delay);
+	};
+	attempt([50, 150, 250]);
 };
 
 /**

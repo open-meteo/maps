@@ -20,6 +20,10 @@
 
 	let open = $state(false);
 
+	$effect(() => {
+		if (open) scrollSelectedToTop(sourceVariable);
+	});
+
 	const levelMatch = $derived(sourceVariable.match(LEVEL_UNIT_REGEX)?.groups);
 	const prefix = $derived(
 		sourceVariable.match(LEVEL_REGEX)
@@ -47,11 +51,7 @@
 			{levelMatch.level + ' ' + levelMatch.unit}
 			<ChevronsUpDownIcon class="size-2.5 opacity-50" />
 		</Popover.Trigger>
-		<Popover.Content
-			align="start"
-			onOpenAutoFocus={() => scrollSelectedToTop(sourceVariable)}
-			class="z-80 w-55 rounded border-none bg-transparent! p-0"
-		>
+		<Popover.Content align="start" class="z-80 w-55 rounded border-none bg-transparent! p-0">
 			<Command.Root class="bg-glass/85! max-h-75 rounded backdrop-blur-sm">
 				<Command.Input class="border-none ring-0" placeholder="Search levels..." />
 				<Command.List>

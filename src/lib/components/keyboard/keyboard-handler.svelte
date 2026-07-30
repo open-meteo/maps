@@ -72,7 +72,11 @@
 				return;
 			}
 			if (event.key === 'l') {
-				pressureLevelsSelectionOpen.set(true);
+				// Only when a level selector is rendered, else the open flag
+				// would stay stuck and block the other shortcuts
+				if (document.querySelector('[data-level-select]')) {
+					pressureLevelsSelectionOpen.set(true);
+				}
 				return;
 			}
 		}

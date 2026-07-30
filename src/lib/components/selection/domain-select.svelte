@@ -12,6 +12,10 @@
 
 	let open = $state(false);
 	dSO.subscribe((value) => (open = value));
+
+	$effect(() => {
+		if (open) scrollSelectedToTop($selectedDomain.value);
+	});
 </script>
 
 <Popover.Root bind:open onOpenChange={(value) => dSO.set(value)}>
@@ -29,7 +33,6 @@
 	</Popover.Trigger>
 	<Popover.Content
 		align="start"
-		onOpenAutoFocus={() => scrollSelectedToTop($selectedDomain.value)}
 		class="bg-transparent! z-80 w-62.5 rounded border-none! p-0"
 	>
 		<Command.Root class="bg-glass/85! backdrop-blur-sm max-h-75 rounded">

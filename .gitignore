@@ -8,6 +8,7 @@ node_modules
 /.svelte-kit
 /build
 /coverage
+.claude
 
 # OS
 .DS_Store
@@ -25,3 +26,7 @@ vite.config.ts.timestamp-*
 
 # grid binary files
 /static/grid-geometry
+
+# Claude Code local files
+.claude/
+.mcp.json
