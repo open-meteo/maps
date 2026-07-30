@@ -9,6 +9,8 @@ import {
 } from '@openmeteo/weather-map-layer';
 import { type Persisted, persisted } from 'svelte-persisted-store';
 
+import { browser } from '$app/environment';
+
 import { DEFAULT_DOMAIN, DEFAULT_VARIABLE } from '$lib/constants';
 
 export const defaultDomain = DEFAULT_DOMAIN;
@@ -76,7 +78,13 @@ export const unit = derived(selectedVariable, (sV) => {
 export const domainSelectionOpen = writable(false);
 export const variableSelectionOpen = writable(false);
 export const pressureLevelsSelectionOpen = writable(false);
-export const variableSelectionExtended: Persisted<boolean | undefined> = persisted(
+// Storing undefined corrupts the entry (localStorage coerces it to the string
+// "undefined", which is not valid JSON) — remove entries written by older versions.
+if (browser && localStorage.getItem('variables_open') === 'undefined') {
+	localStorage.removeItem('variables_open');
+}
+
+export const variableSelectionExtended: Persisted<boolean | null> = persisted(
 	'variables_open',
-	undefined
-); // undefined so it can be set to true on desktop on first load
+	null
+); // null (never persist undefined) so it can be set to true on desktop on first load
