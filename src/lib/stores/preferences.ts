@@ -1,9 +1,11 @@
 import { MediaQuery } from 'svelte/reactivity';
-import { type Writable, writable } from 'svelte/store';
+import { type Writable, get, writable } from 'svelte/store';
 
 import { type InterpolationMethod, clearBlockCache } from '@openmeteo/weather-map-layer';
 import { setMode } from 'mode-watcher';
 import { type Persisted, persisted } from 'svelte-persisted-store';
+
+import { version } from '$app/environment';
 
 import {
 	COMPLETE_DEFAULT_VALUES,
@@ -15,6 +17,7 @@ import {
 	DEFAULT_PREFERENCES,
 	DEFAULT_TILE_SIZE
 } from '$lib/constants';
+import { checkHighDefinition } from '$lib/helpers';
 import { getInitialMetaData, getMetaData } from '$lib/metadata';
 
 import { cacheBlockSizeKb, cacheMaxBytesMb, customColorScales } from './om-protocol-settings';
@@ -82,6 +85,26 @@ export const localStorageVersion: Persisted<string | undefined> = persisted(
 export const helpOpen = writable(false);
 
 export const typing = writable(false);
+
+// Runs once on startup. On the very first visit, checks if the monitor
+// supports high definition, for increased tile size. Resets all the states
+// when a new version is set in 'package.json' and a version was already set
+// before.
+export const initStoredState = async () => {
+	if (!get(tileSizeSet)) {
+		if (checkHighDefinition()) {
+			tileSize.set(1024);
+		}
+		tileSizeSet.set(true);
+	}
+
+	if (version !== get(localStorageVersion)) {
+		if (get(localStorageVersion)) {
+			await resetStates();
+		}
+		localStorageVersion.set(version);
+	}
+};
 
 export const resetStates = async () => {
 	modelRunLocked.set(false);
