@@ -4,9 +4,10 @@
  *
  * URL grammar for the `sources` parameter (comma separated, one token per
  * source): `variable[:flags]` where flags is a concatenation of `r` (raster),
- * `a` (arrows) and `c` optionally followed by the contour interval.
- * A token without flags means raster only.
- * Example: `temperature_850hPa:rc2,geopotential_height_500hPa:c4`
+ * `a` (arrows), `c` optionally followed by the contour interval,
+ * `i` (inline vectors), `o` followed by the opacity and `w` followed by the
+ * contour line width. A token without flags means raster only.
+ * Example: `temperature_850hPa:rc2,geopotential_height_500hPa:c4w0.8`
  */
 import { chartPresets } from '$lib/chart-presets';
 
@@ -26,7 +27,10 @@ const serializeSource = (source: ChartSource): string => {
 	let flags = '';
 	if (source.raster) flags += 'r';
 	if (source.arrows) flags += 'a';
+	if (source.inlineVectors) flags += 'i';
 	if (source.contours) flags += 'c' + (source.contourInterval ?? '');
+	if (source.opacity !== undefined) flags += 'o' + source.opacity;
+	if (source.lineWidth !== undefined) flags += 'w' + source.lineWidth;
 	// A raster-only source matches the no-flags default, keep the URL short
 	if (flags === 'r') return source.variable;
 	return `${source.variable}:${flags}`;
@@ -36,7 +40,8 @@ export const serializeSources = (sources: ChartSource[]): string =>
 	sources.map(serializeSource).join(',');
 
 const SOURCE_TOKEN_REGEX = /^(?<variable>[a-z0-9_]+)(?::(?<flags>[a-z0-9.]*))?$/i;
-const FLAGS_REGEX = /^(?:r|a|c(?<interval>[0-9]+(?:\.[0-9]+)?)?)*$/;
+const NUMBER = '[0-9]+(?:\\.[0-9]+)?';
+const FLAGS_REGEX = new RegExp(`^(?:r|a|i|c(?:${NUMBER})?|o${NUMBER}|w${NUMBER})*$`);
 
 const parseSourceToken = (token: string): ChartSource | undefined => {
 	const match = token.match(SOURCE_TOKEN_REGEX);
@@ -52,6 +57,7 @@ const parseSourceToken = (token: string): ChartSource | undefined => {
 
 	if (flags.includes('r')) source.raster = true;
 	if (flags.includes('a')) source.arrows = true;
+	if (flags.includes('i')) source.inlineVectors = true;
 	const contourMatch = flags.match(/c(?<interval>[0-9]+(?:\.[0-9]+)?)?/);
 	if (contourMatch) {
 		source.contours = true;
@@ -59,6 +65,10 @@ const parseSourceToken = (token: string): ChartSource | undefined => {
 			source.contourInterval = Number(contourMatch.groups.interval);
 		}
 	}
+	const opacity = flags.match(/o(?<value>[0-9]+(?:\.[0-9]+)?)/)?.groups?.value;
+	if (opacity) source.opacity = Number(opacity);
+	const lineWidth = flags.match(/w(?<value>[0-9]+(?:\.[0-9]+)?)/)?.groups?.value;
+	if (lineWidth) source.lineWidth = Number(lineWidth);
 	return source;
 };
 
@@ -76,8 +86,11 @@ export const parseSources = (raw: string): ChartSource[] | undefined => {
 		if (existing) {
 			existing.raster ||= source.raster;
 			existing.arrows ||= source.arrows;
+			existing.inlineVectors ||= source.inlineVectors;
 			existing.contours ||= source.contours;
 			existing.contourInterval ??= source.contourInterval;
+			existing.opacity ??= source.opacity;
+			existing.lineWidth ??= source.lineWidth;
 		} else {
 			byVariable.set(source.variable, source);
 		}
@@ -115,13 +128,3 @@ export const isPlainChart = (chart: ChartState): boolean =>
 
 export const cloneSources = (sources: ChartSource[]): ChartSource[] =>
 	sources.map((source) => ({ ...source }));
-
-/**
- * Drop the preset-file styling fields (opacity, lineWidth, inlineVectors);
- * they are not carried by the `sources` URL encoding — share styled charts
- * via their `chart=<preset>` link instead.
- */
-export const stripSourceStyling = (sources: ChartSource[]): ChartSource[] =>
-	sources.map(({ opacity: _opacity, lineWidth: _lineWidth, inlineVectors: _inline, ...rest }) => ({
-		...rest
-	}));

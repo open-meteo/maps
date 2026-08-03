@@ -210,15 +210,15 @@ export const chartPresets: ChartPreset[] = [
 			{ variable: 'cloud_cover', raster: true, opacity: 0.7 },
 			{ variable: 'precipitation', raster: true }
 		]
+	},
+	// ── Marine ──────────────────────────────────────────────────────────
+	{
+		id: 'waves',
+		label: 'Wave Height & Direction',
+		description: 'Significant wave height with propagation',
+		group: 'Marine',
+		sources: [{ variable: 'wave_height', raster: true, arrows: true }]
 	}
-	// // ── Marine ──────────────────────────────────────────────────────────
-	// {
-	// 	id: 'waves',
-	// 	label: 'Wave Height & Direction',
-	// 	description: 'Significant wave height with propagation',
-	// 	group: 'Marine',
-	// 	sources: [{ variable: 'wave_height', raster: true, arrows: true }]
-	// },
 	// // ── Suggestions (to review; regroup or delete the keepers) ──────────
 	// {
 	// 	id: 'cape_wind850',

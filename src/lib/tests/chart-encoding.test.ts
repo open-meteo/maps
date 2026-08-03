@@ -6,7 +6,6 @@ import {
 	parseSources,
 	serializeSources,
 	sourcesEqual,
-	stripSourceStyling,
 	variableSupportsArrows
 } from '$lib/chart-encoding';
 import { chartPresets } from '$lib/chart-presets';
@@ -46,12 +45,31 @@ describe('serializeSources / parseSources', () => {
 		expect(serializeSources(parsed!)).toBe('pressure_msl:c2.5');
 	});
 
-	it('round-trips the structure of every preset (styling is preset-file only)', () => {
+	it('round-trips every preset, styling included, so it re-matches its preset', () => {
 		for (const preset of chartPresets) {
 			const parsed = parseSources(serializeSources(preset.sources));
 			expect(parsed, preset.id).toBeDefined();
-			expect(sourcesEqual(parsed!, stripSourceStyling(preset.sources)), preset.id).toBe(true);
+			expect(sourcesEqual(parsed!, preset.sources), preset.id).toBe(true);
+			expect(matchPreset(parsed!)?.id, preset.id).toBe(preset.id);
 		}
+	});
+
+	it('round-trips opacity, line width and inline vectors', () => {
+		const sources: ChartSource[] = [
+			{
+				variable: 'wind_u_component_10m',
+				raster: true,
+				arrows: true,
+				inlineVectors: true,
+				opacity: 0.7
+			},
+			{ variable: 'cloud_cover', raster: true, opacity: 0.7 },
+			{ variable: 'pressure_msl', contours: true, contourInterval: 2, lineWidth: 0.8 }
+		];
+
+		const raw = serializeSources(sources);
+		expect(raw).toBe('wind_u_component_10m:raio0.7,cloud_cover:ro0.7,pressure_msl:c2w0.8');
+		expect(parseSources(raw)).toEqual(sources);
 	});
 
 	it('merges duplicate variables', () => {
