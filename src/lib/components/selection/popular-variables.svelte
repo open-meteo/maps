@@ -15,7 +15,7 @@
 	import { getChartPreset, popularVariables } from '$lib/chart-presets';
 
 	import LevelSelect from './level-select.svelte';
-	import { buildLevelGroups, pickDefaultLevel, variableLabel } from './selection-utils';
+	import { buildLevelGroups, resolvePopularTarget, variableLabel } from './selection-utils';
 
 	interface Props {
 		/** Popular entry id whose row hosts the nested level selector. */
@@ -41,40 +41,19 @@
 		if (!$metaJson) return [];
 		const available: PopularEntry[] = [];
 		for (const entry of popularVariables) {
-			if (entry.presetId) {
-				const preset = getChartPreset(entry.presetId);
-				if (
-					preset &&
-					preset.sources.every((source) => $metaJson.variables.includes(source.variable))
-				) {
-					available.push({
-						id: entry.id,
-						label: entry.label ?? preset.label,
-						target: '',
-						levelGroup: false,
-						presetId: entry.presetId
-					});
-				}
-			} else if (entry.levelGroup) {
-				const target = levelGroups[entry.id]
-					? pickDefaultLevel(levelGroups[entry.id], entry.defaultLevel)
-					: undefined;
-				if (target) {
-					available.push({
-						id: entry.id,
-						label: entry.label ?? variableLabel(entry.id),
-						target,
-						levelGroup: true
-					});
-				}
-			} else if ($metaJson.variables.includes(entry.id)) {
-				available.push({
-					id: entry.id,
-					label: entry.label ?? variableLabel(entry.id),
-					target: entry.id,
-					levelGroup: false
-				});
-			}
+			const resolved = resolvePopularTarget(entry, $metaJson.variables, levelGroups);
+			if (!resolved) continue;
+			available.push({
+				id: entry.id,
+				label:
+					entry.label ??
+					(resolved.presetId
+						? (getChartPreset(resolved.presetId)?.label ?? entry.id)
+						: variableLabel(entry.id)),
+				target: resolved.variable ?? '',
+				levelGroup: !!entry.levelGroup,
+				presetId: resolved.presetId
+			});
 		}
 		return available;
 	});

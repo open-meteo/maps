@@ -2,7 +2,13 @@ import { get } from 'svelte/store';
 
 import { type DomainMetaDataJson, VARIABLE_PREFIX } from '@openmeteo/weather-map-layer';
 
-import { activeChart, pickPrimaryVariable, setPlainVariable, setSources } from '$lib/stores/chart';
+import {
+	activeChart,
+	applyPreset,
+	pickPrimaryVariable,
+	setPlainVariable,
+	setSources
+} from '$lib/stores/chart';
 import { loading } from '$lib/stores/preferences';
 import {
 	inProgress as iP,
@@ -12,6 +18,8 @@ import {
 	time as t
 } from '$lib/stores/time';
 import { domain as d, selectedDomain } from '$lib/stores/variables';
+
+import { firstPopularTarget } from '$lib/components/selection/selection-utils';
 
 import { fmtModelRun, getBaseUri } from './helpers';
 import { formatISOWithoutTimezone } from './time-format';
@@ -113,7 +121,10 @@ export const loadDomainMetaData = async (newDomain: string) => {
 /**
  * After a domain switch, keep only the chart sources the new domain actually
  * serves. When nothing survives, fall back to a plain chart via a
- * prefix-match on the primary variable (as the old single-variable flow did).
+ * prefix-match on the primary variable (keeps the variable family, e.g.
+ * temperature_2m → temperature_850hPa); when even that fails, to the first
+ * popular entry the domain serves (temperature on weather domains, the waves
+ * preset on marine domains) rather than an arbitrary variable.
  */
 export const matchChartOrFallback = () => {
 	const metaJson = get(mJ);
@@ -130,6 +141,19 @@ export const matchChartOrFallback = () => {
 
 	const primary = pickPrimaryVariable(chart);
 	const prefix = primary.match(VARIABLE_PREFIX)?.groups?.prefix;
-	const matched = prefix ? metaJson.variables.find((mv) => mv.startsWith(prefix)) : undefined;
-	setPlainVariable(matched ?? metaJson.variables[0]);
+	// Directions and v-components are useless as a standalone raster (and
+	// "wind" would otherwise match wind_wave_direction on marine domains)
+	const matched = prefix
+		? metaJson.variables.find(
+				(mv) => mv.startsWith(prefix) && !mv.includes('_direction') && !mv.includes('v_component')
+			)
+		: undefined;
+	if (matched) {
+		setPlainVariable(matched);
+		return;
+	}
+
+	const popular = firstPopularTarget(metaJson.variables);
+	if (popular?.presetId) applyPreset(popular.presetId);
+	else setPlainVariable(popular?.variable ?? metaJson.variables[0]);
 };

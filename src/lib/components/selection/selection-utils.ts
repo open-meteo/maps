@@ -5,6 +5,8 @@ import {
 	variableOptions
 } from '@openmeteo/weather-map-layer';
 
+import { type PopularVariable, getChartPreset, popularVariables } from '$lib/chart-presets';
+
 export interface VariableEntry {
 	value: string;
 	label: string;
@@ -126,4 +128,46 @@ export const pickDefaultLevel = (
 		if (match) return match.value;
 	}
 	return usable[0].value;
+};
+
+/**
+ * Resolve a popular-list entry against a domain's variables: preset entries
+ * need all their sources served, level groups resolve to their preferred
+ * level variant, plain entries need a direct match. Undefined when the
+ * domain does not serve the entry.
+ */
+export const resolvePopularTarget = (
+	entry: PopularVariable,
+	metaVariables: string[],
+	levelGroups: Record<string, VariableEntry[]>
+): { presetId?: string; variable?: string } | undefined => {
+	if (entry.presetId) {
+		const preset = getChartPreset(entry.presetId);
+		return preset && preset.sources.every((source) => metaVariables.includes(source.variable))
+			? { presetId: entry.presetId }
+			: undefined;
+	}
+	if (entry.levelGroup) {
+		const target = levelGroups[entry.id]
+			? pickDefaultLevel(levelGroups[entry.id], entry.defaultLevel)
+			: undefined;
+		return target ? { variable: target } : undefined;
+	}
+	return metaVariables.includes(entry.id) ? { variable: entry.id } : undefined;
+};
+
+/**
+ * First popular-list entry the domain serves, resolved — the domain-switch
+ * fallback when the active chart has no relative on the new domain
+ * (temperature on weather domains, the waves preset on marine domains).
+ */
+export const firstPopularTarget = (
+	metaVariables: string[]
+): { presetId?: string; variable?: string } | undefined => {
+	const levelGroups = buildLevelGroups(metaVariables);
+	for (const entry of popularVariables) {
+		const resolved = resolvePopularTarget(entry, metaVariables, levelGroups);
+		if (resolved) return resolved;
+	}
+	return undefined;
 };
