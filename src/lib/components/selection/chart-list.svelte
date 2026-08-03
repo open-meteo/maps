@@ -54,6 +54,11 @@
 </script>
 
 <div class="flex flex-col py-1">
+	<div
+		class="text-muted-foreground flex h-7.5 items-center px-3 text-xs font-semibold tracking-wide uppercase"
+	>
+		Combined charts
+	</div>
 	{#each presetGroups as group (group.name)}
 		{@const availableInGroup = group.presets.some((entry) => entry.available)}
 		{@const groupOpen = availableInGroup && ($openGroups[group.name] ?? false)}

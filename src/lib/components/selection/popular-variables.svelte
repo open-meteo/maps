@@ -78,6 +78,11 @@
 
 {#if entries.length}
 	<div class="flex flex-col py-1">
+		<div
+			class="text-muted-foreground flex h-7.5 items-center px-3 text-xs font-semibold tracking-wide uppercase"
+		>
+			Popular variables
+		</div>
 		{#each entries as entry (entry.id)}
 			{@const active = isActive(entry)}
 			<button
