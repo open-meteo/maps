@@ -118,7 +118,7 @@
 				/>
 				<ScrollArea
 					type="always"
-					class="max-h-[calc(100dvh-21rem)] min-h-0 md:max-h-[calc(100dvh-15rem)]"
+					class="max-h-[calc(100dvh-21rem)] min-h-0 md:max-h-[50vh]"
 					scrollbarYClasses="opacity-80"
 				>
 					{#if searching}

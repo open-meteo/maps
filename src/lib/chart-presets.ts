@@ -5,85 +5,85 @@
 import type { ChartPreset } from '$lib/chart-types';
 
 export const chartPresets: ChartPreset[] = [
-	// ── Upper-level ─────────────────────────────────────────────────────
+	// ── Synoptic ─────────────────────────────────────────────────────
 	{
 		id: 'z500_t850',
-		label: '500 hPa Geopotential + 850 hPa Temperature',
-		description: 'Upper-level flow with airmass temperature',
-		group: 'Upper-level',
+		label: '850 hPa Temperature + 500 hPa Geopotential',
+		description: 'Synoptic flow with airmass temperature',
+		group: 'Synoptic',
 		sources: [
 			{ variable: 'temperature_850hPa', raster: true },
-			{ variable: 'geopotential_height_500hPa', contours: true, contourInterval: 2 }
+			{ variable: 'geopotential_height_500hPa', contours: true, contourInterval: 12.5 }
 		]
 	},
 	{
 		id: 'z500_t500',
-		label: '500 hPa Geopotential + Temperature',
+		label: '500 hPa Temperature + Geopotential ',
 		description: '500 hPa temperature under height contours',
-		group: 'Upper-level',
+		group: 'Synoptic',
 		sources: [
 			{ variable: 'temperature_500hPa', raster: true },
-			{ variable: 'geopotential_height_500hPa', contours: true, contourInterval: 4 }
+			{ variable: 'geopotential_height_500hPa', contours: true, contourInterval: 12.5 }
 		]
 	},
 	{
 		id: 'z300_wind300',
-		label: '300 hPa Geopotential + Wind',
+		label: '300 hPa Wind + Geopotential',
 		description: 'Jet-level winds and 300 hPa heights',
-		group: 'Upper-level',
+		group: 'Synoptic',
 		sources: [
-			{ variable: 'geopotential_height_300hPa', contours: true, contourInterval: 4 },
-			{ variable: 'wind_u_component_300hPa', raster: true, arrows: true }
+			{ variable: 'wind_u_component_300hPa', raster: true, arrows: true, opacity: 0.7 },
+			{ variable: 'geopotential_height_300hPa', contours: true, contourInterval: 12.5 }
 		]
 	},
 	{
 		id: 'wind200_mslp',
 		label: 'MSLP + 200 hPa Wind (Jet Stream)',
 		description: 'Jet stream over surface pressure',
-		group: 'Upper-level',
+		group: 'Synoptic',
 		sources: [
-			{ variable: 'pressure_msl', contours: true, contourInterval: 5 },
-			{ variable: 'wind_u_component_200hPa', raster: true, arrows: true }
+			{ variable: 'wind_u_component_200hPa', raster: true, arrows: true, opacity: 0.7 },
+			{ variable: 'pressure_msl', contours: true, contourInterval: 2 }
 		]
 	},
 	{
 		id: 'wind850_mslp',
 		label: 'MSLP + 850 hPa Wind',
 		description: 'Low-level winds over surface pressure',
-		group: 'Upper-level',
+		group: 'Synoptic',
 		sources: [
-			{ variable: 'pressure_msl', contours: true, contourInterval: 5 },
-			{ variable: 'wind_u_component_850hPa', raster: true, arrows: true }
+			{ variable: 'wind_u_component_850hPa', raster: true, arrows: true, opacity: 0.8 },
+			{ variable: 'pressure_msl', contours: true, contourInterval: 2 }
 		]
 	},
 	{
 		id: 'rh700_z500',
 		label: '700 hPa Relative Humidity + 500 hPa Geopotential',
 		description: 'Mid-level moisture with 500 hPa heights',
-		group: 'Upper-level',
+		group: 'Synoptic',
 		sources: [
 			{ variable: 'relative_humidity_700hPa', raster: true },
-			{ variable: 'geopotential_height_500hPa', contours: true, contourInterval: 4 }
+			{ variable: 'geopotential_height_500hPa', contours: true, contourInterval: 12.5 }
 		]
 	},
 	{
 		id: 'vvel500_z500',
 		label: '500 hPa Vertical Velocity + Geopotential',
 		description: 'Rising and sinking air at 500 hPa',
-		group: 'Upper-level',
+		group: 'Synoptic',
 		sources: [
 			{ variable: 'vertical_velocity_500hPa', raster: true },
-			{ variable: 'geopotential_height_500hPa', contours: true, contourInterval: 4 }
+			{ variable: 'geopotential_height_500hPa', contours: true, contourInterval: 12.5 }
 		]
 	},
 	{
 		id: 't850_z850',
 		label: '850 hPa Temperature + Geopotential',
 		description: '850 hPa temperature and heights',
-		group: 'Upper-level',
+		group: 'Synoptic',
 		sources: [
 			{ variable: 'temperature_850hPa', raster: true },
-			{ variable: 'geopotential_height_850hPa', contours: true, contourInterval: 2 }
+			{ variable: 'geopotential_height_850hPa', contours: true, contourInterval: 12.5 }
 		]
 	},
 	// ── Surface ─────────────────────────────────────────────────────────
@@ -196,85 +196,91 @@ export const chartPresets: ChartPreset[] = [
 		id: 'wind_cloud_rain',
 		label: 'Wind + Cloud cover + Precip',
 		description: 'Wind arrows under cloud and precipitation',
-		group: 'Other',
+		group: 'Precipitation',
 		sources: [
 			// inlineVectors: the arrows render directly on the wind raster, so
 			// the cloud and precipitation rasters above overlap them
-			{ variable: 'wind_u_component_10m', raster: true, arrows: true, inlineVectors: true },
-			{ variable: 'cloud_cover', raster: true, opacity: 0.6 },
-			{ variable: 'precipitation', raster: true, opacity: 0.7 }
-		]
-	},
-	// ── Marine ──────────────────────────────────────────────────────────
-	{
-		id: 'waves',
-		label: 'Wave Height & Direction',
-		description: 'Significant wave height with propagation',
-		group: 'Marine',
-		sources: [{ variable: 'wave_height', raster: true, arrows: true }]
-	},
-	// ── Suggestions (to review; regroup or delete the keepers) ──────────
-	{
-		id: 'cape_wind850',
-		label: 'CAPE + 850 hPa Wind',
-		description: 'Storm ingredients: instability and low-level flow',
-		group: 'Suggestions',
-		sources: [
-			{ variable: 'cape', raster: true },
-			{ variable: 'wind_u_component_850hPa', arrows: true }
-		]
-	},
-	{
-		id: 'snow_t850',
-		label: 'Snowfall + 850 hPa Temperature',
-		description: 'Snowfall with the rain/snow boundary aloft',
-		group: 'Suggestions',
-		sources: [
-			{ variable: 'snowfall', raster: true },
-			{ variable: 'temperature_850hPa', contours: true, contourInterval: 2 }
-		]
-	},
-	{
-		id: 'fog_stratus',
-		label: 'Low Clouds + 10 m Wind',
-		description: 'Fog and stratus with surface flow',
-		group: 'Suggestions',
-		sources: [
-			{ variable: 'cloud_cover_low', raster: true },
-			{ variable: 'wind_u_component_10m', arrows: true }
-		]
-	},
-	{
-		id: 'moisture_transport',
-		label: 'Water Vapour + 700 hPa Wind',
-		description: 'Atmospheric rivers and moisture advection',
-		group: 'Suggestions',
-		sources: [
-			{ variable: 'total_column_integrated_water_vapour', raster: true },
-			{ variable: 'wind_u_component_700hPa', arrows: true }
-		]
-	},
-	{
-		id: 'solar',
-		label: 'Direct Radiation + Cloud Cover',
-		description: 'Solar potential under the cloud field',
-		group: 'Suggestions',
-		sources: [
-			{ variable: 'direct_radiation', raster: true },
-			{ variable: 'cloud_cover', contours: true, contourInterval: 25, lineWidth: 0.8 }
-		]
-	},
-	{
-		id: 'gust_front',
-		label: 'Gusts + Wind + MSLP',
-		description: 'Storm damage potential with isobars',
-		group: 'Suggestions',
-		sources: [
-			{ variable: 'wind_gusts_10m', raster: true },
-			{ variable: 'wind_u_component_10m', arrows: true, inlineVectors: true },
-			{ variable: 'pressure_msl', contours: true, contourInterval: 2 }
+			{
+				variable: 'wind_u_component_10m',
+				raster: true,
+				arrows: true,
+				inlineVectors: true,
+				opacity: 0.7
+			},
+			{ variable: 'cloud_cover', raster: true, opacity: 0.7 },
+			{ variable: 'precipitation', raster: true }
 		]
 	}
+	// // ── Marine ──────────────────────────────────────────────────────────
+	// {
+	// 	id: 'waves',
+	// 	label: 'Wave Height & Direction',
+	// 	description: 'Significant wave height with propagation',
+	// 	group: 'Marine',
+	// 	sources: [{ variable: 'wave_height', raster: true, arrows: true }]
+	// },
+	// // ── Suggestions (to review; regroup or delete the keepers) ──────────
+	// {
+	// 	id: 'cape_wind850',
+	// 	label: 'CAPE + 850 hPa Wind',
+	// 	description: 'Storm ingredients: instability and low-level flow',
+	// 	group: 'Suggestions',
+	// 	sources: [
+	// 		{ variable: 'cape', raster: true },
+	// 		{ variable: 'wind_u_component_850hPa', arrows: true }
+	// 	]
+	// },
+	// {
+	// 	id: 'snow_t850',
+	// 	label: 'Snowfall + 850 hPa Temperature',
+	// 	description: 'Snowfall with the rain/snow boundary aloft',
+	// 	group: 'Suggestions',
+	// 	sources: [
+	// 		{ variable: 'snowfall', raster: true },
+	// 		{ variable: 'temperature_850hPa', contours: true, contourInterval: 2 }
+	// 	]
+	// },
+	// {
+	// 	id: 'fog_stratus',
+	// 	label: 'Low Clouds + 10 m Wind',
+	// 	description: 'Fog and stratus with surface flow',
+	// 	group: 'Suggestions',
+	// 	sources: [
+	// 		{ variable: 'cloud_cover_low', raster: true },
+	// 		{ variable: 'wind_u_component_10m', arrows: true }
+	// 	]
+	// },
+	// {
+	// 	id: 'moisture_transport',
+	// 	label: 'Water Vapour + 700 hPa Wind',
+	// 	description: 'Atmospheric rivers and moisture advection',
+	// 	group: 'Suggestions',
+	// 	sources: [
+	// 		{ variable: 'total_column_integrated_water_vapour', raster: true },
+	// 		{ variable: 'wind_u_component_700hPa', arrows: true }
+	// 	]
+	// },
+	// {
+	// 	id: 'solar',
+	// 	label: 'Direct Radiation + Cloud Cover',
+	// 	description: 'Solar potential under the cloud field',
+	// 	group: 'Suggestions',
+	// 	sources: [
+	// 		{ variable: 'direct_radiation', raster: true },
+	// 		{ variable: 'cloud_cover', contours: true, contourInterval: 25, lineWidth: 0.8 }
+	// 	]
+	// },
+	// {
+	// 	id: 'gust_front',
+	// 	label: 'Gusts + Wind + MSLP',
+	// 	description: 'Storm damage potential with isobars',
+	// 	group: 'Suggestions',
+	// 	sources: [
+	// 		{ variable: 'wind_gusts_10m', raster: true },
+	// 		{ variable: 'wind_u_component_10m', arrows: true, inlineVectors: true },
+	// 		{ variable: 'pressure_msl', contours: true, contourInterval: 2 }
+	// 	]
+	// }
 ];
 
 export const getChartPreset = (id: string): ChartPreset | undefined =>
@@ -305,7 +311,7 @@ export const popularVariables: PopularVariable[] = [
 	{ id: 'pressure_msl', label: 'Pressure Mean Sea Level', presetId: 'mslp' },
 	{ id: 'cloud_cover' },
 	{ id: 'relative_humidity', label: 'Relative Humidity', levelGroup: true, defaultLevel: '2m' },
-	{ id: 'cape' },
+	// { id: 'cape' },
 	{ id: 'snowfall' },
 	// Marine domains serve none of the above; the availability filter makes
 	// this the (only) popular entry there.
