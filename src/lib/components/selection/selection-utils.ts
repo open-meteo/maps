@@ -159,7 +159,7 @@ export const resolvePopularTarget = (
 /**
  * First popular-list entry the domain serves, resolved — the domain-switch
  * fallback when the active chart has no relative on the new domain
- * (temperature on weather domains, the waves preset on marine domains).
+ * (typically temperature). Undefined when the domain serves no popular entry.
  */
 export const firstPopularTarget = (
 	metaVariables: string[]

@@ -366,14 +366,24 @@
 }
 
 .popup-extra-line {
-	font-size: 0.7rem;
+	font-size: 0.65rem;
 	line-height: 1.2;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	max-width: 220px;
 	opacity: 0.9;
-	text-align: center;
+	text-align: left;
+}
+
+.popup-extra-line-sm {
+	font-size: 0.55rem;
+	opacity: 0.7;
+}
+
+/* Zero / no-data lines are context only */
+.popup-extra-line-muted {
+	opacity: 0.45;
 }
 
 .popup-elevation {

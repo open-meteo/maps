@@ -3,10 +3,11 @@
  * chart comparison/preset matching, and arrow-capability detection.
  *
  * URL grammar for the `sources` parameter (comma separated, one token per
- * source): `variable[:flags]` where flags is a concatenation of `r` (raster),
- * `a` (arrows), `c` optionally followed by the contour interval,
+ * source): `variable[@domain][:flags]` where flags is a concatenation of `r`
+ * (raster), `a` (arrows), `c` optionally followed by the contour interval,
  * `i` (inline vectors), `o` followed by the opacity and `w` followed by the
- * contour line width. A token without flags means raster only.
+ * contour line width. A token without flags means raster only. `@domain`
+ * serves the source from another domain (EPS sibling) than the active one.
  * Example: `temperature_850hPa:rc2,geopotential_height_500hPa:c4w0.8`
  */
 import { chartPresets } from '$lib/chart-presets';
@@ -24,6 +25,7 @@ export const variableSupportsArrows = (variable: string): boolean =>
 	/wave_(?:height|direction)/.test(variable);
 
 const serializeSource = (source: ChartSource): string => {
+	const variable = source.domain ? `${source.variable}@${source.domain}` : source.variable;
 	let flags = '';
 	if (source.raster) flags += 'r';
 	if (source.arrows) flags += 'a';
@@ -32,14 +34,15 @@ const serializeSource = (source: ChartSource): string => {
 	if (source.opacity !== undefined) flags += 'o' + source.opacity;
 	if (source.lineWidth !== undefined) flags += 'w' + source.lineWidth;
 	// A raster-only source matches the no-flags default, keep the URL short
-	if (flags === 'r') return source.variable;
-	return `${source.variable}:${flags}`;
+	if (flags === 'r') return variable;
+	return `${variable}:${flags}`;
 };
 
 export const serializeSources = (sources: ChartSource[]): string =>
 	sources.map(serializeSource).join(',');
 
-const SOURCE_TOKEN_REGEX = /^(?<variable>[a-z0-9_]+)(?::(?<flags>[a-z0-9.]*))?$/i;
+const SOURCE_TOKEN_REGEX =
+	/^(?<variable>[a-z0-9_]+)(?:@(?<domain>[a-z0-9_]+))?(?::(?<flags>[a-z0-9.]*))?$/i;
 const NUMBER = '[0-9]+(?:\\.[0-9]+)?';
 const FLAGS_REGEX = new RegExp(`^(?:r|a|i|c(?:${NUMBER})?|o${NUMBER}|w${NUMBER})*$`);
 
@@ -48,6 +51,7 @@ const parseSourceToken = (token: string): ChartSource | undefined => {
 	if (!match?.groups) return undefined;
 
 	const source: ChartSource = { variable: match.groups.variable };
+	if (match.groups.domain) source.domain = match.groups.domain;
 	const flags = match.groups.flags;
 	if (flags === undefined) {
 		source.raster = true;
@@ -82,7 +86,8 @@ export const parseSources = (raw: string): ChartSource[] | undefined => {
 		const source = parseSourceToken(token.trim());
 		if (!source) return undefined;
 
-		const existing = byVariable.get(source.variable);
+		const key = source.domain ? `${source.variable}@${source.domain}` : source.variable;
+		const existing = byVariable.get(key);
 		if (existing) {
 			existing.raster ||= source.raster;
 			existing.arrows ||= source.arrows;
@@ -92,7 +97,7 @@ export const parseSources = (raw: string): ChartSource[] | undefined => {
 			existing.opacity ??= source.opacity;
 			existing.lineWidth ??= source.lineWidth;
 		} else {
-			byVariable.set(source.variable, source);
+			byVariable.set(key, source);
 		}
 	}
 
@@ -104,6 +109,7 @@ export const parseSources = (raw: string): ChartSource[] | undefined => {
 
 const sourceEquals = (a: ChartSource, b: ChartSource): boolean =>
 	a.variable === b.variable &&
+	a.domain === b.domain &&
 	!a.raster === !b.raster &&
 	!a.contours === !b.contours &&
 	!a.arrows === !b.arrows &&

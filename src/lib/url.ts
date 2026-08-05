@@ -20,6 +20,7 @@ import {
 	setPlainVariable,
 	setSources
 } from '$lib/stores/chart';
+import { epsMeta } from '$lib/stores/eps';
 import { map as m } from '$lib/stores/map';
 import {
 	type Preferences,
@@ -46,6 +47,7 @@ import { fmtModelRun, fmtSelectedTime, getBaseUri, hashValue } from './helpers';
 import { clippingCountryCodes } from './stores/clipping';
 import { omProtocolSettings } from './stores/om-protocol-settings';
 import { formatISOUTCWithZ, parseISOWithoutTimezone } from './time-format';
+import { findTimeStep } from './time-utils';
 
 import type { ChartSource, ChartState } from '$lib/chart-types';
 
@@ -208,11 +210,17 @@ const memorisedHash = (json: string, cachedJson: string, cachedHash: string) => 
  * shared by all sources; variable and vector flags are per source.
  */
 export const getOmUrlForSource = (source: ChartSource): string | undefined => {
-	const domain = get(d);
+	// A cross-domain (EPS) source uses the sibling's own model run and clamps
+	// the time to its own steps; unavailable until its metadata has loaded.
+	const eps = source.domain ? get(epsMeta) : undefined;
+	if (source.domain && eps?.domain !== source.domain) return undefined;
+
+	const domain = eps?.domain ?? get(d);
 	const base = `${getBaseUri(domain)}/${domain}`;
-	const modelRun = get(mR);
+	const modelRun = eps?.referenceTime ?? get(mR);
 	if (!modelRun) return undefined;
-	const selectedTime = get(time);
+	let selectedTime = get(time);
+	if (eps) selectedTime = (findTimeStep(selectedTime, eps.validTimes) as Date) ?? selectedTime;
 
 	let result = `${base}/${fmtModelRun(modelRun)}/${fmtSelectedTime(selectedTime)}.om`;
 	result += `?variable=${source.variable}`;

@@ -7,15 +7,20 @@
 		activeChart,
 		applyPreset,
 		isDefaultsPlainChart,
-		setPlainVariable
+		setPlainVariable,
+		setSources
 	} from '$lib/stores/chart';
+	import { epsMeta } from '$lib/stores/eps';
 	import { metaJson } from '$lib/stores/time';
 	import { levelGroupSelected, variable } from '$lib/stores/variables';
 
+	import { sourcesEqual } from '$lib/chart-encoding';
 	import { getChartPreset, popularVariables } from '$lib/chart-presets';
 
 	import LevelSelect from './level-select.svelte';
 	import { buildLevelGroups, resolvePopularTarget, variableLabel } from './selection-utils';
+
+	import type { ChartSource } from '$lib/chart-types';
 
 	interface Props {
 		/** Popular entry id whose row hosts the nested level selector. */
@@ -32,7 +37,12 @@
 		target: string;
 		levelGroup: boolean;
 		presetId?: string;
+		/** Apply these exact sources instead (dynamic EPS charts). */
+		sources?: ChartSource[];
 	}
+
+	/** The one variable the EPS sibling domains provide. */
+	const EPS_VARIABLE = 'precipitation_probability';
 
 	// Popular entries the current domain actually serves; level groups resolve
 	// to their preferred level variant on click, preset-backed rows apply
@@ -55,12 +65,24 @@
 				presetId: resolved.presetId
 			});
 		}
+		// The active domain's EPS sibling contributes its ensemble variable
+		// (the combined precip + probability chart lives in the chart list)
+		if ($epsMeta?.variables.includes(EPS_VARIABLE)) {
+			available.push({
+				id: `eps_${EPS_VARIABLE}`,
+				label: 'Precip Probability (EPS)',
+				target: EPS_VARIABLE,
+				levelGroup: false,
+				sources: [{ variable: EPS_VARIABLE, raster: true, domain: $epsMeta.domain }]
+			});
+		}
 		return available;
 	});
 
 	// A level-group row stays active on any of its levels, so the nested level
 	// selector remains in place when another pressure/height level is picked.
 	const isActive = (entry: PopularEntry): boolean => {
+		if (entry.sources) return sourcesEqual($activeChart.sources, entry.sources);
 		if (entry.presetId) return $activeChart.presetId === entry.presetId;
 		if (!isDefaultsPlainChart($activeChart)) return false;
 		if (entry.levelGroup) return $levelGroupSelected?.value === entry.id;
@@ -68,7 +90,9 @@
 	};
 
 	const select = (entry: PopularEntry): void => {
-		if (entry.presetId) {
+		if (entry.sources) {
+			setSources(entry.sources);
+		} else if (entry.presetId) {
 			applyPreset(entry.presetId);
 		} else {
 			setPlainVariable(entry.target);
@@ -87,7 +111,7 @@
 			{@const active = isActive(entry)}
 			<button
 				class="hover:bg-primary/10 flex h-7.5 w-full cursor-pointer items-center justify-between px-3 text-sm {active
-					? 'bg-primary/10'
+					? 'bg-primary/10 font-medium'
 					: ''}"
 				onclick={() => {
 					if (!active) select(entry);

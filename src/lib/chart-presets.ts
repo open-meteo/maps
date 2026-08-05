@@ -17,6 +17,21 @@ export const chartPresets: ChartPreset[] = [
 		]
 	},
 	{
+		id: 'z500_mslp',
+		label: '500 hPa Geopotential + MSLP',
+		description: 'Upper-level flow over surface pressure',
+		group: 'Synoptic',
+		sources: [
+			{
+				variable: 'geopotential_height_500hPa',
+				raster: true,
+				contours: true,
+				contourInterval: 12.5
+			},
+			{ variable: 'pressure_msl', contours: true, contourInterval: 5 }
+		]
+	},
+	{
 		id: 'z500_t500',
 		label: '500 hPa Temperature + Geopotential ',
 		description: '500 hPa temperature under height contours',
@@ -222,77 +237,7 @@ export const chartPresets: ChartPreset[] = [
 			{ variable: 'cloud_cover', raster: true, opacity: 0.7 },
 			{ variable: 'precipitation', raster: true }
 		]
-	},
-	// ── Marine ──────────────────────────────────────────────────────────
-	{
-		id: 'waves',
-		label: 'Wave Height & Direction',
-		description: 'Significant wave height with propagation',
-		group: 'Marine',
-		sources: [{ variable: 'wave_height', raster: true, arrows: true }]
 	}
-	// // ── Suggestions (to review; regroup or delete the keepers) ──────────
-	// {
-	// 	id: 'cape_wind850',
-	// 	label: 'CAPE + 850 hPa Wind',
-	// 	description: 'Storm ingredients: instability and low-level flow',
-	// 	group: 'Suggestions',
-	// 	sources: [
-	// 		{ variable: 'cape', raster: true },
-	// 		{ variable: 'wind_u_component_850hPa', arrows: true }
-	// 	]
-	// },
-	// {
-	// 	id: 'snow_t850',
-	// 	label: 'Snowfall + 850 hPa Temperature',
-	// 	description: 'Snowfall with the rain/snow boundary aloft',
-	// 	group: 'Suggestions',
-	// 	sources: [
-	// 		{ variable: 'snowfall', raster: true },
-	// 		{ variable: 'temperature_850hPa', contours: true, contourInterval: 2 }
-	// 	]
-	// },
-	// {
-	// 	id: 'fog_stratus',
-	// 	label: 'Low Clouds + 10 m Wind',
-	// 	description: 'Fog and stratus with surface flow',
-	// 	group: 'Suggestions',
-	// 	sources: [
-	// 		{ variable: 'cloud_cover_low', raster: true },
-	// 		{ variable: 'wind_u_component_10m', arrows: true }
-	// 	]
-	// },
-	// {
-	// 	id: 'moisture_transport',
-	// 	label: 'Water Vapour + 700 hPa Wind',
-	// 	description: 'Atmospheric rivers and moisture advection',
-	// 	group: 'Suggestions',
-	// 	sources: [
-	// 		{ variable: 'total_column_integrated_water_vapour', raster: true },
-	// 		{ variable: 'wind_u_component_700hPa', arrows: true }
-	// 	]
-	// },
-	// {
-	// 	id: 'solar',
-	// 	label: 'Direct Radiation + Cloud Cover',
-	// 	description: 'Solar potential under the cloud field',
-	// 	group: 'Suggestions',
-	// 	sources: [
-	// 		{ variable: 'direct_radiation', raster: true },
-	// 		{ variable: 'cloud_cover', contours: true, contourInterval: 25, lineWidth: 0.8 }
-	// 	]
-	// },
-	// {
-	// 	id: 'gust_front',
-	// 	label: 'Gusts + Wind + MSLP',
-	// 	description: 'Storm damage potential with isobars',
-	// 	group: 'Suggestions',
-	// 	sources: [
-	// 		{ variable: 'wind_gusts_10m', raster: true },
-	// 		{ variable: 'wind_u_component_10m', arrows: true, inlineVectors: true },
-	// 		{ variable: 'pressure_msl', contours: true, contourInterval: 2 }
-	// 	]
-	// }
 ];
 
 export const getChartPreset = (id: string): ChartPreset | undefined =>
@@ -317,15 +262,29 @@ export interface PopularVariable {
  */
 export const popularVariables: PopularVariable[] = [
 	{ id: 'temperature', label: 'Temperature', levelGroup: true, defaultLevel: '2m' },
-	{ id: 'precipitation' },
 	{ id: 'wind', label: 'Wind', levelGroup: true, defaultLevel: '10m' },
 	{ id: 'wind_gusts_10m', label: 'Wind Gusts' },
 	{ id: 'pressure_msl', label: 'Pressure Mean Sea Level', presetId: 'mslp' },
 	{ id: 'cloud_cover' },
 	{ id: 'relative_humidity', label: 'Relative Humidity', levelGroup: true, defaultLevel: '2m' },
 	// { id: 'cape' },
+	{ id: 'precipitation' },
+	// ── Domain-specific entries below: the availability filter hides them
+	// everywhere else, since only these domains serve the variables. ──────
+	// Ensemble domains (dwd_icon_*_eps, ncep_gefs*)
+	{ id: 'precipitation_probability' },
+
 	{ id: 'snowfall' },
-	// Marine domains serve none of the above; the availability filter makes
-	// this the (only) popular entry there.
-	{ id: 'waves', presetId: 'waves' }
+
+	// Air-quality domains (cams_*)
+	{ id: 'pm2_5' },
+	{ id: 'pm10' },
+	{ id: 'ozone' },
+	{ id: 'nitrogen_dioxide' },
+	{ id: 'dust' },
+	{ id: 'uv_index' },
+	// Marine domains (ecmwf_wam*, dwd_*wam, ncep_gfswave*, meteofrance_wave)
+	{ id: 'wave_height' },
+	{ id: 'wave_period' },
+	{ id: 'swell_wave_height' }
 ];

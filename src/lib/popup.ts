@@ -2,6 +2,8 @@ import { get } from 'svelte/store';
 
 import {
 	GridFactory,
+	LEVEL_PREFIX,
+	LEVEL_UNIT_REGEX,
 	createClippingTester,
 	getCachedResolvedClipping,
 	getColor,
@@ -88,6 +90,51 @@ const truncateLabel = (label: string, max = 20): string => {
 };
 
 /**
+ * Very short names for the secondary popup lines, keyed by the variable's
+ * level-group prefix (or full id for level-less variables).
+ */
+const SHORT_LABELS: Record<string, string> = {
+	cape: 'CAPE',
+	cloud_cover: 'CC',
+	cloud_cover_low: 'CC low',
+	cloud_cover_mid: 'CC mid',
+	cloud_cover_high: 'CC high',
+	freezing_level_height: 'Frz lvl',
+	geopotential_height: 'Z',
+	precipitation: 'Precip',
+	precipitation_probability: 'Prob',
+	pressure_msl: 'MSLP',
+	relative_humidity: 'RH',
+	snowfall: 'Snow',
+	temperature: 'T',
+	total_column_integrated_water_vapour: 'TCWV',
+	vertical_velocity: 'VV',
+	wave_height: 'Waves',
+	wind: 'Wind',
+	wind_gusts_10m: 'Gusts'
+};
+
+/**
+ * Compact label for a secondary source line: known variables shrink to an
+ * abbreviation ("CC", "Precip"), pressure levels keep their number ("T 850",
+ * "Z 500"), unknown ones fall back to a truncated full label.
+ */
+const shortLabel = (variable: string): string => {
+	const level = variable.match(LEVEL_UNIT_REGEX)?.groups;
+	const base = level ? (variable.match(LEVEL_PREFIX)?.groups?.prefix ?? variable) : variable;
+	const short = SHORT_LABELS[base];
+	if (!short) {
+		const label = variableOptions.find((option) => option.value === variable)?.label ?? variable;
+		return truncateLabel(label, 14);
+	}
+	return level?.unit === 'hPa' ? `${short} ${level.level}` : short;
+};
+
+/** Pressure/height context lines render even smaller than the other extras. */
+const isPressureOrHeight = (variable: string): boolean =>
+	variable === 'pressure_msl' || variable.startsWith('geopotential_height');
+
+/**
  * Lift the popup box and lengthen the stem by the height of the extra source
  * lines, so the box never crowds the anchor dot.
  */
@@ -134,11 +181,16 @@ const updateExtraSources = async (coordinates: maplibregl.LngLat): Promise<void>
 					mode.current === 'dark',
 					omProtocolSettingsState.colorScales
 				);
-				const label =
-					variableOptions.find((option) => option.value === source.variable)?.label ??
-					source.variable;
+				const label = shortLabel(source.variable);
+				const unit = getDisplayUnit(colorScale.unit, units);
+				if (!isFinite(value)) return { text: `${label}: –`, small: false, muted: true };
 				const displayValue = convertValue(value, colorScale.unit, units);
-				return `${truncateLabel(label)}: ${displayValue.toFixed(1)} ${getDisplayUnit(colorScale.unit, units)}`;
+				return {
+					text: `${label}: ${displayValue.toFixed(1)} ${unit}`,
+					small: isPressureOrHeight(source.variable),
+					// A line whose value displays as zero is context, not signal
+					muted: Math.round(Math.abs(displayValue) * 10) === 0
+				};
 			} catch {
 				return undefined;
 			}
@@ -147,11 +199,13 @@ const updateExtraSources = async (coordinates: maplibregl.LngLat): Promise<void>
 
 	extrasDiv.replaceChildren(
 		...lines
-			.filter((line): line is string => line !== undefined)
+			.filter((line) => line !== undefined)
 			.map((line) => {
 				const lineDiv = document.createElement('div');
 				lineDiv.classList.add('popup-extra-line');
-				lineDiv.innerText = line;
+				if (line.small) lineDiv.classList.add('popup-extra-line-sm');
+				if (line.muted) lineDiv.classList.add('popup-extra-line-muted');
+				lineDiv.innerText = line.text;
 				return lineDiv;
 			})
 	);

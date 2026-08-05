@@ -33,6 +33,23 @@ describe('serializeSources / parseSources', () => {
 		expect(parseSources('temperature_2m')).toEqual([{ variable: 'temperature_2m', raster: true }]);
 	});
 
+	it('round-trips a cross-domain (EPS) source', () => {
+		const sources: ChartSource[] = [
+			{ variable: 'precipitation_probability', raster: true, domain: 'dwd_icon_eps' }
+		];
+		const raw = serializeSources(sources);
+		expect(raw).toBe('precipitation_probability@dwd_icon_eps');
+		expect(parseSources(raw)).toEqual(sources);
+	});
+
+	it('distinguishes sources by domain', () => {
+		const main: ChartSource[] = [{ variable: 'precipitation_probability', raster: true }];
+		const eps: ChartSource[] = [
+			{ variable: 'precipitation_probability', raster: true, domain: 'dwd_icon_eps' }
+		];
+		expect(sourcesEqual(main, eps)).toBe(false);
+	});
+
 	it('parses contours without an interval (breakpoints mode)', () => {
 		expect(parseSources('pressure_msl:rc')).toEqual([
 			{ variable: 'pressure_msl', raster: true, contours: true }

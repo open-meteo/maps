@@ -17,6 +17,7 @@
 		buildLevelGroups,
 		buildVariableList,
 		pickDefaultLevel,
+		resolvePopularTarget,
 		variableLabel
 	} from './selection-utils';
 
@@ -30,6 +31,16 @@
 	const open = persisted('other-variables-open', false);
 
 	const levelGroups = $derived($metaJson ? buildLevelGroups($metaJson.variables) : {});
+
+	// Whether the domain serves any popular entry. Without one there is no
+	// "more": the collapsible header disappears and the list renders flat.
+	const hasPopular = $derived(
+		$metaJson
+			? popularVariables.some((entry) =>
+					resolvePopularTarget(entry, $metaJson.variables, levelGroups)
+				)
+			: false
+	);
 
 	// Everything the domain serves that the popular list does not already
 	// represent, level-collapsed and alphabetical.
@@ -103,36 +114,46 @@
 	});
 </script>
 
+{#snippet variableRows()}
+	{#each entries as entry (entry.id)}
+		{@const active = isActive(entry)}
+		<button
+			class="hover:bg-primary/10 flex h-7 w-full cursor-pointer items-center justify-between px-3 text-sm {active
+				? 'bg-primary/10 font-medium'
+				: ''}"
+			onclick={() => {
+				if (!active) setPlainVariable(entry.target);
+			}}
+		>
+			<div class="truncate text-left">{entry.label}</div>
+			<CheckIcon class="size-4 shrink-0 {active ? '' : 'text-transparent'}" />
+		</button>
+		{#if levelHostId === entry.id}
+			<div transition:slide={{ duration: 200 }}>
+				<LevelSelect nested />
+			</div>
+		{/if}
+	{/each}
+{/snippet}
+
 {#if entries.length}
-	<button
-		class="hover:bg-primary/10 text-muted-foreground flex h-7.5 w-full cursor-pointer items-center gap-1.5 px-2 text-xs font-semibold tracking-wide uppercase"
-		onclick={() => open.set(!$open)}
-	>
-		<ChevronRightIcon class="size-3.5 duration-200 {$open ? 'rotate-90' : ''}" />
-		All variables
-		<span class="ml-auto pr-1 font-normal opacity-60">{entries.length}</span>
-	</button>
-	{#if $open}
-		<div class="pb-1" transition:slide={{ duration: 200 }}>
-			{#each entries as entry (entry.id)}
-				{@const active = isActive(entry)}
-				<button
-					class="hover:bg-primary/10 flex h-7 w-full cursor-pointer items-center justify-between px-3 text-sm {active
-						? 'bg-primary/10'
-						: ''}"
-					onclick={() => {
-						if (!active) setPlainVariable(entry.target);
-					}}
-				>
-					<div class="truncate text-left">{entry.label}</div>
-					<CheckIcon class="size-4 shrink-0 {active ? '' : 'text-transparent'}" />
-				</button>
-				{#if levelHostId === entry.id}
-					<div transition:slide={{ duration: 200 }}>
-						<LevelSelect nested />
-					</div>
-				{/if}
-			{/each}
+	{#if hasPopular}
+		<button
+			class="hover:bg-primary/10 text-muted-foreground flex h-7.5 w-full cursor-pointer items-center gap-1.5 px-2 text-xs font-semibold tracking-wide uppercase"
+			onclick={() => open.set(!$open)}
+		>
+			<ChevronRightIcon class="size-3.5 duration-200 {$open ? 'rotate-90' : ''}" />
+			More variables
+			<span class="ml-auto pr-1 font-normal opacity-60">{entries.length}</span>
+		</button>
+		{#if $open}
+			<div class="pb-1" transition:slide={{ duration: 200 }}>
+				{@render variableRows()}
+			</div>
+		{/if}
+	{:else}
+		<div class="py-1">
+			{@render variableRows()}
 		</div>
 	{/if}
 {/if}

@@ -35,15 +35,6 @@ const weatherVariables = [
 ];
 
 describe('resolvePopularTarget', () => {
-	it('shows the waves preset on marine domains', () => {
-		const entry = popularVariables.find(({ presetId }) => presetId === 'waves');
-		expect(entry).toBeDefined();
-		for (const metaVariables of [ecmwfWamVariables, meteofranceWaveVariables]) {
-			const resolved = resolvePopularTarget(entry!, metaVariables, buildLevelGroups(metaVariables));
-			expect(resolved).toEqual({ presetId: 'waves' });
-		}
-	});
-
 	it('does not resolve the wind level group from wind_wave_* variables', () => {
 		const entry = popularVariables.find(({ id }) => id === 'wind');
 		const resolved = resolvePopularTarget(
@@ -56,9 +47,21 @@ describe('resolvePopularTarget', () => {
 });
 
 describe('firstPopularTarget', () => {
-	it('falls back to the waves preset on marine domains', () => {
-		expect(firstPopularTarget(ecmwfWamVariables)).toEqual({ presetId: 'waves' });
-		expect(firstPopularTarget(meteofranceWaveVariables)).toEqual({ presetId: 'waves' });
+	it('falls back to wave height on marine domains', () => {
+		expect(firstPopularTarget(ecmwfWamVariables)).toEqual({ variable: 'wave_height' });
+		expect(firstPopularTarget(meteofranceWaveVariables)).toEqual({ variable: 'wave_height' });
+	});
+
+	it('falls back to precipitation probability on ensemble domains', () => {
+		expect(firstPopularTarget(['precipitation_probability'])).toEqual({
+			variable: 'precipitation_probability'
+		});
+	});
+
+	it('falls back to PM2.5 on air-quality domains', () => {
+		expect(firstPopularTarget(['nitrogen_dioxide', 'ozone', 'pm10', 'pm2_5'])).toEqual({
+			variable: 'pm2_5'
+		});
 	});
 
 	it('falls back to 2 m temperature on weather domains', () => {

@@ -6,6 +6,7 @@
 	import { toast } from 'svelte-sonner';
 
 	import { activeChart } from '$lib/stores/chart';
+	import { epsMeta } from '$lib/stores/eps';
 	import { map } from '$lib/stores/map';
 	import { initStoredState, loading, url } from '$lib/stores/preferences';
 	import { modelRun } from '$lib/stores/time';
@@ -132,6 +133,11 @@
 		changeOMfileURL();
 	});
 
+	// An EPS chart source can only render once the sibling's metadata is in
+	const epsSubscription = epsMeta.subscribe((meta) => {
+		if (meta) changeOMfileURL();
+	});
+
 	onDestroy(() => {
 		stopEmbedderBridge();
 		unwatchAttributionOverlap();
@@ -140,6 +146,7 @@
 		}
 		domainSubscription(); // unsubscribe
 		chartSubscription(); // unsubscribe
+		epsSubscription(); // unsubscribe
 	});
 </script>
 

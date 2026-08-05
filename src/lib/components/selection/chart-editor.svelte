@@ -76,6 +76,14 @@
 			<div class="truncate" title={source.variable}>
 				{baseLabel(source.variable)}
 			</div>
+			{#if source.domain}
+				<span
+					class="text-muted-foreground shrink-0 text-[10px] font-semibold"
+					title={source.domain}
+				>
+					EPS
+				</span>
+			{/if}
 			<SourceLevelSelect
 				sourceVariable={source.variable}
 				onSelect={(newVariable) => updateSource(i, { variable: newVariable })}

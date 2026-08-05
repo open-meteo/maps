@@ -47,7 +47,12 @@ const buildChannels = (): FrameChannel[] | undefined => {
 	const channels: FrameChannel[] = [];
 	for (const source of sources) {
 		const omUrl = getOmUrlForSource(source);
-		if (!omUrl) return undefined;
+		// A cross-domain (EPS) source is skipped rather than fatal while its
+		// sibling metadata loads; the epsMeta subscription re-renders then.
+		if (!omUrl) {
+			if (source.domain) continue;
+			return undefined;
+		}
 		const url = 'om://' + omUrl;
 
 		if (source.raster) {

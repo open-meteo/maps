@@ -9,6 +9,7 @@ import {
 	setPlainVariable,
 	setSources
 } from '$lib/stores/chart';
+import { EPS_SIBLINGS, loadEpsMeta } from '$lib/stores/eps';
 import { loading } from '$lib/stores/preferences';
 import {
 	inProgress as iP,
@@ -104,6 +105,7 @@ export const getMetaData = async (): Promise<DomainMetaDataJson> => {
 // metadata was being fetched, so we don't commit another domain's
 // metadata/time.
 export const loadDomainMetaData = async (newDomain: string) => {
+	void loadEpsMeta(newDomain);
 	await getInitialMetaData();
 	if (get(d) !== newDomain) return;
 	const meta = await getMetaData();
@@ -123,15 +125,21 @@ export const loadDomainMetaData = async (newDomain: string) => {
  * serves. When nothing survives, fall back to a plain chart via a
  * prefix-match on the primary variable (keeps the variable family, e.g.
  * temperature_2m → temperature_850hPa); when even that fails, to the first
- * popular entry the domain serves (temperature on weather domains, the waves
- * preset on marine domains) rather than an arbitrary variable.
+ * popular entry the domain serves (typically temperature), else the first
+ * plottable variable rather than an arbitrary one.
  */
 export const matchChartOrFallback = () => {
 	const metaJson = get(mJ);
 	if (!metaJson) return;
 
 	const chart = get(activeChart);
-	const surviving = chart.sources.filter((source) => metaJson.variables.includes(source.variable));
+	// Cross-domain (EPS) sources survive when they still point at the new
+	// domain's sibling; their variables are never in the main meta.json.
+	const surviving = chart.sources.filter((source) =>
+		source.domain
+			? source.domain === EPS_SIBLINGS[get(d)]
+			: metaJson.variables.includes(source.variable)
+	);
 	if (surviving.length === chart.sources.length) return;
 
 	if (surviving.length > 0) {
@@ -154,6 +162,14 @@ export const matchChartOrFallback = () => {
 	}
 
 	const popular = firstPopularTarget(metaJson.variables);
-	if (popular?.presetId) applyPreset(popular.presetId);
-	else setPlainVariable(popular?.variable ?? metaJson.variables[0]);
+	if (popular?.presetId) {
+		applyPreset(popular.presetId);
+		return;
+	}
+	// e.g. cams greenhouse-gas domains serve no popular entry: pick the
+	// first variable that works as a standalone raster (not a direction)
+	const fallback = metaJson.variables.find(
+		(mv) => !mv.includes('_direction') && !mv.includes('v_component')
+	);
+	setPlainVariable(popular?.variable ?? fallback ?? metaJson.variables[0]);
 };

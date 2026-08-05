@@ -118,17 +118,6 @@
 </script>
 
 <div class="relative flex items-end gap-0.5 select-none" style="max-height: {totalHeight + 100}px;">
-	{#if label}
-		<div
-			class="bg-glass/60 text-foreground/80 overflow-hidden rounded-sm px-px py-0.5 font-semibold backdrop-blur-sm {compact
-				? 'text-[9px]'
-				: 'text-[10px]'}"
-			style="writing-mode: vertical-rl; transform: rotate(180deg); max-height: {totalHeight}px;"
-			title={label}
-		>
-			{label}
-		</div>
-	{/if}
 	<div class="flex flex-col-reverse rounded shadow-md">
 		<div class="flex flex-col-reverse bg-glass/30 backdrop-blur-sm rounded-b">
 			{#each labeledColors as lc, i (lc)}
@@ -222,4 +211,15 @@
 			</div>
 		{/if}
 	</div>
+	{#if label}
+		<div
+			class="bg-glass/60 text-foreground/80 overflow-hidden rounded-sm px-1 py-px font-semibold backdrop-blur-sm {compact
+				? 'text-[9px]'
+				: 'text-[10px]'}"
+			style="writing-mode: vertical-rl; transform: rotate(180deg); max-height: {totalHeight}px;"
+			title={label}
+		>
+			{label}
+		</div>
+	{/if}
 </div>
