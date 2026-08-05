@@ -5,6 +5,7 @@ import {
 	GridFactory,
 	domainOptions,
 	omProtocol,
+	sunProtocol,
 	updateCurrentBounds
 } from '@openmeteo/weather-map-layer';
 import * as maplibregl from 'maplibre-gl';
@@ -26,6 +27,7 @@ export const createMap = async (container: HTMLElement) => {
 	maplibregl.addProtocol('om', (params: RequestParameters, abortController: AbortController) =>
 		omProtocol(params, abortController, get(omProtocolSettings))
 	);
+	maplibregl.addProtocol('sun', sunProtocol);
 
 	const style = await getStyle();
 
