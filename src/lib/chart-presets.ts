@@ -193,6 +193,18 @@ export const chartPresets: ChartPreset[] = [
 		]
 	},
 	{
+		id: 'cloud_rain',
+		label: 'Cloud cover + Precip',
+		description: 'Cloud and precipitation',
+		group: 'Precipitation',
+		sources: [
+			// inlineVectors: the arrows render directly on the wind raster, so
+			// the cloud and precipitation rasters above overlap them
+			{ variable: 'cloud_cover', raster: true },
+			{ variable: 'precipitation', raster: true }
+		]
+	},
+	{
 		id: 'wind_cloud_rain',
 		label: 'Wind + Cloud cover + Precip',
 		description: 'Wind arrows under cloud and precipitation',
