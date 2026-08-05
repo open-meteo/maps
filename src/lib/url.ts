@@ -194,15 +194,17 @@ export const urlParamsToPreferences = () => {
 	}
 };
 
-let cachedClippingJson = '';
-let cachedClippingHash = '';
-let cachedColorJson = '';
-let cachedColorHash = '';
+// Hashes for the clipping/color URL params, re-derived only when the settings
+// object identity changes: both are replaced wholesale on modification, and
+// stringifying them per URL build ran once per source per store change. The
+// default color scales never change, so their JSON is computed once.
+const DEFAULT_COLOR_SCALES_JSON = JSON.stringify(defaultOmProtocolSettings.colorScales);
 
-const memorisedHash = (json: string, cachedJson: string, cachedHash: string) => {
-	if (json === cachedJson) return { json, hash: cachedHash };
-	return { json, hash: hashValue(json) };
-};
+let cachedClippingRef: unknown;
+let cachedClippingHash = '';
+let cachedColorRef: unknown;
+let cachedColorHash = '';
+let cachedColorIsDefault = true;
 
 /**
  * Build the om:// source URL (without protocol prefix) for one chart source.
@@ -246,22 +248,21 @@ export const getOmUrlForSource = (source: ChartSource): string | undefined => {
 		omProtocolSettingsState.clippingOptions !== undefined &&
 		omProtocolSettingsState.clippingOptions !== defaultOmProtocolSettings.clippingOptions
 	) {
-		const clippingJson = JSON.stringify(omProtocolSettingsState.clippingOptions);
-		const cached = memorisedHash(clippingJson, cachedClippingJson, cachedClippingHash);
-		cachedClippingJson = cached.json;
-		cachedClippingHash = cached.hash;
-		result += `&clipping_options_hash=${cached.hash}`;
+		if (omProtocolSettingsState.clippingOptions !== cachedClippingRef) {
+			cachedClippingRef = omProtocolSettingsState.clippingOptions;
+			cachedClippingHash = hashValue(JSON.stringify(omProtocolSettingsState.clippingOptions));
+		}
+		result += `&clipping_options_hash=${cachedClippingHash}`;
 	}
 
-	const colorJson = JSON.stringify(omProtocolSettingsState.colorScales);
-	if (
-		omProtocolSettingsState.colorScales !== undefined &&
-		colorJson !== JSON.stringify(defaultOmProtocolSettings.colorScales)
-	) {
-		const cached = memorisedHash(colorJson, cachedColorJson, cachedColorHash);
-		cachedColorJson = cached.json;
-		cachedColorHash = cached.hash;
-		result += `&color_hash=${cached.hash}`;
+	if (omProtocolSettingsState.colorScales !== undefined) {
+		if (omProtocolSettingsState.colorScales !== cachedColorRef) {
+			cachedColorRef = omProtocolSettingsState.colorScales;
+			const colorJson = JSON.stringify(omProtocolSettingsState.colorScales);
+			cachedColorIsDefault = colorJson === DEFAULT_COLOR_SCALES_JSON;
+			cachedColorHash = hashValue(colorJson);
+		}
+		if (!cachedColorIsDefault) result += `&color_hash=${cachedColorHash}`;
 	}
 
 	return result;

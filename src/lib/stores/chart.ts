@@ -5,6 +5,7 @@ import { persisted } from 'svelte-persisted-store';
 import {
 	cloneSources,
 	matchPreset,
+	sourceKey,
 	sourcesEqual,
 	variableSupportsArrows
 } from '$lib/chart-encoding';
@@ -33,8 +34,9 @@ export const plainChartFor = (v: string): ChartState => {
 		source.contours = true;
 		if (!vo.breakpoints) source.contourInterval = vo.contourInterval;
 	}
-	// Arrows are on by default whenever the variable can provide directions
-	if (variableSupportsArrows(v)) source.arrows = true;
+	// Arrows follow the settings toggle, wherever the variable can provide
+	// directions (ignoring vo.arrows here would make the toggle a no-op)
+	if (vo.arrows && variableSupportsArrows(v)) source.arrows = true;
 	return withChartMeta({ sources: [source] });
 };
 
@@ -58,7 +60,6 @@ export const savedCharts = persisted<SavedChartsState>('saved-charts', {
 export const activeChart = persisted<ChartState>('active-chart', plainChartFor(get(variable)));
 
 export const chartSources = derived(activeChart, (chart) => chart.sources);
-export const primaryVariable = derived(activeChart, pickPrimaryVariable);
 
 // ── Sync with the legacy single-variable store ──────────────────────────
 // `variable` stays the primary variable of the chart, so level derivations,
@@ -135,7 +136,11 @@ export const updateSource = (index: number, patch: Partial<ChartSource>): void =
 	const chart = get(activeChart);
 	const sources = cloneSources(chart.sources);
 	if (!sources[index]) return;
-	sources[index] = { ...sources[index], ...patch };
+	const next = { ...sources[index], ...patch };
+	// Source identities must stay unique (the editor keys rows by them): a
+	// level change that collides with an existing source drops the edit
+	if (sources.some((source, i) => i !== index && sourceKey(source) === sourceKey(next))) return;
+	sources[index] = next;
 	activeChart.set(withChartMeta({ sources }));
 };
 

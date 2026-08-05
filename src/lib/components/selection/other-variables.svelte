@@ -14,8 +14,9 @@
 
 	import LevelSelect from './level-select.svelte';
 	import {
-		buildLevelGroups,
 		buildVariableList,
+		isStandaloneVariable,
+		levelGroups,
 		pickDefaultLevel,
 		resolvePopularTarget,
 		variableLabel
@@ -30,14 +31,12 @@
 
 	const open = persisted('other-variables-open', false);
 
-	const levelGroups = $derived($metaJson ? buildLevelGroups($metaJson.variables) : {});
-
 	// Whether the domain serves any popular entry. Without one there is no
 	// "more": the collapsible header disappears and the list renders flat.
 	const hasPopular = $derived(
 		$metaJson
 			? popularVariables.some((entry) =>
-					resolvePopularTarget(entry, $metaJson.variables, levelGroups)
+					resolvePopularTarget(entry, $metaJson.variables, $levelGroups)
 				)
 			: false
 	);
@@ -55,12 +54,12 @@
 		for (const id of buildVariableList($metaJson.variables)) {
 			if (popularIds.has(id)) continue;
 
-			if (levelGroupVariables.includes(id) && levelGroups[id]) {
+			if (levelGroupVariables.includes(id) && $levelGroups[id]) {
 				// Skip level variants the popular list already offers as plain rows
-				const usable = levelGroups[id].filter((entry) => !popularPlainIds.has(entry.value));
+				const usable = $levelGroups[id].filter((entry) => !popularPlainIds.has(entry.value));
 				const target = pickDefaultLevel(usable);
 				if (target) available.push({ id, label: variableLabel(id), target });
-			} else if (!id.includes('_v_') && !id.includes('_direction')) {
+			} else if (isStandaloneVariable(id)) {
 				available.push({ id, label: variableLabel(id), target: id });
 			}
 		}
@@ -74,11 +73,15 @@
 	};
 
 	// Auto-expand once when the active variable moves into this section (e.g.
-	// picked through search), without trapping the section open.
+	// picked through search), without trapping the section open. The first run
+	// is the mount itself, not a move: skip it so the persisted collapse
+	// state survives reloads.
 	let lastHostId: string | undefined;
+	let mounted = false;
 	$effect(() => {
 		const hosts = levelHostId !== undefined && entries.some((entry) => entry.id === levelHostId);
-		if (hosts && levelHostId !== lastHostId) open.set(true);
+		if (mounted && hosts && levelHostId !== lastHostId) open.set(true);
+		mounted = true;
 		lastHostId = hosts ? levelHostId : undefined;
 	});
 

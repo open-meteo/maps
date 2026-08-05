@@ -29,8 +29,7 @@
 	import PopularVariables from './popular-variables.svelte';
 	import SearchResults from './search-results.svelte';
 
-	let extended = $state(get(vSE));
-	vSE.subscribe((value) => (extended = value));
+	const extended = $derived($vSE);
 
 	let panelEl: HTMLDivElement | undefined = $state();
 
@@ -71,8 +70,8 @@
 		vSO.set(true);
 	};
 
-	vSO.subscribe((open) => {
-		if (!open) addingToChart = false;
+	$effect(() => {
+		if (!$vSO) addingToChart = false;
 	});
 
 	// Row hosting the nested level selector: the active level group (stays put

@@ -14,11 +14,13 @@
 
 	import * as Command from '$lib/components/ui/command';
 
+	import { sourcesEqual } from '$lib/chart-encoding';
 	import { chartPresets } from '$lib/chart-presets';
 
 	import {
-		buildLevelGroups,
 		buildVariableList,
+		isStandaloneVariable,
+		levelGroups,
 		pickDefaultLevel,
 		variableLabel
 	} from './selection-utils';
@@ -31,7 +33,6 @@
 	let { onDone }: Props = $props();
 
 	const variableList = $derived($metaJson ? buildVariableList($metaJson.variables) : []);
-	const levelGroups = $derived($metaJson ? buildLevelGroups($metaJson.variables) : {});
 
 	const availablePresets = $derived(
 		$metaJson
@@ -49,8 +50,8 @@
 	);
 
 	const selectVariable = (entry: string) => {
-		if (levelGroupVariables.includes(entry) && levelGroups[entry]) {
-			const target = pickDefaultLevel(levelGroups[entry]);
+		if (levelGroupVariables.includes(entry) && $levelGroups[entry]) {
+			const target = pickDefaultLevel($levelGroups[entry]);
 			if (target) setPlainVariable(target);
 		} else {
 			setPlainVariable(entry);
@@ -68,7 +69,7 @@
 	<Command.Empty>Nothing found.</Command.Empty>
 	<Command.Group heading="Variables">
 		{#each variableList as entry (entry)}
-			{#if levelGroupVariables.includes(entry) || (!entry.includes('_v_') && !entry.includes('_direction'))}
+			{#if levelGroupVariables.includes(entry) || isStandaloneVariable(entry)}
 				{@const active = isVariableActive(entry)}
 				<Command.Item
 					value={entry}
@@ -87,7 +88,7 @@
 	{#if availableSavedCharts.length || availablePresets.length}
 		<Command.Group heading="Charts">
 			{#each availableSavedCharts as chart (chart.id)}
-				{@const active = $activeChart.name === chart.name}
+				{@const active = sourcesEqual($activeChart.sources, chart.sources)}
 				<Command.Item
 					value={chart.id}
 					keywords={[chart.name]}

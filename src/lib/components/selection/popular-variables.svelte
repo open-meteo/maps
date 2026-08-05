@@ -18,7 +18,7 @@
 	import { getChartPreset, popularVariables } from '$lib/chart-presets';
 
 	import LevelSelect from './level-select.svelte';
-	import { buildLevelGroups, resolvePopularTarget, variableLabel } from './selection-utils';
+	import { levelGroups, resolvePopularTarget, variableLabel } from './selection-utils';
 
 	import type { ChartSource } from '$lib/chart-types';
 
@@ -28,8 +28,6 @@
 	}
 
 	let { levelHostId = undefined }: Props = $props();
-
-	const levelGroups = $derived($metaJson ? buildLevelGroups($metaJson.variables) : {});
 
 	interface PopularEntry {
 		id: string;
@@ -51,7 +49,7 @@
 		if (!$metaJson) return [];
 		const available: PopularEntry[] = [];
 		for (const entry of popularVariables) {
-			const resolved = resolvePopularTarget(entry, $metaJson.variables, levelGroups);
+			const resolved = resolvePopularTarget(entry, $metaJson.variables, $levelGroups);
 			if (!resolved) continue;
 			available.push({
 				id: entry.id,

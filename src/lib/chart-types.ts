@@ -25,19 +25,20 @@ export interface ChartSource {
 	arrows?: boolean;
 	/**
 	 * Raster opacity multiplier (0..1) applied on top of the global opacity
-	 * preference. Preset-file styling only, not editable in the UI and not
-	 * carried by the `sources` URL encoding (use `chart=<preset>` links).
+	 * preference. Not editable in the UI; carried by the `sources` URL
+	 * encoding as the `o` flag.
 	 */
 	opacity?: number;
 	/**
-	 * Width multiplier for this source's contour and arrow lines. Preset-file
-	 * styling only, like `opacity`.
+	 * Width multiplier for this source's contour and arrow lines. Not
+	 * editable in the UI; carried by the `sources` encoding as the `w` flag.
 	 */
 	lineWidth?: number;
 	/**
 	 * Render this source's contours/arrows directly on top of its own raster
 	 * (inside the raster stack) instead of in the high vector stack. Rasters
-	 * of later sources then overlap them. Preset-file styling only.
+	 * of later sources then overlap them. Not editable in the UI; carried by
+	 * the `sources` encoding as the `i` flag.
 	 */
 	inlineVectors?: boolean;
 }

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-	isPlainChart,
 	matchPreset,
 	parseSources,
 	serializeSources,
+	sourceKey,
 	sourcesEqual,
 	variableSupportsArrows
 } from '$lib/chart-encoding';
@@ -120,21 +120,18 @@ describe('matchPreset', () => {
 	});
 });
 
-describe('isPlainChart', () => {
-	it('accepts a single raster source', () => {
-		expect(isPlainChart({ sources: [{ variable: 'temperature_2m', raster: true }] })).toBe(true);
+describe('sourceKey', () => {
+	it('keys plain sources by variable and cross-domain sources by variable@domain', () => {
+		expect(sourceKey({ variable: 'temperature_2m' })).toBe('temperature_2m');
+		expect(sourceKey({ variable: 'temperature_2m', domain: 'dwd_icon_eps' })).toBe(
+			'temperature_2m@dwd_icon_eps'
+		);
 	});
 
-	it('rejects contour-only and multi-source charts', () => {
-		expect(isPlainChart({ sources: [{ variable: 'pressure_msl', contours: true }] })).toBe(false);
-		expect(
-			isPlainChart({
-				sources: [
-					{ variable: 'temperature_2m', raster: true },
-					{ variable: 'pressure_msl', contours: true }
-				]
-			})
-		).toBe(false);
+	it('keeps same-variable sources from different domains apart when parsing', () => {
+		const sources = parseSources('temperature_2m,temperature_2m@dwd_icon_eps');
+		expect(sources).toHaveLength(2);
+		expect(new Set(sources!.map(sourceKey)).size).toBe(2);
 	});
 });
 

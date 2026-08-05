@@ -101,15 +101,14 @@ export class FrameManager {
 		this.map = map;
 		this.opts = opts;
 		this.onMapError = (e) => {
-			// Attribute the error to its frame; tile-level errors do not always
-			// carry a sourceId, then blame the pending frame (conservative: a
-			// failed switch holds the previous frame instead of flashing).
-			let frame: Frame | undefined;
-			if (e.sourceId) {
-				frame = [...this.frames.values()].find((f) => f.sourceIds.includes(e.sourceId as string));
-			} else {
-				frame = this.pendingFrame();
-			}
+			// Only errors attributable to one of our own sources fail a frame.
+			// Source-less errors (basemap tiles, terrain, glyphs) must not
+			// cancel a pending weather switch; om data-load failures surface
+			// through getChannelDataState and om tile errors carry a sourceId.
+			if (!e.sourceId) return;
+			const frame = [...this.frames.values()].find((f) =>
+				f.sourceIds.includes(e.sourceId as string)
+			);
 			if (!frame) return;
 			frame.errored = true;
 
@@ -325,8 +324,12 @@ export class FrameManager {
 	private commit(frame: Frame): void {
 		// Never interrupt a running dissolve (snapping it mid-way is a visible
 		// jump). The commit waits for it — at most crossFadeMs — and chains.
+		// pendingKey must cover the wait: commits arriving via the
+		// already-loaded show() path have not set it, and runQueuedCommit
+		// discards a queued frame that is no longer the pending one.
 		if (this.dissolve) {
 			this.queuedCommit = frame;
+			this.pendingKey = frame.key;
 			return;
 		}
 		this.queuedCommit = undefined;

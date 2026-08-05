@@ -3,12 +3,10 @@
 	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down';
 	import { LEVEL_PREFIX, LEVEL_REGEX, LEVEL_UNIT_REGEX } from '@openmeteo/weather-map-layer';
 
-	import { metaJson } from '$lib/stores/time';
-
 	import * as Command from '$lib/components/ui/command';
 	import * as Popover from '$lib/components/ui/popover';
 
-	import { buildLevelGroups, scrollSelectedToTop } from './selection-utils';
+	import { isStandaloneVariable, levelGroups, scrollSelectedToTop } from './selection-utils';
 
 	interface Props {
 		/** Variable of the chart source this selector belongs to. */
@@ -30,13 +28,9 @@
 			? sourceVariable.match(LEVEL_PREFIX)?.groups?.prefix
 			: undefined
 	);
-	const entries = $derived.by(() => {
-		if (!prefix || !$metaJson) return undefined;
-		const groups = buildLevelGroups($metaJson.variables);
-		return groups[prefix]?.filter(
-			({ value }) => !value.includes('v_component') && !value.includes('_direction')
-		);
-	});
+	const entries = $derived(
+		prefix ? $levelGroups[prefix]?.filter(({ value }) => isStandaloneVariable(value)) : undefined
+	);
 </script>
 
 {#if entries?.length && levelMatch}

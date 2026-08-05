@@ -20,6 +20,7 @@ import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 import { convertValue, getDisplayUnit, unitPreferences } from '$lib/stores/units';
 import { selectedDomain, variable as v } from '$lib/stores/variables';
 
+import { sourceKey } from './chart-encoding';
 import { textWhite } from './helpers';
 import { getActiveOmUrls } from './layers';
 import { terraDrawActive } from './stores/clipping';
@@ -148,14 +149,17 @@ const adjustStemForExtras = (): void => {
 /**
  * Values of the chart's secondary sources (everything except the primary
  * variable shown in the coloured chip), one `label value unit` line each.
+ * `seq` drops the DOM write when a newer update superseded this one.
  */
-const updateExtraSources = async (coordinates: maplibregl.LngLat): Promise<void> => {
+const updateExtraSources = async (coordinates: maplibregl.LngLat, seq: number): Promise<void> => {
 	if (!extrasDiv) return;
 
+	// The primary is always a plain source, so its key is the bare variable;
+	// a same-variable source from another domain (EPS) still counts as extra.
 	const primary = get(v);
 	const activeUrls = getActiveOmUrls();
 	const extras = get(chartSources).filter(
-		(source) => source.variable !== primary && activeUrls.has(source.variable)
+		(source) => sourceKey(source) !== primary && activeUrls.has(sourceKey(source))
 	);
 
 	if (!extras.length) {
@@ -173,7 +177,7 @@ const updateExtraSources = async (coordinates: maplibregl.LngLat): Promise<void>
 				const { value } = await getValueFromLatLong(
 					coordinates.lat,
 					coordinates.lng,
-					activeUrls.get(source.variable) as string
+					activeUrls.get(sourceKey(source)) as string
 				);
 				const colorScale = getColorScale(
 					source.variable,
@@ -196,6 +200,7 @@ const updateExtraSources = async (coordinates: maplibregl.LngLat): Promise<void>
 		})
 	);
 
+	if (seq !== popupUpdateSeq) return;
 	extrasDiv.replaceChildren(
 		...lines
 			.filter((line) => line !== undefined)
@@ -211,10 +216,15 @@ const updateExtraSources = async (coordinates: maplibregl.LngLat): Promise<void>
 	adjustStemForExtras();
 };
 
+// Monotonic token: only the latest updatePopupContent call may write the DOM,
+// so a slow earlier lookup cannot overwrite a newer position's values.
+let popupUpdateSeq = 0;
+
 /** Update the popup content for the given coordinates without moving the marker. */
 const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void> => {
 	if (!el || !contentDiv || !valueSpan || !unitSpan || !elevationSpan) return;
 
+	const seq = ++popupUpdateSeq;
 	const map = get(m);
 
 	const elevation = map?.queryTerrainElevation(coordinates);
@@ -223,8 +233,12 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 	const activeUrl = getActiveOmUrls().get(get(v));
 	if (!activeUrl) return;
 
-	const { value } = await getValueFromLatLong(coordinates.lat, coordinates.lng, activeUrl);
-	await updateExtraSources(coordinates);
+	// Primary value and extra lines resolve concurrently
+	const [{ value }] = await Promise.all([
+		getValueFromLatLong(coordinates.lat, coordinates.lng, activeUrl),
+		updateExtraSources(coordinates, seq)
+	]);
+	if (seq !== popupUpdateSeq) return;
 
 	if (isFinite(value)) {
 		const omProtocolSettingsState = get(omProtocolSettings);

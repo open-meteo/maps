@@ -8,8 +8,9 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 
 	import {
-		buildLevelGroups,
 		buildVariableList,
+		isStandaloneVariable,
+		levelGroups,
 		pickDefaultLevel,
 		variableLabel
 	} from './selection-utils';
@@ -21,16 +22,12 @@
 
 	let { onPick = undefined }: Props = $props();
 
-	let open = $state(false);
-	vSO.subscribe((value) => (open = value));
-
 	const variableList = $derived($metaJson ? buildVariableList($metaJson.variables) : []);
-	const levelGroups = $derived($metaJson ? buildLevelGroups($metaJson.variables) : {});
 
 	const selectEntry = (entry: string) => {
 		let target = entry;
-		if (levelGroupVariables.includes(entry) && levelGroups[entry]) {
-			const level = pickDefaultLevel(levelGroups[entry]);
+		if (levelGroupVariables.includes(entry) && $levelGroups[entry]) {
+			const level = pickDefaultLevel($levelGroups[entry]);
 			if (!level) return;
 			target = level;
 		}
@@ -39,7 +36,7 @@
 	};
 </script>
 
-<Dialog.Root bind:open onOpenChange={(value) => vSO.set(value)}>
+<Dialog.Root bind:open={$vSO}>
 	<Dialog.Content
 		class="bg-glass/85! z-100 gap-0 rounded border-none p-0 backdrop-blur-sm sm:max-w-100"
 		showCloseButton={false}
@@ -53,7 +50,7 @@
 				<Command.Empty>No variables found.</Command.Empty>
 				<Command.Group>
 					{#each variableList as entry (entry)}
-						{#if levelGroupVariables.includes(entry) || (!entry.includes('_v_') && !entry.includes('_direction'))}
+						{#if levelGroupVariables.includes(entry) || isStandaloneVariable(entry)}
 							<Command.Item
 								value={entry}
 								keywords={[variableLabel(entry)]}

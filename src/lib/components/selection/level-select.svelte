@@ -4,7 +4,6 @@
 	import { LEVEL_UNIT_REGEX } from '@openmeteo/weather-map-layer';
 
 	import { setPlainVariable } from '$lib/stores/chart';
-	import { metaJson } from '$lib/stores/time';
 	import {
 		level,
 		levelGroupSelected,
@@ -16,7 +15,7 @@
 	import * as Command from '$lib/components/ui/command';
 	import * as Popover from '$lib/components/ui/popover';
 
-	import { buildLevelGroups, scrollSelectedToTop } from './selection-utils';
+	import { isStandaloneVariable, levelGroups, scrollSelectedToTop } from './selection-utils';
 
 	interface Props {
 		/** Rendered inside the popular list, under its active row. */
@@ -25,35 +24,29 @@
 
 	let { nested = false }: Props = $props();
 
-	let open = $state(false);
-	pLSO.subscribe((value) => (open = value));
-
 	$effect(() => {
-		if (open) scrollSelectedToTop($variable);
+		if ($pLSO) scrollSelectedToTop($variable);
 	});
 
-	const levelGroups = $derived($metaJson ? buildLevelGroups($metaJson.variables) : undefined);
 	const entries = $derived(
-		levelGroups && $levelGroupSelected ? levelGroups[$levelGroupSelected.value] : undefined
+		$levelGroupSelected ? $levelGroups[$levelGroupSelected.value] : undefined
 	);
-	const usableEntries = $derived(
-		entries?.filter(({ value }) => !value.includes('v_component') && !value.includes('_direction'))
-	);
+	const usableEntries = $derived(entries?.filter(({ value }) => isStandaloneVariable(value)));
 </script>
 
 {#if usableEntries && usableEntries.length > 1}
-	<Popover.Root bind:open onOpenChange={(value) => pLSO.set(value)}>
+	<Popover.Root bind:open={$pLSO}>
 		<Popover.Trigger
-			class="hover:bg-primary/15 flex w-full cursor-pointer items-center justify-between gap-1 text-sm {open
+			class="hover:bg-primary/15 flex w-full cursor-pointer items-center justify-between gap-1 text-sm {$pLSO
 				? 'bg-primary/15'
 				: ''} {nested ? 'bg-primary/5 h-7 py-0.5 pr-3 pl-6' : 'h-7.5 px-3'}"
 			role="combobox"
 			data-level-select
-			aria-expanded={open}
+			aria-expanded={$pLSO}
 		>
 			<div class="flex items-center gap-2 truncate">
 				<span class="text-muted-foreground text-xs">Level</span>
-				{$level + ' ' + $unit || 'Select a level...'}
+				{$level && $unit ? `${$level} ${$unit}` : 'Select a level...'}
 			</div>
 			<ChevronsUpDownIcon class="size-4 shrink-0 opacity-50" />
 		</Popover.Trigger>

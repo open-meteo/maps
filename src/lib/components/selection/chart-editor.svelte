@@ -10,7 +10,7 @@
 
 	import { Input } from '$lib/components/ui/input';
 
-	import { variableSupportsArrows } from '$lib/chart-encoding';
+	import { sourceKey, variableSupportsArrows } from '$lib/chart-encoding';
 
 	import { variableLabel } from './selection-utils';
 	import SourceLevelSelect from './source-level-select.svelte';
@@ -70,7 +70,7 @@
 </script>
 
 <div class="flex flex-col gap-1 py-1 pb-1.5">
-	{#each $activeChart.sources as source, i (source.variable)}
+	{#each $activeChart.sources as source, i (sourceKey(source))}
 		{@const arrowsSupported = variableSupportsArrows(source.variable)}
 		<div class="flex h-6 items-center gap-1 pr-1 pl-3 text-sm">
 			<div class="truncate" title={source.variable}>

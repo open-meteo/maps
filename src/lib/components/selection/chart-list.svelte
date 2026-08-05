@@ -78,8 +78,10 @@
 		return groups;
 	});
 
-	const toggleGroup = (name: string) => {
-		openGroups.update((state) => ({ ...state, [name]: !state[name] }));
+	const toggleGroup = (name: string, defaultOpen = false) => {
+		// The default matters: groups rendered open-by-default ("My charts")
+		// would otherwise need two clicks for the first collapse
+		openGroups.update((state) => ({ ...state, [name]: !(state[name] ?? defaultOpen) }));
 	};
 </script>
 
@@ -141,7 +143,7 @@
 	{#if $savedCharts.charts.length}
 		<button
 			class="hover:bg-primary/10 text-foreground/85 flex h-7.5 w-full cursor-pointer items-center gap-1.5 px-2 text-[13px] font-medium"
-			onclick={() => toggleGroup('My charts')}
+			onclick={() => toggleGroup('My charts', true)}
 		>
 			<ChevronRightIcon
 				class="size-3.5 duration-200 {($openGroups['My charts'] ?? true) ? 'rotate-90' : ''}"
@@ -152,7 +154,7 @@
 		{#if $openGroups['My charts'] ?? true}
 			<div class="pb-1" transition:slide={{ duration: 200 }}>
 				{#each $savedCharts.charts as chart (chart.id)}
-					{@const active = $activeChart.name === chart.name}
+					{@const active = sourcesEqual($activeChart.sources, chart.sources)}
 					<div
 						class="hover:bg-primary/10 group flex w-full items-center justify-between gap-1.5 py-1 pr-3 pl-5 {active
 							? 'bg-primary/10'

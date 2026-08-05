@@ -12,13 +12,21 @@
  */
 import { chartPresets } from '$lib/chart-presets';
 
-import type { ChartPreset, ChartSource, ChartState } from '$lib/chart-types';
+import type { ChartPreset, ChartSource } from '$lib/chart-types';
 
 /**
  * Variables that can render arrows: the WML protocol only derives directions
  * for u/v components, speed/direction pairs and wave height/direction (see
  * DEFAULT_DERIVATION_RULES in weather-map-layer).
  */
+/**
+ * Unique identity of a source within a chart: variable plus optional domain
+ * (`temperature_2m` / `temperature_2m@dwd_icon_eps`). Used as URL merge key,
+ * render-channel key and popup lookup key; contains no colon.
+ */
+export const sourceKey = (source: Pick<ChartSource, 'variable' | 'domain'>): string =>
+	source.domain ? `${source.variable}@${source.domain}` : source.variable;
+
 export const variableSupportsArrows = (variable: string): boolean =>
 	/_[uv]_(component|current)/.test(variable) ||
 	/_(?:speed|direction)_/.test(variable) ||
@@ -86,7 +94,7 @@ export const parseSources = (raw: string): ChartSource[] | undefined => {
 		const source = parseSourceToken(token.trim());
 		if (!source) return undefined;
 
-		const key = source.domain ? `${source.variable}@${source.domain}` : source.variable;
+		const key = sourceKey(source);
 		const existing = byVariable.get(key);
 		if (existing) {
 			existing.raster ||= source.raster;
@@ -124,13 +132,6 @@ export const sourcesEqual = (a: ChartSource[], b: ChartSource[]): boolean =>
 /** Find the preset whose sources exactly match, if any. */
 export const matchPreset = (sources: ChartSource[]): ChartPreset | undefined =>
 	chartPresets.find((preset) => sourcesEqual(preset.sources, sources));
-
-/**
- * A chart expressible through the legacy URL params (`variable`, `arrows`,
- * `contours`, `interval`): a single source with raster enabled.
- */
-export const isPlainChart = (chart: ChartState): boolean =>
-	chart.sources.length === 1 && !!chart.sources[0].raster;
 
 export const cloneSources = (sources: ChartSource[]): ChartSource[] =>
 	sources.map((source) => ({ ...source }));

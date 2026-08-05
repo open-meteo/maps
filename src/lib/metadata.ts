@@ -20,7 +20,10 @@ import {
 } from '$lib/stores/time';
 import { domain as d, selectedDomain } from '$lib/stores/variables';
 
-import { firstPopularTarget } from '$lib/components/selection/selection-utils';
+import {
+	firstPopularTarget,
+	isStandaloneVariable
+} from '$lib/components/selection/selection-utils';
 
 import { fmtModelRun, getBaseUri } from './helpers';
 import { formatISOWithoutTimezone } from './time-format';
@@ -152,9 +155,7 @@ export const matchChartOrFallback = () => {
 	// Directions and v-components are useless as a standalone raster (and
 	// "wind" would otherwise match wind_wave_direction on marine domains)
 	const matched = prefix
-		? metaJson.variables.find(
-				(mv) => mv.startsWith(prefix) && !mv.includes('_direction') && !mv.includes('v_component')
-			)
+		? metaJson.variables.find((mv) => mv.startsWith(prefix) && isStandaloneVariable(mv))
 		: undefined;
 	if (matched) {
 		setPlainVariable(matched);
@@ -168,8 +169,6 @@ export const matchChartOrFallback = () => {
 	}
 	// e.g. cams greenhouse-gas domains serve no popular entry: pick the
 	// first variable that works as a standalone raster (not a direction)
-	const fallback = metaJson.variables.find(
-		(mv) => !mv.includes('_direction') && !mv.includes('v_component')
-	);
+	const fallback = metaJson.variables.find(isStandaloneVariable);
 	setPlainVariable(popular?.variable ?? fallback ?? metaJson.variables[0]);
 };

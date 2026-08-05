@@ -88,7 +88,9 @@
 			...scales,
 			[variable]: newScale
 		}));
-		$omProtocolSettings.colorScales[variable] = newScale;
+		// Replace wholesale, never mutate: the om URL builder memoizes the
+		// color hash by object identity
+		$omProtocolSettings.colorScales = { ...$omProtocolSettings.colorScales, [variable]: newScale };
 		await tick();
 		await changeOMfileURL();
 		toast('Changed color scale');
@@ -120,14 +122,13 @@
 <div class="relative flex items-end gap-0.5 select-none" style="max-height: {totalHeight + 100}px;">
 	<div class="flex flex-col-reverse rounded shadow-md">
 		<div class="flex flex-col-reverse bg-glass/30 backdrop-blur-sm rounded-b">
-			{#each labeledColors as lc, i (lc)}
+			{#each labeledColors as lc, i (lc.index)}
 				{@const alphaValue = getAlpha(lc.color)}
 				<button
 					type="button"
 					disabled={!editable && colorScale.type !== 'breakpoint'}
 					onclick={(e) => handleColorClick(i, e)}
-					style={`background: rgb({lc.color[0]}, {lc.color[1]}, {lc
-						.color[2]}); opacity: {alphaValue};min-width: ${compact ? 16 : 28}px; width: ${labelWidth}px; height: ${colorBlockHeight}px;`}
+					style={`min-width: ${compact ? 16 : 28}px; width: ${labelWidth}px; height: ${colorBlockHeight}px;`}
 					class="relative border-none outline-none transition-all {editable
 						? 'cursor-pointer hover:brightness-110 hover:z-10 hover:ring-3 hover:ring-white/65'
 						: 'cursor-default'} {editingIndex === i ? 'ring-2 ring-white/40  z-20' : ''}"
@@ -155,7 +156,7 @@
 
 		<!-- Labels column - positioned between buttons -->
 		<div class="flex flex-col-reverse" style="width: {labelWidth}px;">
-			{#each labeledColors as lc, i (lc)}
+			{#each labeledColors as lc, i (lc.index)}
 				{#if i > 0 && !(labeledColors.length > 20 && i % 2 === 1 && !desktop.current)}
 					<div
 						class="absolute flex items-center justify-center {compact

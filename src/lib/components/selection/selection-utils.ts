@@ -1,3 +1,5 @@
+import { derived } from 'svelte/store';
+
 import {
 	LEVEL_PREFIX,
 	LEVEL_REGEX,
@@ -5,12 +7,21 @@ import {
 	variableOptions
 } from '@openmeteo/weather-map-layer';
 
+import { metaJson } from '$lib/stores/time';
+
 import { type PopularVariable, getChartPreset, popularVariables } from '$lib/chart-presets';
 
 export interface VariableEntry {
 	value: string;
 	label: string;
 }
+
+/**
+ * A variable that works as a standalone raster: v-components/currents and
+ * directions only exist to derive vector data and are useless on their own.
+ */
+export const isStandaloneVariable = (value: string): boolean =>
+	!/_v_(?:component|current)/.test(value) && !value.includes('_direction');
 
 export const variableLabel = (value: string): string =>
 	variableOptions.find((option) => option.value === value)?.label ?? value;
@@ -76,6 +87,14 @@ export const buildLevelGroups = (metaVariables: string[]): Record<string, Variab
 };
 
 /**
+ * Level groups of the active domain, computed once per metadata change and
+ * shared by every selection component (several render it per row).
+ */
+export const levelGroups = derived(metaJson, ($metaJson) =>
+	$metaJson ? buildLevelGroups($metaJson.variables) : {}
+);
+
+/**
  * Scroll the selected Command item to the very top of its list once the
  * popover content has mounted. Call from `onOpenAutoFocus`.
  */
@@ -114,9 +133,7 @@ export const pickDefaultLevel = (
 	entries: VariableEntry[],
 	preferredLevel?: string
 ): string | undefined => {
-	const usable = entries.filter(
-		({ value }) => !value.includes('v_component') && !value.includes('_direction')
-	);
+	const usable = entries.filter(({ value }) => isStandaloneVariable(value));
 	if (!usable.length) return undefined;
 
 	if (preferredLevel) {

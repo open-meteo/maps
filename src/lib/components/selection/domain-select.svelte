@@ -10,21 +10,18 @@
 
 	import { scrollSelectedToTop } from './selection-utils';
 
-	let open = $state(false);
-	dSO.subscribe((value) => (open = value));
-
 	$effect(() => {
-		if (open) scrollSelectedToTop($selectedDomain.value);
+		if ($dSO) scrollSelectedToTop($selectedDomain.value);
 	});
 </script>
 
-<Popover.Root bind:open onOpenChange={(value) => dSO.set(value)}>
+<Popover.Root bind:open={$dSO}>
 	<Popover.Trigger
-		class="hover:bg-primary/10 flex h-8.5 w-full cursor-pointer items-center justify-between gap-1 rounded-t px-3 text-sm font-semibold {open
+		class="hover:bg-primary/10 flex h-8.5 w-full cursor-pointer items-center justify-between gap-1 rounded-t px-3 text-sm font-semibold {$dSO
 			? 'bg-primary/10'
 			: ''}"
 		role="combobox"
-		aria-expanded={open}
+		aria-expanded={$dSO}
 	>
 		<div class="truncate">
 			{$selectedDomain?.label || 'Select a domain...'}

@@ -16,6 +16,7 @@ import { map as m } from '$lib/stores/map';
 import { loading, opacity, preferences as p } from '$lib/stores/preferences';
 import { vectorOptions as vO } from '$lib/stores/vector';
 
+import { sourceKey } from '$lib/chart-encoding';
 import {
 	BEFORE_LAYER_RASTER,
 	BEFORE_LAYER_VECTOR,
@@ -58,7 +59,7 @@ const buildChannels = (): FrameChannel[] | undefined => {
 		if (source.raster) {
 			channels.push(
 				rasterChannel(
-					source.variable,
+					sourceKey(source),
 					url,
 					getRasterOpacity() * (source.opacity ?? 1),
 					rasterBefore
@@ -67,7 +68,7 @@ const buildChannels = (): FrameChannel[] | undefined => {
 		}
 		if (source.contours || source.arrows || vectorOptions.grid) {
 			channels.push(
-				vectorChannel(source.variable, url, {
+				vectorChannel(sourceKey(source), url, {
 					contours: !!source.contours,
 					arrows: !!source.arrows,
 					grid: vectorOptions.grid,
@@ -135,15 +136,15 @@ export const changeOMfileURL = (): void => {
 };
 
 /**
- * om:// source URL per variable of the currently visible frame, in chart
- * source order (used by the popup to sample values).
+ * om:// source URL per source key (`variable` or `variable@domain`) of the
+ * currently visible frame, in chart source order (used by the popup).
  */
 export const getActiveOmUrls = (): Map<string, string> => {
 	const urls = new Map<string, string>();
 	for (const channel of frameManager?.getActiveChannels() ?? []) {
-		// Channel keys are `${variable}:kind:...`; variables contain no colon
-		const variable = channel.key.slice(0, channel.key.indexOf(':'));
-		if (!urls.has(variable)) urls.set(variable, channel.url);
+		// Channel keys are `${sourceKey}:kind:...`; source keys contain no colon
+		const key = channel.key.slice(0, channel.key.indexOf(':'));
+		if (!urls.has(key)) urls.set(key, channel.url);
 	}
 	return urls;
 };
