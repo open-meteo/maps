@@ -126,6 +126,25 @@ export class FrameManager {
 	}
 
 	/**
+	 * Re-point every resident layer anchored at `from` to `to`. Insertion
+	 * points are recorded at frame build time, so when the surrounding basemap
+	 * stack changes without a style reload (the hillshade toggle), existing
+	 * frames must be moved rather than rebuilt — a pure z-order change should
+	 * not cost a cross-fade.
+	 */
+	reanchor(from: string, to: string): void {
+		for (const frame of this.frames.values()) {
+			for (const layer of frame.layers) {
+				if (layer.beforeLayer !== from) continue;
+				layer.beforeLayer = to;
+				if (this.map.getLayer(layer.layerId) && this.map.getLayer(to)) {
+					this.map.moveLayer(layer.layerId, to);
+				}
+			}
+		}
+	}
+
+	/**
 	 * Show the frame described by `channels`, building it when needed. The
 	 * previous frame stays visible until every channel of the new frame has
 	 * loaded, then both cross-fade.
@@ -227,9 +246,11 @@ export class FrameManager {
 	/** Move the frame's layers to the top of their respective om stacks. */
 	private raiseFrame(frame: Frame): void {
 		for (const { layerId, beforeLayer } of frame.layers) {
-			if (this.map.getLayer(layerId)) {
-				this.map.moveLayer(layerId, beforeLayer);
-			}
+			if (!this.map.getLayer(layerId)) continue;
+			// A missing anchor would raise the layer to the very top (above
+			// labels) and fire an error event; leaving it in place is safer.
+			if (beforeLayer && !this.map.getLayer(beforeLayer)) continue;
+			this.map.moveLayer(layerId, beforeLayer);
 		}
 	}
 

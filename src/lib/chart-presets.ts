@@ -33,7 +33,7 @@ export const chartPresets: ChartPreset[] = [
 	},
 	{
 		id: 'z500_t500',
-		label: '500 hPa Temperature + Geopotential ',
+		label: '500 hPa Temperature + Geopotential',
 		description: '500 hPa temperature under height contours',
 		group: 'Synoptic',
 		sources: [

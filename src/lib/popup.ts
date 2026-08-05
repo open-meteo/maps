@@ -175,7 +175,6 @@ const updateExtraSources = async (coordinates: maplibregl.LngLat): Promise<void>
 					coordinates.lng,
 					activeUrls.get(source.variable) as string
 				);
-				if (!isFinite(value)) return undefined;
 				const colorScale = getColorScale(
 					source.variable,
 					mode.current === 'dark',

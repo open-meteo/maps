@@ -133,7 +133,7 @@
 		changeOMfileURL();
 	});
 
-	// An EPS chart source can only render once the sibling's metadata is in
+	// An EPS chart source can only render once the sibling's metadata has loaded.
 	const epsSubscription = epsMeta.subscribe((meta) => {
 		if (meta) changeOMfileURL();
 	});

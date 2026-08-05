@@ -107,6 +107,20 @@ export const addOmFileLayers = (): void => {
 };
 
 /**
+ * Move all resident raster stacks (and inline vectors, which share the
+ * anchor) to the insertion point matching the current hillshade preference.
+ * Called by the hillshade toggle, which changes the basemap stack without a
+ * style reload.
+ */
+export const reanchorRasterLayers = (): void => {
+	const hillshade = get(p).hillshade;
+	const [from, to] = hillshade
+		? [BEFORE_LAYER_RASTER, HILLSHADE_LAYER]
+		: [HILLSHADE_LAYER, BEFORE_LAYER_RASTER];
+	frameManager?.reanchor(from, to);
+};
+
+/**
  * Re-render the active chart. The frame manager deduplicates unchanged
  * render states, so this is safe to call on every store change.
  */
