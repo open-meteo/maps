@@ -70,6 +70,10 @@ export class SlotManager {
 		return source?.url;
 	}
 
+	getActiveSourceId(): string | undefined {
+		return this.activeSlot ? this.sourceId(this.activeSlot) : undefined;
+	}
+
 	setBeforeLayer(beforeLayer: string): void {
 		this.opts.beforeLayer = beforeLayer;
 	}

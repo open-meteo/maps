@@ -18,7 +18,7 @@ import { type SlotLayer, SlotManager } from '$lib/slot-manager';
 
 import { refreshPopup } from './popup';
 import { currentOmUrl } from './stores/om-url';
-import { getOMUrl } from './url';
+import { getOMUrl, getSunUrl } from './url';
 
 // =============================================================================
 // Expression helpers
@@ -238,12 +238,35 @@ const vectorContourLabelsLayer = (): SlotLayer => ({
 	}
 });
 
+const sunShadowLayer = (): SlotLayer => ({
+	id: 'sunShadowLayer',
+	opacityProp: 'raster-opacity',
+	// The shadow opacity is baked into the tile alpha, so the layer stays at 1.
+	commitOpacity: 1,
+	add: (map, sourceId, layerId, beforeLayer) => {
+		map.addLayer(
+			{
+				id: layerId,
+				type: 'raster',
+				source: sourceId,
+				paint: {
+					'raster-opacity': 0.0,
+					'raster-opacity-transition': { duration: 2, delay: 0 }
+				}
+			},
+			beforeLayer
+		);
+	}
+});
+
 // =============================================================================
 // Manager instances
 // =============================================================================
 
 export let rasterManager: SlotManager | undefined;
 export let vectorManager: SlotManager | undefined;
+export let sunManager: SlotManager | undefined;
+let currentSunUrl: string | undefined;
 
 export const createManagers = (): void => {
 	const map = get(m);
@@ -283,6 +306,51 @@ export const createManagers = (): void => {
 		sourceSpec: (sourceUrl) => ({ url: sourceUrl, type: 'vector' }),
 		removeDelayMs: 250
 	});
+
+	// Sun cycle shadow above the weather layers, below the place labels
+	sunManager = new SlotManager(map, {
+		sourceIdPrefix: 'sunShadowSource',
+		beforeLayer: BEFORE_LAYER_VECTOR,
+		layerFactory: () => [sunShadowLayer()],
+		sourceSpec: (sourceUrl) => ({ url: sourceUrl, type: 'raster' }),
+		removeDelayMs: 300
+	});
+	currentSunUrl = undefined;
+};
+
+export const updateSunLayer = (): void => {
+	if (!sunManager) return;
+	const sunUrl = getSunUrl();
+	if (sunUrl === currentSunUrl) return;
+	currentSunUrl = sunUrl;
+	lastSunPreviewUrl = undefined;
+	if (sunUrl) {
+		sunManager.update(sunUrl);
+	} else {
+		sunManager.destroy();
+	}
+};
+
+let lastSunPreviewUrl: string | undefined;
+
+// Retargets the active sun source to another moment (minute resolution) without
+// a slot swap — cheap enough to follow the time-selector hover. Passing null
+// snaps back to the selected time. Uses setUrl, not setTiles: for url-based
+// sources the tilejson refetch would restore the old template over setTiles.
+export const previewSunTime = (date: Date | null): void => {
+	const map = get(m);
+	if (!map || !sunManager || !currentSunUrl) return;
+
+	const sunUrl = getSunUrl(date ?? undefined);
+	if (!sunUrl || sunUrl === lastSunPreviewUrl) return;
+
+	const sourceId = sunManager.getActiveSourceId();
+	if (!sourceId) return;
+	const source = map.getSource(sourceId) as maplibregl.RasterTileSource | undefined;
+	if (!source) return;
+
+	lastSunPreviewUrl = sunUrl;
+	source.setUrl(sunUrl);
 };
 
 // =============================================================================
@@ -296,6 +364,7 @@ export const addOmFileLayers = (): void => {
 	createManagers();
 	rasterManager?.update('om://' + omUrl);
 	vectorManager?.update('om://' + omUrl);
+	updateSunLayer();
 };
 
 export const changeOMfileURL = (vectorOnly = false, rasterOnly = false): void => {
@@ -316,4 +385,5 @@ export const changeOMfileURL = (vectorOnly = false, rasterOnly = false): void =>
 
 	if (!vectorOnly) rasterManager?.update('om://' + omUrl);
 	if (!rasterOnly) vectorManager?.update('om://' + omUrl);
+	updateSunLayer();
 };
