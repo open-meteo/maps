@@ -101,8 +101,12 @@ describe('serializeSources / parseSources', () => {
 		expect(parseSources('')).toBeUndefined();
 	});
 
-	it('rejects charts that render nothing', () => {
-		expect(parseSources('temperature_2m:')).toBeUndefined();
+	it('keeps a source that draws nothing, and round-trips it', () => {
+		// Every layer type can be switched off in the chart editor, so the state
+		// has to survive the URL
+		const sources = parseSources('temperature_2m:');
+		expect(sources).toEqual([{ variable: 'temperature_2m' }]);
+		expect(serializeSources(sources!)).toBe('temperature_2m:');
 	});
 });
 
