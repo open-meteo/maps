@@ -50,7 +50,13 @@ export interface Preferences {
 	showScale: boolean;
 }
 
-export const preferences = persisted('preferences', defaultPreferences);
+// Same default-merge as vectorOptions: keys added after a visitor's
+// localStorage was written must not read back as undefined
+export const preferences = persisted<Preferences, Partial<Preferences>>(
+	'preferences',
+	defaultPreferences,
+	{ beforeRead: (stored) => ({ ...defaultPreferences, ...stored }) }
+);
 
 // URL object containing current url states setings and flags
 export const url: Writable<URL> = writable();
