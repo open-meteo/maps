@@ -2,11 +2,14 @@ import { persisted } from 'svelte-persisted-store';
 
 import { DEFAULT_VECTOR_OPTIONS } from '$lib/constants';
 
+import type { ArrowStyle } from '@openmeteo/weather-map-layer';
+
 export const defaultVectorOptions = DEFAULT_VECTOR_OPTIONS;
 
 export interface VectorOptions {
 	grid: boolean;
 	arrows: boolean;
+	arrowStyle: ArrowStyle;
 	contours: boolean;
 	breakpoints: boolean;
 	contourInterval: number;
