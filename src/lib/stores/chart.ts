@@ -105,8 +105,8 @@ export const applyVectorDefaultsToActiveChart = (): void => {
 
 /**
  * Settings sheet contour switch: toggle contours on every source, the way the
- * arrows switch below does. A source that draws nothing else keeps its
- * contours, since a source with no layer at all would render as nothing.
+ * arrows switch below does. A source left drawing nothing is fine; that is a
+ * state the chart editor can produce too.
  */
 export const setContoursOnActiveChart = (enabled: boolean): void => {
 	const chart = get(activeChart);
@@ -115,7 +115,6 @@ export const setContoursOnActiveChart = (enabled: boolean): void => {
 	let changed = false;
 	for (const source of sources) {
 		if (!!source.contours === enabled) continue;
-		if (!enabled && !source.raster && !source.arrows) continue;
 		source.contours = enabled || undefined;
 		source.contourInterval = enabled && !vo.breakpoints ? vo.contourInterval : undefined;
 		changed = true;
