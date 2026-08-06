@@ -17,6 +17,8 @@
 
 	import { refreshPopup } from '$lib/popup';
 
+	import SettingsSection from './settings-section.svelte';
+
 	const temperatureOptions: { value: TemperatureUnit; label: string }[] = [
 		{ value: '°C', label: 'Celsius (°C)' },
 		{ value: '°F', label: 'Fahrenheit (°F)' }
@@ -44,8 +46,7 @@
 	}
 </script>
 
-<div>
-	<h2 class="text-lg font-bold">Units</h2>
+<SettingsSection title="Units">
 	<div class="mt-3 flex flex-col gap-3">
 		<div class="flex items-center gap-3">
 			<Label class="w-28 shrink-0">Temperature</Label>
@@ -156,4 +157,4 @@
 			</Select.Root>
 		</div>
 	</div>
-</div>
+</SettingsSection>

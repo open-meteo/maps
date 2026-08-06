@@ -72,6 +72,8 @@ const buildChannels = (): FrameChannel[] | undefined => {
 					contours: !!source.contours,
 					arrows: !!source.arrows,
 					arrowStyle: vectorOptions.arrowStyle,
+					arrowRender: vectorOptions.arrowRender,
+					arrowIconScale: vectorOptions.arrowIconScale,
 					grid: vectorOptions.grid,
 					dark,
 					// Inline vectors join the raster stack right above their own
