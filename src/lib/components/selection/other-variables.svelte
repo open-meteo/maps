@@ -6,7 +6,7 @@
 	import { levelGroupVariables } from '@openmeteo/weather-map-layer';
 	import { persisted } from 'svelte-persisted-store';
 
-	import { activeChart, isDefaultsPlainChart, setPlainVariable } from '$lib/stores/chart';
+	import { activeChart, isSingleVariableChart, setPlainVariable } from '$lib/stores/chart';
 	import { metaJson } from '$lib/stores/time';
 	import { domain, levelGroupSelected, variable } from '$lib/stores/variables';
 
@@ -67,7 +67,7 @@
 	});
 
 	const isActive = (entry: { id: string; target: string }): boolean => {
-		if (!isDefaultsPlainChart($activeChart)) return false;
+		if (!isSingleVariableChart($activeChart)) return false;
 		if (levelGroupVariables.includes(entry.id)) return $levelGroupSelected?.value === entry.id;
 		return $variable === entry.id;
 	};
@@ -89,7 +89,7 @@
 	const popularRowActive = (): boolean =>
 		popularVariables.some((entry) => {
 			if (entry.presetId && $activeChart.presetId === entry.presetId) return true;
-			if (!isDefaultsPlainChart($activeChart)) return false;
+			if (!isSingleVariableChart($activeChart)) return false;
 			if (entry.levelGroup) return $levelGroupSelected?.value === entry.id;
 			// Preset-backed rows also stand in for their plain variable
 			return $variable === entry.id;

@@ -5,7 +5,7 @@
 	import ChevronLeftIcon from '@lucide/svelte/icons/chevron-left';
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 
-	import { activeChart, addSource, isDefaultsPlainChart } from '$lib/stores/chart';
+	import { activeChart, addSource, isSingleVariableChart } from '$lib/stores/chart';
 	import { desktop } from '$lib/stores/preferences';
 	import { metaJson } from '$lib/stores/time';
 	import {
@@ -79,7 +79,7 @@
 	// the popular and the all-variables list render it under their matching
 	// row; the selector itself hides when there is nothing to pick.
 	const levelHostId = $derived.by(() => {
-		if (!isDefaultsPlainChart($activeChart)) return undefined;
+		if (!isSingleVariableChart($activeChart)) return undefined;
 		return $levelGroupSelected?.value ?? $variable;
 	});
 </script>

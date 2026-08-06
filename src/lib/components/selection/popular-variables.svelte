@@ -6,7 +6,7 @@
 	import {
 		activeChart,
 		applyPreset,
-		isDefaultsPlainChart,
+		isSingleVariableChart,
 		setPlainVariable,
 		setSources
 	} from '$lib/stores/chart';
@@ -82,7 +82,7 @@
 	const isActive = (entry: PopularEntry): boolean => {
 		if (entry.sources) return sourcesEqual($activeChart.sources, entry.sources);
 		if (entry.presetId) return $activeChart.presetId === entry.presetId;
-		if (!isDefaultsPlainChart($activeChart)) return false;
+		if (!isSingleVariableChart($activeChart)) return false;
 		if (entry.levelGroup) return $levelGroupSelected?.value === entry.id;
 		return $variable === entry.id;
 	};
