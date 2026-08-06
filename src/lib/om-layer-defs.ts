@@ -3,6 +3,7 @@
  * FrameManager channels that render it. All inputs (urls, styles, dark mode,
  * insertion points) are explicit parameters — no store reads at add time.
  */
+import { registerWindSprites, windIconExpression, windRotateExpression } from '$lib/arrow-sprites';
 import {
 	buildArrowColorExpr,
 	buildArrowWidthExpr,
@@ -14,7 +15,7 @@ import {
 } from '$lib/chart-styles';
 
 import type { ChannelLayerDef, FrameChannel } from '$lib/frame-manager';
-import type { ArrowStyle } from '@openmeteo/weather-map-layer';
+import type { ArrowRender, ArrowStyle } from '@openmeteo/weather-map-layer';
 import type * as maplibregl from 'maplibre-gl';
 
 /** Opacity fade duration; matches the FrameManager cross-fade. */
@@ -70,6 +71,10 @@ export interface VectorChannelOptions {
 	arrows: boolean;
 	/** Shape of the arrows; barbs are styled differently to stay readable. */
 	arrowStyle: ArrowStyle;
+	/** Tile geometry (grows with the zoom) or constant-size map symbols. */
+	arrowRender: ArrowRender;
+	/** Icon size multiplier, for the icon renderer. */
+	arrowIconScale?: number;
 	grid: boolean;
 	dark: boolean;
 	beforeLayer: string;
@@ -90,11 +95,53 @@ export const vectorChannel = (
 	url: string,
 	options: VectorChannelOptions
 ): FrameChannel => {
-	const { contours, arrows, arrowStyle, grid, dark, beforeLayer } = options;
+	const { contours, arrows, arrowStyle, arrowRender, grid, dark, beforeLayer } = options;
 	const lineWidth = options.lineWidth ?? 1;
+	const iconScale = options.arrowIconScale ?? 1;
 	const layers: ChannelLayerDef[] = [];
 
-	if (arrows) {
+	if (arrows && arrowRender === 'icon') {
+		// One symbol per sampled point: the shape lives in the sprite, so it
+		// keeps its size on screen. Every point is drawn, since collision
+		// thinning would drop diagonal icons more often than upright ones (a
+		// rotated icon's axis-aligned box is larger) and the density would then
+		// depend on the wind direction.
+		layers.push({
+			id: 'arrow-icons',
+			opacityProp: 'icon-opacity',
+			peakOpacity: 1,
+			beforeLayer,
+			add: (map, sourceId, layerId, before) => {
+				registerWindSprites(map, arrowStyle, dark, iconScale);
+				map.addLayer(
+					{
+						id: layerId,
+						type: 'symbol',
+						source: sourceId,
+						'source-layer': 'wind-points',
+						layout: {
+							'icon-image': windIconExpression(arrowStyle, dark, iconScale),
+							'icon-rotate': windRotateExpression(arrowStyle),
+							'icon-rotation-alignment': 'map',
+							'icon-allow-overlap': true,
+							// Kept out of the collision index entirely, so they
+							// neither thin each other nor hide the basemap labels
+							'icon-ignore-placement': true,
+							// Stronger winds draw over weaker ones where they touch
+							'symbol-sort-key': ['-', 0, ['get', 'value']]
+						},
+						paint: {
+							'icon-opacity': 0,
+							'icon-opacity-transition': { duration: FADE_MS, delay: 0 }
+						}
+					},
+					before
+				);
+			}
+		});
+	}
+
+	if (arrows && arrowRender !== 'icon') {
 		const barbs = arrowStyle === 'barb';
 		layers.push({
 			id: 'arrows',
@@ -249,7 +296,7 @@ export const vectorChannel = (
 	return {
 		// Line width, arrow shape and stack placement are part of the identity,
 		// like raster opacity
-		key: `${sourceKey}:vector:${lineWidth}:${arrowStyle}${options.inline ? ':inline' : ''}`,
+		key: `${sourceKey}:vector:${lineWidth}:${arrowStyle}:${arrowRender}:${iconScale}${options.inline ? ':inline' : ''}`,
 		url,
 		sourceSpec: { type: 'vector', url },
 		layers
