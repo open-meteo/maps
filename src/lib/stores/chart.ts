@@ -23,8 +23,15 @@ interface SavedChartsState {
 }
 
 /** First raster source, else the first source: drives legend, popup, prefetch. */
-export const pickPrimaryVariable = (chart: ChartState): string =>
-	(chart.sources.find((source) => source.raster) ?? chart.sources[0]).variable;
+export const pickPrimarySource = (chart: ChartState): ChartSource =>
+	chart.sources.find((source) => source.raster) ?? chart.sources[0];
+
+/**
+ * Variable of the primary source. Note this drops the domain of a
+ * cross-domain (EPS) source: anything addressing data needs `pickPrimarySource`
+ * and its `sourceKey` instead.
+ */
+export const pickPrimaryVariable = (chart: ChartState): string => pickPrimarySource(chart).variable;
 
 /** A single-source chart for `v`, applying the persisted vector defaults. */
 export const plainChartFor = (v: string): ChartState => {
@@ -148,10 +155,15 @@ export const addSource = (v: string): void => {
 	const chart = get(activeChart);
 	if (chart.sources.some((source) => source.variable === v)) return;
 	const sources = cloneSources(chart.sources);
-	// Second field defaults to contours when a raster fill is already shown
+	const arrows = get(vectorOptions).arrows && variableSupportsArrows(v);
+	// Second field defaults to contours when a raster fill is already shown,
+	// except for variables carrying directions: those default to arrows
 	const source: ChartSource = sources.some((s) => s.raster)
-		? { variable: v, contours: true }
+		? arrows
+			? { variable: v, arrows: true }
+			: { variable: v, contours: true }
 		: { variable: v, raster: true };
+	if (arrows) source.arrows = true;
 	sources.push(source);
 	activeChart.set(withChartMeta({ sources }));
 };

@@ -14,11 +14,11 @@ import {
 import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
 
-import { chartSources } from '$lib/stores/chart';
+import { activeChart, chartSources, pickPrimarySource } from '$lib/stores/chart';
 import { map as m, popup as p, popupMode } from '$lib/stores/map';
 import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 import { convertValue, getDisplayUnit, unitPreferences } from '$lib/stores/units';
-import { selectedDomain, variable as v } from '$lib/stores/variables';
+import { selectedDomain } from '$lib/stores/variables';
 
 import { sourceKey } from './chart-encoding';
 import { textWhite } from './helpers';
@@ -148,18 +148,21 @@ const adjustStemForExtras = (): void => {
 
 /**
  * Values of the chart's secondary sources (everything except the primary
- * variable shown in the coloured chip), one `label value unit` line each.
+ * source shown in the coloured chip), one `label value unit` line each.
  * `seq` drops the DOM write when a newer update superseded this one.
  */
-const updateExtraSources = async (coordinates: maplibregl.LngLat, seq: number): Promise<void> => {
+const updateExtraSources = async (
+	coordinates: maplibregl.LngLat,
+	primaryKey: string,
+	seq: number
+): Promise<void> => {
 	if (!extrasDiv) return;
 
-	// The primary is always a plain source, so its key is the bare variable;
-	// a same-variable source from another domain (EPS) still counts as extra.
-	const primary = get(v);
+	// Keyed, not by variable: a same-variable source from another domain (EPS)
+	// is a source of its own and still counts as extra.
 	const activeUrls = getActiveOmUrls();
 	const extras = get(chartSources).filter(
-		(source) => sourceKey(source) !== primary && activeUrls.has(sourceKey(source))
+		(source) => sourceKey(source) !== primaryKey && activeUrls.has(sourceKey(source))
 	);
 
 	if (!extras.length) {
@@ -230,13 +233,17 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 	const elevation = map?.queryTerrainElevation(coordinates);
 	const hasElevation = typeof elevation === 'number' && isFinite(elevation);
 
-	const activeUrl = getActiveOmUrls().get(get(v));
+	// The primary source, not the `variable` store: an EPS source keeps its
+	// domain, and its data is keyed `variable@domain`
+	const primary = pickPrimarySource(get(activeChart));
+	const primaryKey = sourceKey(primary);
+	const activeUrl = getActiveOmUrls().get(primaryKey);
 	if (!activeUrl) return;
 
 	// Primary value and extra lines resolve concurrently
 	const [{ value }] = await Promise.all([
 		getValueFromLatLong(coordinates.lat, coordinates.lng, activeUrl),
-		updateExtraSources(coordinates, seq)
+		updateExtraSources(coordinates, primaryKey, seq)
 	]);
 	if (seq !== popupUpdateSeq) return;
 
@@ -260,7 +267,7 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 		}
 
 		const isDark = mode.current === 'dark';
-		const colorScale = getColorScale(get(v), isDark, omProtocolSettingsState.colorScales);
+		const colorScale = getColorScale(primary.variable, isDark, omProtocolSettingsState.colorScales);
 		const color = getColor(colorScale, value);
 
 		const popupOpacity =
