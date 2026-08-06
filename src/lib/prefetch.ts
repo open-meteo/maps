@@ -137,8 +137,7 @@ export const prefetchData = async (
 			const url = `${uri}/${domain}/${fmtModelRun(modelRun)}/${fmtSelectedTime(timeStep)}.om`;
 
 			try {
-				await omFileReader.setToOmFile(url);
-				await omFileReader.prefetchVariable(variable, ranges, signal);
+				await omFileReader.prefetchVariableFromFile(url, variable, ranges, signal);
 				return true;
 			} catch {
 				// Silently continue on errors

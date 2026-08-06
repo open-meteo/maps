@@ -2,6 +2,14 @@ import { get } from 'svelte/store';
 
 import { type DomainMetaDataJson, VARIABLE_PREFIX } from '@openmeteo/weather-map-layer';
 
+import {
+	activeChart,
+	applyPreset,
+	pickPrimaryVariable,
+	setPlainVariable,
+	setSources
+} from '$lib/stores/chart';
+import { EPS_SIBLINGS, loadEpsMeta } from '$lib/stores/eps';
 import { loading } from '$lib/stores/preferences';
 import {
 	inProgress as iP,
@@ -10,7 +18,12 @@ import {
 	modelRun as mR,
 	time as t
 } from '$lib/stores/time';
-import { domain as d, selectedDomain, variable as v } from '$lib/stores/variables';
+import { domain as d, selectedDomain } from '$lib/stores/variables';
+
+import {
+	firstPopularTarget,
+	isStandaloneVariable
+} from '$lib/components/selection/selection-utils';
 
 import { fmtModelRun, getBaseUri } from './helpers';
 import { formatISOWithoutTimezone } from './time-format';
@@ -95,6 +108,7 @@ export const getMetaData = async (): Promise<DomainMetaDataJson> => {
 // metadata was being fetched, so we don't commit another domain's
 // metadata/time.
 export const loadDomainMetaData = async (newDomain: string) => {
+	void loadEpsMeta(newDomain);
 	await getInitialMetaData();
 	if (get(d) !== newDomain) return;
 	const meta = await getMetaData();
@@ -106,20 +120,55 @@ export const loadDomainMetaData = async (newDomain: string) => {
 	t.set(timeStep);
 	updateUrl('time', formatISOWithoutTimezone(timeStep));
 
-	matchVariableOrFirst();
+	matchChartOrFallback();
 };
 
-export const matchVariableOrFirst = () => {
-	const variable = get(v);
+/**
+ * After a domain switch, keep only the chart sources the new domain actually
+ * serves. When nothing survives, fall back to a plain chart via a
+ * prefix-match on the primary variable (keeps the variable family, e.g.
+ * temperature_2m → temperature_850hPa); when even that fails, to the first
+ * popular entry the domain serves (typically temperature), else the first
+ * plottable variable rather than an arbitrary one.
+ */
+export const matchChartOrFallback = () => {
 	const metaJson = get(mJ);
-	if (!metaJson || metaJson.variables.includes(variable)) return;
+	if (!metaJson) return;
 
-	let matched: string | undefined;
-	const prefix = variable.match(VARIABLE_PREFIX)?.groups?.prefix;
+	const chart = get(activeChart);
+	// Cross-domain (EPS) sources survive when they still point at the new
+	// domain's sibling; their variables are never in the main meta.json.
+	const surviving = chart.sources.filter((source) =>
+		source.domain
+			? source.domain === EPS_SIBLINGS[get(d)]
+			: metaJson.variables.includes(source.variable)
+	);
+	if (surviving.length === chart.sources.length) return;
 
-	if (prefix) {
-		matched = metaJson.variables.find((mv) => mv.startsWith(prefix));
+	if (surviving.length > 0) {
+		setSources(surviving);
+		return;
 	}
 
-	v.set(matched ?? metaJson.variables[0]);
+	const primary = pickPrimaryVariable(chart);
+	const prefix = primary.match(VARIABLE_PREFIX)?.groups?.prefix;
+	// Directions and v-components are useless as a standalone raster (and
+	// "wind" would otherwise match wind_wave_direction on marine domains)
+	const matched = prefix
+		? metaJson.variables.find((mv) => mv.startsWith(prefix) && isStandaloneVariable(mv))
+		: undefined;
+	if (matched) {
+		setPlainVariable(matched);
+		return;
+	}
+
+	const popular = firstPopularTarget(metaJson.variables);
+	if (popular?.presetId) {
+		applyPreset(popular.presetId);
+		return;
+	}
+	// e.g. cams greenhouse-gas domains serve no popular entry: pick the
+	// first variable that works as a standalone raster (not a direction)
+	const fallback = metaJson.variables.find(isStandaloneVariable);
+	setPlainVariable(popular?.variable ?? fallback ?? metaJson.variables[0]);
 };

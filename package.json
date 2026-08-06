@@ -25,12 +25,13 @@
 		"lint": "prettier --check . && eslint .",
 		"test": "vitest",
 		"coverage": "vitest run --coverage",
-		"upgrade:ui": "npx shadcn-svelte@latest add button command dialog input kbd label popover select separator sheet sonner switch -y -o"
+		"upgrade:ui": "npx shadcn-svelte@latest add button command dialog input kbd label popover scroll-area select separator sheet sonner switch -y -o"
 	},
 	"devDependencies": {
+		"@internationalized/date": "^3.12.2",
 		"@lucide/svelte": "^1.23.0",
 		"@openmeteo/file-reader": "^0.0.16",
-		"@openmeteo/weather-map-layer": "^0.0.20",
+		"@openmeteo/weather-map-layer": "github:open-meteo/weather-map-layer#9eb5a5f4f3f874a664b43a845389b75218f81377",
 		"@sveltejs/adapter-static": "^3.0.8",
 		"@sveltejs/kit": "^2.69.1",
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
@@ -56,7 +57,7 @@
 		"svelte-persisted-store": "^0.12.0",
 		"svelte-sonner": "^1.1.0",
 		"tailwind-merge": "^3.6.0",
-		"tailwind-variants": "^3.2.2",
+		"tailwind-variants": "^3.3.0",
 		"tailwindcss": "^4.0.0",
 		"terra-draw": "^1.31.0",
 		"terra-draw-maplibre-gl-adapter": "^1.4.1",
