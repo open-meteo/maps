@@ -22,6 +22,7 @@ import { selectedDomain } from '$lib/stores/variables';
 
 import { sourceKey } from './chart-encoding';
 import { defaultArrowStyle } from './chart-styles';
+import { alphaOfCssColor, rescaleInto } from './color';
 import { textWhite } from './helpers';
 import { getActiveOmUrls } from './layers';
 import { terraDrawActive } from './stores/clipping';
@@ -72,19 +73,13 @@ const ARROW_LENGTH_ANCHORS: [speed: number, length: number][] = [
 	[20, 0.85]
 ];
 
-/** Alpha of an `rgb()`/`rgba()` string; 1 when it carries no alpha. */
-const alphaOf = (color: string): number => {
-	const parts = color.slice(color.indexOf('(') + 1, color.lastIndexOf(')')).split(',');
-	return parts.length > 3 ? Number(parts[3]) : 1;
-};
-
 /** Opacity and line width per speed, from the arrows layer's own style. */
 const arrowStyleAnchors = (dark: boolean): [speed: number, alpha: number, width: number][] =>
 	[...defaultArrowStyle.levels]
 		.sort((a, b) => a.minSpeed - b.minSpeed)
 		.map((level) => [
 			level.minSpeed,
-			alphaOf(dark ? level.darkColor : level.lightColor),
+			alphaOfCssColor(dark ? level.darkColor : level.lightColor),
 			level.width
 		]);
 
@@ -123,15 +118,13 @@ const rescaledRamp = (
 	anchors: number[][],
 	speed: number,
 	column: number,
-	[min, max]: [number, number]
-): number => {
-	const values = anchors.map((anchor) => anchor[column]);
-	const weakest = Math.min(...values);
-	const strongest = Math.max(...values);
-	const t =
-		strongest === weakest ? 1 : (rampAt(anchors, speed, column) - weakest) / (strongest - weakest);
-	return min + t * (max - min);
-};
+	range: [number, number]
+): number =>
+	rescaleInto(
+		rampAt(anchors, speed, column),
+		anchors.map((anchor) => anchor[column]),
+		range
+	);
 
 interface ArrowPose {
 	/** Continuous (unwrapped) degrees: see `arrowAngle`. */
