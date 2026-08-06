@@ -171,10 +171,17 @@ export const chartPresets: ChartPreset[] = [
 	},
 	{
 		id: 'cloud_cover',
-		label: 'Cloud Cover',
-		description: 'Total cloud cover',
+		label: 'Cloud Cover (High/Mid/Low)',
+		description: 'Cloud layers, blue over green over red',
 		group: 'Surface',
-		sources: [{ variable: 'cloud_cover', raster: true }]
+		// Painted top-down, so the low deck stays legible over the layers above
+		// it. Each level has its own colour scale; the opacities let a level
+		// show through the ones below even at full coverage.
+		sources: [
+			{ variable: 'cloud_cover_high', raster: true },
+			{ variable: 'cloud_cover_mid', raster: true, opacity: 0.85 },
+			{ variable: 'cloud_cover_low', raster: true, opacity: 0.75 }
+		]
 	},
 	// ── Precipitation ───────────────────────────────────────────────────
 	{
