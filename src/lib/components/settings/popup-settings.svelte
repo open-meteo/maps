@@ -11,12 +11,13 @@
 
 	import { renderPopup } from '$lib/popup';
 
+	import SettingsSection from './settings-section.svelte';
+
 	let popupOn = $state(!!$popupMode);
 	let popupModeDrag = $state(!!$popupMode && $popupMode === 'drag');
 </script>
 
-<div>
-	<h2 class="text-lg font-bold">Popup settings</h2>
+<SettingsSection title="Popup settings">
 	<div class="mt-3 flex gap-3">
 		<Switch
 			id="popup_on"
@@ -74,4 +75,4 @@
 				: 'Off'}</Label
 		>
 	</div>
-</div>
+</SettingsSection>

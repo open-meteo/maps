@@ -8,6 +8,14 @@ export const DEFAULT_VECTOR_OPTIONS = {
 	arrows: true,
 	// 'arrow' = plain arrow, 'barb' = station-model wind barbs
 	arrowStyle: 'arrow' as const,
+	// 'line' = tile geometry (scales with the zoom), 'icon' = map symbols
+	arrowRender: 'line' as const,
+	// Icon size multiplier and the spacing between icons, as a share of one.
+	// Tile geometry is drawn between 0.71x and 1.41x its nominal size through a
+	// zoom level, so an icon matching it exactly (scale 1) reads as small for
+	// most of that range; 1.2 sits nearer the size the geometry usually has.
+	arrowIconScale: 1.2,
+	arrowPacking: 0.85,
 	contours: false,
 	breakpoints: true,
 	contourInterval: 2

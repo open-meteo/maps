@@ -7,11 +7,12 @@
 	import { reloadStyles } from '$lib/map-controls';
 	import { updateUrl } from '$lib/url';
 
+	import SettingsSection from './settings-section.svelte';
+
 	const clipWater = $derived($preferences.clipWater);
 </script>
 
-<div>
-	<h2 class="text-lg font-bold">Clip Water</h2>
+<SettingsSection title="Clip Water">
 	<div class="mt-3 flex gap-3 cursor-pointer">
 		<Switch
 			id="arrows"
@@ -24,4 +25,4 @@
 		/>
 		<Label for="arrows">Clip Water {clipWater ? 'on' : 'off'}</Label>
 	</div>
-</div>
+</SettingsSection>
