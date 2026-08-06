@@ -207,6 +207,17 @@ export function buildArrowColorExpr(
 }
 
 /**
+ * The level a speed falls in, matching how the expressions below cascade:
+ * the highest level whose threshold the speed is past.
+ */
+export function arrowLevelFor(style: ArrowStyle, speed: number): ArrowLevel {
+	const sorted = [...style.levels].sort((a, b) => a.minSpeed - b.minSpeed);
+	let level = sorted[0];
+	for (const candidate of sorted) if (speed > candidate.minSpeed) level = candidate;
+	return level;
+}
+
+/**
  * Opacity range wind barbs are drawn over. They follow the arrow ramp's
  * progression, but a barb already spells its speed out in pennants and barbs,
  * so fading a slow one to the arrows' 0.2 only makes it unreadable.
