@@ -30,12 +30,7 @@
 	let showSaveInput = $state(false);
 	let saveName = $state('');
 
-	const layerCount = (source: ChartSource): number =>
-		(source.raster ? 1 : 0) + (source.contours ? 1 : 0) + (source.arrows ? 1 : 0);
-
 	const toggle = (index: number, source: ChartSource, key: 'raster' | 'contours' | 'arrows') => {
-		// A source must keep at least one layer type enabled
-		if (source[key] && layerCount(source) === 1) return;
 		updateSource(index, { [key]: !source[key] });
 		if (key !== 'raster') syncVectorSetting(key);
 	};

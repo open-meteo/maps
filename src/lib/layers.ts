@@ -132,8 +132,11 @@ export const changeOMfileURL = (): void => {
 	const map = get(m);
 	if (!map || !frameManager) return;
 
+	// `undefined` means a source is not ready yet; an empty list means the chart
+	// deliberately draws nothing, which the frame manager commits as a blank
+	// frame and fades the previous one out
 	const channels = buildChannels();
-	if (!channels || channels.length === 0) return;
+	if (!channels) return;
 
 	frameManager.show(channels);
 };

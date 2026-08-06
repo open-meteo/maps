@@ -111,7 +111,8 @@ export const parseSources = (raw: string): ChartSource[] | undefined => {
 
 	const sources = [...byVariable.values()];
 	if (!sources.length) return undefined;
-	if (!sources.some((s) => s.raster || s.contours || s.arrows)) return undefined;
+	// Sources that draw nothing are allowed: a chart can hold a variable with
+	// every layer type switched off, and `variable:` round-trips it
 	return sources;
 };
 
