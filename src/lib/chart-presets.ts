@@ -126,7 +126,7 @@ export const chartPresets: ChartPreset[] = [
 		group: 'Surface',
 		sources: [
 			{ variable: 'temperature_2m', raster: true },
-			{ variable: 'pressure_msl', contours: true, contourInterval: 5 }
+			{ variable: 'pressure_msl', contours: true, contourInterval: 2 }
 		]
 	},
 	{
@@ -136,7 +136,7 @@ export const chartPresets: ChartPreset[] = [
 		group: 'Surface',
 		sources: [
 			{ variable: 'wind_u_component_100m', raster: true, arrows: true },
-			{ variable: 'pressure_msl', contours: true, contourInterval: 5 }
+			{ variable: 'pressure_msl', contours: true, contourInterval: 2 }
 		]
 	},
 	{
@@ -156,7 +156,7 @@ export const chartPresets: ChartPreset[] = [
 		group: 'Surface',
 		sources: [
 			{ variable: 'cape', raster: true },
-			{ variable: 'pressure_msl', contours: true, contourInterval: 5 }
+			{ variable: 'pressure_msl', contours: true, contourInterval: 2 }
 		]
 	},
 	{
@@ -166,7 +166,7 @@ export const chartPresets: ChartPreset[] = [
 		group: 'Surface',
 		sources: [
 			{ variable: 'total_column_integrated_water_vapour', raster: true },
-			{ variable: 'pressure_msl', contours: true, contourInterval: 5 }
+			{ variable: 'pressure_msl', contours: true, contourInterval: 2 }
 		]
 	},
 	{
