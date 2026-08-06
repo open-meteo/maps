@@ -264,11 +264,21 @@ export const vectorChannel = (
 						source: sourceId,
 						'source-layer': 'contours',
 						layout: {
-							'symbol-placement': 'line-center',
-							'symbol-spacing': 1,
+							// `line`, not `line-center`: the latter tries the middle of
+							// the line and nowhere else, so a contour whose middle
+							// happens to wiggle gets no label at all. Repeating along
+							// the line gives every straight-enough stretch a chance.
+							'symbol-placement': 'line',
+							'symbol-spacing': 300,
+							// Contours from a quantized field change direction at
+							// almost every cell. The default 45° aborts placement
+							// there, which is why labels only appeared once a wiggle
+							// was longer than a glyph, i.e. zoomed far in.
+							'text-max-angle': 110,
 							'text-font': ['Noto Sans Regular'],
 							'text-field': ['to-string', ['get', 'value']],
-							'text-padding': 1,
+							'text-size': 11,
+							'text-padding': 2,
 							'text-offset': [0, -0.6]
 						},
 						paint: {
