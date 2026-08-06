@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
 
-	import { applyVectorDefaultsToActiveChart } from '$lib/stores/chart';
+	import { applyVectorDefaultsToActiveChart, setContoursOnActiveChart } from '$lib/stores/chart';
 	import { defaultVectorOptions, vectorOptions } from '$lib/stores/vector';
 
 	import { Input } from '$lib/components/ui/input';
@@ -38,6 +38,9 @@
 				updateUrl('contours', String(contours));
 
 				applyVectorDefaultsToActiveChart();
+				// Applies to every source, also on presets and saved charts, so the
+				// switch says the same thing as the toggles in the chart editor
+				setContoursOnActiveChart(contours);
 				changeOMfileURL();
 				toast.info('Contours turned ' + (contours ? 'on' : 'off'));
 			}}
