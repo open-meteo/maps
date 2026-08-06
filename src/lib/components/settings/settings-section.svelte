@@ -33,7 +33,9 @@
 		<ChevronDownIcon class="size-4 shrink-0 opacity-60 duration-200 {open ? '' : '-rotate-90'}" />
 	</button>
 	{#if open}
-		<div transition:slide={{ duration: 150 }}>
+		<!-- The room a section needs sits inside it: collapsed ones are only a
+			header, and the gap in the sheet no longer has to carry both cases -->
+		<div class="pb-4" transition:slide={{ duration: 150 }}>
 			{@render children()}
 		</div>
 	{/if}

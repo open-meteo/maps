@@ -29,7 +29,7 @@
 	// split down the middle so one half catches the light
 	const CARDINAL_RADIUS = 40;
 	const DIAGONAL_RADIUS = 33;
-	const BASE_RADIUS = 9;
+	const BASE_RADIUS = 12;
 	const star = [0, 45, 90, 135, 180, 225, 270, 315].map((angle) => {
 		const tip = polar(angle, angle % 90 === 0 ? CARDINAL_RADIUS : DIAGONAL_RADIUS);
 		return {
