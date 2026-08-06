@@ -6,6 +6,8 @@ export const DEFAULT_VARIABLE = 'temperature_2m';
 export const DEFAULT_VECTOR_OPTIONS = {
 	grid: false,
 	arrows: true,
+	// 'arrow' = plain arrow, 'barb' = station-model wind barbs
+	arrowStyle: 'arrow' as const,
 	contours: false,
 	breakpoints: true,
 	contourInterval: 2
