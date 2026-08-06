@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { get } from 'svelte/store';
+
 	import LayersIcon from '@lucide/svelte/icons/layers';
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import SaveIcon from '@lucide/svelte/icons/save';
@@ -7,10 +9,12 @@
 	import XIcon from '@lucide/svelte/icons/x';
 
 	import { activeChart, removeSource, saveCurrentChart, updateSource } from '$lib/stores/chart';
+	import { vectorOptions } from '$lib/stores/vector';
 
 	import { Input } from '$lib/components/ui/input';
 
 	import { sourceKey, variableSupportsArrows } from '$lib/chart-encoding';
+	import { updateUrl } from '$lib/url';
 
 	import { variableLabel } from './selection-utils';
 	import SourceLevelSelect from './source-level-select.svelte';
@@ -33,6 +37,19 @@
 		// A source must keep at least one layer type enabled
 		if (source[key] && layerCount(source) === 1) return;
 		updateSource(index, { [key]: !source[key] });
+		if (key !== 'raster') syncVectorSetting(key);
+	};
+
+	/**
+	 * Keep the settings sheet's switches saying what the chart shows: they are
+	 * the same settings, and they are what every variable picked from the list
+	 * inherits. Their URL params carry the same names.
+	 */
+	const syncVectorSetting = (key: 'contours' | 'arrows') => {
+		const on = get(activeChart).sources.some((source) => source[key]);
+		if ($vectorOptions[key] === on) return;
+		$vectorOptions[key] = on;
+		updateUrl(key, String(on));
 	};
 
 	const submitSave = () => {

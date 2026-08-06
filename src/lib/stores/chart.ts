@@ -103,6 +103,26 @@ export const applyVectorDefaultsToActiveChart = (): void => {
 	activeChart.set(plainChartFor(chart.sources[0].variable));
 };
 
+/**
+ * Settings sheet contour switch: toggle contours on every source, the way the
+ * arrows switch below does. A source that draws nothing else keeps its
+ * contours, since a source with no layer at all would render as nothing.
+ */
+export const setContoursOnActiveChart = (enabled: boolean): void => {
+	const chart = get(activeChart);
+	const vo = get(vectorOptions);
+	const sources = cloneSources(chart.sources);
+	let changed = false;
+	for (const source of sources) {
+		if (!!source.contours === enabled) continue;
+		if (!enabled && !source.raster && !source.arrows) continue;
+		source.contours = enabled || undefined;
+		source.contourInterval = enabled && !vo.breakpoints ? vo.contourInterval : undefined;
+		changed = true;
+	}
+	if (changed) activeChart.set(withChartMeta({ sources }));
+};
+
 /** Settings sheet arrows switch: toggle arrows on every capable source. */
 export const setArrowsOnActiveChart = (enabled: boolean): void => {
 	const chart = get(activeChart);
