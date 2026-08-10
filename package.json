@@ -16,6 +16,7 @@
 	],
 	"scripts": {
 		"dev": "vite dev",
+		"prebuild": "node scripts/assets.mjs pull shared",
 		"build": "vite build",
 		"preview": "vite preview --port 5173",
 		"prepare": "svelte-kit sync || echo ''",
