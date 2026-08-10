@@ -480,7 +480,7 @@ export const countryList: Country[] = [
 	{ name: 'Zimbabwe', code: 'ZW', filename: 'zimbabwe.json' }
 ];
 
-const GEOJSON_BASE_URL = 'https://map-assets.open-meteo.com/world-geojson/countries';
+const GEOJSON_BASE_URL = 'https://static-assets.open-meteo.com/map-assets/world-geojson/countries';
 
 /** Load GeoJSON for a specific country (caches on the country object). */
 export async function loadCountryGeoJson(country: Country): Promise<Country> {
