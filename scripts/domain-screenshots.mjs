@@ -19,6 +19,9 @@
  *   --skip-existing    don't overwrite files that already exist
  *   --satellites       capture the geostationary-satellite coverage view instead of the
  *                      domains, writing geostationary_satellites[_dark].webp
+ *   --best-match       capture the best_match region maps instead of the domains, writing
+ *                      best_match_regions_europe[_dark].webp and
+ *                      best_match_regions_world[_dark].webp
  *   --dark             capture the dark theme, writing <domain>_dark.webp
  *   --include-global   also capture global models (skipped by default)
  *   --include-seamless also capture the *_seamless composites (skipped by default)
@@ -75,7 +78,8 @@ const BOOLEAN_FLAGS = new Set([
 	'include-seamless',
 	'include-eps',
 	'include-upper-level',
-	'satellites'
+	'satellites',
+	'best-match'
 ]);
 const args = new Map();
 {
@@ -258,6 +262,38 @@ const run = async () => {
 	};
 
 	try {
+		// Best-match region maps: two framings of the same overlay (a Europe close-up where
+		// seven of the nine regions sit, and a world view that also covers North America and
+		// Japan), neither of which goes through the domain loop.
+		if (args.has('best-match')) {
+			// Frame sizes are chosen so fitBounds lands on VIEW_BOUNDS in both axes: Mercator
+			// stretches the far north badly, so the Europe close-up needs a near-square frame
+			// to hold 28°N–75°N at the same longitude span.
+			const VIEWS = {
+				europe: { width: 1240, height: 1160 },
+				world: { width: 1240, height: 860 }
+			};
+			for (const [view, size] of Object.entries(VIEWS)) {
+				const name = `best_match_regions_${view}${DARK ? '_dark' : ''}`;
+				await page.setViewportSize({
+					width: args.has('width') ? WIDTH : size.width,
+					height: args.has('height') ? HEIGHT : size.height
+				});
+				const url = `${base}/?screenshot=best-match&view=${view}`;
+				let ready = await loadDomain(url);
+				if (!ready) ready = await loadDomain(url);
+				await page.waitForTimeout(ready ? 600 : 1500);
+				const png = await page.screenshot({ type: 'png' });
+				await sharp(png)
+					.webp({ quality: Math.round(QUALITY * 100) })
+					.toFile(resolve(OUT_DIR, `${name}.webp`));
+				console.log(
+					`Best match (${view}) → ${name}.webp${ready ? '' : ' (captured without ready signal)'}`
+				);
+			}
+			return;
+		}
+
 		// Satellite-coverage view: a single wide-world capture, not the domain loop.
 		if (args.has('satellites')) {
 			const file = resolve(OUT_DIR, `geostationary_satellites${DARK ? '_dark' : ''}.webp`);

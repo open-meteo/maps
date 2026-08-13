@@ -40,6 +40,12 @@
 	import Settings from '$lib/components/settings/settings.svelte';
 	import TimeSelector from '$lib/components/time/time-selector.svelte';
 
+	import {
+		bestMatchView,
+		drawBestMatchRegions,
+		fitBestMatchView,
+		isBestMatchScreenshot
+	} from '$lib/best-match-screenshot';
 	import { checkHighDefinition } from '$lib/helpers';
 	import { addOmFileLayers, changeOMfileURL } from '$lib/layers';
 	import { addTerrainSource, getStyle, setMapControlSettings } from '$lib/map-controls';
@@ -73,12 +79,15 @@
 	// Screenshot mode (`?screenshot=1`) strips the UI and frames a single domain so
 	// screenshots can be captured reproducibly (see scripts/domain-screenshots.mjs).
 	const screenshot = isScreenshotMode();
-	// A special screenshot view that draws the geostationary satellites instead of a
-	// weather-model domain (see satellite-screenshot.ts). It needs no domain data or
-	// weather layers, so it runs a minimal self-contained setup and skips the rest.
+	// Special screenshot views that draw an overlay on the plain base map instead of a
+	// weather-model domain: the geostationary satellites (satellite-screenshot.ts) and the
+	// best_match region map (best-match-screenshot.ts). Neither needs domain data or
+	// weather layers, so they run a minimal self-contained setup and skip the rest.
 	const satelliteView = isSatelliteScreenshot();
+	const bestMatchRegionView = isBestMatchScreenshot();
+	const overlayView = satelliteView || bestMatchRegionView;
 
-	const setupSatelliteView = async () => {
+	const setupOverlayView = async () => {
 		const style = await getStyle();
 		$map = new maplibregl.Map({
 			container: mapContainer as HTMLElement,
@@ -92,8 +101,14 @@
 			maxPitch: 0
 		});
 		$map.on('load', () => {
-			fitSatelliteView($map);
-			drawSatelliteCoverage($map);
+			if (satelliteView) {
+				fitSatelliteView($map);
+				drawSatelliteCoverage($map);
+			} else {
+				const view = bestMatchView();
+				fitBestMatchView($map, view);
+				drawBestMatchRegions($map, view);
+			}
 			// There's no weather data to fetch here, but `loading` starts true; clear it so
 			// the screenshot readiness check (markReadyWhenSettled) can settle.
 			loading.set(false);
@@ -108,8 +123,8 @@
 		// Scopes screenshot-only styling (e.g. the smaller attribution, see styles.css).
 		if (screenshot) mapContainer?.classList.add('screenshot-mode');
 
-		if (satelliteView) {
-			await setupSatelliteView();
+		if (overlayView) {
+			await setupOverlayView();
 			return;
 		}
 
@@ -215,8 +230,8 @@
 		// warns about it), and if the fetch rejects (e.g. no network) the unhandled
 		// rejection kills the vite dev server.
 		if (!browser) return;
-		// The satellite screenshot view has no domain data to load.
-		if (satelliteView) return;
+		// The overlay screenshot views have no domain data to load.
+		if (overlayView) return;
 		if ($domain !== newDomain) {
 			await tick(); // await the selectedDomain to be set
 			updateUrl('domain', newDomain);
@@ -256,8 +271,8 @@
 	const variableSubscription = variable.subscribe(async (newVar) => {
 		// Client-side only, like the domain subscription above.
 		if (!browser) return;
-		// The satellite screenshot view has no weather layer to reconfigure.
-		if (satelliteView) return;
+		// The overlay screenshot views have no weather layer to reconfigure.
+		if (overlayView) return;
 		if ($variable !== newVar) {
 			await tick(); // await the selectedVariable to be set
 			updateUrl('variable', newVar);

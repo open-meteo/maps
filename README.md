@@ -42,6 +42,16 @@ npm run screenshots -- --only=dwd_icon_eu,ncep_hrrr_conus
 npm run screenshots -- --list               # print the domain list
 ```
 
+Two overlay figures ride along in the same script, drawn on the plain base map with no
+weather data: `--satellites` (geostationary satellite coverage, for the Satellite
+Radiation API docs) and `--best-match` (the regions the Forecast API's `best_match`
+model selection routes to, captured as a Europe close-up and a world view).
+
+```bash
+npm run screenshots -- --best-match         # best_match_regions_{europe,world}.webp
+npm run screenshots -- --best-match --dark  # …and the _dark variants
+```
+
 Global models and the `*_seamless` composites are skipped by default
 (`--include-global` / `--include-seamless` to include them). Size/quality/framing
 are tunable: `--width --height --scale --quality --padding`. Requires `playwright`
