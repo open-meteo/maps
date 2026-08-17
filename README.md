@@ -6,7 +6,7 @@
 
 A UI demo for the [Open-Meteo Weather Map Layer](https://github.com/open-meteo/weather-map-layer) — a MapLibre/Mapbox GL JS weather layer powered by Open-Meteo OMfiles.
 
-![Open-Meteo Maps UI example](./static/example.png)
+![Open-Meteo Maps UI example](https://static-assets.open-meteo.com/maps/media/example.png)
 
 ## About
 
