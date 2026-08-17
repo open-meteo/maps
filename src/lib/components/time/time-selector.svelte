@@ -24,7 +24,7 @@
 	} from '$lib/constants';
 	import { throttle } from '$lib/helpers';
 	import { changeOMfileURL } from '$lib/layers';
-	import { getMetaData } from '$lib/metadata';
+	import { getMetaData, tryGetMetaData } from '$lib/metadata';
 	import {
 		formatISOWithoutTimezone,
 		formatLocalDate,
@@ -306,10 +306,20 @@
 
 	// changes the selected model run and updates available time steps
 	const onModelRunChange = async (step: Date) => {
+		const previousModelRun = $modelRun;
+		const previousLocked = $modelRunLocked;
 		$loading = true;
 		$modelRunLocked = true;
 		$modelRun = step;
-		$metaJson = await getMetaData();
+		const meta = await tryGetMetaData();
+		if (!meta) {
+			// Failed load already toasted; put the selection back where it was
+			$modelRun = previousModelRun;
+			$modelRunLocked = previousLocked;
+			$loading = false;
+			return;
+		}
+		$metaJson = meta;
 
 		let closestTime = new SvelteDate($modelRun);
 		for (const vT of $metaJson.valid_times) {

@@ -1,6 +1,7 @@
 import { get } from 'svelte/store';
 
 import { type DomainMetaDataJson, VARIABLE_PREFIX } from '@openmeteo/weather-map-layer';
+import { toast } from 'svelte-sonner';
 
 import { loading } from '$lib/stores/preferences';
 import {
@@ -17,27 +18,40 @@ import { formatISOWithoutTimezone } from './time-format';
 import { findTimeStep } from './time-utils';
 import { updateUrl } from './url';
 
-export const getInitialMetaData = async () => {
+/**
+ * Load the domain's latest/in-progress run info. Returns false when the load
+ * failed (an error toast has been shown) or when the domain changed while the
+ * requests were in flight; callers must not continue to meta.json then.
+ */
+export const getInitialMetaData = async (): Promise<boolean> => {
 	const domain = get(selectedDomain);
 	const uri = getBaseUri(domain.value);
 
-	const [latestRes, inProgressRes] = await Promise.all([
-		fetch(`${uri}/${domain.value}/latest.json`),
-		fetch(`${uri}/${domain.value}/in-progress.json`)
-	]);
+	try {
+		const [latestRes, inProgressRes] = await Promise.all([
+			fetch(`${uri}/${domain.value}/latest.json`),
+			fetch(`${uri}/${domain.value}/in-progress.json`)
+		]);
 
-	// The domain may have changed while these requests were in flight (e.g. the
-	// initial persisted-domain load racing a URL-driven domain change). Discard the
-	// stale response so it can't clobber the current domain's metadata.
-	if (get(d) !== domain.value) return;
+		// The domain may have changed while these requests were in flight (e.g. the
+		// initial persisted-domain load racing a URL-driven domain change). Discard the
+		// stale response so it can't clobber the current domain's metadata.
+		if (get(d) !== domain.value) return false;
 
-	for (const res of [latestRes, inProgressRes]) {
-		if (!res.ok) {
-			loading.set(false);
-			throw new Error(`HTTP ${res.status}`);
+		for (const res of [latestRes, inProgressRes]) {
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
 		}
-		if (res.url.includes('latest.json')) l.set(await res.json());
-		if (res.url.includes('in-progress.json')) iP.set(await res.json());
+		l.set(await latestRes.json());
+		iP.set(await inProgressRes.json());
+		return true;
+	} catch (e) {
+		loading.set(false);
+		// Fixed id: the periodic refresh retries every few minutes, and a dead
+		// server should update the one toast rather than stack a new one
+		toast.error(`Could not load run info for ${domain.label}: ${(e as Error).message}`, {
+			id: 'run-info-error'
+		});
+		return false;
 	}
 };
 
@@ -88,17 +102,32 @@ export const getMetaData = async (): Promise<DomainMetaDataJson> => {
 	return result;
 };
 
+/**
+ * `getMetaData`, but a failed meta.json load surfaces as an error toast
+ * instead of an exception; returns undefined so callers can bail out.
+ */
+export const tryGetMetaData = async (): Promise<DomainMetaDataJson | undefined> => {
+	try {
+		return await getMetaData();
+	} catch (e) {
+		loading.set(false);
+		toast.error(`Could not load metadata: ${(e as Error).message}`, { id: 'metadata-error' });
+		return undefined;
+	}
+};
+
 // Full metadata refresh for a domain: fetches the latest/in-progress run info
 // and the run's meta.json, clamps the selected time to the valid times in the
 // metadata (falling back to the first valid time), and re-matches the
 // variable. Bails out if a newer domain change superseded this load while
 // metadata was being fetched, so we don't commit another domain's
-// metadata/time.
+// metadata/time, and when a load failed (already surfaced as an error toast),
+// so the map keeps running on whatever state it has.
 export const loadDomainMetaData = async (newDomain: string) => {
-	await getInitialMetaData();
+	if (!(await getInitialMetaData())) return;
 	if (get(d) !== newDomain) return;
-	const meta = await getMetaData();
-	if (get(d) !== newDomain) return;
+	const meta = await tryGetMetaData();
+	if (!meta || get(d) !== newDomain) return;
 	mJ.set(meta);
 
 	const timeSteps = meta.valid_times.map((validTime: string) => new Date(validTime));

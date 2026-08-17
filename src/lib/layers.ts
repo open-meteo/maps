@@ -265,7 +265,12 @@ export const createManagers = (): void => {
 			loading.set(false);
 			refreshPopup();
 		},
-		onError: () => loading.set(false),
+		onError: () => {
+			loading.set(false);
+			// Without this the slot manager fails silently and just keeps the
+			// previous layer — on a first load that is an empty map with no hint
+			toast.error('Could not load the weather data for this view.', { id: 'om-data-error' });
+		},
 		slowLoadWarningMs: 10000,
 		onSlowLoad: () =>
 			toast.warning('Loading raster data might be limited by bandwidth or upstream server speed.')
@@ -281,7 +286,9 @@ export const createManagers = (): void => {
 			vectorContourLabelsLayer()
 		],
 		sourceSpec: (sourceUrl) => ({ url: sourceUrl, type: 'vector' }),
-		removeDelayMs: 250
+		removeDelayMs: 250,
+		onError: () =>
+			toast.error('Could not load the weather data for this view.', { id: 'om-data-error' })
 	});
 };
 

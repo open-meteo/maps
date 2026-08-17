@@ -13,8 +13,8 @@ export const fmtSelectedTime = (t: Date): string =>
 
 export const getBaseUri = (domainValue: string): string =>
 	dev && domainValue.startsWith('dwd_icon') && !domainValue.endsWith('eps')
-		? 'https://s3.servert.ch/data_spatial'
-		: 'https://openmeteo-data-spatial.b-cdn.net';
+		? 'https://data-spatial.open-meteo.com/data_spatial'
+		: 'https://data-spatial.open-meteo.com/data_spatial';
 // old: 'https://map-tiles.open-meteo.com/data_spatial';
 
 export const hashValue = (val: string): string => {
