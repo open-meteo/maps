@@ -13,7 +13,7 @@ import {
 } from '$lib/stores/time';
 import { domain as d, selectedDomain, variable as v } from '$lib/stores/variables';
 
-import { fmtModelRun, getBaseUri } from './helpers';
+import { BASE_URI, fmtModelRun } from './helpers';
 import { formatISOWithoutTimezone } from './time-format';
 import { findTimeStep } from './time-utils';
 import { updateUrl } from './url';
@@ -25,12 +25,11 @@ import { updateUrl } from './url';
  */
 export const getInitialMetaData = async (): Promise<boolean> => {
 	const domain = get(selectedDomain);
-	const uri = getBaseUri(domain.value);
 
 	try {
 		const [latestRes, inProgressRes] = await Promise.all([
-			fetch(`${uri}/${domain.value}/latest.json`),
-			fetch(`${uri}/${domain.value}/in-progress.json`)
+			fetch(`${BASE_URI}/${domain.value}/latest.json`),
+			fetch(`${BASE_URI}/${domain.value}/in-progress.json`)
 		]);
 
 		// The domain may have changed while these requests were in flight (e.g. the
@@ -61,12 +60,8 @@ const toDate = (dateString: string | undefined): Date | undefined =>
 const matchesModelRun = (referenceTime: Date | undefined, modelRun: Date): boolean =>
 	referenceTime?.getTime() === modelRun.getTime();
 
-const fetchMetaData = async (
-	uri: string,
-	domain: string,
-	modelRun: Date
-): Promise<DomainMetaDataJson> => {
-	const url = `${uri}/${domain}/${fmtModelRun(modelRun)}/meta.json`;
+const fetchMetaData = async (domain: string, modelRun: Date): Promise<DomainMetaDataJson> => {
+	const url = `${BASE_URI}/${domain}/${fmtModelRun(modelRun)}/meta.json`;
 	const res = await fetch(url);
 
 	if (!res.ok) {
@@ -79,7 +74,6 @@ const fetchMetaData = async (
 
 export const getMetaData = async (): Promise<DomainMetaDataJson> => {
 	const domain = get(d);
-	const uri = getBaseUri(domain);
 
 	const latest = get(l);
 	const latestReferenceTime = toDate(latest?.reference_time);
@@ -96,7 +90,7 @@ export const getMetaData = async (): Promise<DomainMetaDataJson> => {
 		? (latest as DomainMetaDataJson)
 		: matchesModelRun(inProgressReferenceTime, modelRun)
 			? (inProgress as DomainMetaDataJson)
-			: await fetchMetaData(uri, domain, modelRun);
+			: await fetchMetaData(domain, modelRun);
 
 	result.valid_times.sort();
 	return result;
