@@ -40,10 +40,10 @@ describe('getNextOmUrls', () => {
 		const urls = getNextOmUrls(gfsSeamless, undefined);
 		// Including the regional HRRR the viewport gate may skip when loading data.
 		expect(urls).toContain(
-			'https://map-tiles.open-meteo.com/data_spatial/ncep_hrrr_conus/2025/01/01/0000Z/2025-01-01T0000.om'
+			'https://data-spatial.open-meteo.com/data_spatial/ncep_hrrr_conus/2025/01/01/0000Z/2025-01-01T0000.om'
 		);
 		expect(urls).toContain(
-			'https://map-tiles.open-meteo.com/data_spatial/ncep_gfs025/2025/01/01/0000Z/2025-01-01T0000.om'
+			'https://data-spatial.open-meteo.com/data_spatial/ncep_gfs025/2025/01/01/0000Z/2025-01-01T0000.om'
 		);
 	});
 
