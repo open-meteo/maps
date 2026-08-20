@@ -1,7 +1,6 @@
 import { get } from 'svelte/store';
 
 import {
-	type Domain,
 	GridFactory,
 	domainOptions,
 	getFallbackDomain,
@@ -30,7 +29,7 @@ export const createMap = async (container: HTMLElement) => {
 
 	const style = await getStyle();
 
-	const domainObject = domainOptions.find(({ value }: Domain) => value === get(d));
+	const domainObject = domainOptions.find(({ value }) => value === get(d));
 	if (!domainObject) {
 		throw new Error('Domain not found');
 	}
