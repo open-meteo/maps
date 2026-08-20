@@ -130,7 +130,7 @@ export const getStyle = async () => {
 	const preferences = get(p);
 	appliedStyleMode = mode.current === 'dark' ? 'dark' : 'light';
 	const style = await fetch(
-		`https://map-assets.open-meteo.com/styles/minimal-planet-maps${appliedStyleMode === 'dark' ? '-dark' : ''}${preferences.clipWater ? '-water-clip' : ''}.json`
+		`https://static-assets.open-meteo.com/map-assets/styles/minimal-planet-maps${appliedStyleMode === 'dark' ? '-dark' : ''}${preferences.clipWater ? '-water-clip' : ''}.json`
 	).then((r) => r.json());
 
 	return preferences.globe ? { ...style, projection: { type: 'globe' } } : style;

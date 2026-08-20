@@ -43,7 +43,7 @@ import {
 	parseClipCountriesParam,
 	serializeClipCountriesParam
 } from './clipping';
-import { fmtModelRun, fmtSelectedTime, getBaseUri, hashValue } from './helpers';
+import { BASE_URI, fmtModelRun, fmtSelectedTime, hashValue } from './helpers';
 import { clippingCountryCodes } from './stores/clipping';
 import { omProtocolSettings } from './stores/om-protocol-settings';
 import { formatISOUTCWithZ, parseISOWithoutTimezone } from './time-format';
@@ -218,7 +218,7 @@ export const getOmUrlForSource = (source: ChartSource): string | undefined => {
 	if (source.domain && eps?.domain !== source.domain) return undefined;
 
 	const domain = eps?.domain ?? get(d);
-	const base = `${getBaseUri(domain)}/${domain}`;
+	const base = `${BASE_URI}/${domain}`;
 	const modelRun = eps?.referenceTime ?? get(mR);
 	if (!modelRun) return undefined;
 	let selectedTime = get(time);
@@ -315,7 +315,7 @@ export const getNextOmUrls = (
 	domain: Domain,
 	metaJson: DomainMetaDataJson | undefined
 ): [string | undefined, string | undefined] => {
-	const base = `${getBaseUri(domain.value)}/${domain.value}`;
+	const base = `${BASE_URI}/${domain.value}`;
 	const date = get(time);
 	const dateString = formatISOUTCWithZ(date);
 

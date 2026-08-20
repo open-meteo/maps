@@ -6,7 +6,7 @@
  */
 import { get, writable } from 'svelte/store';
 
-import { getBaseUri } from '$lib/helpers';
+import { BASE_URI } from '$lib/helpers';
 
 import { domain } from './variables';
 
@@ -43,7 +43,7 @@ export const loadEpsMeta = async (mainDomain: string): Promise<void> => {
 	if (!sibling) return;
 
 	try {
-		const res = await fetch(`${getBaseUri(sibling)}/${sibling}/latest.json`);
+		const res = await fetch(`${BASE_URI}/${sibling}/latest.json`);
 		if (!res.ok) return;
 		const json = await res.json();
 		// The domain may have changed while the request was in flight

@@ -24,8 +24,12 @@ Thumbs.db
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
-# grid binary files
+# Large static assets live in R2, not git — fetch with `npm run assets:pull`
+# (see scripts/assets.config.json)
 /static/grid-geometry
+/static/images/weather-icons
+# README screenshot, lives at maps/media/example.png in the bucket
+/static/example.png
 
 # Claude Code local files
 .claude/

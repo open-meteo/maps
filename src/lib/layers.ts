@@ -100,6 +100,10 @@ export const addOmFileLayers = (): void => {
 		getChannelDataState: getDataState,
 		onLoadingChange: (isLoading) => loading.set(isLoading),
 		onCommit: () => refreshPopup(),
+		// Without this a failed frame is silent and just keeps the previous one
+		// — on a first load that is an empty map with no hint
+		onError: () =>
+			toast.error('Could not load the weather data for this view.', { id: 'om-data-error' }),
 		slowLoadWarningMs: 10000,
 		onSlowLoad: () =>
 			toast.warning('Loading data might be limited by bandwidth or upstream server speed.')

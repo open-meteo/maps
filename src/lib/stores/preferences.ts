@@ -18,7 +18,7 @@ import {
 	DEFAULT_TILE_SIZE
 } from '$lib/constants';
 import { checkHighDefinition } from '$lib/helpers';
-import { getInitialMetaData, getMetaData } from '$lib/metadata';
+import { getInitialMetaData, tryGetMetaData } from '$lib/metadata';
 
 import { activeChart, defaultChart } from './chart';
 import { cacheBlockSizeKb, cacheMaxBytesMb, customColorScales } from './om-protocol-settings';
@@ -119,8 +119,12 @@ export const resetStates = async () => {
 	latest.set(undefined);
 	inProgress.set(undefined);
 	modelRun.set(undefined);
-	await getInitialMetaData();
-	metaJson.set(await getMetaData());
+	// A failed load already toasted; the reset continues with the run info
+	// (and metadata) simply left unset
+	if (await getInitialMetaData()) {
+		const meta = await tryGetMetaData();
+		if (meta) metaJson.set(meta);
+	}
 
 	preferences.set(defaultPreferences);
 	vectorOptions.set(defaultVectorOptions);
