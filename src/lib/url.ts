@@ -36,7 +36,7 @@ import {
 	parseClipCountriesParam,
 	serializeClipCountriesParam
 } from './clipping';
-import { fmtModelRun, fmtSelectedTime, getBaseUri, hashValue } from './helpers';
+import { BASE_URI, fmtModelRun, fmtSelectedTime, hashValue } from './helpers';
 import { clippingCountryCodes } from './stores/clipping';
 import { omProtocolSettings } from './stores/om-protocol-settings';
 import { formatISOUTCWithZ, parseISOWithoutTimezone } from './time-format';
@@ -171,7 +171,7 @@ const memorisedHash = (json: string, cachedJson: string, cachedHash: string) => 
 
 export const getOMUrl = () => {
 	const domain = get(d);
-	const base = `${getBaseUri(domain)}/data_spatial/${domain}`;
+	const base = `${BASE_URI}/${domain}`;
 	const modelRun = get(mR);
 	if (!modelRun) return undefined;
 	const selectedTime = get(time);
@@ -282,11 +282,10 @@ export const getNextOmUrls = (
 			.filter((value): value is string => value !== undefined);
 	}
 
-	const host = getBaseUri(anyDomain.value);
 	const urls = new Set<string>();
 	for (const domainValue of domainValues) {
 		for (const [run, t] of stamps) {
-			urls.add(`${host}/data_spatial/${domainValue}/${fmtModelRun(run)}/${fmtSelectedTime(t)}.om`);
+			urls.add(`${BASE_URI}/${domainValue}/${fmtModelRun(run)}/${fmtSelectedTime(t)}.om`);
 		}
 	}
 	return [...urls];

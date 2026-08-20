@@ -14,7 +14,7 @@ import {
 import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 
 import { MILLISECONDS_PER_DAY } from './constants';
-import { fmtModelRun, fmtSelectedTime, getBaseUri } from './helpers';
+import { BASE_URI, fmtModelRun, fmtSelectedTime } from './helpers';
 
 import type { AnyDomain, DomainMetaDataJson } from '@openmeteo/weather-map-layer';
 
@@ -237,8 +237,7 @@ export const prefetchData = async (
 		const sharedCache = instance.omFileReader.cache;
 		const readerConfig = instance.omFileReader.config;
 
-		// Build base URL — all sub-layers of a seamless composite share its host.
-		const uri = getBaseUri(domain);
+		// All sub-layers of a seamless composite share the same run path.
 		const runPath = fmtModelRun(modelRun);
 		const runTime = modelRun.getTime();
 
@@ -268,7 +267,7 @@ export const prefetchData = async (
 					continue;
 				}
 
-				const url = `${uri}/data_spatial/${target.domainValue}/${runPath}/${validPath}.om`;
+				const url = `${BASE_URI}/${target.domainValue}/${runPath}/${validPath}.om`;
 
 				if (target.warmOnly) {
 					try {
