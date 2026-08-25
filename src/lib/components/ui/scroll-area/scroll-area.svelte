@@ -12,12 +12,17 @@
 		orientation = 'vertical',
 		scrollbarXClasses = '',
 		scrollbarYClasses = '',
+		viewportClasses = '',
 		children,
 		...restProps
 	}: WithoutChild<ScrollAreaPrimitive.RootProps> & {
 		orientation?: 'vertical' | 'horizontal' | 'both' | undefined;
 		scrollbarXClasses?: string | undefined;
 		scrollbarYClasses?: string | undefined;
+		/** Applied to the viewport (the actual scroll container). Height limits
+		 * belong here: the viewport's percentage height does not resolve against
+		 * a max-h-capped root in Firefox. */
+		viewportClasses?: string | undefined;
 		viewportRef?: HTMLElement | null;
 	} = $props();
 </script>
@@ -31,7 +36,10 @@
 	<ScrollAreaPrimitive.Viewport
 		bind:ref={viewportRef}
 		data-slot="scroll-area-viewport"
-		class="cn-scroll-area-viewport size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1"
+		class={cn(
+			'cn-scroll-area-viewport size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1',
+			viewportClasses
+		)}
 	>
 		{@render children?.()}
 	</ScrollAreaPrimitive.Viewport>

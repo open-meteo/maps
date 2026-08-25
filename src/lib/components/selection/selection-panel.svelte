@@ -101,11 +101,11 @@
 		{:else}
 			<DomainSelect />
 			<Separator class="bg-primary/10" />
-			<!-- Command.Root's h-full is circular in this auto-height column and
-			     over-constrains it by the domain row's height; the domain trigger
-			     is shrink-0 so Command.Root absorbs that constant overflow instead
-			     of the trigger shrinking by a content-dependent ~1px -->
-			<Command.Root class="bg-transparent!">
+			<!-- h-auto: the default h-full is circular in this auto-height column
+			     and over-constrains it, shrinking the domain trigger by a
+			     content-dependent ~1px (visible as a shift on expand/collapse).
+			     The scroll limit lives on the ScrollArea viewport instead. -->
+			<Command.Root class="h-auto bg-transparent!">
 				<Command.Input
 					class="h-8 border-none ring-0"
 					placeholder="Search variables & charts..."
@@ -121,7 +121,8 @@
 				/>
 				<ScrollArea
 					type="always"
-					class="max-h-[calc(100dvh-21rem)] min-h-0 md:max-h-[50vh]"
+					class="min-h-0"
+					viewportClasses="max-h-[calc(100dvh-21rem)] md:max-h-[50vh]"
 					scrollbarYClasses="opacity-80"
 				>
 					{#if searching}
