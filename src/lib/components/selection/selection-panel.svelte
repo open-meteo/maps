@@ -101,10 +101,11 @@
 		{:else}
 			<DomainSelect />
 			<Separator class="bg-primary/10" />
-			<!-- h-auto: the default h-full is circular in this auto-height column and
-			     makes the domain trigger flex-shrink by a content-dependent amount,
-			     shifting the whole panel ~1px when sections expand/collapse -->
-			<Command.Root class="h-auto bg-transparent!">
+			<!-- Command.Root's h-full is circular in this auto-height column and
+			     over-constrains it by the domain row's height; the domain trigger
+			     is shrink-0 so Command.Root absorbs that constant overflow instead
+			     of the trigger shrinking by a content-dependent ~1px -->
+			<Command.Root class="bg-transparent!">
 				<Command.Input
 					class="h-8 border-none ring-0"
 					placeholder="Search variables & charts..."

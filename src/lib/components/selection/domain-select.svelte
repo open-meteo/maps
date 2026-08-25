@@ -17,7 +17,7 @@
 
 <Popover.Root bind:open={$dSO}>
 	<Popover.Trigger
-		class="hover:bg-primary/10 flex h-8.5 w-full cursor-pointer items-center justify-between gap-1 rounded-t px-3 text-sm font-semibold {$dSO
+		class="hover:bg-primary/10 flex h-8.5 w-full shrink-0 cursor-pointer items-center justify-between gap-1 rounded-t px-3 text-sm font-semibold {$dSO
 			? 'bg-primary/10'
 			: ''}"
 		role="combobox"
