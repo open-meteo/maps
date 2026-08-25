@@ -1,7 +1,11 @@
 import { MediaQuery } from 'svelte/reactivity';
 import { type Writable, get, writable } from 'svelte/store';
 
-import { type InterpolationMethod, clearBlockCache } from '@openmeteo/weather-map-layer';
+import {
+	type InterpolationMethod,
+	clearBackends,
+	clearBlockCache
+} from '@openmeteo/weather-map-layer';
 import { setMode } from 'mode-watcher';
 import { type Persisted, persisted } from 'svelte-persisted-store';
 
@@ -158,6 +162,7 @@ export const resetStates = async () => {
 
 	setMode('system');
 
+	clearBackends();
 	await clearBlockCache();
 };
 
