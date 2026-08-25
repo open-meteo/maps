@@ -2,6 +2,8 @@
 	import { slide } from 'svelte/transition';
 
 	import CheckIcon from '@lucide/svelte/icons/check';
+	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
+	import { persisted } from 'svelte-persisted-store';
 
 	import {
 		activeChart,
@@ -28,6 +30,9 @@
 	}
 
 	let { levelHostId = undefined }: Props = $props();
+
+	// Defaults to open on first visit; the collapsed state persists once toggled.
+	const open = persisted('popular-variables-open', true);
 
 	interface PopularEntry {
 		id: string;
@@ -87,6 +92,9 @@
 		return $variable === entry.id;
 	};
 
+	// Surfaces the hidden active row on the collapsed header
+	const anyActive = $derived(entries.some(isActive));
+
 	const select = (entry: PopularEntry): void => {
 		if (entry.sources) {
 			setSources(entry.sources);
@@ -96,33 +104,53 @@
 			setPlainVariable(entry.target);
 		}
 	};
+
+	// Auto-expand once when the active variable moves into this section (e.g.
+	// picked through search), without trapping the section open. The first run
+	// is the mount itself, not a move: skip it so the persisted collapse
+	// state survives reloads.
+	let lastHostId: string | undefined;
+	let mounted = false;
+	$effect(() => {
+		const hosts = levelHostId !== undefined && entries.some((entry) => entry.id === levelHostId);
+		if (mounted && hosts && levelHostId !== lastHostId) open.set(true);
+		mounted = true;
+		lastHostId = hosts ? levelHostId : undefined;
+	});
 </script>
 
 {#if entries.length}
-	<div class="flex flex-col py-1">
-		<div
-			class="text-muted-foreground flex h-7.5 items-center px-3 text-xs font-semibold tracking-wide uppercase"
-		>
-			Popular variables
+	<button
+		class="hover:bg-primary/10 text-muted-foreground flex h-7.5 w-full cursor-pointer items-center gap-1.5 px-2 text-xs font-semibold tracking-wide uppercase"
+		onclick={() => open.set(!$open)}
+	>
+		<ChevronRightIcon class="size-3.5 duration-200 {$open ? 'rotate-90' : ''}" />
+		Popular variables
+		{#if !$open && anyActive}
+			<CheckIcon class="mr-1 ml-auto size-3.5 shrink-0" />
+		{/if}
+	</button>
+	{#if $open}
+		<div class="pb-1" transition:slide={{ duration: 200 }}>
+			{#each entries as entry (entry.id)}
+				{@const active = isActive(entry)}
+				<button
+					class="hover:bg-primary/10 flex h-7.5 w-full cursor-pointer items-center justify-between px-3 text-sm {active
+						? 'bg-primary/10 font-medium'
+						: ''}"
+					onclick={() => {
+						if (!active) select(entry);
+					}}
+				>
+					<div class="truncate text-left">{entry.label}</div>
+					<CheckIcon class="size-4 shrink-0 {active ? '' : 'text-transparent'}" />
+				</button>
+				{#if levelHostId === entry.id}
+					<div transition:slide={{ duration: 200 }}>
+						<LevelSelect nested />
+					</div>
+				{/if}
+			{/each}
 		</div>
-		{#each entries as entry (entry.id)}
-			{@const active = isActive(entry)}
-			<button
-				class="hover:bg-primary/10 flex h-7.5 w-full cursor-pointer items-center justify-between px-3 text-sm {active
-					? 'bg-primary/10 font-medium'
-					: ''}"
-				onclick={() => {
-					if (!active) select(entry);
-				}}
-			>
-				<div class="truncate text-left">{entry.label}</div>
-				<CheckIcon class="size-4 shrink-0 {active ? '' : 'text-transparent'}" />
-			</button>
-			{#if levelHostId === entry.id}
-				<div transition:slide={{ duration: 200 }}>
-					<LevelSelect nested />
-				</div>
-			{/if}
-		{/each}
-	</div>
+	{/if}
 {/if}

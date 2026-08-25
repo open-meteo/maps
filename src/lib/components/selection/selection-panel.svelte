@@ -101,7 +101,10 @@
 		{:else}
 			<DomainSelect />
 			<Separator class="bg-primary/10" />
-			<Command.Root class="bg-transparent!">
+			<!-- h-auto: the default h-full is circular in this auto-height column and
+			     makes the domain trigger flex-shrink by a content-dependent amount,
+			     shifting the whole panel ~1px when sections expand/collapse -->
+			<Command.Root class="h-auto bg-transparent!">
 				<Command.Input
 					class="h-8 border-none ring-0"
 					placeholder="Search variables & charts..."

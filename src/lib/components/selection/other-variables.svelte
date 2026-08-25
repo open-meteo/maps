@@ -85,6 +85,9 @@
 		lastHostId = hosts ? levelHostId : undefined;
 	});
 
+	// Surfaces the hidden active row on the collapsed header
+	const anyActive = $derived(entries.some(isActive));
+
 	// A popular row represents the active selection.
 	const popularRowActive = (): boolean =>
 		popularVariables.some((entry) => {
@@ -147,7 +150,12 @@
 		>
 			<ChevronRightIcon class="size-3.5 duration-200 {$open ? 'rotate-90' : ''}" />
 			More variables
-			<span class="ml-auto pr-1 font-normal opacity-60">{entries.length}</span>
+			{#if !$open && anyActive}
+				<CheckIcon class="ml-auto size-3.5 shrink-0" />
+			{/if}
+			<span class="{!$open && anyActive ? '' : 'ml-auto'} pr-1 font-normal opacity-60">
+				{entries.length}
+			</span>
 		</button>
 		{#if $open}
 			<div class="pb-1" transition:slide={{ duration: 200 }}>

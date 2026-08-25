@@ -95,6 +95,10 @@
 		{@const availableInGroup = group.presets.some((entry) => entry.available)}
 		{@const groupOpen = availableInGroup && ($openGroups[group.name] ?? false)}
 		{@const availableCount = group.presets.filter((entry) => entry.available).length}
+		{@const groupActive = group.presets.some(
+			({ preset }) =>
+				$activeChart.presetId === preset.id || sourcesEqual($activeChart.sources, preset.sources)
+		)}
 		<button
 			class="text-foreground/85 flex h-7.5 w-full items-center gap-1.5 px-2 text-[13px] font-medium {availableInGroup
 				? 'hover:bg-primary/10 cursor-pointer'
@@ -105,7 +109,10 @@
 		>
 			<ChevronRightIcon class="size-3.5 duration-200 {groupOpen ? 'rotate-90' : ''}" />
 			{group.name}
-			<span class="ml-auto pr-1 font-normal opacity-60">
+			{#if !groupOpen && groupActive}
+				<CheckIcon class="ml-auto size-3.5 shrink-0" />
+			{/if}
+			<span class="{!groupOpen && groupActive ? '' : 'ml-auto'} pr-1 font-normal opacity-60">
 				{availableCount === group.presets.length
 					? group.presets.length
 					: `${availableCount}/${group.presets.length}`}
@@ -141,17 +148,24 @@
 	{/each}
 
 	{#if $savedCharts.charts.length}
+		{@const myChartsOpen = $openGroups['My charts'] ?? true}
+		{@const myChartsActive = $savedCharts.charts.some((chart) =>
+			sourcesEqual($activeChart.sources, chart.sources)
+		)}
 		<button
 			class="hover:bg-primary/10 text-foreground/85 flex h-7.5 w-full cursor-pointer items-center gap-1.5 px-2 text-[13px] font-medium"
 			onclick={() => toggleGroup('My charts', true)}
 		>
-			<ChevronRightIcon
-				class="size-3.5 duration-200 {($openGroups['My charts'] ?? true) ? 'rotate-90' : ''}"
-			/>
+			<ChevronRightIcon class="size-3.5 duration-200 {myChartsOpen ? 'rotate-90' : ''}" />
 			My charts
-			<span class="ml-auto pr-1 font-normal opacity-60">{$savedCharts.charts.length}</span>
+			{#if !myChartsOpen && myChartsActive}
+				<CheckIcon class="ml-auto size-3.5 shrink-0" />
+			{/if}
+			<span class="{!myChartsOpen && myChartsActive ? '' : 'ml-auto'} pr-1 font-normal opacity-60">
+				{$savedCharts.charts.length}
+			</span>
 		</button>
-		{#if $openGroups['My charts'] ?? true}
+		{#if myChartsOpen}
 			<div class="pb-1" transition:slide={{ duration: 200 }}>
 				{#each $savedCharts.charts as chart (chart.id)}
 					{@const active = sourcesEqual($activeChart.sources, chart.sources)}
