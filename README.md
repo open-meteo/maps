@@ -12,11 +12,11 @@ A UI demo for the [Open-Meteo Weather Map Layer](https://github.com/open-meteo/w
 
 This is a client-side app that fetches OMfiles from `data-spatial.open-meteo.com` and renders them with MapLibre GL. Weather tiles are fully rendered in the browser at the native model resolution — no server-side tile rendering required.
 
-> **Note on endpoints:** the `data_spatial` tree is served from three places:
->
-> - `https://openmeteo.s3.amazonaws.com/data_spatial/...` is the AWS S3 origin. Public and uncached, with a browsable index at [openmeteo.s3.amazonaws.com](https://openmeteo.s3.amazonaws.com/index.html#data_spatial/).
-> - `https://openmeteo-data-spatial.b-cdn.net/...` is the public Bunny CDN cache, used by the [weather-map-layer](https://github.com/open-meteo/weather-map-layer) README and examples. Note that it drops the `data_spatial/` path prefix.
-> - `https://data-spatial.open-meteo.com/data_spatial/...` is the endpoint this app uses. It only accepts requests with a `localhost` or `*.open-meteo.com` referer.
+**Note on endpoints:** the `data_spatial` tree is served from three places:
+
+- `https://openmeteo.s3.amazonaws.com/data_spatial/...` is the AWS S3 origin. Public and uncached, with a browsable index at [openmeteo.s3.amazonaws.com](https://openmeteo.s3.amazonaws.com/index.html#data_spatial/).
+- `https://openmeteo-data-spatial.b-cdn.net/...` is the public Bunny CDN cache, used by the [weather-map-layer](https://github.com/open-meteo/weather-map-layer) README and examples. Note that it drops the `data_spatial/` path prefix.
+- `https://data-spatial.open-meteo.com/data_spatial/...` is the endpoint this app uses. It only accepts requests with a `localhost` or `*.open-meteo.com` referer.
 
 > Looking for the Open-Meteo API? See [open-meteo/open-meteo](https://github.com/open-meteo/open-meteo).
 
