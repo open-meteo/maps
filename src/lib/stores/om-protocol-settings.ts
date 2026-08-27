@@ -45,34 +45,20 @@ function createBlockCache() {
 
 const blockCache = createBlockCache();
 
-// Dedicated reader used only to warm the cache. It shares the same BlockCache as
-// the protocol's main reader (so warming populates the cache the real reads use),
-// but keeps its own OmFileReader: setToOmFile() is stateful, so warming through
-// the main reader would repoint the file the protocol is reading.
-const prefetchReader = browser
-	? new WeatherMapLayerFileReader({ useSAB: true, cache: blockCache })
-	: undefined;
-
-// setToOmFile() is stateful, so warm-ups are serialized through a single promise
-// chain; concurrent calls on the shared prefetchReader would clobber each other.
-// `warmedUrls` skips files already warmed this session (bounded to cap memory).
+// Skips files already warmed this session (bounded to cap memory). warmFile()
+// is atomic and cheap once cached, but for seamless composites the callback
+// fires once per sub-layer, so deduping avoids re-warming the same grid of
+// (sub-layer × timestep) URLs on every load.
 const warmedUrls = new Set<string>();
-let warmChain: Promise<void> = Promise.resolve();
-const warmOmUrl = (url: string): void => {
-	if (!prefetchReader || warmedUrls.has(url)) return;
+const warmOmUrl = (omFileReader: WeatherMapLayerFileReader, url: string): void => {
+	if (warmedUrls.has(url)) return;
 	if (warmedUrls.size > 1024) warmedUrls.clear();
 	warmedUrls.add(url);
-	warmChain = warmChain.then(async () => {
-		try {
-			await prefetchReader.setToOmFile(url);
-			// Touches the file header/tail only; no real variable is requested.
-			await prefetchReader.prefetchVariable('not_a_real_variable');
-		} catch {
-			// A sub-layer may have no file for this timestep (e.g. beyond its forecast
-			// horizon, or a model run that has not published yet). Warming is
-			// best-effort, so swallow failures.
-		}
-	});
+	// Caches the file header/trailer and root metadata without requesting any
+	// variable data. Best-effort: a sub-layer may have no file for this timestep
+	// (e.g. beyond its forecast horizon, or a model run that has not published
+	// yet), so swallow failures.
+	omFileReader.warmFile(url).catch(() => {});
 };
 
 export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
@@ -86,7 +72,7 @@ export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
 	// dynamic (can be changed during runtime)
 	colorScales: { ...defaultOmProtocolSettings.colorScales, ...initialCustomColorScales },
 
-	postReadCallback: (_omFileReader: WeatherMapLayerFileReader, data: Data, state: OmUrlState) => {
+	postReadCallback: (omFileReader: WeatherMapLayerFileReader, data: Data, state: OmUrlState) => {
 		// Fires once per real data load for both regular and seamless domains. For a
 		// seamless composite, getNextOmUrls(selectedDomain) expands to every concrete
 		// sub-layer URL — including off-screen ones the viewport gate skips — across the
@@ -94,7 +80,7 @@ export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
 		// through time stay instant. warmOmUrl dedupes, so multiple sub-layers firing
 		// this callback per composite is cheap.
 		for (const nextOmUrl of getNextOmUrls(get(selectedDomain), get(metaJson))) {
-			warmOmUrl(nextOmUrl);
+			warmOmUrl(omFileReader, nextOmUrl);
 		}
 		if (
 			state.dataOptions.domain.value === 'ecmwf_ifs' &&

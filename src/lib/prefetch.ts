@@ -2,7 +2,6 @@ import { get } from 'svelte/store';
 
 import {
 	GridFactory,
-	WeatherMapLayerFileReader,
 	currentBounds,
 	domainOptions,
 	getProtocolInstance,
@@ -234,8 +233,7 @@ export const prefetchData = async (
 
 	try {
 		const instance = getProtocolInstance(get(omProtocolSettings));
-		const sharedCache = instance.omFileReader.cache;
-		const readerConfig = instance.omFileReader.config;
+		const omFileReader = instance.omFileReader;
 
 		// All sub-layers of a seamless composite share the same run path.
 		const runPath = fmtModelRun(modelRun);
@@ -243,13 +241,9 @@ export const prefetchData = async (
 
 		const totalCount = timeSteps.length;
 
-		// Prefetch every applicable target file for a single timestep. Runs the
-		// targets sequentially on the worker's own reader (setToOmFile is stateful
-		// and unsafe to call concurrently on one reader).
-		const prefetchSingle = async (
-			timeStep: Date,
-			reader: WeatherMapLayerFileReader
-		): Promise<boolean> => {
+		// Prefetch every applicable target file for a single timestep. Reads are
+		// atomic per call, so all targets can safely share the protocol's reader.
+		const prefetchSingle = async (timeStep: Date): Promise<boolean> => {
 			if (signal?.aborted) return false;
 
 			const leadHours = (timeStep.getTime() - runTime) / 3_600_000;
@@ -270,20 +264,15 @@ export const prefetchData = async (
 				const url = `${BASE_URI}/${target.domainValue}/${runPath}/${validPath}.om`;
 
 				if (target.warmOnly) {
-					try {
-						await reader.setToOmFile(url);
-						// Touches the file header/tail only; no real variable is requested.
-						await reader.prefetchVariable('not_a_real_variable');
-					} catch {
-						// Best-effort warm: a sub-layer may have no file for this timestep.
-					}
+					// Touches the file header/tail only; no variable data is requested.
+					// Best-effort warm: a sub-layer may have no file for this timestep.
+					await omFileReader.warmFile(url).catch(() => {});
 					continue;
 				}
 
 				attempted++;
 				try {
-					await reader.setToOmFile(url);
-					await reader.prefetchVariable(variable, target.ranges, signal);
+					await omFileReader.prefetchVariable(url, variable, target.ranges ?? null, signal);
 					succeeded++;
 				} catch {
 					// Silently continue on errors (best-effort cache warming)
@@ -298,28 +287,20 @@ export const prefetchData = async (
 		let index = 0;
 
 		const worker = async () => {
-			// Each worker owns a reader that shares the protocol's block cache, so the
-			// warmed blocks are reused by the renderer while concurrent setToOmFile
-			// calls never disturb each other's reader state.
-			const reader = new WeatherMapLayerFileReader({ ...readerConfig, cache: sharedCache });
 			let localSuccess = 0;
-			try {
-				while (true) {
-					if (signal?.aborted) break;
+			while (true) {
+				if (signal?.aborted) break;
 
-					const i = index++;
-					if (i >= timeSteps.length) break;
+				const i = index++;
+				if (i >= timeSteps.length) break;
 
-					if (await prefetchSingle(timeSteps[i], reader)) {
-						localSuccess++;
-					}
-
-					if (onProgress) {
-						onProgress({ current: i + 1, total: totalCount });
-					}
+				if (await prefetchSingle(timeSteps[i])) {
+					localSuccess++;
 				}
-			} finally {
-				reader.dispose();
+
+				if (onProgress) {
+					onProgress({ current: i + 1, total: totalCount });
+				}
 			}
 			return localSuccess;
 		};
