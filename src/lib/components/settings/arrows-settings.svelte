@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
 
+	import { setArrowsOnActiveChart } from '$lib/stores/chart';
 	import { vectorOptions } from '$lib/stores/vector';
 
 	import { Label } from '$lib/components/ui/label';
@@ -21,6 +22,8 @@
 			bind:checked={$vectorOptions.arrows}
 			onCheckedChange={() => {
 				updateUrl('arrows', String(arrows));
+				// Applies to every capable source, also on presets/saved charts
+				setArrowsOnActiveChart(arrows);
 				changeOMfileURL();
 				toast.info('Arrows turned ' + (arrows ? 'on' : 'off'));
 			}}

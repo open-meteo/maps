@@ -24,6 +24,7 @@ import {
 import { checkHighDefinition } from '$lib/helpers';
 import { getInitialMetaData, tryGetMetaData } from '$lib/metadata';
 
+import { activeChart, defaultChart } from './chart';
 import { cacheBlockSizeKb, cacheMaxBytesMb, customColorScales } from './om-protocol-settings';
 import { inProgress, latest, metaJson, modelRun, modelRunLocked, now, time } from './time';
 import {
@@ -53,7 +54,13 @@ export interface Preferences {
 	showScale: boolean;
 }
 
-export const preferences = persisted('preferences', defaultPreferences);
+// Same default-merge as vectorOptions: keys added after a visitor's
+// localStorage was written must not read back as undefined
+export const preferences = persisted<Preferences, Partial<Preferences>>(
+	'preferences',
+	defaultPreferences,
+	{ beforeRead: (stored) => ({ ...defaultPreferences, ...stored }) }
+);
 
 // URL object containing current url states setings and flags
 export const url: Writable<URL> = writable();
@@ -136,6 +143,9 @@ export const resetStates = async () => {
 
 	domain.set('dwd_icon');
 	variable.set('temperature_2m');
+	// After the vector defaults above so the plain chart is built from them.
+	// Saved charts are user data and deliberately survive a reset.
+	activeChart.set(defaultChart());
 
 	domainSelectionOpen.set(false);
 	variableSelectionOpen.set(false);

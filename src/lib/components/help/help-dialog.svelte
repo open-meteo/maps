@@ -100,7 +100,7 @@
 							<Kbd.Root>d</Kbd.Root> Domain Selection
 						</div>
 						<div class="flex items-center gap-2">
-							<Kbd.Root>v</Kbd.Root> Variable Selection
+							<Kbd.Root>v</Kbd.Root> All Variables Dialog
 						</div>
 						<div class="flex items-center gap-2">
 							<Kbd.Root>l</Kbd.Root> Level Selection
