@@ -42,10 +42,9 @@ npm run lint      # prettier + eslint
 
 The app fetches OMfiles from `data-spatial.open-meteo.com` by default. Set `VITE_DATA_BASE_URI` (e.g. in `.env.local`) to point a build at a local or staging `data_spatial` endpoint.
 
-The `data_spatial` tree is served from three places:
+The `data_spatial` tree is served from two places:
 
-- `https://openmeteo.s3.amazonaws.com/data_spatial/...` is the AWS S3 origin. Public and uncached, with a browsable index at [openmeteo.s3.amazonaws.com](https://openmeteo.s3.amazonaws.com/index.html#data_spatial/).
-- `https://openmeteo-data-spatial.b-cdn.net/...` is the public Bunny CDN cache, used by the [weather-map-layer](https://github.com/open-meteo/weather-map-layer) README and examples. Note that it drops the `data_spatial/` path prefix.
+- `https://openmeteo.s3.amazonaws.com/data_spatial/...` is the AWS S3 origin. Public and uncached, with a browsable index at [openmeteo.s3.amazonaws.com](https://openmeteo.s3.amazonaws.com/index.html#data_spatial/). This is the endpoint used by the [weather-map-layer](https://github.com/open-meteo/weather-map-layer) README and examples.
 - `https://data-spatial.open-meteo.com/data_spatial/...` is the endpoint this app uses. It only accepts requests with a `localhost` or `*.open-meteo.com` referer.
 
 ### Cross-origin isolation
