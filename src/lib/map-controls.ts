@@ -1,9 +1,9 @@
 import { get } from 'svelte/store';
 
 import {
-	type Domain,
 	GridFactory,
 	domainOptions,
+	getFallbackDomain,
 	omProtocol,
 	sunProtocol,
 	updateCurrentBounds
@@ -31,17 +31,22 @@ export const createMap = async (container: HTMLElement) => {
 
 	const style = await getStyle();
 
-	const domainObject = domainOptions.find(({ value }: Domain) => value === get(d));
+	const domainObject = domainOptions.find(({ value }) => value === get(d));
 	if (!domainObject) {
 		throw new Error('Domain not found');
 	}
-	const grid = GridFactory.create(domainObject.grid);
+	// For seamless domains, use the global (last) backing domain for initial map position
+	const gridDomain = getFallbackDomain(domainObject, domainOptions);
+	if (!gridDomain) {
+		throw new Error('Backing domain not found');
+	}
+	const grid = GridFactory.create(gridDomain.grid);
 
 	const map = new maplibregl.Map({
 		container,
 		style,
 		center: grid.getCenter(),
-		zoom: domainObject.grid.zoom,
+		zoom: gridDomain.grid.zoom,
 		keyboard: false,
 		hash: true,
 		maxPitch: 85

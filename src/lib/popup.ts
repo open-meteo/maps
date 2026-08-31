@@ -8,7 +8,9 @@ import {
 	getCachedResolvedClipping,
 	getColor,
 	getColorScale,
+	getFallbackDomain,
 	getValueFromLatLong,
+	isSeamlessDomain,
 	variableOptions
 } from '@openmeteo/weather-map-layer';
 import * as maplibregl from 'maplibre-gl';
@@ -434,6 +436,35 @@ const updateExtraSources = async (
 	adjustStemForExtras();
 };
 
+/**
+ * Value and direction at a point for the primary source. For a seamless
+ * composite the sub-layers are tried finest-first — states are stored under
+ * the concrete domain keys, not the seamless URL key — mirroring how the
+ * protocol composites pixels (first finite sub-layer wins).
+ */
+const getPrimaryValue = async (
+	coordinates: maplibregl.LngLat,
+	activeUrl: string
+): Promise<{ value: number; direction?: number }> => {
+	const domain = get(selectedDomain);
+	if (isSeamlessDomain(domain)) {
+		for (const layer of domain.layers) {
+			const subLayerUrl = activeUrl.replace(
+				`/data_spatial/${domain.value}/`,
+				`/data_spatial/${layer.domainValue}/`
+			);
+			try {
+				const result = await getValueFromLatLong(coordinates.lat, coordinates.lng, subLayerUrl);
+				if (isFinite(result.value)) return result;
+			} catch {
+				// Sub-layer state not found (tile not yet loaded), try next
+			}
+		}
+		return { value: NaN };
+	}
+	return await getValueFromLatLong(coordinates.lat, coordinates.lng, activeUrl);
+};
+
 // Monotonic token: only the latest updatePopupContent call may write the DOM,
 // so a slow earlier lookup cannot overwrite a newer position's values.
 let popupUpdateSeq = 0;
@@ -457,7 +488,7 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 
 	// Primary value and extra lines resolve concurrently
 	const [{ value, direction }] = await Promise.all([
-		getValueFromLatLong(coordinates.lat, coordinates.lng, activeUrl),
+		getPrimaryValue(coordinates, activeUrl),
 		updateExtraSources(coordinates, primaryKey, seq)
 	]);
 	if (seq !== popupUpdateSeq) return;
@@ -503,13 +534,19 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 		contentDiv.style.color = '';
 		setArrow(undefined, 0);
 
-		const domainBounds = GridFactory.create(get(selectedDomain).grid).getBounds();
-		const [minLon, minLat, maxLon, maxLat] = domainBounds;
-		const insideDomain =
-			coordinates.lat >= minLat &&
-			coordinates.lat <= maxLat &&
-			coordinates.lng >= minLon &&
-			coordinates.lng <= maxLon;
+		const concreteDomain = getFallbackDomain(
+			get(selectedDomain),
+			get(omProtocolSettings).domainOptions
+		);
+		let insideDomain = false;
+		if (concreteDomain) {
+			const [minLon, minLat, maxLon, maxLat] = GridFactory.create(concreteDomain.grid).getBounds();
+			insideDomain =
+				coordinates.lat >= minLat &&
+				coordinates.lat <= maxLat &&
+				coordinates.lng >= minLon &&
+				coordinates.lng <= maxLon;
+		}
 
 		valueSpan.innerText = insideDomain ? 'No data' : 'Outside domain';
 		unitSpan.innerText = '';

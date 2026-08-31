@@ -10,6 +10,7 @@
 	import InterpolationSettings from './interpolation-settings.svelte';
 	import OpacitySetting from './opacity-setting.svelte';
 	import PopupSettings from './popup-settings.svelte';
+	import SeamlessBorderSettings from './seamless-border-settings.svelte';
 	import StateSettings from './state-settings.svelte';
 	import SunSettings from './sun-settings.svelte';
 	import TileSizeSettings from './tile-size-settings.svelte';
@@ -32,6 +33,7 @@
 			<PopupSettings />
 			<WaterClipSetting />
 			<SunSettings />
+			<SeamlessBorderSettings />
 			<OpacitySetting />
 			<CacheSettings />
 			<StateSettings />
