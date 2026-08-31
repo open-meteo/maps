@@ -62,11 +62,9 @@ export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
 		const nextOmUrls = getNextOmUrls(state.omFileUrl, get(selectedDomain), get(metaJson));
 		for (const nextOmUrl of nextOmUrls) {
 			if (nextOmUrl === undefined) continue;
-			// This will trigger a request to the tail of the file and cache it.
-			// Not requesting a real variable ensures that we don't request any
-			// additional data, and the URL-explicit call cannot repoint a reader
-			// that concurrent reads of other files/variables are using.
-			omFileReader.prefetchVariableFromFile(nextOmUrl, 'not_a_real_variable');
+			// Caches the file header/trailer and root metadata without requesting
+			// any variable data. Best-effort: the file may not be published yet.
+			omFileReader.warmFile(nextOmUrl).catch(() => {});
 		}
 		if (
 			state.dataOptions.domain.value === 'ecmwf_ifs' &&

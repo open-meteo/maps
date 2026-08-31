@@ -128,7 +128,7 @@ export function alphaToPercent(alpha: number): number {
 }
 
 export function percentToAlpha(percent: number): number {
-	return Math.round(percent / 100);
+	return Math.round(percent) / 100;
 }
 
 export function isValidHex(hex: string): boolean {
