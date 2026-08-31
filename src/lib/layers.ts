@@ -27,7 +27,9 @@ import { type FrameChannel, FrameManager } from '$lib/frame-manager';
 import { rasterChannel, vectorChannel } from '$lib/om-layer-defs';
 
 import { refreshPopup } from './popup';
-import { getOmUrlForSource } from './url';
+import { getOmUrlForSource, getSunUrl } from './url';
+
+import type { RasterTileSource } from 'maplibre-gl';
 
 let frameManager: FrameManager | undefined;
 
@@ -111,6 +113,9 @@ export const addOmFileLayers = (): void => {
 		onSlowLoad: () =>
 			toast.warning('Loading data might be limited by bandwidth or upstream server speed.')
 	});
+	// A style reload wiped the sun source with everything else; forget the URL
+	// so updateSunLayer re-adds the layer instead of considering it unchanged.
+	currentSunUrl = undefined;
 	changeOMfileURL();
 };
 
@@ -136,6 +141,10 @@ export const changeOMfileURL = (): void => {
 	const map = get(m);
 	if (!map || !frameManager) return;
 
+	// The sun overlay only depends on the map, the selected time and its own
+	// settings, so it updates even while chart sources are not ready yet.
+	updateSunLayer();
+
 	// `undefined` means a source is not ready yet; an empty list means the chart
 	// deliberately draws nothing, which the frame manager commits as a blank
 	// frame and fades the previous one out
@@ -157,4 +166,71 @@ export const getActiveOmUrls = (): Map<string, string> => {
 		if (!urls.has(key)) urls.set(key, channel.url);
 	}
 	return urls;
+};
+
+// =============================================================================
+// Sun cycle shadow overlay
+// =============================================================================
+// A single analytical raster layer above the weather layers, below the place
+// labels. Managed directly rather than through the frame manager: it has no
+// timestep frames — the source URL simply retargets when the selected time or
+// the shadow settings change.
+
+const SUN_SOURCE_ID = 'sunShadowSource';
+const SUN_LAYER_ID = 'sunShadowLayer';
+let currentSunUrl: string | undefined;
+let lastSunPreviewUrl: string | undefined;
+
+export const updateSunLayer = (): void => {
+	const map = get(m);
+	if (!map) return;
+
+	const sunUrl = getSunUrl();
+	if (sunUrl === currentSunUrl) return;
+	currentSunUrl = sunUrl;
+	lastSunPreviewUrl = undefined;
+
+	if (!sunUrl) {
+		if (map.getLayer(SUN_LAYER_ID)) map.removeLayer(SUN_LAYER_ID);
+		if (map.getSource(SUN_SOURCE_ID)) map.removeSource(SUN_SOURCE_ID);
+		return;
+	}
+
+	const source = map.getSource(SUN_SOURCE_ID) as RasterTileSource | undefined;
+	if (source) {
+		// Retarget the existing source; see previewSunTime for why setUrl.
+		source.setUrl(sunUrl);
+		return;
+	}
+
+	map.addSource(SUN_SOURCE_ID, { url: sunUrl, type: 'raster' });
+	map.addLayer(
+		{
+			id: SUN_LAYER_ID,
+			type: 'raster',
+			source: SUN_SOURCE_ID,
+			// The shadow opacity is baked into the tile alpha, so the layer stays at 1.
+			paint: { 'raster-opacity': 1 }
+		},
+		BEFORE_LAYER_VECTOR
+	);
+};
+
+// Retargets the active sun source to another moment (minute resolution) without
+// replacing the layer — cheap enough to follow the time-selector hover. Passing
+// null snaps back to the selected time. Uses setUrl, not setTiles: for
+// url-based sources the tilejson refetch would restore the old template over
+// setTiles.
+export const previewSunTime = (date: Date | null): void => {
+	const map = get(m);
+	if (!map || !currentSunUrl) return;
+
+	const sunUrl = getSunUrl(date ?? undefined);
+	if (!sunUrl || sunUrl === lastSunPreviewUrl) return;
+
+	const source = map.getSource(SUN_SOURCE_ID) as RasterTileSource | undefined;
+	if (!source) return;
+
+	lastSunPreviewUrl = sunUrl;
+	source.setUrl(sunUrl);
 };

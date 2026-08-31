@@ -53,6 +53,7 @@ import {
 import { BASE_URI, fmtModelRun, fmtSelectedTime, hashValue } from './helpers';
 import { clippingCountryCodes } from './stores/clipping';
 import { omProtocolSettings } from './stores/om-protocol-settings';
+import { sunShadow as sS } from './stores/sun';
 import { formatISOUTCWithZ, parseISOWithoutTimezone } from './time-format';
 import { findTimeStep } from './time-utils';
 
@@ -175,6 +176,16 @@ export const urlParamsToPreferences = () => {
 	} else if (vectorOptions.contourInterval !== 2) {
 		url.searchParams.set('interval', String(vectorOptions.contourInterval));
 	}
+
+	const sun = get(sS);
+	sun.shadow = params.get('sun_shadow') === 'true';
+	const sunOpacityRaw = params.get('sun_opacity');
+	if (sunOpacityRaw !== null) sun.opacity = Number(sunOpacityRaw);
+	const sunGradientRaw = params.get('sun_gradient');
+	if (sunGradientRaw !== null) sun.gradient = Number(sunGradientRaw);
+	const sunColorRaw = params.get('sun_color');
+	if (sunColorRaw !== null) sun.color = sunColorRaw;
+	sS.set(sun);
 
 	const clipCountries = parseClipCountriesParam(params.get(CLIP_COUNTRIES_PARAM));
 	if (clipCountries.length > 0) {
@@ -345,6 +356,21 @@ export const syncChartToUrl = async (chart: ChartState): Promise<void> => {
 	}
 
 	await updateUrl();
+};
+
+// Source URL for the sun cycle shadow overlay; undefined when disabled.
+// Options that are not set in the page URL fall back to the protocol defaults.
+// timeOverride renders the shadow for a different moment than the selected
+// time, used for the minute-resolution hover preview in the time selector.
+export const getSunUrl = (timeOverride?: Date): string | undefined => {
+	const sun = get(sS);
+	if (!sun.shadow) return undefined;
+
+	let result = `sun://shadow?time=${formatISOUTCWithZ(timeOverride ?? get(time))}`;
+	if (sun.opacity !== undefined) result += `&opacity=${sun.opacity}`;
+	if (sun.gradient !== undefined) result += `&gradient=${sun.gradient}`;
+	if (sun.color !== undefined) result += `&color=${sun.color}`;
+	return result;
 };
 
 export const getNextOmUrls = (
