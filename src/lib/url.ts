@@ -89,6 +89,9 @@ export const updateUrl = async (
 	try {
 		const map = get(m);
 		if (map) {
+			// The stored URL keeps the hash the page was opened with; drop it so the
+			// map's current hash isn't appended after the stale one.
+			url.hash = '';
 			fullUrl = String(url) + map._hash.getHashString();
 		} else {
 			fullUrl = String(url);

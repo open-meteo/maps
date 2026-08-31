@@ -13,6 +13,7 @@
 	import { inProgress, latest, modelRun, now, time } from '$lib/stores/time';
 	import { selectedDomain } from '$lib/stores/variables';
 
+	import AnimateButton from '$lib/components/time/animate-button.svelte';
 	import PrefetchButton from '$lib/components/time/prefetch-button.svelte';
 	import * as Select from '$lib/components/ui/select';
 
@@ -886,6 +887,12 @@
 					<div class="h-3 w-8 bg-foreground/10 rounded animate-pulse"></div>
 				</div>
 			{:else}{/if}
+		</div>
+		<!-- Animation Controls -->
+		<div
+			class="-top-4.5 h-4.5 z-10 left-0 absolute flex rounded-t-lg items-center px-2 gap-0.5 bg-glass/65 backdrop-blur-sm"
+		>
+			<AnimateButton />
 		</div>
 		<!-- Model Run Selection Dropdown -->
 		<div
