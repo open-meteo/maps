@@ -21,7 +21,7 @@
 		preventScroll={false}
 		class="z-100 bg-glass/80 backdrop-blur-sm max-h-screen w-96 border-none"
 	>
-		<div class="flex flex-col px-6 pt-12 pb-18 gap-6 min-h-full overflow-y-scroll">
+		<div class="flex flex-col px-6 pt-12 pb-18 gap-2 min-h-full overflow-y-scroll">
 			<UnitSettings />
 			<GridSettings />
 			<ArrowsSettings />

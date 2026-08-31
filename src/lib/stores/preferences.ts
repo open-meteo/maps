@@ -93,6 +93,12 @@ export const localStorageVersion: Persisted<string | undefined> = persisted(
 	undefined
 );
 
+/**
+ * Settings sections a visitor collapsed, by title. Absent means open, so a
+ * newly added section shows up expanded.
+ */
+export const collapsedSettings = persisted<Record<string, boolean>>('settings-collapsed', {});
+
 export const helpOpen = writable(false);
 
 export const typing = writable(false);

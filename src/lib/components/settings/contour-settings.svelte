@@ -11,6 +11,8 @@
 	import { changeOMfileURL } from '$lib/layers';
 	import { updateUrl } from '$lib/url';
 
+	import SettingsSection from './settings-section.svelte';
+
 	let contours = $derived($vectorOptions.contours);
 	let breakpoints = $derived($vectorOptions.breakpoints);
 
@@ -27,8 +29,7 @@
 	};
 </script>
 
-<div>
-	<h2 class="text-lg font-bold">Contour settings</h2>
+<SettingsSection title="Contour settings">
 	<div class="mt-3 flex gap-3">
 		<Switch
 			id="contouring"
@@ -90,4 +91,4 @@
 			onchange={handleContourIntervalChange}
 		/>
 	</div>
-</div>
+</SettingsSection>

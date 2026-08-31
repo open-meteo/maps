@@ -320,6 +320,34 @@
 	transition: 150ms;
 }
 
+/* Flow direction of the primary source (wind, waves, currents), left of the
+   value. Only shown when the source carries directions. The popup follows the
+   cursor, so angle, tail length, opacity and width all update continuously:
+   transition them instead of snapping between samples. */
+.popup-arrow {
+	display: none;
+	flex: none;
+	width: 18px;
+	height: 18px;
+	margin-right: 1px;
+}
+
+.popup-arrow-visible {
+	display: block;
+}
+
+/* No transforms and no transitions on purpose: angle, length, opacity and
+   width are eased in `popup.ts` and written into the path every frame. A
+   transformed element can be rasterized once and reused, which showed up as a
+   pixelated arrow; redrawn geometry always renders at full resolution. */
+.popup-arrow svg {
+	display: block;
+	width: 100%;
+	height: 100%;
+	overflow: visible;
+	shape-rendering: geometricPrecision;
+}
+
 .popup-stem {
 	position: absolute;
 	width: 3px;
