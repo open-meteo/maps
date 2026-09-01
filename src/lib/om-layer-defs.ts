@@ -82,6 +82,11 @@ export interface VectorChannelOptions {
 	lineWidth?: number;
 	/** Rendered inside the raster stack (see ChartSource.inlineVectors). */
 	inline?: boolean;
+	/**
+	 * Draw the contour line layer. False when the GPU layer renders the lines
+	 * in-shader and this channel only contributes the labels. Default true.
+	 */
+	contourLines?: boolean;
 }
 
 /** Scale a numeric width expression by a factor. */
@@ -227,7 +232,9 @@ export const vectorChannel = (
 		});
 	}
 
-	if (contours) {
+	// The line layer is skipped when the GPU renders the isolines in-shader;
+	// the tiles then only feed the label layer below.
+	if (contours && (options.contourLines ?? true)) {
 		layers.push({
 			id: 'contours',
 			opacityProp: 'line-opacity',
@@ -251,6 +258,8 @@ export const vectorChannel = (
 				);
 			}
 		});
+	}
+	if (contours) {
 		layers.push({
 			id: 'contour-labels',
 			opacityProp: 'text-opacity',
@@ -296,7 +305,7 @@ export const vectorChannel = (
 	return {
 		// Line width, arrow shape and stack placement are part of the identity,
 		// like raster opacity
-		key: `${sourceKey}:vector:${lineWidth}:${arrowStyle}:${arrowRender}:${iconScale}${options.inline ? ':inline' : ''}`,
+		key: `${sourceKey}:vector:${lineWidth}:${arrowStyle}:${arrowRender}:${iconScale}${options.inline ? ':inline' : ''}${(options.contourLines ?? true) ? '' : ':nolines'}`,
 		url,
 		sourceSpec: { type: 'vector', url },
 		layers

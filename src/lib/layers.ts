@@ -29,7 +29,7 @@ import { vectorOptions as vO } from '$lib/stores/vector';
 
 import { windIconSizePx, windIconSpacing } from '$lib/arrow-sprites';
 import { sourceKey } from '$lib/chart-encoding';
-import { defaultArrowStyle } from '$lib/chart-styles';
+import { defaultArrowStyle, defaultContourStyle } from '$lib/chart-styles';
 import { alphaOfCssColor } from '$lib/color';
 import { createCommitBarrier } from '$lib/commit-barrier';
 import {
@@ -48,7 +48,7 @@ import { refreshPopup } from './popup';
 import { gpuCacheMb, omProtocolSettings } from './stores/om-protocol-settings';
 import { getOmUrlForSource, getSunUrl } from './url';
 
-import type { GpuArrowConfig } from '@openmeteo/weather-map-layer';
+import type { GpuArrowConfig, GpuContourStyle } from '@openmeteo/weather-map-layer';
 import type { RasterTileSource } from 'maplibre-gl';
 
 let frameManager: FrameManager | undefined;
@@ -117,10 +117,23 @@ const buildRenderState = (): RenderState | undefined => {
 				arrows: gpuArrowConfig(vectorOptions.arrowIconScale, dark)
 			});
 		}
+		// Contour lines render in-shader (they morph with the temporal blend and
+		// have no tile seams); the CPU channel below only contributes the labels.
+		if (source.contours) {
+			rasters.push({
+				key: `${sourceKey(source)}:contours`,
+				url,
+				opacity: source.opacity ?? 1,
+				beforeLayer: source.inlineVectors ? rasterBefore : vectorBefore,
+				raster: false,
+				contours: gpuContourStyle(source.lineWidth, dark)
+			});
+		}
 		if (source.contours || (source.arrows && !gpuArrows) || vectorOptions.grid) {
 			vectors.push(
 				vectorChannel(sourceKey(source), url, {
 					contours: !!source.contours,
+					contourLines: false,
 					arrows: !!source.arrows && !gpuArrows,
 					arrowStyle: vectorOptions.arrowStyle,
 					arrowRender: vectorOptions.arrowRender,
@@ -147,9 +160,25 @@ const buildRenderState = (): RenderState | undefined => {
 const GPU_ARROW_SPACING = 1.5;
 const GPU_ARROW_WEIGHT = 0.7;
 
+/** The GPU isoline pass styled like the CPU contour line layer would be. */
+const gpuContourStyle = (lineWidth: number | undefined, dark: boolean): GpuContourStyle => {
+	const levels = defaultContourStyle.levels;
+	const width = lineWidth ?? 1;
+	return {
+		color: dark ? [1, 1, 1] : [0, 0, 0],
+		classAlphas: levels.map((level) =>
+			alphaOfCssColor(dark ? level.darkColor : level.lightColor)
+		) as [number, number, number, number],
+		classWidths: levels.map((level) => level.width * width) as [number, number, number, number],
+		moduli: levels.slice(1).map((level) => level.modulo) as [number, number, number]
+	};
+};
+
 const gpuArrowConfig = (scale: number | undefined, dark: boolean): GpuArrowConfig => ({
 	spacingPx: windIconSpacing('arrow', scale ?? 1) * GPU_ARROW_SPACING,
 	sizePx: windIconSizePx('arrow', scale ?? 1),
+	// At world views arrows are clutter over the raster; fade them in from z2→3
+	minZoom: 3,
 	color: dark ? [1, 1, 1] : [0, 0, 0],
 	levels: defaultArrowStyle.levels.map((level) => ({
 		minSpeed: level.minSpeed,

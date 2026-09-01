@@ -19,7 +19,11 @@
 import { WeatherGpuLayer, getStateValues, updateCurrentBounds } from '@openmeteo/weather-map-layer';
 
 import type { CommitBarrier } from '$lib/commit-barrier';
-import type { GpuArrowConfig, OmProtocolSettings } from '@openmeteo/weather-map-layer';
+import type {
+	GpuArrowConfig,
+	GpuContourStyle,
+	OmProtocolSettings
+} from '@openmeteo/weather-map-layer';
 import type maplibregl from 'maplibre-gl';
 
 export interface GpuRasterSlotSpec {
@@ -35,6 +39,8 @@ export interface GpuRasterSlotSpec {
 	raster: boolean;
 	/** Instanced wind-arrow overlay configuration. */
 	arrows?: GpuArrowConfig;
+	/** In-shader contour isoline styling. */
+	contours?: GpuContourStyle;
 }
 
 export interface GpuRasterManagerOptions {
@@ -54,6 +60,7 @@ interface Slot {
 	opacity: number;
 	beforeLayer: string;
 	arrowsKey: string;
+	contoursKey: string;
 }
 
 /** A slot replacement in flight: new layers dissolve in over retiring ones. */
@@ -127,7 +134,8 @@ export class GpuRasterManager {
 					url: '',
 					opacity: spec.opacity,
 					beforeLayer: spec.beforeLayer,
-					arrowsKey: ''
+					arrowsKey: '',
+					contoursKey: ''
 				};
 				this.slots.set(spec.key, slot);
 				entering.push(slot);
@@ -147,6 +155,11 @@ export class GpuRasterManager {
 			if (slot.arrowsKey !== arrowsKey) {
 				slot.arrowsKey = arrowsKey;
 				slot.layer.setArrows(spec.arrows);
+			}
+			const contoursKey = spec.contours ? JSON.stringify(spec.contours) : '';
+			if (slot.contoursKey !== contoursKey) {
+				slot.contoursKey = contoursKey;
+				slot.layer.setContours(spec.contours);
 			}
 			if (slot.url !== spec.url) {
 				slot.url = spec.url;
