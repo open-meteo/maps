@@ -42,8 +42,10 @@ import { type FrameChannel, FrameManager } from '$lib/frame-manager';
 import { GpuRasterManager, type GpuRasterSlotSpec } from '$lib/gpu-raster-manager';
 import { vectorChannel } from '$lib/om-layer-defs';
 
+import { fmtSelectedTime } from '$lib/helpers';
+
 import { refreshPopup } from './popup';
-import { omProtocolSettings } from './stores/om-protocol-settings';
+import { gpuCacheMb, omProtocolSettings } from './stores/om-protocol-settings';
 import { getOmUrlForSource, getSunUrl } from './url';
 
 import type { GpuArrowConfig } from '@openmeteo/weather-map-layer';
@@ -137,15 +139,22 @@ const buildRenderState = (): RenderState | undefined => {
 	return { rasters, vectors };
 };
 
-/** The GPU arrow pass configured like the CPU icon renderer would be. */
+/**
+ * The GPU arrow pass, based on the CPU icon renderer's lattice but calmer:
+ * wider spacing and lighter strokes — the per-pixel raster already carries the
+ * magnitude, the arrows only need to show flow.
+ */
+const GPU_ARROW_SPACING = 1.5;
+const GPU_ARROW_WEIGHT = 0.7;
+
 const gpuArrowConfig = (scale: number | undefined, dark: boolean): GpuArrowConfig => ({
-	spacingPx: windIconSpacing('arrow', scale ?? 1),
+	spacingPx: windIconSpacing('arrow', scale ?? 1) * GPU_ARROW_SPACING,
 	sizePx: windIconSizePx('arrow', scale ?? 1),
 	color: dark ? [1, 1, 1] : [0, 0, 0],
 	levels: defaultArrowStyle.levels.map((level) => ({
 		minSpeed: level.minSpeed,
 		alpha: alphaOfCssColor(dark ? level.darkColor : level.lightColor),
-		width: level.width
+		width: level.width * GPU_ARROW_WEIGHT
 	}))
 });
 
@@ -179,6 +188,7 @@ export const addOmFileLayers = (): void => {
 	gpuRasters?.destroy();
 	gpuRasters = new GpuRasterManager(map, {
 		settings: get(omProtocolSettings),
+		textureCacheMb: get(gpuCacheMb),
 		onLoadingChange: (isLoading) => {
 			rasterLoading = isLoading;
 			updateLoading();
@@ -241,6 +251,21 @@ export const changeOMfileURL = (): void => {
  * om:// source URL per source key (`variable` or `variable@domain`) of the
  * currently visible frame, in chart source order (used by the popup).
  */
+/** VRAM used/budgeted by the GPU weather layers (for the settings pane). */
+export const getGpuMemoryUsage = (): { bytes: number; budgetBytes: number; textures: number } =>
+	gpuRasters?.getMemoryUsage() ?? { bytes: 0, budgetBytes: 0, textures: 0 };
+
+/**
+ * Set the GPU layers' temporal blend duration. The animate loop matches it to
+ * its frame interval for one continuous morph; pass undefined to restore the
+ * default 250ms scrub blend.
+ */
+export const setRasterFadeMs = (fadeMs?: number): void => gpuRasters?.setFadeMs(fadeMs ?? 250);
+
+/** Cache residency (RAM/VRAM) of the primary raster source per timestep. */
+export const getTimestepResidency = (times: Date[]): ('none' | 'ram' | 'vram')[] =>
+	gpuRasters?.getTimestepResidency(times, fmtSelectedTime) ?? times.map(() => 'none');
+
 export const getActiveOmUrls = (): Map<string, string> => {
 	// GPU raster slots are keyed by the source key directly
 	const urls = gpuRasters?.getActiveUrls() ?? new Map<string, string>();

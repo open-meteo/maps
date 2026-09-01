@@ -31,6 +31,18 @@ export const customColorScales = persisted<Record<string, RenderableColorScale>>
 
 export const cacheBlockSizeKb = persisted('cache-block-size-kb', DEFAULT_CACHE_BLOCK_SIZE_KB);
 export const cacheMaxBytesMb = persisted('cache-max-bytes-mb', DEFAULT_CACHE_MAX_BYTES_MB);
+// VRAM budget for the GPU layers' value-texture cache: more keeps more
+// timesteps resident on the GPU, so animation loops replay without re-uploads.
+export const gpuCacheMb = persisted('gpu-cache-mb', 256);
+
+/** Usage of the shared block cache (RAM/persistent), for the settings pane. */
+export const getBlockCacheStats = ():
+	| Promise<{
+			persistentBytes: number;
+			memoryBytes: number;
+			maxBytes: number;
+	  }>
+	| undefined => blockCache?.getStats();
 
 const initialCustomColorScales = get(customColorScales);
 

@@ -16,7 +16,7 @@
  * passes of the same GPU layers; contours, grid points and wind barbs stay on
  * the CPU tile pipeline via the FrameManager.
  */
-import { WeatherGpuLayer } from '@openmeteo/weather-map-layer';
+import { WeatherGpuLayer, getStateValues, updateCurrentBounds } from '@openmeteo/weather-map-layer';
 
 import type { CommitBarrier } from '$lib/commit-barrier';
 import type { GpuArrowConfig, OmProtocolSettings } from '@openmeteo/weather-map-layer';
@@ -39,6 +39,8 @@ export interface GpuRasterSlotSpec {
 
 export interface GpuRasterManagerOptions {
 	settings: OmProtocolSettings;
+	/** VRAM budget (MB) for the shared value-texture cache of the GPU layers. */
+	textureCacheMb?: number;
 	onLoadingChange?: (loading: boolean) => void;
 	/** Fired when a slot batch committed its loaded URLs (like a frame commit). */
 	onShown?: () => void;
@@ -59,6 +61,7 @@ export class GpuRasterManager {
 	private opts: GpuRasterManagerOptions;
 	private slots = new Map<string, Slot>();
 	private pendingLoads = 0;
+	private fadeMs: number | undefined;
 	private onMoveEnd: () => void;
 
 	constructor(map: maplibregl.Map, opts: GpuRasterManagerOptions) {
@@ -89,6 +92,7 @@ export class GpuRasterManager {
 	 * (and, through `barrier`, the accompanying vector frame) is ready.
 	 */
 	show(specs: GpuRasterSlotSpec[], barrier?: CommitBarrier): void {
+		this.syncBounds();
 		const seen = new Set<string>();
 		const prepares: Promise<(() => void) | null>[] = [];
 
@@ -101,7 +105,9 @@ export class GpuRasterManager {
 					id: layerId,
 					opacity: spec.opacity,
 					settings: this.opts.settings,
-					drawRaster: spec.raster
+					drawRaster: spec.raster,
+					textureCacheMb: this.opts.textureCacheMb,
+					fadeMs: this.fadeMs
 				});
 				const before = this.map.getLayer(spec.beforeLayer) ? spec.beforeLayer : undefined;
 				this.map.addLayer(layer, before);
@@ -174,8 +180,20 @@ export class GpuRasterManager {
 			});
 	}
 
+	/**
+	 * The protocol's viewport crop (`currentBounds`) historically updated on the
+	 * map's `dataloading` event — which barely fires on the tile-free GPU path
+	 * (not at all with a warm basemap cache), leaving requests parsed against a
+	 * stale viewport. Sync it from the map whenever we are about to build URLs.
+	 */
+	private syncBounds(): void {
+		const bounds = this.map.getBounds();
+		updateCurrentBounds([bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()]);
+	}
+
 	/** Re-resolve every slot's URL against the current viewport crop. */
 	refresh(): void {
+		this.syncBounds();
 		for (const slot of this.slots.values()) {
 			if (!slot.url) continue;
 			slot.layer.setUrl(slot.url).catch(() => {
@@ -198,6 +216,41 @@ export class GpuRasterManager {
 
 	isLoading(): boolean {
 		return this.pendingLoads > 0;
+	}
+
+	/**
+	 * VRAM usage of the GPU layers. All layers share one renderer per GL
+	 * context, so any slot reports the global figure.
+	 */
+	getMemoryUsage(): { bytes: number; budgetBytes: number; textures: number } {
+		const first = this.slots.values().next().value;
+		return first?.layer.getMemoryUsage() ?? { bytes: 0, budgetBytes: 0, textures: 0 };
+	}
+
+	/**
+	 * Set the temporal blend duration on every layer (current and future). The
+	 * animation loop matches it to its frame interval, so consecutive timesteps
+	 * morph back to back into one continuous animation.
+	 */
+	setFadeMs(fadeMs: number): void {
+		this.fadeMs = fadeMs;
+		for (const slot of this.slots.values()) slot.layer.setFadeMs(fadeMs);
+	}
+
+	/**
+	 * Cache residency of the primary raster source at other timesteps: whether
+	 * the timestep's data is decoded in RAM, and additionally uploaded to VRAM.
+	 * Derived by substituting the valid-time file segment of the active URL.
+	 */
+	getTimestepResidency(times: Date[], formatTime: (t: Date) => string): ('none' | 'ram' | 'vram')[] {
+		const slot = [...this.slots.entries()].find(([key, s]) => !key.includes(':') && s.url)?.[1];
+		if (!slot) return times.map(() => 'none');
+		return times.map((time) => {
+			const url = slot.url.replace(/\d{4}-\d{2}-\d{2}T\d{4}\.om/, `${formatTime(time)}.om`);
+			const values = getStateValues(url);
+			if (!values) return 'none';
+			return slot.layer.hasValueTexture(values) ? 'vram' : 'ram';
+		});
 	}
 
 	destroy(): void {
