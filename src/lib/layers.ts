@@ -24,7 +24,7 @@ import { chartSources } from '$lib/stores/chart';
 import { map as m } from '$lib/stores/map';
 import { loading, opacity, preferences as p } from '$lib/stores/preferences';
 import { modelRun, time } from '$lib/stores/time';
-import { selectedDomain } from '$lib/stores/variables';
+import { selectedDomain, variable as variableStore } from '$lib/stores/variables';
 import { vectorOptions as vO } from '$lib/stores/vector';
 
 import { windIconSizePx, windIconSpacing } from '$lib/arrow-sprites';
@@ -42,6 +42,7 @@ import { type FrameChannel, FrameManager } from '$lib/frame-manager';
 import { GpuRasterManager, type GpuRasterSlotSpec } from '$lib/gpu-raster-manager';
 import { fmtSelectedTime } from '$lib/helpers';
 import { vectorChannel } from '$lib/om-layer-defs';
+import { isPrefetched } from '$lib/prefetch';
 
 import { refreshPopup } from './popup';
 import { gpuCacheMb, omProtocolSettings } from './stores/om-protocol-settings';
@@ -261,9 +262,21 @@ export const getGpuMemoryUsage = (): { bytes: number; budgetBytes: number; textu
  */
 export const setRasterFadeMs = (fadeMs?: number): void => gpuRasters?.setFadeMs(fadeMs ?? 250);
 
-/** Cache residency (RAM/VRAM) of the primary raster source per timestep. */
-export const getTimestepResidency = (times: Date[]): ('none' | 'ram' | 'vram')[] =>
-	gpuRasters?.getTimestepResidency(times, fmtSelectedTime) ?? times.map(() => 'none');
+/**
+ * Cache residency of the primary source per timestep: 'vram' = texture on the
+ * GPU, 'ram' = decoded in the protocol state or prefetched into the block
+ * cache (near-instant to show), 'none' = would need a network fetch.
+ */
+export const getTimestepResidency = (times: Date[]): ('none' | 'ram' | 'vram')[] => {
+	const base = gpuRasters?.getTimestepResidency(times, fmtSelectedTime) ?? times.map(() => 'none');
+	const run = get(modelRun);
+	const domainValue = get(selectedDomain)?.value;
+	const variableValue = get(variableStore);
+	if (!run || !domainValue || !variableValue) return base;
+	return base.map((state, i) =>
+		state === 'none' && isPrefetched(domainValue, variableValue, run, times[i]) ? 'ram' : state
+	);
+};
 
 export const getActiveOmUrls = (): Map<string, string> => {
 	// GPU raster slots are keyed by the source key directly

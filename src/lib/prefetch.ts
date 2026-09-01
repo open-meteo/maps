@@ -46,6 +46,21 @@ export interface PrefetchProgress {
 type DimensionRanges = ReturnType<typeof getRanges>;
 type Bounds = [number, number, number, number];
 
+// Session registry of successfully prefetched timesteps: their blocks sit in
+// the cache (RAM/persistent), so they decode near-instantly — the "warm" tier
+// between not-loaded and GPU-resident shown in the time selector.
+const prefetchedSteps = new Set<string>();
+const prefetchedKey = (domain: string, variable: string, modelRun: Date, step: Date): string =>
+	`${domain}|${variable}|${modelRun.getTime()}|${step.getTime()}`;
+
+/** True when this timestep was prefetched into the block cache this session. */
+export const isPrefetched = (
+	domain: string,
+	variable: string,
+	modelRun: Date,
+	step: Date
+): boolean => prefetchedSteps.has(prefetchedKey(domain, variable, modelRun, step));
+
 /**
  * Calculate the start and end dates for a given prefetch mode
  *
@@ -285,7 +300,12 @@ export const prefetchData = async (
 				}
 			}
 
-			return attempted > 0 && succeeded === attempted;
+			const complete = attempted > 0 && succeeded === attempted;
+			if (complete) {
+				if (prefetchedSteps.size > 8192) prefetchedSteps.clear();
+				prefetchedSteps.add(prefetchedKey(domain, variable, modelRun, timeStep));
+			}
+			return complete;
 		};
 
 		// Prefetch multiple time steps in parallel with a simple concurrency limit.
