@@ -56,12 +56,20 @@ interface Slot {
 	arrowsKey: string;
 }
 
+/** A slot replacement in flight: new layers dissolve in over retiring ones. */
+interface Transition {
+	entering: Slot[];
+	retiring: Slot[];
+}
+
 export class GpuRasterManager {
 	private map: maplibregl.Map;
 	private opts: GpuRasterManagerOptions;
 	private slots = new Map<string, Slot>();
 	private pendingLoads = 0;
 	private fadeMs: number | undefined;
+	private dissolve: { raf: number; transition: Transition } | undefined;
+	private pendingTransition: Transition | undefined;
 	private onMoveEnd: () => void;
 
 	constructor(map: maplibregl.Map, opts: GpuRasterManagerOptions) {
@@ -93,8 +101,10 @@ export class GpuRasterManager {
 	 */
 	show(specs: GpuRasterSlotSpec[], barrier?: CommitBarrier): void {
 		this.syncBounds();
+		this.finalizeTransition();
 		const seen = new Set<string>();
 		const prepares: Promise<(() => void) | null>[] = [];
+		const entering: Slot[] = [];
 
 		for (const spec of specs) {
 			seen.add(spec.key);
@@ -120,6 +130,7 @@ export class GpuRasterManager {
 					arrowsKey: ''
 				};
 				this.slots.set(spec.key, slot);
+				entering.push(slot);
 			}
 
 			if (slot.beforeLayer !== spec.beforeLayer) {
@@ -143,10 +154,27 @@ export class GpuRasterManager {
 			}
 		}
 
+		// A replaced source (e.g. a variable switch swaps the slot key) keeps its
+		// old layer on screen while the new one loads, then both dissolve — the
+		// same visual as a timestep morph, but as an opacity crossfade. A plain
+		// removal (source deleted) disappears immediately.
+		const retiring: Slot[] = [];
 		for (const [key, slot] of [...this.slots]) {
 			if (seen.has(key)) continue;
-			if (this.map.getLayer(slot.layerId)) this.map.removeLayer(slot.layerId);
 			this.slots.delete(key);
+			if (entering.length > 0 && prepares.length > 0) {
+				retiring.push(slot);
+			} else if (this.map.getLayer(slot.layerId)) {
+				this.map.removeLayer(slot.layerId);
+			}
+		}
+		let transition: Transition | undefined;
+		if (retiring.length > 0) {
+			// Entering layers show nothing until their commit; start them invisible
+			// so the dissolve controls their appearance.
+			for (const slot of entering) slot.layer.setOpacity(0);
+			transition = { entering, retiring };
+			this.pendingTransition = transition;
 		}
 
 		if (prepares.length === 0) {
@@ -165,9 +193,18 @@ export class GpuRasterManager {
 					valid.length > 0
 						? (): void => {
 								for (const commit of valid) commit();
+								if (transition && this.pendingTransition === transition) {
+									this.pendingTransition = undefined;
+									this.startDissolve(transition);
+								}
 								this.opts.onShown?.();
 							}
 						: undefined;
+				if (!commitAll && transition && this.pendingTransition === transition) {
+					// The whole batch was superseded or failed: no dissolve, clean up.
+					this.pendingTransition = undefined;
+					this.endTransition(transition);
+				}
 				if (barrier) {
 					barrier.arrive(commitAll);
 				} else {
@@ -178,6 +215,49 @@ export class GpuRasterManager {
 				this.pendingLoads--;
 				if (this.pendingLoads === 0) this.opts.onLoadingChange?.(false);
 			});
+	}
+
+	/** Cross-dissolve entering layers over retiring ones, then drop the old. */
+	private startDissolve(transition: Transition): void {
+		const duration = 250;
+		const start = performance.now();
+		const step = (now: number): void => {
+			const t = Math.min(1, (now - start) / duration);
+			const e = t * t * (3 - 2 * t);
+			for (const slot of transition.entering) slot.layer.setOpacity(slot.opacity * e);
+			for (const slot of transition.retiring) {
+				const p = slot.opacity;
+				slot.layer.setOpacity(t >= 1 ? 0 : (p * (1 - e)) / Math.max(0.001, 1 - p * e));
+			}
+			if (t < 1) {
+				this.dissolve = { raf: requestAnimationFrame(step), transition };
+			} else {
+				this.dissolve = undefined;
+				this.endTransition(transition);
+			}
+		};
+		this.dissolve = { raf: requestAnimationFrame(step), transition };
+	}
+
+	/** Remove the retiring layers and settle the entering ones on their target. */
+	private endTransition(transition: Transition): void {
+		for (const slot of transition.retiring) {
+			if (this.map.getLayer(slot.layerId)) this.map.removeLayer(slot.layerId);
+		}
+		for (const slot of transition.entering) slot.layer.setOpacity(slot.opacity);
+	}
+
+	/** Snap any in-flight replacement to its end state (a newer show supersedes it). */
+	private finalizeTransition(): void {
+		if (this.dissolve) {
+			cancelAnimationFrame(this.dissolve.raf);
+			this.endTransition(this.dissolve.transition);
+			this.dissolve = undefined;
+		}
+		if (this.pendingTransition) {
+			this.endTransition(this.pendingTransition);
+			this.pendingTransition = undefined;
+		}
 	}
 
 	/**
@@ -242,18 +322,23 @@ export class GpuRasterManager {
 	 * the timestep's data is decoded in RAM, and additionally uploaded to VRAM.
 	 * Derived by substituting the valid-time file segment of the active URL.
 	 */
-	getTimestepResidency(times: Date[], formatTime: (t: Date) => string): ('none' | 'ram' | 'vram')[] {
+	getTimestepResidency(
+		times: Date[],
+		formatTime: (t: Date) => string
+	): ('none' | 'ram' | 'vram')[] {
 		const slot = [...this.slots.entries()].find(([key, s]) => !key.includes(':') && s.url)?.[1];
 		if (!slot) return times.map(() => 'none');
 		return times.map((time) => {
 			const url = slot.url.replace(/\d{4}-\d{2}-\d{2}T\d{4}\.om/, `${formatTime(time)}.om`);
-			const values = getStateValues(url);
-			if (!values) return 'none';
-			return slot.layer.hasValueTexture(values) ? 'vram' : 'ram';
+			// Texture labels outlive the small decoded-RAM state cache, so VRAM
+			// residency is checked first and independently.
+			if (slot.layer.hasTextureForUrl(url)) return 'vram';
+			return getStateValues(url) ? 'ram' : 'none';
 		});
 	}
 
 	destroy(): void {
+		this.finalizeTransition();
 		this.map.off('moveend', this.onMoveEnd);
 		for (const slot of this.slots.values()) {
 			if (this.map.getLayer(slot.layerId)) this.map.removeLayer(slot.layerId);

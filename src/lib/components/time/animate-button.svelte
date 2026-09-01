@@ -4,12 +4,14 @@
 	import { toast } from 'svelte-sonner';
 
 	import { loading } from '$lib/stores/preferences';
-	import { metaJson, modelRun, time } from '$lib/stores/time';
+	import { animating, metaJson, modelRun, time } from '$lib/stores/time';
+	import { domain as domainStore, variable as variableStore } from '$lib/stores/variables';
 
 	import * as Select from '$lib/components/ui/select';
 
 	import { MILLISECONDS_PER_DAY } from '$lib/constants';
-	import { changeOMfileURL } from '$lib/layers';
+	import { changeOMfileURL, setRasterFadeMs } from '$lib/layers';
+	import { prefetchData } from '$lib/prefetch';
 	import { formatISOWithoutTimezone } from '$lib/time-format';
 	import { updateUrl } from '$lib/url';
 
@@ -26,6 +28,8 @@
 	// smooth, and after the first pass every frame is served from cache.
 	let selectedRange: AnimateRange = $state('1d');
 	let playing = $state(false);
+	/** Streaming stall: the playhead caught up with the not-yet-loaded steps. */
+	let buffering = $state(false);
 
 	let disabled = $derived($modelRun === undefined);
 
@@ -34,15 +38,63 @@
 
 	let timer: ReturnType<typeof setTimeout> | undefined;
 
-	// A frame lasts at least the GPU layer's 250ms value blend, so each step
-	// finishes morphing before the next begins.
+	// While playing, the GPU layers' value blend is set to exactly this frame
+	// interval, so each step morphs right into the next: one continuous
+	// animation instead of blend-then-hold.
 	const FRAME_MS = 350;
+
+	// Streaming buffer, like video playback: a background prefetch warms the
+	// whole loop window front to back; playback starts right away but only
+	// advances while the prefetch stays ahead of the playhead (small margin),
+	// so it either streams smoothly or visibly buffers — never stutters.
+	const BUFFER_AHEAD = 2;
+	let prefetchDone = true;
+	let prefetchedSteps = 0;
+	let playedSteps = 0;
+	let prefetchAbort: AbortController | null = null;
+
+	const startBuffering = (windowEnd: number) => {
+		const meta = $metaJson;
+		const run = $modelRun;
+		if (!meta || !run) return;
+		prefetchDone = false;
+		prefetchedSteps = 0;
+		playedSteps = 0;
+		prefetchAbort = new AbortController();
+		prefetchData(
+			{
+				startDate: new Date(windowStart),
+				endDate: new Date(windowEnd),
+				metaJson: meta,
+				modelRun: run,
+				domain: $domainStore,
+				variable: $variableStore,
+				signal: prefetchAbort.signal
+			},
+			(progress) => {
+				prefetchedSteps = progress.current;
+			}
+		)
+			.catch(() => {})
+			.finally(() => {
+				prefetchDone = true;
+			});
+	};
 
 	const tick = () => {
 		if (!playing) return;
 		timer = setTimeout(tick, FRAME_MS);
 		// Wait for the current frame's data instead of racing ahead of the network.
-		if ($loading) return;
+		if ($loading) {
+			buffering = true;
+			return;
+		}
+		// Hold while the stream buffer has not built up a margin yet.
+		if (!prefetchDone && prefetchedSteps < playedSteps + BUFFER_AHEAD) {
+			buffering = true;
+			return;
+		}
+		buffering = false;
 
 		const windowEnd = windowStart + rangeDays[selectedRange] * MILLISECONDS_PER_DAY;
 		const steps = ($metaJson?.valid_times ?? [])
@@ -56,6 +108,8 @@
 
 		const current = $time.getTime();
 		const next = steps.find((step) => step.getTime() > current) ?? steps[0];
+		if (next.getTime() < current) playedSteps = 0; // wrapped: replays are buffered
+		playedSteps++;
 		$time = next;
 		updateUrl('time', formatISOWithoutTimezone(next));
 		changeOMfileURL();
@@ -68,16 +122,30 @@
 		}
 		windowStart = $time.getTime();
 		playing = true;
+		$animating = true;
+		setRasterFadeMs(FRAME_MS);
+		startBuffering(windowStart + rangeDays[selectedRange] * MILLISECONDS_PER_DAY);
 		tick();
 	};
 
 	const stop = () => {
 		playing = false;
+		buffering = false;
+		$animating = false;
 		clearTimeout(timer);
+		prefetchAbort?.abort();
+		prefetchAbort = null;
+		setRasterFadeMs(); // restore the default scrub blend
 	};
 
 	onDestroy(stop);
+
+	const onKeydown = (e: KeyboardEvent) => {
+		if (e.key === 'Escape' && playing) stop();
+	};
 </script>
+
+<svelte:window onkeydown={onKeydown} />
 
 <!-- Play / Pause Button -->
 <button
@@ -95,7 +163,11 @@
 		}
 	}}
 	aria-label={playing ? 'Pause animation' : 'Play animation'}
-	title={playing ? 'Pause animation' : `Animate ${animateRanges.get(selectedRange)}`}
+	title={playing
+		? buffering
+			? 'Buffering…'
+			: 'Pause animation'
+		: `Animate ${animateRanges.get(selectedRange)}`}
 >
 	{#if playing}
 		<svg
@@ -108,7 +180,7 @@
 			stroke-width="2.5"
 			stroke-linecap="round"
 			stroke-linejoin="round"
-			class="text-blue-500 lucide lucide-pause-icon"
+			class="text-blue-500 lucide lucide-pause-icon {buffering ? 'animate-pulse' : ''}"
 		>
 			<rect x="14" y="4" width="4" height="16" rx="1" />
 			<rect x="6" y="4" width="4" height="16" rx="1" />

@@ -9,11 +9,12 @@
 
 	import { timeSelectorActions } from '$lib/stores/keyboard';
 	import { desktop, loading } from '$lib/stores/preferences';
-	import { metaJson, modelRunLocked } from '$lib/stores/time';
+	import { animating, metaJson, modelRunLocked } from '$lib/stores/time';
 	import { inProgress, latest, modelRun, now, time } from '$lib/stores/time';
 	import { selectedDomain } from '$lib/stores/variables';
 
 	import AnimateButton from '$lib/components/time/animate-button.svelte';
+	import CacheMeter from '$lib/components/time/cache-meter.svelte';
 	import PrefetchButton from '$lib/components/time/prefetch-button.svelte';
 	import * as Select from '$lib/components/ui/select';
 
@@ -25,7 +26,7 @@
 		MILLISECONDS_PER_WEEK
 	} from '$lib/constants';
 	import { throttle } from '$lib/helpers';
-	import { changeOMfileURL, previewSunTime } from '$lib/layers';
+	import { changeOMfileURL, getTimestepResidency, previewSunTime } from '$lib/layers';
 	import { tryGetMetaData } from '$lib/metadata';
 	import {
 		formatISOWithoutTimezone,
@@ -775,12 +776,33 @@
 		}
 	});
 
+	onMount(() => {
+		pollResidency();
+		residencyTimer = setInterval(pollResidency, 1000);
+	});
+
 	onDestroy(() => {
 		if (resizeTimeout) clearTimeout(resizeTimeout);
+		if (residencyTimer) clearInterval(residencyTimer);
 		listenerController.abort();
 		resizeObserver?.disconnect();
 		unsubscribeMetaJson();
 	});
+
+	// Cache residency per valid time: which timesteps sit decoded in RAM and
+	// which additionally have their texture in VRAM (tinted tick marks).
+	let residency = $state<Map<number, 'ram' | 'vram'>>(new Map());
+	let residencyTimer: ReturnType<typeof setInterval> | undefined;
+	const pollResidency = () => {
+		if (!timeSteps || timeSteps.length === 0) return;
+		const states = getTimestepResidency(timeSteps);
+		const next = new Map<number, 'ram' | 'vram'>();
+		for (let i = 0; i < timeSteps.length; i++) {
+			const state = states[i];
+			if (state !== 'none') next.set(timeSteps[i].getTime(), state);
+		}
+		residency = next;
+	};
 
 	let previousModelSteps = $derived.by(() => {
 		const previousModels = [];
@@ -898,6 +920,7 @@
 		<div
 			class="-top-4.5 h-4.5 z-10 right-0 absolute flex rounded-t-lg items-center px-2 gap-0.5 bg-glass/65 backdrop-blur-sm"
 		>
+			<CacheMeter />
 			<PrefetchButton />
 
 			<Select.Root
@@ -1076,7 +1099,7 @@
 		<div
 			class="time-selector md:px-0 h-20 md:h-12.5 relative bg-glass/75 backdrop-blur-sm duration-500"
 		>
-			{#if hoverX || currentDate.getTime() !== $time.getTime()}
+			{#if !$animating && (hoverX || currentDate.getTime() !== $time.getTime())}
 				<div
 					transition:fade={{ duration: 300 }}
 					class="absolute {desktop.current ? '-left-6' : 'left-1.75'} -top-5 text-xs p-1"
@@ -1185,7 +1208,13 @@
 												: ''} {metaFirstResolutionHours === 0.25 && j % 16 === 0 && j !== 0
 												? 'h-3.25'
 												: ''} border-l-2
-												{!timeSteps?.find((tS) => timeStep.getTime() === tS.getTime()) ? 'border-foreground/20' : ''}"
+												{!timeSteps?.find((tS) => timeStep.getTime() === tS.getTime())
+												? 'border-foreground/20'
+												: residency.get(timeStep.getTime()) === 'vram'
+													? 'border-blue-500'
+													: residency.get(timeStep.getTime()) === 'ram'
+														? 'border-amber-500'
+														: ''}"
 										></div>
 									{/if}
 								{/each}

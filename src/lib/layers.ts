@@ -40,9 +40,8 @@ import {
 } from '$lib/constants';
 import { type FrameChannel, FrameManager } from '$lib/frame-manager';
 import { GpuRasterManager, type GpuRasterSlotSpec } from '$lib/gpu-raster-manager';
-import { vectorChannel } from '$lib/om-layer-defs';
-
 import { fmtSelectedTime } from '$lib/helpers';
+import { vectorChannel } from '$lib/om-layer-defs';
 
 import { refreshPopup } from './popup';
 import { gpuCacheMb, omProtocolSettings } from './stores/om-protocol-settings';
