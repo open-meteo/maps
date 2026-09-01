@@ -27,7 +27,11 @@ import { modelRun, time } from '$lib/stores/time';
 import { selectedDomain } from '$lib/stores/variables';
 import { vectorOptions as vO } from '$lib/stores/vector';
 
+import { windIconSizePx, windIconSpacing } from '$lib/arrow-sprites';
 import { sourceKey } from '$lib/chart-encoding';
+import { defaultArrowStyle } from '$lib/chart-styles';
+import { alphaOfCssColor } from '$lib/color';
+import { createCommitBarrier } from '$lib/commit-barrier';
 import {
 	BEFORE_LAYER_RASTER,
 	BEFORE_LAYER_VECTOR,
@@ -42,6 +46,7 @@ import { refreshPopup } from './popup';
 import { omProtocolSettings } from './stores/om-protocol-settings';
 import { getOmUrlForSource, getSunUrl } from './url';
 
+import type { GpuArrowConfig } from '@openmeteo/weather-map-layer';
 import type { RasterTileSource } from 'maplibre-gl';
 
 let frameManager: FrameManager | undefined;
@@ -84,19 +89,37 @@ const buildRenderState = (): RenderState | undefined => {
 		}
 		const url = 'om://' + omUrl;
 
+		// Plain-style arrows render as instanced overlays of the GPU layer (they
+		// morph with the raster blend and follow the globe); barbs keep the CPU
+		// tile pipeline for their discrete glyph alphabet.
+		const gpuArrows = !!source.arrows && vectorOptions.arrowStyle === 'arrow';
+
 		if (source.raster) {
 			rasters.push({
 				key: sourceKey(source),
 				url,
 				opacity: getRasterOpacity() * (source.opacity ?? 1),
-				beforeLayer: rasterBefore
+				beforeLayer: rasterBefore,
+				raster: true
 			});
 		}
-		if (source.contours || source.arrows || vectorOptions.grid) {
+		if (gpuArrows) {
+			rasters.push({
+				key: `${sourceKey(source)}:arrows`,
+				url,
+				opacity: source.opacity ?? 1,
+				// Arrows sit with the other vector overlays above the raster stack,
+				// unless the source inlines its vectors into the raster stack
+				beforeLayer: source.inlineVectors ? rasterBefore : vectorBefore,
+				raster: false,
+				arrows: gpuArrowConfig(vectorOptions.arrowIconScale, dark)
+			});
+		}
+		if (source.contours || (source.arrows && !gpuArrows) || vectorOptions.grid) {
 			vectors.push(
 				vectorChannel(sourceKey(source), url, {
 					contours: !!source.contours,
-					arrows: !!source.arrows,
+					arrows: !!source.arrows && !gpuArrows,
 					arrowStyle: vectorOptions.arrowStyle,
 					arrowRender: vectorOptions.arrowRender,
 					arrowIconScale: vectorOptions.arrowIconScale,
@@ -113,6 +136,18 @@ const buildRenderState = (): RenderState | undefined => {
 	}
 	return { rasters, vectors };
 };
+
+/** The GPU arrow pass configured like the CPU icon renderer would be. */
+const gpuArrowConfig = (scale: number | undefined, dark: boolean): GpuArrowConfig => ({
+	spacingPx: windIconSpacing('arrow', scale ?? 1),
+	sizePx: windIconSizePx('arrow', scale ?? 1),
+	color: dark ? [1, 1, 1] : [0, 0, 0],
+	levels: defaultArrowStyle.levels.map((level) => ({
+		minSpeed: level.minSpeed,
+		alpha: alphaOfCssColor(dark ? level.darkColor : level.lightColor),
+		width: level.width
+	}))
+});
 
 /**
  * (Re)initialize the frame manager. Called on map load and after every
@@ -182,7 +217,7 @@ export const reanchorRasterLayers = (): void => {
  */
 export const changeOMfileURL = (): void => {
 	const map = get(m);
-	if (!map || !frameManager) return;
+	if (!map || !frameManager || !gpuRasters) return;
 
 	// The sun overlay only depends on the map, the selected time and its own
 	// settings, so it updates even while chart sources are not ready yet.
@@ -195,8 +230,11 @@ export const changeOMfileURL = (): void => {
 	const renderState = buildRenderState();
 	if (!renderState) return;
 
-	gpuRasters?.show(renderState.rasters);
-	frameManager.show(renderState.vectors);
+	// Both managers load independently but commit through one barrier, so every
+	// layer of the new render state starts animating in the same frame.
+	const barrier = createCommitBarrier(2);
+	gpuRasters.show(renderState.rasters, barrier);
+	frameManager.show(renderState.vectors, barrier);
 };
 
 /**

@@ -4,24 +4,26 @@
  * tile-free MapLibre custom layer rendering the field per pixel in a
  * shader); showing a new render state diffs against the existing slots:
  *
- * - URL change (timestep scrub): `setUrl` — the layer keeps showing the old
- *   data until the new timestep is loaded, then blends the *data values*
- *   in-shader (real temporal interpolation, replacing the FrameManager's
- *   raster dissolve).
- * - Opacity / anchor changes: uniform update / `moveLayer`, no reload.
+ * - URL change (timestep scrub): `prepareUrl` — the layer keeps showing the
+ *   old data until the new timestep is loaded; all changed slots then commit
+ *   together (through the render state's CommitBarrier, which also covers the
+ *   CPU vector frame), blending the *data values* in-shader.
+ * - Opacity / anchor / arrow-config changes: uniform updates, no reload.
  * - Sources appearing/disappearing: layers are added/removed.
  *
  * Seamless composite domains render natively (multi-layer blend in the
- * shader); vector channels (contours/arrows/grid) stay on the CPU tile
- * pipeline via the FrameManager.
+ * shader). Wind arrows in the plain arrow style draw as instanced overlay
+ * passes of the same GPU layers; contours, grid points and wind barbs stay on
+ * the CPU tile pipeline via the FrameManager.
  */
 import { WeatherGpuLayer } from '@openmeteo/weather-map-layer';
 
-import type { OmProtocolSettings } from '@openmeteo/weather-map-layer';
+import type { CommitBarrier } from '$lib/commit-barrier';
+import type { GpuArrowConfig, OmProtocolSettings } from '@openmeteo/weather-map-layer';
 import type maplibregl from 'maplibre-gl';
 
 export interface GpuRasterSlotSpec {
-	/** Stable slot key (the chart source key, e.g. `temperature_2m`). */
+	/** Stable slot key: the chart source key, or `<sourceKey>:arrows`. */
 	key: string;
 	/** om:// URL of the data (identity of what is shown). */
 	url: string;
@@ -29,12 +31,16 @@ export interface GpuRasterSlotSpec {
 	opacity: number;
 	/** Layer id in the basemap style to insert before. */
 	beforeLayer: string;
+	/** Draw the colour-mapped raster field. */
+	raster: boolean;
+	/** Instanced wind-arrow overlay configuration. */
+	arrows?: GpuArrowConfig;
 }
 
 export interface GpuRasterManagerOptions {
 	settings: OmProtocolSettings;
 	onLoadingChange?: (loading: boolean) => void;
-	/** Fired when a slot finished loading its URL (like a frame commit). */
+	/** Fired when a slot batch committed its loaded URLs (like a frame commit). */
 	onShown?: () => void;
 	onError?: (error: unknown) => void;
 }
@@ -45,6 +51,7 @@ interface Slot {
 	url: string;
 	opacity: number;
 	beforeLayer: string;
+	arrowsKey: string;
 }
 
 export class GpuRasterManager {
@@ -65,31 +72,47 @@ export class GpuRasterManager {
 		this.map.on('moveend', this.onMoveEnd);
 	}
 
-	/** URLs currently shown, per slot key (for the popup). */
+	/** URLs currently shown, per chart source key (for the popup). */
 	getActiveUrls(): Map<string, string> {
 		const urls = new Map<string, string>();
 		for (const [key, slot] of this.slots) {
+			// Arrow overlay slots (`<sourceKey>:arrows`) shadow their source's data
+			if (key.includes(':')) continue;
 			if (slot.url) urls.set(key, slot.url);
 		}
 		return urls;
 	}
 
-	/** Reconcile the on-map layers with the requested render state. */
-	show(specs: GpuRasterSlotSpec[]): void {
+	/**
+	 * Reconcile the on-map layers with the requested render state. Changed URLs
+	 * load in the background; their visual swaps run together when the last one
+	 * (and, through `barrier`, the accompanying vector frame) is ready.
+	 */
+	show(specs: GpuRasterSlotSpec[], barrier?: CommitBarrier): void {
 		const seen = new Set<string>();
+		const prepares: Promise<(() => void) | null>[] = [];
+
 		for (const spec of specs) {
 			seen.add(spec.key);
 			let slot = this.slots.get(spec.key);
 			if (!slot) {
-				const layerId = `gpuRaster_${spec.key}`;
+				const layerId = `gpuRaster_${spec.key.replace(/:/g, '_')}`;
 				const layer = new WeatherGpuLayer({
 					id: layerId,
 					opacity: spec.opacity,
-					settings: this.opts.settings
+					settings: this.opts.settings,
+					drawRaster: spec.raster
 				});
 				const before = this.map.getLayer(spec.beforeLayer) ? spec.beforeLayer : undefined;
 				this.map.addLayer(layer, before);
-				slot = { layer, layerId, url: '', opacity: spec.opacity, beforeLayer: spec.beforeLayer };
+				slot = {
+					layer,
+					layerId,
+					url: '',
+					opacity: spec.opacity,
+					beforeLayer: spec.beforeLayer,
+					arrowsKey: ''
+				};
 				this.slots.set(spec.key, slot);
 			}
 
@@ -103,9 +126,14 @@ export class GpuRasterManager {
 				slot.opacity = spec.opacity;
 				slot.layer.setOpacity(spec.opacity);
 			}
+			const arrowsKey = spec.arrows ? JSON.stringify(spec.arrows) : '';
+			if (slot.arrowsKey !== arrowsKey) {
+				slot.arrowsKey = arrowsKey;
+				slot.layer.setArrows(spec.arrows);
+			}
 			if (slot.url !== spec.url) {
 				slot.url = spec.url;
-				this.load(slot, spec.url);
+				prepares.push(this.prepareSlot(slot, spec.url));
 			}
 		}
 
@@ -114,6 +142,36 @@ export class GpuRasterManager {
 			if (this.map.getLayer(slot.layerId)) this.map.removeLayer(slot.layerId);
 			this.slots.delete(key);
 		}
+
+		if (prepares.length === 0) {
+			barrier?.arrive();
+			return;
+		}
+
+		this.pendingLoads++;
+		this.opts.onLoadingChange?.(true);
+		void Promise.all(prepares)
+			.then((commits) => {
+				// Superseded loads resolve null (per-slot URL check + the layer's own
+				// load sequence), so stale commits are already no-ops.
+				const valid = commits.filter((commit): commit is () => void => commit !== null);
+				const commitAll =
+					valid.length > 0
+						? (): void => {
+								for (const commit of valid) commit();
+								this.opts.onShown?.();
+							}
+						: undefined;
+				if (barrier) {
+					barrier.arrive(commitAll);
+				} else {
+					commitAll?.();
+				}
+			})
+			.finally(() => {
+				this.pendingLoads--;
+				if (this.pendingLoads === 0) this.opts.onLoadingChange?.(false);
+			});
 	}
 
 	/** Re-resolve every slot's URL against the current viewport crop. */
@@ -122,7 +180,7 @@ export class GpuRasterManager {
 			if (!slot.url) continue;
 			slot.layer.setUrl(slot.url).catch(() => {
 				// A refresh failure keeps showing the previous crop; the visible
-				// error path is the initial load in load().
+				// error path is the initial load in prepareSlot().
 			});
 		}
 	}
@@ -150,21 +208,13 @@ export class GpuRasterManager {
 		this.slots.clear();
 	}
 
-	private load(slot: Slot, url: string): void {
-		this.pendingLoads++;
-		this.opts.onLoadingChange?.(true);
-		slot.layer
-			.setUrl(url)
-			.then(() => {
-				// Only report a commit for the URL still current for this slot
-				if (slot.url === url) this.opts.onShown?.();
-			})
+	private prepareSlot(slot: Slot, url: string): Promise<(() => void) | null> {
+		return slot.layer
+			.prepareUrl(url)
+			.then((commit) => (slot.url === url ? commit : null))
 			.catch((error) => {
 				if (slot.url === url) this.opts.onError?.(error);
-			})
-			.finally(() => {
-				this.pendingLoads--;
-				if (this.pendingLoads === 0) this.opts.onLoadingChange?.(false);
+				return null;
 			});
 	}
 }

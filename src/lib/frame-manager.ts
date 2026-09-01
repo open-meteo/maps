@@ -1,5 +1,7 @@
 import * as maplibregl from 'maplibre-gl';
 
+import type { CommitBarrier } from '$lib/commit-barrier';
+
 /**
  * FrameManager: cross-fading orchestrator for a stack of MapLibre weather
  * layers (adapted from the drizzli FrameAnimator).
@@ -89,6 +91,8 @@ export class FrameManager {
 	private lru: string[] = [];
 	private currentKey: string | null = null;
 	private pendingKey: string | null = null;
+	/** Barrier of the pending (or barrier-held) frame; arrives exactly once. */
+	private pendingBarrier: { barrier: CommitBarrier; arrived: boolean } | undefined;
 	private frameOrdinal = 0;
 	private slowLoadTimer: ReturnType<typeof setTimeout> | undefined;
 	private dissolve?: { raf: number; newRasters: FrameLayer[]; oldRasters: FrameLayer[] };
@@ -146,16 +150,25 @@ export class FrameManager {
 	/**
 	 * Show the frame described by `channels`, building it when needed. The
 	 * previous frame stays visible until every channel of the new frame has
-	 * loaded, then both cross-fade.
+	 * loaded, then both cross-fade. With a `barrier` the commit additionally
+	 * waits for the other render paths of the same render state (GPU raster
+	 * slots), so all layers start animating together.
 	 */
-	show(channels: FrameChannel[]): void {
+	show(channels: FrameChannel[], barrier?: CommitBarrier): void {
 		const key = channels.map((channel) => `${channel.key}@${channel.url}`).join(';');
 
 		if (this.currentKey === key) {
 			this.abandonPending();
+			barrier?.arrive();
 			return;
 		}
-		if (this.pendingKey === key) return;
+		if (this.pendingKey === key) {
+			// The same frame is already loading for a superseded render state;
+			// release that state's barrier and adopt the new one.
+			this.arrivePending();
+			this.pendingBarrier = barrier ? { barrier, arrived: false } : undefined;
+			return;
+		}
 
 		this.abandonPending();
 
@@ -172,9 +185,20 @@ export class FrameManager {
 		this.touchLru(key);
 
 		if (this.isFrameLoaded(frame)) {
-			this.commit(frame);
+			if (barrier) {
+				// Loaded, but held for the barrier: stays pending so a newer show()
+				// supersedes it cleanly.
+				this.pendingKey = key;
+				this.pendingBarrier = { barrier, arrived: false };
+				this.arrivePending(() => {
+					if (this.pendingKey === key) this.commit(frame);
+				});
+			} else {
+				this.commit(frame);
+			}
 		} else {
 			this.pendingKey = key;
+			this.pendingBarrier = barrier ? { barrier, arrived: false } : undefined;
 			this.setLoading(true);
 			this.watchFrame(frame);
 			this.startSlowLoadTimer();
@@ -281,8 +305,18 @@ export class FrameManager {
 		);
 	}
 
+	/** Release the pending frame's barrier (once); without a commit on failure. */
+	private arrivePending(commit?: () => void): void {
+		const held = this.pendingBarrier;
+		if (!held || held.arrived) return;
+		held.arrived = true;
+		held.barrier.arrive(commit);
+	}
+
 	/** Fail the pending switch: keep showing the previous frame. */
 	private failPending(frame: Frame): void {
+		this.arrivePending();
+		this.pendingBarrier = undefined;
 		this.unwatchFrame(frame);
 		this.removeFrame(frame.key);
 		this.pendingKey = null;
@@ -306,7 +340,13 @@ export class FrameManager {
 			}
 			if (this.isFrameLoaded(frame)) {
 				this.unwatchFrame(frame);
-				this.commit(frame);
+				if (this.pendingBarrier) {
+					this.arrivePending(() => {
+						if (this.pendingKey === frame.key) this.commit(frame);
+					});
+				} else {
+					this.commit(frame);
+				}
 			}
 		};
 		frame.onData = check;
@@ -334,6 +374,7 @@ export class FrameManager {
 		}
 		this.queuedCommit = undefined;
 		this.pendingKey = null;
+		this.pendingBarrier = undefined;
 		this.clearSlowLoadTimer();
 
 		const previous = this.currentFrame();
@@ -430,6 +471,8 @@ export class FrameManager {
 	}
 
 	private abandonPending(): void {
+		this.arrivePending();
+		this.pendingBarrier = undefined;
 		this.queuedCommit = undefined;
 		if (!this.pendingKey) return;
 		const pending = this.pendingFrame();
