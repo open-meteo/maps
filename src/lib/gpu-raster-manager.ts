@@ -321,6 +321,18 @@ export class GpuRasterManager {
 	}
 
 	/**
+	 * Replace the protocol settings on every layer (current and future). The
+	 * settings store swaps its object on changes (clipping, colour scales); the
+	 * CPU protocol reads it live per request, and the GPU layers must follow
+	 * the same object or they keep parsing against a stale snapshot.
+	 */
+	updateSettings(settings: OmProtocolSettings): void {
+		if (settings === this.opts.settings) return;
+		this.opts.settings = settings;
+		for (const slot of this.slots.values()) slot.layer.setSettings(settings);
+	}
+
+	/**
 	 * Set the temporal blend duration on every layer (current and future). The
 	 * animation loop matches it to its frame interval, so consecutive timesteps
 	 * morph back to back into one continuous animation.

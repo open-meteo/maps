@@ -271,6 +271,9 @@ export const changeOMfileURL = (): void => {
 
 	// Both managers load independently but commit through one barrier, so every
 	// layer of the new render state starts animating in the same frame.
+	// The GPU layers parse URLs against the settings object, which the store
+	// replaces on changes (clipping, colour scales) — hand them the live one.
+	gpuRasters.updateSettings(get(omProtocolSettings));
 	const barrier = createCommitBarrier(2);
 	gpuRasters.show(renderState.rasters, barrier);
 	frameManager.show(renderState.vectors, barrier);

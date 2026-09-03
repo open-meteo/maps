@@ -11,6 +11,15 @@
 		getBlockCacheStats,
 		gpuCacheMb
 	} from '$lib/stores/om-protocol-settings';
+	import {
+		DAILY_REQUEST_LIMIT,
+		type EndpointMode,
+		apiRequestCounter,
+		endpointChoice,
+		setEndpointMode,
+		slowEndpoint,
+		utcDay
+	} from '$lib/stores/request-counter';
 
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { Input } from '$lib/components/ui/input';
@@ -20,6 +29,12 @@
 	import { getGpuMemoryUsage } from '$lib/layers';
 
 	import SettingsSection from './settings-section.svelte';
+
+	const endpointOptions: { value: EndpointMode; label: string }[] = [
+		{ value: 'fast', label: 'Fast (default)' },
+		{ value: 'slow', label: 'Slow (S3, no limit)' },
+		{ value: 'custom', label: 'Custom' }
+	];
 
 	const blockSizeOptions = [
 		{ value: '16', label: '16 KiB' },
@@ -109,6 +124,37 @@
 				bind:value={$gpuCacheMb}
 			/>
 		</div>
+		<div class="flex items-center gap-3">
+			<Label class="w-28 shrink-0">Data endpoint</Label>
+			<Select.Root
+				type="single"
+				value={$endpointChoice.mode}
+				onValueChange={(v) => {
+					if (v) setEndpointMode(v as EndpointMode);
+				}}
+			>
+				<Select.Trigger class="w-40 bg-background/60" aria-label="Select data endpoint">
+					{endpointOptions.find((o) => o.value === $endpointChoice.mode)?.label}
+				</Select.Trigger>
+				<Select.Content class="z-110 border-none bg-glass/65 backdrop-blur-sm min-w-25">
+					{#each endpointOptions as option (option.value)}
+						<Select.Item value={option.value}>{option.label}</Select.Item>
+					{/each}
+				</Select.Content>
+			</Select.Root>
+		</div>
+		{#if $endpointChoice.mode === 'custom'}
+			<div class="flex items-center gap-3" transition:slide>
+				<Label for="custom-endpoint" class="w-28 shrink-0">Custom URI</Label>
+				<Input
+					id="custom-endpoint"
+					type="text"
+					placeholder="https://host/data_spatial"
+					class="flex-1 bg-background/60"
+					bind:value={$endpointChoice.customUri}
+				/>
+			</div>
+		{/if}
 		<div class="text-xs text-foreground/70 flex flex-col gap-0.5">
 			<div>
 				VRAM: {mb(vram.bytes)} / {mb(vram.budgetBytes)} MB ({vram.textures} textures)
@@ -116,6 +162,19 @@
 			{#if ram}
 				<div>
 					RAM: {mb(ram.memoryBytes)} MB in memory, {mb(ram.persistentBytes)} / {mb(ram.maxBytes)} MB stored
+				</div>
+			{/if}
+			<div>
+				API requests today: {($apiRequestCounter.day === utcDay()
+					? $apiRequestCounter.count
+					: 0
+				).toLocaleString()} / {DAILY_REQUEST_LIMIT.toLocaleString()}
+			</div>
+			{#if $slowEndpoint.activeUntil > Date.now()}
+				<div>
+					Auto-switched to the S3 endpoint until {new Date(
+						$slowEndpoint.activeUntil
+					).toLocaleTimeString()}
 				</div>
 			{/if}
 		</div>

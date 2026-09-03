@@ -9,6 +9,7 @@
 	import { epsMeta } from '$lib/stores/eps';
 	import { map } from '$lib/stores/map';
 	import { initStoredState, loading, url } from '$lib/stores/preferences';
+	import { installRequestCounter } from '$lib/stores/request-counter';
 	import { modelRun } from '$lib/stores/time';
 	import { domain, selectedDomain } from '$lib/stores/variables';
 
@@ -48,6 +49,10 @@
 	let mapContainer: HTMLElement | null;
 
 	const darkModeButton = new DarkModeButton();
+
+	// Before any data access: the domain subscription below already fetches
+	// metadata, and every request counts against the daily API limit.
+	installRequestCounter();
 
 	onMount(async () => {
 		$url = new URL(document.location.href);
