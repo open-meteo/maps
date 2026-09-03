@@ -6,6 +6,7 @@
 	import ArrowsSettings from './arrows-settings.svelte';
 	import CacheSettings from './cache-settings.svelte';
 	import ContourSettings from './contour-settings.svelte';
+	import EndpointSettings from './endpoint-settings.svelte';
 	import GridSettings from './grid-settings.svelte';
 	import InterpolationSettings from './interpolation-settings.svelte';
 	import OpacitySetting from './opacity-setting.svelte';
@@ -32,6 +33,7 @@
 			<WaterClipSetting />
 			<OpacitySetting />
 			<CacheSettings />
+			<EndpointSettings />
 			<StateSettings />
 		</div>
 	</Sheet.Content>
