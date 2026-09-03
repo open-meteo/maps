@@ -14,11 +14,15 @@
 	import {
 		DAILY_REQUEST_LIMIT,
 		type EndpointMode,
+		HOURLY_REQUEST_LIMIT,
+		MINUTELY_REQUEST_LIMIT,
 		apiRequestCounter,
 		endpointChoice,
 		setEndpointMode,
 		slowEndpoint,
-		utcDay
+		utcDay,
+		utcHour,
+		utcMinute
 	} from '$lib/stores/request-counter';
 
 	import Button from '$lib/components/ui/button/button.svelte';
@@ -26,13 +30,14 @@
 	import { Label } from '$lib/components/ui/label';
 	import * as Select from '$lib/components/ui/select';
 
+	import { BASE_URI, SLOW_BASE_URI } from '$lib/helpers';
 	import { getGpuMemoryUsage } from '$lib/layers';
 
 	import SettingsSection from './settings-section.svelte';
 
 	const endpointOptions: { value: EndpointMode; label: string }[] = [
-		{ value: 'fast', label: 'Fast (default)' },
-		{ value: 'slow', label: 'Slow (S3, no limit)' },
+		{ value: 'default', label: new URL(BASE_URI).host },
+		{ value: 's3', label: new URL(SLOW_BASE_URI).host },
 		{ value: 'custom', label: 'Custom' }
 	];
 
@@ -133,7 +138,7 @@
 					if (v) setEndpointMode(v as EndpointMode);
 				}}
 			>
-				<Select.Trigger class="w-40 bg-background/60" aria-label="Select data endpoint">
+				<Select.Trigger class="flex-1 min-w-0 bg-background/60" aria-label="Select data endpoint">
 					{endpointOptions.find((o) => o.value === $endpointChoice.mode)?.label}
 				</Select.Trigger>
 				<Select.Content class="z-110 border-none bg-glass/65 backdrop-blur-sm min-w-25">
@@ -165,10 +170,18 @@
 				</div>
 			{/if}
 			<div>
-				API requests today: {($apiRequestCounter.day === utcDay()
+				API requests: {($apiRequestCounter.minute === utcMinute()
+					? $apiRequestCounter.minuteCount
+					: 0
+				).toLocaleString()} / {MINUTELY_REQUEST_LIMIT.toLocaleString()} minute · {($apiRequestCounter.hour ===
+				utcHour()
+					? $apiRequestCounter.hourCount
+					: 0
+				).toLocaleString()} / {HOURLY_REQUEST_LIMIT.toLocaleString()} hour · {($apiRequestCounter.day ===
+				utcDay()
 					? $apiRequestCounter.count
 					: 0
-				).toLocaleString()} / {DAILY_REQUEST_LIMIT.toLocaleString()}
+				).toLocaleString()} / {DAILY_REQUEST_LIMIT.toLocaleString()} today
 			</div>
 			{#if $slowEndpoint.activeUntil > Date.now()}
 				<div>

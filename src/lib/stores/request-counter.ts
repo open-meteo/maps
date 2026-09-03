@@ -7,8 +7,14 @@ import { browser } from '$app/environment';
 
 import { BASE_URI, SLOW_BASE_URI } from '$lib/helpers';
 
-/** Daily request allowance of the data API. */
+/** Daily request allowance of the data API (server default, resets midnight UTC). */
 export const DAILY_REQUEST_LIMIT = 10_000;
+
+/** Hourly request allowance of the data API (resets at the top of each UTC hour). */
+export const HOURLY_REQUEST_LIMIT = 5_000;
+
+/** Minutely request allowance of the data API (resets every minute). */
+export const MINUTELY_REQUEST_LIMIT = 600;
 
 /** 429 responses in this session before switching to the S3 endpoint automatically. */
 const AUTO_SWITCH_429_COUNT = 5;
@@ -20,13 +26,23 @@ const DAY_MS = 86_400_000;
 /** The server clears rate-limit counters within the first minute of each window. */
 const RESET_BUFFER_MS = 90_000;
 
-/** UTC day the API limit resets on, e.g. '2026-09-02'. */
+/** UTC day the daily API limit resets on, e.g. '2026-09-02'. */
 export const utcDay = (): string => new Date().toISOString().slice(0, 10);
 
-/** Requests issued against the data API, per UTC day. */
+/** UTC hour the hourly API limit resets on, e.g. '2026-09-02T13'. */
+export const utcHour = (): string => new Date().toISOString().slice(0, 13);
+
+/** UTC minute the minutely API limit resets on, e.g. '2026-09-02T13:05'. */
+export const utcMinute = (): string => new Date().toISOString().slice(0, 16);
+
+/** Requests issued against the data API, per rate-limit window (UTC). */
 export const apiRequestCounter = persisted('api-request-counter', {
 	day: utcDay(),
-	count: 0
+	count: 0,
+	hour: utcHour(),
+	hourCount: 0,
+	minute: utcMinute(),
+	minuteCount: 0
 });
 
 /**
@@ -36,21 +52,21 @@ export const apiRequestCounter = persisted('api-request-counter', {
  */
 export const slowEndpoint = persisted('api-slow-endpoint', { activeUntil: 0 });
 
-export type EndpointMode = 'fast' | 'slow' | 'custom';
+export type EndpointMode = 'default' | 's3' | 'custom';
 
 /** Manual endpoint choice from the settings panel; `custom` uses `customUri`. */
 export const endpointChoice = persisted('api-endpoint-choice', {
-	mode: 'fast' as EndpointMode,
+	mode: 'default' as EndpointMode,
 	customUri: ''
 });
 
-/** Base URI data requests are rewritten to, or undefined for the fast default. */
+/** Base URI data requests are rewritten to, or undefined for the default endpoint. */
 const rewriteBase = (): string | undefined => {
 	const choice = get(endpointChoice);
 	if (choice.mode === 'custom') {
 		const uri = choice.customUri.trim().replace(/\/+$/, '');
 		if (uri) return uri;
-	} else if (choice.mode === 'slow') {
+	} else if (choice.mode === 's3') {
 		return SLOW_BASE_URI;
 	}
 	return get(slowEndpoint).activeUntil > Date.now() ? SLOW_BASE_URI : undefined;
@@ -131,9 +147,16 @@ const on429 = async (res: Response): Promise<void> => {
 
 const increment = (): void => {
 	const day = utcDay();
-	apiRequestCounter.update((counter) =>
-		counter.day === day ? { day, count: counter.count + 1 } : { day, count: 1 }
-	);
+	const hour = utcHour();
+	const minute = utcMinute();
+	apiRequestCounter.update((counter) => ({
+		day,
+		count: counter.day === day ? counter.count + 1 : 1,
+		hour,
+		hourCount: counter.hour === hour ? counter.hourCount + 1 : 1,
+		minute,
+		minuteCount: counter.minute === minute ? counter.minuteCount + 1 : 1
+	}));
 	if (get(apiRequestCounter).count >= DAILY_REQUEST_LIMIT) onLimitReached();
 };
 

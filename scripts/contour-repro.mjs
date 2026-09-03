@@ -3,7 +3,8 @@
 import { chromium } from '/home/vincent/Projects/open-meteo/node_modules/playwright/index.mjs';
 
 const outDir = process.argv[2] ?? '/tmp/claude';
-const hashes = process.argv.length > 3 ? process.argv.slice(3) : ['0/30/10', '1/45/10', '2/48/15', '4/48/15'];
+const hashes =
+	process.argv.length > 3 ? process.argv.slice(3) : ['0/30/10', '1/45/10', '2/48/15', '4/48/15'];
 
 const proxyUrl = process.env.HTTPS_PROXY;
 let proxy;
