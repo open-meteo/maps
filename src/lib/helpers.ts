@@ -16,6 +16,10 @@ export const fmtSelectedTime = (t: Date): string =>
 export const BASE_URI =
 	import.meta.env.VITE_DATA_BASE_URI || 'https://data-spatial.open-meteo.com/data_spatial';
 
+// Same files served straight from S3: no rate limit, but uncached and slower.
+// Fallback once the daily request limit of the primary endpoint is hit.
+export const SLOW_BASE_URI = 'https://openmeteo.s3.amazonaws.com/data_spatial';
+
 export const hashValue = (val: string): string => {
 	// FNV-1a 32-bit – synchronous, fast, and sufficient for cache-busting keys.
 	let h = 0x811c9dc5;
