@@ -5,7 +5,7 @@ import { toast } from 'svelte-sonner';
 
 import { browser } from '$app/environment';
 
-import { BASE_URI, SLOW_BASE_URI } from '$lib/helpers';
+import { BASE_URI, S3_BASE_URI } from '$lib/helpers';
 
 /** Daily request allowance of the data API (server default, resets midnight UTC). */
 export const DAILY_REQUEST_LIMIT = 10_000;
@@ -50,7 +50,7 @@ export const apiRequestCounter = persisted('api-request-counter', {
  * requests are rewritten to the uncached S3 origin (no rate limit, slower)
  * and revert when the tripped rate-limit window resets.
  */
-export const slowEndpoint = persisted('api-slow-endpoint', { activeUntil: 0 });
+export const s3Fallback = persisted('api-s3-fallback', { activeUntil: 0 });
 
 export type EndpointMode = 'default' | 's3' | 'custom';
 
@@ -67,15 +67,15 @@ const rewriteBase = (): string | undefined => {
 		const uri = choice.customUri.trim().replace(/\/+$/, '');
 		if (uri) return uri;
 	} else if (choice.mode === 's3') {
-		return SLOW_BASE_URI;
+		return S3_BASE_URI;
 	}
-	return get(slowEndpoint).activeUntil > Date.now() ? SLOW_BASE_URI : undefined;
+	return get(s3Fallback).activeUntil > Date.now() ? S3_BASE_URI : undefined;
 };
 
 /** Manual mode selection; also ends an automatic S3 period. */
 export const setEndpointMode = (mode: EndpointMode): void => {
 	clearTimeout(switchBackTimer);
-	slowEndpoint.set({ activeUntil: 0 });
+	s3Fallback.set({ activeUntil: 0 });
 	endpointChoice.update((choice) => ({ ...choice, mode }));
 };
 
@@ -86,18 +86,18 @@ const nextReset = (periodMs: number): number =>
 let switchBackTimer: ReturnType<typeof setTimeout> | undefined;
 
 const scheduleSwitchBack = (): void => {
-	const remaining = get(slowEndpoint).activeUntil - Date.now();
+	const remaining = get(s3Fallback).activeUntil - Date.now();
 	if (remaining <= 0) return;
 	clearTimeout(switchBackTimer);
 	switchBackTimer = setTimeout(() => {
-		slowEndpoint.set({ activeUntil: 0 });
+		s3Fallback.set({ activeUntil: 0 });
 		toast.info('API rate limit reset, switched back to the fast endpoint');
 	}, remaining);
 };
 
-const activateSlowEndpoint = (until: number): void => {
+const activateS3Fallback = (until: number): void => {
 	status429Count = 0;
-	slowEndpoint.set({ activeUntil: until });
+	s3Fallback.set({ activeUntil: until });
 	scheduleSwitchBack();
 };
 
@@ -114,7 +114,7 @@ const onLimitReached = (): void => {
 		action: {
 			label: 'Use slower endpoint',
 			onClick: () => {
-				activateSlowEndpoint(nextReset(DAY_MS));
+				activateS3Fallback(nextReset(DAY_MS));
 				toast.info('Switched to the slower S3 endpoint until midnight UTC');
 			}
 		}
@@ -139,7 +139,7 @@ const on429 = async (res: Response): Promise<void> => {
 	} catch {
 		// Keep the hourly middle ground if the body is not readable.
 	}
-	activateSlowEndpoint(nextReset(period));
+	activateS3Fallback(nextReset(period));
 	toast('API rate limit exceeded', {
 		description: `Switched to the slower S3 endpoint until the ${label} limit resets.`
 	});
@@ -165,9 +165,10 @@ let installed = false;
 /**
  * Count every HTTP request to the data API by wrapping `window.fetch`.
  * All data traffic (block cache misses, HEAD metadata probes, meta JSONs)
- * goes through main-thread fetch, so one wrapper sees it all. While the slow
- * endpoint is active, requests are rewritten here at the network layer: URL
- * strings elsewhere (cache keys, UI) keep the canonical endpoint.
+ * goes through main-thread fetch, so one wrapper sees it all. While an S3 or
+ * custom endpoint override is active, requests are rewritten here at the
+ * network layer: URL strings elsewhere (cache keys, UI) keep the canonical
+ * endpoint.
  */
 export const installRequestCounter = (): void => {
 	if (!browser || installed) return;
