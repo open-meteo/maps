@@ -5,7 +5,7 @@ import { toast } from 'svelte-sonner';
 
 import { browser } from '$app/environment';
 
-import { BASE_URI, SLOW_BASE_URI } from '$lib/helpers';
+import { BASE_URI, DATA_SPATIAL_BASE_URI, S3_BASE_URI } from '$lib/helpers';
 
 /** Daily request allowance of the data API (server default, resets midnight UTC). */
 export const DAILY_REQUEST_LIMIT = 10_000;
@@ -50,9 +50,23 @@ export const apiRequestCounter = persisted('api-request-counter', {
  * requests are rewritten to the uncached S3 origin (no rate limit, slower)
  * and revert when the tripped rate-limit window resets.
  */
-export const slowEndpoint = persisted('api-slow-endpoint', { activeUntil: 0 });
+export const s3Fallback = persisted('api-s3-fallback', { activeUntil: 0 });
 
-export type EndpointMode = 'default' | 's3' | 'custom';
+const s3FallbackActive = (): boolean => get(s3Fallback).activeUntil > Date.now();
+
+/** Rate-limit handling toggles from the settings panel. */
+export const rateLimitOptions = persisted('api-rate-limit-options', {
+	/** Switch to the S3 endpoint automatically after repeated 429s. */
+	autoSwitch: true,
+	/** Toasts about reached limits and endpoint switches. */
+	notifications: true
+});
+
+const notify = (show: () => void): void => {
+	if (get(rateLimitOptions).notifications) show();
+};
+
+export type EndpointMode = 'default' | 'data-spatial' | 's3' | 'custom';
 
 /** Manual endpoint choice from the settings panel; `custom` uses `customUri`. */
 export const endpointChoice = persisted('api-endpoint-choice', {
@@ -60,22 +74,30 @@ export const endpointChoice = persisted('api-endpoint-choice', {
 	customUri: ''
 });
 
-/** Base URI data requests are rewritten to, or undefined for the default endpoint. */
+/** Base URI data requests are rewritten to, or undefined to leave them on BASE_URI. */
 const rewriteBase = (): string | undefined => {
 	const choice = get(endpointChoice);
+	let target: string | undefined;
 	if (choice.mode === 'custom') {
 		const uri = choice.customUri.trim().replace(/\/+$/, '');
-		if (uri) return uri;
+		if (uri) target = uri;
 	} else if (choice.mode === 's3') {
-		return SLOW_BASE_URI;
+		target = S3_BASE_URI;
+	} else if (choice.mode === 'data-spatial') {
+		target = DATA_SPATIAL_BASE_URI;
 	}
-	return get(slowEndpoint).activeUntil > Date.now() ? SLOW_BASE_URI : undefined;
+	// The automatic fallback applies whenever the effective endpoint is the
+	// rate-limited one, whether via BASE_URI or picked explicitly.
+	if ((target ?? BASE_URI) === DATA_SPATIAL_BASE_URI && s3FallbackActive()) {
+		target = S3_BASE_URI;
+	}
+	return target === BASE_URI ? undefined : target;
 };
 
 /** Manual mode selection; also ends an automatic S3 period. */
 export const setEndpointMode = (mode: EndpointMode): void => {
 	clearTimeout(switchBackTimer);
-	slowEndpoint.set({ activeUntil: 0 });
+	s3Fallback.set({ activeUntil: 0 });
 	endpointChoice.update((choice) => ({ ...choice, mode }));
 };
 
@@ -86,18 +108,18 @@ const nextReset = (periodMs: number): number =>
 let switchBackTimer: ReturnType<typeof setTimeout> | undefined;
 
 const scheduleSwitchBack = (): void => {
-	const remaining = get(slowEndpoint).activeUntil - Date.now();
+	const remaining = get(s3Fallback).activeUntil - Date.now();
 	if (remaining <= 0) return;
 	clearTimeout(switchBackTimer);
 	switchBackTimer = setTimeout(() => {
-		slowEndpoint.set({ activeUntil: 0 });
-		toast.info('API rate limit reset, switched back to the fast endpoint');
+		s3Fallback.set({ activeUntil: 0 });
+		notify(() => toast.info('API rate limit reset, switched back to the fast endpoint'));
 	}, remaining);
 };
 
-const activateSlowEndpoint = (until: number): void => {
+const activateS3Fallback = (until: number): void => {
 	status429Count = 0;
-	slowEndpoint.set({ activeUntil: until });
+	s3Fallback.set({ activeUntil: until });
 	scheduleSwitchBack();
 };
 
@@ -105,7 +127,8 @@ let limitToastDay = '';
 
 /** The local counter hit the daily limit: offer the switch, but let the user decide. */
 const onLimitReached = (): void => {
-	if (limitToastDay === utcDay() || rewriteBase()) return;
+	if (limitToastDay === utcDay() || s3FallbackActive()) return;
+	if (!get(rateLimitOptions).notifications) return;
 	limitToastDay = utcDay();
 	// Neutral toast(): the richColors warning variant clashes with the app style.
 	toast('Daily API request limit reached', {
@@ -114,7 +137,7 @@ const onLimitReached = (): void => {
 		action: {
 			label: 'Use slower endpoint',
 			onClick: () => {
-				activateSlowEndpoint(nextReset(DAY_MS));
+				activateS3Fallback(nextReset(DAY_MS));
 				toast.info('Switched to the slower S3 endpoint until midnight UTC');
 			}
 		}
@@ -125,9 +148,9 @@ let status429Count = 0;
 
 /** Actual 429 responses are a hard signal: switch automatically after a few. */
 const on429 = async (res: Response): Promise<void> => {
-	if (rewriteBase()) return;
+	if (s3FallbackActive()) return;
 	status429Count += 1;
-	if (status429Count < AUTO_SWITCH_429_COUNT) return;
+	if (status429Count !== AUTO_SWITCH_429_COUNT) return;
 	// The 429 body names the minutely/hourly/daily window that tripped
 	// (RateLimitError in open-meteo), and thus when it resets.
 	let period = HOUR_MS;
@@ -139,10 +162,26 @@ const on429 = async (res: Response): Promise<void> => {
 	} catch {
 		// Keep the hourly middle ground if the body is not readable.
 	}
-	activateSlowEndpoint(nextReset(period));
-	toast('API rate limit exceeded', {
-		description: `Switched to the slower S3 endpoint until the ${label} limit resets.`
-	});
+	if (get(rateLimitOptions).autoSwitch) {
+		activateS3Fallback(nextReset(period));
+		notify(() =>
+			toast('API rate limit exceeded', {
+				description: `Switched to the slower S3 endpoint until the ${label} limit resets.`
+			})
+		);
+	} else {
+		// Auto switch disabled: offer the switch instead of performing it.
+		notify(() =>
+			toast('API rate limit exceeded', {
+				description: 'Requests are being rejected until the limit resets.',
+				duration: Number.POSITIVE_INFINITY,
+				action: {
+					label: 'Use slower endpoint',
+					onClick: () => activateS3Fallback(nextReset(period))
+				}
+			})
+		);
+	}
 };
 
 const increment = (): void => {
@@ -165,9 +204,10 @@ let installed = false;
 /**
  * Count every HTTP request to the data API by wrapping `window.fetch`.
  * All data traffic (block cache misses, HEAD metadata probes, meta JSONs)
- * goes through main-thread fetch, so one wrapper sees it all. While the slow
- * endpoint is active, requests are rewritten here at the network layer: URL
- * strings elsewhere (cache keys, UI) keep the canonical endpoint.
+ * goes through main-thread fetch, so one wrapper sees it all. While an S3 or
+ * custom endpoint override is active, requests are rewritten here at the
+ * network layer: URL strings elsewhere (cache keys, UI) keep the canonical
+ * endpoint.
  */
 export const installRequestCounter = (): void => {
 	if (!browser || installed) return;
@@ -183,21 +223,23 @@ export const installRequestCounter = (): void => {
 		}
 		if (!url.startsWith(BASE_URI)) return originalFetch.call(window, input, init);
 		const base = rewriteBase();
-		if (base) {
-			const rewritten = base + url.slice(BASE_URI.length);
-			const rewrittenInput =
-				typeof input === 'string' || input instanceof URL
-					? rewritten
-					: new Request(rewritten, input);
-			return originalFetch.call(window, rewrittenInput, init);
+		const targetUrl = base ? base + url.slice(BASE_URI.length) : url;
+		// Only requests that end up on the rate-limited endpoint count.
+		const limited = targetUrl.startsWith(DATA_SPATIAL_BASE_URI);
+		if (limited) increment();
+		const targetInput = !base
+			? input
+			: typeof input === 'string' || input instanceof URL
+				? targetUrl
+				: new Request(targetUrl, input);
+		const response = originalFetch.call(window, targetInput, init);
+		if (limited) {
+			response
+				.then((res) => {
+					if (res.status === 429) on429(res);
+				})
+				.catch(() => {});
 		}
-		increment();
-		const response = originalFetch.call(window, input, init);
-		response
-			.then((res) => {
-				if (res.status === 429) on429(res);
-			})
-			.catch(() => {});
 		return response;
 	};
 };
