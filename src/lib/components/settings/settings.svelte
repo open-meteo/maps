@@ -7,6 +7,7 @@
 	import CacheSettings from './cache-settings.svelte';
 	import ContourSettings from './contour-settings.svelte';
 	import EndpointSettings from './endpoint-settings.svelte';
+	import GpuSettings from './gpu-settings.svelte';
 	import GridSettings from './grid-settings.svelte';
 	import InterpolationSettings from './interpolation-settings.svelte';
 	import OpacitySetting from './opacity-setting.svelte';
@@ -36,6 +37,7 @@
 			<SunSettings />
 			<SeamlessBorderSettings />
 			<OpacitySetting />
+			<GpuSettings />
 			<CacheSettings />
 			<EndpointSettings />
 			<StateSettings />

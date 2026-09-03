@@ -21,6 +21,7 @@ import { mode } from 'mode-watcher';
 import { toast } from 'svelte-sonner';
 
 import { chartSources } from '$lib/stores/chart';
+import { gpuRenderOptions } from '$lib/stores/gpu-render';
 import { map as m } from '$lib/stores/map';
 import { loading, opacity, preferences as p } from '$lib/stores/preferences';
 import { modelRun, time } from '$lib/stores/time';
@@ -226,6 +227,7 @@ export const addOmFileLayers = (): void => {
 		onError: () =>
 			toast.error('Could not load the weather data for this view.', { id: 'om-data-error' })
 	});
+	applyFadeMs();
 	// A style reload wiped the sun source with everything else; forget the URL
 	// so updateSunLayer re-adds the layer instead of considering it unchanged.
 	currentSunUrl = undefined;
@@ -290,9 +292,17 @@ export const getGpuMemoryUsage = (): { bytes: number; budgetBytes: number; textu
 /**
  * Set the GPU layers' temporal blend duration. The animate loop matches it to
  * its frame interval for one continuous morph; pass undefined to restore the
- * default 250ms scrub blend.
+ * default 250ms scrub blend. With temporal animation disabled in the settings,
+ * every commit snaps instead, whatever duration was requested.
  */
-export const setRasterFadeMs = (fadeMs?: number): void => gpuRasters?.setFadeMs(fadeMs ?? 250);
+let requestedFadeMs = 250;
+export const setRasterFadeMs = (fadeMs?: number): void => {
+	requestedFadeMs = fadeMs ?? 250;
+	applyFadeMs();
+};
+const applyFadeMs = (): void =>
+	gpuRasters?.setFadeMs(get(gpuRenderOptions).temporalBlend ? requestedFadeMs : 0);
+gpuRenderOptions.subscribe(() => applyFadeMs());
 
 /**
  * Cache residency of the primary source per timestep: 'vram' = texture on the
