@@ -26,7 +26,7 @@ import { map as m } from '$lib/stores/map';
 import { loading, opacity, preferences as p } from '$lib/stores/preferences';
 import { modelRun, time } from '$lib/stores/time';
 import { selectedDomain, variable as variableStore } from '$lib/stores/variables';
-import { vectorOptions as vO } from '$lib/stores/vector';
+import { type VectorOptions, vectorOptions as vO } from '$lib/stores/vector';
 
 import { windIconSizePx, windIconSpacing } from '$lib/arrow-sprites';
 import { sourceKey } from '$lib/chart-encoding';
@@ -49,7 +49,11 @@ import { refreshPopup } from './popup';
 import { gpuCacheMb, omProtocolSettings } from './stores/om-protocol-settings';
 import { getOmUrlForSource, getSunUrl } from './url';
 
-import type { GpuArrowConfig, GpuContourStyle } from '@openmeteo/weather-map-layer';
+import type {
+	GpuArrowConfig,
+	GpuContourStyle,
+	GpuParticleConfig
+} from '@openmeteo/weather-map-layer';
 import type { RasterTileSource } from 'maplibre-gl';
 
 let frameManager: FrameManager | undefined;
@@ -93,9 +97,12 @@ const buildRenderState = (): RenderState | undefined => {
 		const url = 'om://' + omUrl;
 
 		// Plain-style arrows render as instanced overlays of the GPU layer (they
-		// morph with the raster blend and follow the globe); barbs keep the CPU
-		// tile pipeline for their discrete glyph alphabet.
+		// morph with the raster blend and follow the globe); the animated wind
+		// style renders as the GPU particle pass; barbs keep the CPU tile
+		// pipeline for their discrete glyph alphabet.
 		const gpuArrows = !!source.arrows && vectorOptions.arrowStyle === 'arrow';
+		const gpuParticles = !!source.arrows && vectorOptions.arrowStyle === 'particles';
+		const cpuArrows = !!source.arrows && !gpuArrows && !gpuParticles;
 
 		if (source.raster) {
 			rasters.push({
@@ -118,6 +125,16 @@ const buildRenderState = (): RenderState | undefined => {
 				arrows: gpuArrowConfig(vectorOptions.arrowIconScale, dark)
 			});
 		}
+		if (gpuParticles) {
+			rasters.push({
+				key: `${sourceKey(source)}:particles`,
+				url,
+				opacity: source.opacity ?? 1,
+				beforeLayer: source.inlineVectors ? rasterBefore : vectorBefore,
+				raster: false,
+				particles: gpuParticleConfig(vectorOptions, dark)
+			});
+		}
 		// Contour lines render in-shader (they morph with the temporal blend and
 		// have no tile seams); the CPU channel below only contributes the labels.
 		if (source.contours) {
@@ -130,13 +147,15 @@ const buildRenderState = (): RenderState | undefined => {
 				contours: gpuContourStyle(source.lineWidth, dark)
 			});
 		}
-		if (source.contours || (source.arrows && !gpuArrows) || vectorOptions.grid) {
+		if (source.contours || cpuArrows || vectorOptions.grid) {
 			vectors.push(
 				vectorChannel(sourceKey(source), url, {
 					contours: !!source.contours,
 					contourLines: false,
-					arrows: !!source.arrows && !gpuArrows,
-					arrowStyle: vectorOptions.arrowStyle,
+					arrows: cpuArrows,
+					// The particle style never reaches the CPU channel; keep its
+					// arrowStyle a valid icon alphabet.
+					arrowStyle: vectorOptions.arrowStyle === 'barb' ? 'barb' : 'arrow',
 					arrowRender: vectorOptions.arrowRender,
 					arrowIconScale: vectorOptions.arrowIconScale,
 					grid: vectorOptions.grid,
@@ -174,6 +193,22 @@ const gpuContourStyle = (lineWidth: number | undefined, dark: boolean): GpuConto
 		moduli: levels.slice(1).map((level) => level.modulo) as [number, number, number]
 	};
 };
+
+/**
+ * The animated wind flow: a veil of particles whose fading trails trace the
+ * streamlines. Like the arrows, the particles only show the flow — the raster
+ * underneath carries the magnitude — so they stay thin and translucent.
+ * Density, size, speed and trail length come from the settings pane.
+ */
+const gpuParticleConfig = (options: VectorOptions, dark: boolean): GpuParticleConfig => ({
+	count: options.particleCount,
+	sizePx: options.particleSize,
+	color: dark ? [1, 1, 1] : [0, 0, 0],
+	opacity: dark ? 0.8 : 0.55,
+	speedPxPerSec: options.particleSpeed,
+	fadeOpacity: options.particleTrail,
+	maxAgeSec: 6
+});
 
 const gpuArrowConfig = (scale: number | undefined, dark: boolean): GpuArrowConfig => ({
 	spacingPx: windIconSpacing('arrow', scale ?? 1) * GPU_ARROW_SPACING,

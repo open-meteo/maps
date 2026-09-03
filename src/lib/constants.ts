@@ -18,7 +18,14 @@ export const DEFAULT_VECTOR_OPTIONS = {
 	arrowPacking: 0.85,
 	contours: false,
 	breakpoints: true,
-	contourInterval: 2
+	contourInterval: 2,
+	// Animated flow (particle) style: particle count, point/trail width in px,
+	// screen speed in px/s per m/s of wind, and trail persistence per frame at
+	// 60fps (higher = longer).
+	particleCount: 8000,
+	particleSize: 1.4,
+	particleSpeed: 1.4,
+	particleTrail: 0.965
 };
 
 // Preferences defaults

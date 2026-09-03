@@ -4,13 +4,11 @@ import { get } from 'svelte/store';
 import {
 	type AnyDomain,
 	type ArrowRender,
-	type ArrowStyle,
 	DEFAULT_ARROW_RENDER,
 	DEFAULT_ARROW_STYLE,
 	type Domain,
 	type DomainMetaDataJson,
 	VALID_ARROW_RENDERS,
-	VALID_ARROW_STYLES,
 	closestModelRun,
 	defaultOmProtocolSettings,
 	domainOptions,
@@ -44,7 +42,7 @@ import {
 } from '$lib/stores/preferences';
 import { modelRun as mR, modelRunLocked as mRL, time } from '$lib/stores/time';
 import { domain as d, variable as v } from '$lib/stores/variables';
-import { vectorOptions as vO } from '$lib/stores/vector';
+import { VALID_WIND_STYLES, type WindStyle, vectorOptions as vO } from '$lib/stores/vector';
 
 import { windPointLattice } from '$lib/arrow-sprites';
 import { parseSources, serializeSources } from '$lib/chart-encoding';
@@ -155,8 +153,8 @@ export const urlParamsToPreferences = () => {
 
 	const arrowStyleRaw = params.get('arrow_style');
 	if (arrowStyleRaw !== null) {
-		if (VALID_ARROW_STYLES.includes(arrowStyleRaw as ArrowStyle)) {
-			vectorOptions.arrowStyle = arrowStyleRaw as ArrowStyle;
+		if (VALID_WIND_STYLES.includes(arrowStyleRaw as WindStyle)) {
+			vectorOptions.arrowStyle = arrowStyleRaw as WindStyle;
 		}
 	} else if (vectorOptions.arrowStyle !== DEFAULT_ARROW_STYLE) {
 		url.searchParams.set('arrow_style', vectorOptions.arrowStyle);
@@ -276,12 +274,15 @@ export const getOmUrlForSource = (source: ChartSource): string | undefined => {
 	if (vectorOptions.grid) result += '&grid=true';
 	if (source.arrows) {
 		result += '&arrows=true';
-		if (vectorOptions.arrowStyle !== 'arrow') result += `&arrow_style=${vectorOptions.arrowStyle}`;
+		// 'particles' is a maps-only style (the GPU particle pass); the om URL
+		// grammar only knows the icon alphabets, so it falls back to arrows.
+		const omArrowStyle = vectorOptions.arrowStyle === 'barb' ? 'barb' : 'arrow';
+		if (omArrowStyle !== 'arrow') result += `&arrow_style=${omArrowStyle}`;
 		if (vectorOptions.arrowRender !== 'line') {
 			result += `&arrow_render=${vectorOptions.arrowRender}`;
 			// The tile lattice is the one the renderer sized its icons against
 			result += `&arrow_points=${windPointLattice(
-				vectorOptions.arrowStyle,
+				omArrowStyle,
 				vectorOptions.arrowIconScale,
 				vectorOptions.arrowPacking
 			)}`;

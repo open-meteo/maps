@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { type ArrowStyle, DEFAULT_ARROW_STYLE } from '@openmeteo/weather-map-layer';
+	import { DEFAULT_ARROW_STYLE } from '@openmeteo/weather-map-layer';
 	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
 	import { setArrowsOnActiveChart } from '$lib/stores/chart';
 	import { convertValue, getDisplayUnit, unitPreferences } from '$lib/stores/units';
-	import { defaultVectorOptions, vectorOptions } from '$lib/stores/vector';
+	import { type WindStyle, defaultVectorOptions, vectorOptions } from '$lib/stores/vector';
 
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { Label } from '$lib/components/ui/label';
@@ -77,31 +77,42 @@
 
 	let arrows = $derived($vectorOptions.arrows);
 	let arrowStyle = $derived($vectorOptions.arrowStyle);
+	// The sizing helpers only know the icon alphabets; the sizing section is
+	// hidden for the particle style, so the fallback value is never shown.
+	let iconStyle = $derived(arrowStyle === 'particles' ? ('arrow' as const) : arrowStyle);
 	let uniformSize = $derived($vectorOptions.arrowRender === 'icon');
-	let iconSizePx = $derived(windIconSizePx(arrowStyle, $vectorOptions.arrowIconScale));
+	let iconSizePx = $derived(windIconSizePx(iconStyle, $vectorOptions.arrowIconScale));
 	let iconSpacingPx = $derived(
-		windIconSpacing(arrowStyle, $vectorOptions.arrowIconScale, $vectorOptions.arrowPacking)
+		windIconSpacing(iconStyle, $vectorOptions.arrowIconScale, $vectorOptions.arrowPacking)
 	);
 
 	const styles = $derived([
 		{
-			value: 'arrow' as ArrowStyle,
+			value: 'arrow' as WindStyle,
 			label: 'Arrows',
 			description: 'Points downwind. Length, weight and opacity grow with the speed.',
 			unit: getDisplayUnit('m/s', $unitPreferences),
 			samples: arrowSamples
 		},
 		{
-			value: 'barb' as ArrowStyle,
+			value: 'barb' as WindStyle,
 			label: 'Wind barbs',
 			description:
 				'The staff points into the wind, barbs on its upwind end: half barb 5 knots, full barb 10, pennant 50. South of the equator they sit on the other side of the staff.',
 			unit: 'kt',
 			samples: barbSamples
+		},
+		{
+			value: 'particles' as WindStyle,
+			label: 'Animated flow',
+			description:
+				'Particles drift downwind and leave fading trails that trace the streamlines. The flow speed on screen is the same at every zoom; the colour scale underneath carries the magnitude.',
+			unit: '',
+			samples: []
 		}
 	]);
 
-	const setArrowStyle = (style: ArrowStyle) => {
+	const setArrowStyle = (style: WindStyle) => {
 		if (style === $vectorOptions.arrowStyle) return;
 		$vectorOptions.arrowStyle = style;
 		// The store key is `arrowStyle`, so the default has to be passed in for
@@ -118,6 +129,35 @@
 	const resetSizing = () => {
 		$vectorOptions.arrowIconScale = defaultVectorOptions.arrowIconScale;
 		$vectorOptions.arrowPacking = defaultVectorOptions.arrowPacking;
+		changeOMfileURL();
+	};
+
+	// Animated-flow tuning. Trail persistence is per 60fps frame, so useful
+	// values crowd near 1; the slider walks that end in small steps.
+	const PARTICLE_COUNT_RANGE = { min: 1000, max: 30000, step: 500 };
+	const PARTICLE_SIZE_RANGE = { min: 0.8, max: 4, step: 0.1 };
+	const PARTICLE_SPEED_RANGE = { min: 0.4, max: 4, step: 0.1 };
+	const PARTICLE_TRAIL_RANGE = { min: 0.9, max: 0.995, step: 0.005 };
+
+	/** Trail length as the ~px a 10 m/s trail glows before fading below 10%. */
+	const trailLabel = $derived.by(() => {
+		const perFrame = ($vectorOptions.particleSpeed * 10) / 60;
+		const frames = Math.log(0.1) / Math.log($vectorOptions.particleTrail);
+		return `~${Math.round(perFrame * frames)} px at 10 m/s`;
+	});
+
+	const atDefaultAnimation = $derived(
+		$vectorOptions.particleCount === defaultVectorOptions.particleCount &&
+			$vectorOptions.particleSize === defaultVectorOptions.particleSize &&
+			$vectorOptions.particleSpeed === defaultVectorOptions.particleSpeed &&
+			$vectorOptions.particleTrail === defaultVectorOptions.particleTrail
+	);
+
+	const resetAnimation = () => {
+		$vectorOptions.particleCount = defaultVectorOptions.particleCount;
+		$vectorOptions.particleSize = defaultVectorOptions.particleSize;
+		$vectorOptions.particleSpeed = defaultVectorOptions.particleSpeed;
+		$vectorOptions.particleTrail = defaultVectorOptions.particleTrail;
 		changeOMfileURL();
 	};
 
@@ -159,7 +199,29 @@
 				onclick={() => setArrowStyle(style.value)}
 			>
 				<span class="text-sm font-semibold">{style.label}</span>
-				<div class="flex w-full flex-wrap items-end gap-1">
+				{#if style.value === 'particles'}
+					<!-- Static comet-trail sketch of what the animation draws. -->
+					<svg
+						viewBox="0 0 120 28"
+						class="h-7 w-30"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.5"
+						stroke-linecap="round"
+						aria-hidden="true"
+					>
+						<path d="M4 22 C 30 20, 55 13, 80 10" opacity="0.3" />
+						<circle cx="80" cy="10" r="1.6" fill="currentColor" stroke="none" opacity="0.9" />
+						<path d="M16 6 C 42 7, 62 13, 94 16" opacity="0.3" />
+						<circle cx="94" cy="16" r="1.6" fill="currentColor" stroke="none" opacity="0.9" />
+						<path d="M40 24 C 62 23, 80 18, 108 12" opacity="0.3" />
+						<circle cx="108" cy="12" r="1.6" fill="currentColor" stroke="none" opacity="0.9" />
+					</svg>
+				{/if}
+				<div
+					class="flex w-full flex-wrap items-end gap-1"
+					class:hidden={style.samples.length === 0}
+				>
 					{#each style.samples as sample (sample.label)}
 						<div class="flex w-9 flex-col items-center gap-0.5">
 							<svg
@@ -196,67 +258,148 @@
 		{/each}
 	</div>
 
-	<h3 class="mt-4 font-semibold">Sizing</h3>
-	<p class="text-xs opacity-75">
-		Drawn into the map tiles, arrows grow while you zoom in and snap back when the next zoom level
-		loads. As symbols they keep one size on screen.
-	</p>
-	<div class="mt-2 flex gap-3">
-		<Switch
-			id="arrow-uniform"
-			class="cursor-pointer"
-			checked={uniformSize}
-			disabled={!arrows}
-			onCheckedChange={toggleUniformSize}
-		/>
-		<Label class="cursor-pointer" for="arrow-uniform">
-			Uniform size {uniformSize ? 'on' : 'off'}
-		</Label>
-	</div>
+	{#if arrowStyle !== 'particles'}
+		<h3 class="mt-4 font-semibold">Sizing</h3>
+		<p class="text-xs opacity-75">
+			Drawn into the map tiles, arrows grow while you zoom in and snap back when the next zoom level
+			loads. As symbols they keep one size on screen.
+		</p>
+		<div class="mt-2 flex gap-3">
+			<Switch
+				id="arrow-uniform"
+				class="cursor-pointer"
+				checked={uniformSize}
+				disabled={!arrows}
+				onCheckedChange={toggleUniformSize}
+			/>
+			<Label class="cursor-pointer" for="arrow-uniform">
+				Uniform size {uniformSize ? 'on' : 'off'}
+			</Label>
+		</div>
 
-	{#if uniformSize}
-		<div class="mt-3 flex flex-col gap-2">
+		{#if uniformSize}
+			<div class="mt-3 flex flex-col gap-2">
+				<div class="flex items-center gap-3">
+					<Label class="w-16 shrink-0" for="arrow-size">Size</Label>
+					<input
+						id="arrow-size"
+						type="range"
+						class="w-28"
+						min={ICON_SCALE_RANGE.min}
+						max={ICON_SCALE_RANGE.max}
+						step={ICON_SCALE_RANGE.step}
+						bind:value={$vectorOptions.arrowIconScale}
+						onchange={changeOMfileURL}
+					/>
+					<span class="text-xs opacity-70">{iconSizePx.toFixed(1)} px</span>
+				</div>
+				<div class="flex items-center gap-3">
+					<Label class="w-16 shrink-0" for="arrow-packing">Spacing</Label>
+					<input
+						id="arrow-packing"
+						type="range"
+						class="w-28"
+						min={ICON_PACKING_RANGE.min}
+						max={ICON_PACKING_RANGE.max}
+						step={ICON_PACKING_RANGE.step}
+						bind:value={$vectorOptions.arrowPacking}
+						onchange={changeOMfileURL}
+					/>
+					<span class="text-xs opacity-70">{iconSpacingPx.toFixed(1)} px apart</span>
+				</div>
+				<Button
+					class="mt-1 h-7 w-fit cursor-pointer text-xs"
+					variant="secondary"
+					disabled={atDefaultSizing}
+					onclick={resetSizing}
+				>
+					Reset to default
+				</Button>
+				<p class="text-xs opacity-60">
+					Both snap to a whole number of cells across a tile, so the size shown is the size drawn.
+					Tile geometry is drawn between 0.7x and 1.4x its nominal size through a zoom level; the
+					default sits near the middle of that, so icons read like the geometry does.
+				</p>
+			</div>
+		{/if}
+	{:else}
+		<h3 class="mt-4 font-semibold">Animation</h3>
+		<p class="text-xs opacity-75">
+			The flow keeps the same screen speed at every zoom; density is per screen, not per area.
+		</p>
+		<div class="mt-2 flex flex-col gap-2">
 			<div class="flex items-center gap-3">
-				<Label class="w-16 shrink-0" for="arrow-size">Size</Label>
+				<Label class="w-16 shrink-0" for="particle-count">Density</Label>
 				<input
-					id="arrow-size"
+					id="particle-count"
 					type="range"
 					class="w-28"
-					min={ICON_SCALE_RANGE.min}
-					max={ICON_SCALE_RANGE.max}
-					step={ICON_SCALE_RANGE.step}
-					bind:value={$vectorOptions.arrowIconScale}
+					min={PARTICLE_COUNT_RANGE.min}
+					max={PARTICLE_COUNT_RANGE.max}
+					step={PARTICLE_COUNT_RANGE.step}
+					disabled={!arrows}
+					bind:value={$vectorOptions.particleCount}
 					onchange={changeOMfileURL}
 				/>
-				<span class="text-xs opacity-70">{iconSizePx.toFixed(1)} px</span>
+				<span class="text-xs opacity-70">
+					{($vectorOptions.particleCount / 1000).toFixed(1)}k particles
+				</span>
 			</div>
 			<div class="flex items-center gap-3">
-				<Label class="w-16 shrink-0" for="arrow-packing">Spacing</Label>
+				<Label class="w-16 shrink-0" for="particle-size">Size</Label>
 				<input
-					id="arrow-packing"
+					id="particle-size"
 					type="range"
 					class="w-28"
-					min={ICON_PACKING_RANGE.min}
-					max={ICON_PACKING_RANGE.max}
-					step={ICON_PACKING_RANGE.step}
-					bind:value={$vectorOptions.arrowPacking}
+					min={PARTICLE_SIZE_RANGE.min}
+					max={PARTICLE_SIZE_RANGE.max}
+					step={PARTICLE_SIZE_RANGE.step}
+					disabled={!arrows}
+					bind:value={$vectorOptions.particleSize}
 					onchange={changeOMfileURL}
 				/>
-				<span class="text-xs opacity-70">{iconSpacingPx.toFixed(1)} px apart</span>
+				<span class="text-xs opacity-70">{$vectorOptions.particleSize.toFixed(1)} px wide</span>
+			</div>
+			<div class="flex items-center gap-3">
+				<Label class="w-16 shrink-0" for="particle-speed">Speed</Label>
+				<input
+					id="particle-speed"
+					type="range"
+					class="w-28"
+					min={PARTICLE_SPEED_RANGE.min}
+					max={PARTICLE_SPEED_RANGE.max}
+					step={PARTICLE_SPEED_RANGE.step}
+					disabled={!arrows}
+					bind:value={$vectorOptions.particleSpeed}
+					onchange={changeOMfileURL}
+				/>
+				<span class="text-xs opacity-70">
+					{$vectorOptions.particleSpeed.toFixed(1)} px/s per m/s
+				</span>
+			</div>
+			<div class="flex items-center gap-3">
+				<Label class="w-16 shrink-0" for="particle-trail">Trails</Label>
+				<input
+					id="particle-trail"
+					type="range"
+					class="w-28"
+					min={PARTICLE_TRAIL_RANGE.min}
+					max={PARTICLE_TRAIL_RANGE.max}
+					step={PARTICLE_TRAIL_RANGE.step}
+					disabled={!arrows}
+					bind:value={$vectorOptions.particleTrail}
+					onchange={changeOMfileURL}
+				/>
+				<span class="text-xs opacity-70">{trailLabel}</span>
 			</div>
 			<Button
 				class="mt-1 h-7 w-fit cursor-pointer text-xs"
 				variant="secondary"
-				disabled={atDefaultSizing}
-				onclick={resetSizing}
+				disabled={atDefaultAnimation}
+				onclick={resetAnimation}
 			>
 				Reset to default
 			</Button>
-			<p class="text-xs opacity-60">
-				Both snap to a whole number of cells across a tile, so the size shown is the size drawn.
-				Tile geometry is drawn between 0.7x and 1.4x its nominal size through a zoom level; the
-				default sits near the middle of that, so icons read like the geometry does.
-			</p>
 		</div>
 	{/if}
 </SettingsSection>

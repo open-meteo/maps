@@ -22,6 +22,7 @@ import type { CommitBarrier } from '$lib/commit-barrier';
 import type {
 	GpuArrowConfig,
 	GpuContourStyle,
+	GpuParticleConfig,
 	OmProtocolSettings
 } from '@openmeteo/weather-map-layer';
 import type maplibregl from 'maplibre-gl';
@@ -39,6 +40,8 @@ export interface GpuRasterSlotSpec {
 	raster: boolean;
 	/** Instanced wind-arrow overlay configuration. */
 	arrows?: GpuArrowConfig;
+	/** Animated wind-particle overlay configuration. */
+	particles?: GpuParticleConfig;
 	/** In-shader contour isoline styling. */
 	contours?: GpuContourStyle;
 }
@@ -60,6 +63,7 @@ interface Slot {
 	opacity: number;
 	beforeLayer: string;
 	arrowsKey: string;
+	particlesKey: string;
 	contoursKey: string;
 }
 
@@ -135,6 +139,7 @@ export class GpuRasterManager {
 					opacity: spec.opacity,
 					beforeLayer: spec.beforeLayer,
 					arrowsKey: '',
+					particlesKey: '',
 					contoursKey: ''
 				};
 				this.slots.set(spec.key, slot);
@@ -155,6 +160,11 @@ export class GpuRasterManager {
 			if (slot.arrowsKey !== arrowsKey) {
 				slot.arrowsKey = arrowsKey;
 				slot.layer.setArrows(spec.arrows);
+			}
+			const particlesKey = spec.particles ? JSON.stringify(spec.particles) : '';
+			if (slot.particlesKey !== particlesKey) {
+				slot.particlesKey = particlesKey;
+				slot.layer.setParticles(spec.particles);
 			}
 			const contoursKey = spec.contours ? JSON.stringify(spec.contours) : '';
 			if (slot.contoursKey !== contoursKey) {
