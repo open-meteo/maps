@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onDestroy, onMount, tick, untrack } from 'svelte';
-	import { SvelteDate } from 'svelte/reactivity';
+	import { SvelteDate, SvelteMap } from 'svelte/reactivity';
 	import { fade } from 'svelte/transition';
 
 	import { closestModelRun, domainStep } from '@openmeteo/weather-map-layer';
@@ -9,10 +9,12 @@
 
 	import { timeSelectorActions } from '$lib/stores/keyboard';
 	import { desktop, loading } from '$lib/stores/preferences';
-	import { metaJson, modelRunLocked } from '$lib/stores/time';
+	import { animating, metaJson, modelRunLocked } from '$lib/stores/time';
 	import { inProgress, latest, modelRun, now, time } from '$lib/stores/time';
 	import { selectedDomain } from '$lib/stores/variables';
 
+	import AnimateButton from '$lib/components/time/animate-button.svelte';
+	import CacheMeter from '$lib/components/time/cache-meter.svelte';
 	import PrefetchButton from '$lib/components/time/prefetch-button.svelte';
 	import * as Select from '$lib/components/ui/select';
 
@@ -20,11 +22,17 @@
 		DAY_NAMES,
 		MILLISECONDS_PER_DAY,
 		MILLISECONDS_PER_HOUR,
+		MILLISECONDS_PER_MINUTE,
 		MILLISECONDS_PER_WEEK
 	} from '$lib/constants';
 	import { throttle } from '$lib/helpers';
-	import { changeOMfileURL } from '$lib/layers';
-	import { getMetaData, tryGetMetaData } from '$lib/metadata';
+	import {
+		changeOMfileURL,
+		getTimestepResidency,
+		previewSunTime,
+		setRasterFadeMs
+	} from '$lib/layers';
+	import { tryGetMetaData } from '$lib/metadata';
 	import {
 		formatISOWithoutTimezone,
 		formatLocalDate,
@@ -53,6 +61,9 @@
 		// Read currentDate untracked so this only reacts to external $time changes.
 		// Otherwise mobile drag updates to currentDate would retrigger this effect and
 		// snap currentDate back to $time, breaking drag-to-select.
+		// While a mobile scrub is live-committing cached steps, $time intentionally
+		// trails the finger — reconciling would snap the strip mid-drag.
+		if (mobileScrubbing) return;
 		if (untrack(() => currentDate.getTime()) !== timeMs) {
 			currentDate = new SvelteDate($time);
 		}
@@ -198,7 +209,7 @@
 	const checkClosestModelRun = async () => {
 		let timeStep = new Date($time);
 
-		let nearestModelRun = closestModelRun(timeStep, $selectedDomain.model_interval);
+		let nearestModelRun = closestModelRun(timeStep, $selectedDomain.model_interval!);
 		if (nearestModelRun.getTime() > latestReferenceTime.getTime()) {
 			nearestModelRun = latestReferenceTime;
 		}
@@ -211,7 +222,7 @@
 				toast.warning('Date selected too old, using 7 days ago time');
 				const nowTimeStep = domainStep(
 					new Date(date7DaysAgo),
-					$selectedDomain.time_interval,
+					$selectedDomain.time_interval!,
 					'floor'
 				);
 				time.set(nowTimeStep);
@@ -260,12 +271,11 @@
 
 		if (!$modelRunLocked && $modelRun && setToModelRun.getTime() !== $modelRun.getTime()) {
 			$modelRun = new Date(setToModelRun);
-			try {
-				$metaJson = await getMetaData();
-			} catch (e) {
-				const error = e as Error;
-				toast.warning(error.message);
-				// set to latest
+			const meta = await tryGetMetaData();
+			if (meta) {
+				$metaJson = meta;
+			} else {
+				// Failed load already toasted; fall back to the latest run
 				$time = new Date(latestReferenceTime);
 				$modelRun = new Date(latestReferenceTime);
 				$metaJson = $latest;
@@ -322,7 +332,7 @@
 		$metaJson = meta;
 
 		let closestTime = new SvelteDate($modelRun);
-		for (const vT of $metaJson.valid_times) {
+		for (const vT of meta.valid_times) {
 			const validTime = new Date(vT);
 			if (validTime.getTime() <= $time.getTime()) {
 				closestTime.setTime(validTime.getTime());
@@ -562,6 +572,17 @@
 
 	const timeValid = (date: Date) => isValidTimeStep(date, timeSteps);
 
+	// The hovered moment at minute resolution. Tick marks only go down to the
+	// domain's time interval, but the sun shadow preview can be continuous.
+	const hoveredMinute = (): Date | null => {
+		if (!hoverX || !daySteps.length || !dayContainerScrollWidth) return null;
+		const fraction = (hoverX + dayContainerScrollLeft) / dayContainerScrollWidth;
+		const ms = daySteps[0].getTime() + fraction * daySteps.length * MILLISECONDS_PER_DAY;
+		return new Date(Math.round(ms / MILLISECONDS_PER_MINUTE) * MILLISECONDS_PER_MINUTE);
+	};
+
+	const throttledSunPreview = throttle(() => previewSunTime(hoveredMinute()), 100);
+
 	let resizeTimeout: ReturnType<typeof setTimeout> | undefined;
 	const horizontalScrollSpeed = 1;
 
@@ -576,21 +597,46 @@
 			hoursHoverContainer.addEventListener(
 				'mousemove',
 				(e) => {
-					if (hoursHoverContainerWidth)
+					if (hoursHoverContainerWidth) {
 						hoverX = e.layerX + (isSafari ? hoursHoverContainerWidth / 2 : 0);
+						throttledSunPreview();
+						if (isScrubbing) {
+							scrubDidMove = true;
+							throttledScrub();
+						}
+					}
 				},
 				{ signal }
 			);
 			hoursHoverContainer.addEventListener(
+				'mousedown',
+				(e) => {
+					if (!desktop.current || disabled) return;
+					isScrubbing = true;
+					scrubDidMove = false;
+					// Snappier blends while the pointer drags the playhead around
+					setRasterFadeMs(120);
+					e.preventDefault();
+				},
+				{ signal }
+			);
+			window.addEventListener('mouseup', endScrub, { signal });
+			hoursHoverContainer.addEventListener(
 				'mouseout',
 				() => {
 					hoverX = 0;
+					previewSunTime(null);
 				},
 				{ signal }
 			);
 			hoursHoverContainer.addEventListener(
 				'click',
 				() => {
+					// A drag-scrub already settled on mouseup; this click is its tail end
+					if (scrubDidMove) {
+						scrubDidMove = false;
+						return;
+					}
 					if (desktop.current) {
 						let validTime = false;
 						let timeStep =
@@ -675,11 +721,23 @@
 					)
 				];
 			if (timeStep) currentDate = new SvelteDate(timeStep);
+
+			// Live scrub: follow the drag on the nearest cached step
+			if (!mobileScrubbing) {
+				mobileScrubbing = true;
+				setRasterFadeMs(120);
+			}
+			throttledMobileScrub();
 		};
 
 		const onScrollEndEvent = () => {
 			// Clear isScrolling flag when scrolling ends
 			isScrolling = false;
+
+			if (mobileScrubbing && !isDown) {
+				mobileScrubbing = false;
+				setRasterFadeMs(); // restore the default blend duration
+			}
 
 			if (!desktop.current && !isDown) {
 				let timeStep = findTimeStep(currentDate, timeSteps);
@@ -760,12 +818,103 @@
 		}
 	});
 
+	onMount(() => {
+		pollResidency();
+		residencyTimer = setInterval(pollResidency, 1000);
+	});
+
 	onDestroy(() => {
 		if (resizeTimeout) clearTimeout(resizeTimeout);
+		if (residencyTimer) clearInterval(residencyTimer);
 		listenerController.abort();
 		resizeObserver?.disconnect();
 		unsubscribeMetaJson();
 	});
+
+	// ── Click-hold scrubbing ────────────────────────────────────────────────
+	// Holding the mouse down on the timeline drags the playhead: while dragging
+	// it snaps to the nearest *cached* timestep (instant feedback from
+	// VRAM/RAM), and on release settles on the exact step under the cursor.
+	let isScrubbing = false;
+	let scrubDidMove = false;
+
+	const hoveredCompleteStep = (): Date | undefined => {
+		if (!timeStepsComplete.length || !dayContainerScrollWidth) return undefined;
+		return timeStepsComplete[
+			Math.round(
+				(timeStepsComplete.length * (hoverX + dayContainerScrollLeft)) / dayContainerScrollWidth
+			)
+		];
+	};
+
+	/** Nearest cached (VRAM/RAM) step; falls back to the nearest valid step. */
+	const nearestCachedStep = (target: Date): Date | undefined => {
+		let chosen: Date | undefined;
+		let bestDistance = Infinity;
+		for (const step of timeSteps ?? []) {
+			if (!residency.has(step.getTime())) continue;
+			const distance = Math.abs(step.getTime() - target.getTime());
+			if (distance < bestDistance) {
+				bestDistance = distance;
+				chosen = step;
+			}
+		}
+		return chosen ?? findTimeStep(target, timeSteps) ?? undefined;
+	};
+
+	/** Lightweight mid-drag commit: map + URL only, no model-run juggling. */
+	const commitScrubTime = (chosen: Date) => {
+		if (chosen.getTime() === $time.getTime()) return;
+		$time = new SvelteDate(chosen);
+		updateUrl('time', formatISOWithoutTimezone($time));
+		changeOMfileURL();
+	};
+
+	const throttledScrub = throttle(() => {
+		const target = hoveredCompleteStep();
+		if (!target) return;
+		const chosen = nearestCachedStep(target);
+		if (!chosen) return;
+		commitScrubTime(chosen);
+		currentDate = new SvelteDate(chosen);
+	}, 80);
+
+	// Mobile drags the strip instead of the cursor: while it moves, the map
+	// follows the nearest cached step live (the strip label keeps tracking the
+	// finger; the reconcile effect is suppressed for the duration).
+	let mobileScrubbing = false;
+	const throttledMobileScrub = throttle(() => {
+		if (!mobileScrubbing) return;
+		const chosen = nearestCachedStep(currentDate);
+		if (chosen) commitScrubTime(chosen);
+	}, 120);
+
+	const endScrub = () => {
+		if (!isScrubbing) return;
+		isScrubbing = false;
+		setRasterFadeMs(); // restore the default blend duration
+		if (scrubDidMove) {
+			// Settle on the exact nearest valid step through the full path
+			// (model-run checks included), loading it if it wasn't cached.
+			const target = hoveredCompleteStep();
+			const step = target ? (findTimeStep(target, timeSteps) ?? target) : undefined;
+			if (step) onDateChange(new SvelteDate(step));
+		}
+	};
+
+	// Cache residency per valid time: which timesteps sit decoded in RAM and
+	// which additionally have their texture in VRAM (tinted tick marks).
+	const residency = new SvelteMap<number, 'ram' | 'vram'>();
+	let residencyTimer: ReturnType<typeof setInterval> | undefined;
+	const pollResidency = () => {
+		if (!timeSteps || timeSteps.length === 0) return;
+		const states = getTimestepResidency(timeSteps);
+		residency.clear();
+		for (let i = 0; i < timeSteps.length; i++) {
+			const state = states[i];
+			if (state !== 'none') residency.set(timeSteps[i].getTime(), state);
+		}
+	};
 
 	let previousModelSteps = $derived.by(() => {
 		const previousModels = [];
@@ -873,10 +1022,17 @@
 				</div>
 			{:else}{/if}
 		</div>
+		<!-- Animation Controls -->
+		<div
+			class="-top-4.5 h-4.5 z-10 left-0 absolute flex rounded-t-lg items-center px-2 gap-0.5 bg-glass/65 backdrop-blur-sm"
+		>
+			<AnimateButton />
+		</div>
 		<!-- Model Run Selection Dropdown -->
 		<div
 			class="-top-4.5 h-4.5 z-10 right-0 absolute flex rounded-t-lg items-center px-2 gap-0.5 bg-glass/65 backdrop-blur-sm"
 		>
+			<CacheMeter />
 			<PrefetchButton />
 
 			<Select.Root
@@ -1055,7 +1211,7 @@
 		<div
 			class="time-selector md:px-0 h-20 md:h-12.5 relative bg-glass/75 backdrop-blur-sm duration-500"
 		>
-			{#if hoverX || currentDate.getTime() !== $time.getTime()}
+			{#if !$animating && (hoverX || currentDate.getTime() !== $time.getTime())}
 				<div
 					transition:fade={{ duration: 300 }}
 					class="absolute {desktop.current ? '-left-6' : 'left-1.75'} -top-5 text-xs p-1"
@@ -1164,7 +1320,13 @@
 												: ''} {metaFirstResolutionHours === 0.25 && j % 16 === 0 && j !== 0
 												? 'h-3.25'
 												: ''} border-l-2
-												{!timeSteps?.find((tS) => timeStep.getTime() === tS.getTime()) ? 'border-foreground/20' : ''}"
+												{!timeSteps?.find((tS) => timeStep.getTime() === tS.getTime())
+												? 'border-foreground/20'
+												: residency.get(timeStep.getTime()) === 'vram'
+													? 'border-blue-500'
+													: residency.get(timeStep.getTime()) === 'ram'
+														? 'border-amber-500'
+														: ''}"
 										></div>
 									{/if}
 								{/each}

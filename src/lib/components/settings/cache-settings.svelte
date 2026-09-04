@@ -1,16 +1,25 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import { onDestroy, onMount, untrack } from 'svelte';
 	import { get } from 'svelte/store';
 	import { slide } from 'svelte/transition';
 
 	import { clearBlockCache } from '@openmeteo/weather-map-layer';
 
-	import { cacheBlockSizeKb, cacheMaxBytesMb } from '$lib/stores/om-protocol-settings';
+	import {
+		cacheBlockSizeKb,
+		cacheMaxBytesMb,
+		getBlockCacheStats,
+		gpuCacheMb
+	} from '$lib/stores/om-protocol-settings';
 
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import * as Select from '$lib/components/ui/select';
+
+	import { getGpuMemoryUsage } from '$lib/layers';
+
+	import SettingsSection from './settings-section.svelte';
 
 	const blockSizeOptions = [
 		{ value: '16', label: '16 KiB' },
@@ -23,6 +32,7 @@
 
 	const appliedBlockSize = get(cacheBlockSizeKb);
 	const appliedMaxBytes = get(cacheMaxBytesMb);
+	const appliedGpuCache = get(gpuCacheMb);
 
 	const reload = () => window.location.reload();
 
@@ -38,10 +48,26 @@
 			initialized = true;
 		});
 	});
+
+	// Live usage of both caches while the pane is open
+	const mb = (bytes: number) => (bytes / (1024 * 1024)).toFixed(0);
+	let vram = $state({ bytes: 0, budgetBytes: 0, textures: 0 });
+	let ram = $state<
+		{ memoryBytes: number; persistentBytes: number; maxBytes: number } | undefined
+	>();
+	let usageTimer: ReturnType<typeof setInterval> | undefined;
+	const pollUsage = async () => {
+		vram = getGpuMemoryUsage();
+		ram = await getBlockCacheStats();
+	};
+	onMount(() => {
+		pollUsage();
+		usageTimer = setInterval(pollUsage, 2000);
+	});
+	onDestroy(() => clearInterval(usageTimer));
 </script>
 
-<div>
-	<h2 class="text-lg font-bold">Cache</h2>
+<SettingsSection title="Cache">
 	<div class="mt-3 flex flex-col gap-3">
 		<div class="flex items-center gap-3">
 			<Label class="w-28 shrink-0">Block Size</Label>
@@ -73,10 +99,30 @@
 				bind:value={$cacheMaxBytesMb}
 			/>
 		</div>
-		{#if $cacheBlockSizeKb !== appliedBlockSize || $cacheMaxBytesMb !== appliedMaxBytes}
+		<div class="flex items-center gap-3">
+			<Label for="gpu-cache-mb" class="w-28 shrink-0">GPU Cache (MB)</Label>
+			<Input
+				id="gpu-cache-mb"
+				type="number"
+				min={64}
+				class="w-24 bg-background/60"
+				bind:value={$gpuCacheMb}
+			/>
+		</div>
+		<div class="text-xs text-foreground/70 flex flex-col gap-0.5">
+			<div>
+				VRAM: {mb(vram.bytes)} / {mb(vram.budgetBytes)} MB ({vram.textures} textures)
+			</div>
+			{#if ram}
+				<div>
+					RAM: {mb(ram.memoryBytes)} MB in memory, {mb(ram.persistentBytes)} / {mb(ram.maxBytes)} MB stored
+				</div>
+			{/if}
+		</div>
+		{#if $cacheBlockSizeKb !== appliedBlockSize || $cacheMaxBytesMb !== appliedMaxBytes || $gpuCacheMb !== appliedGpuCache}
 			<div transition:slide>
 				<Button class="cursor-pointer self-start" onclick={reload}>Reload to apply</Button>
 			</div>
 		{/if}
 	</div>
-</div>
+</SettingsSection>

@@ -6,9 +6,29 @@ export const DEFAULT_VARIABLE = 'temperature_2m';
 export const DEFAULT_VECTOR_OPTIONS = {
 	grid: false,
 	arrows: true,
+	// 'arrow' = plain arrow, 'barb' = station-model wind barbs
+	arrowStyle: 'arrow' as const,
+	// 'line' = tile geometry (scales with the zoom), 'icon' = map symbols
+	arrowRender: 'line' as const,
+	// Icon size multiplier and the spacing between icons, as a share of one.
+	// Tile geometry is drawn between 0.71x and 1.41x its nominal size through a
+	// zoom level, so an icon matching it exactly (scale 1) reads as small for
+	// most of that range; 1.2 sits nearer the size the geometry usually has.
+	arrowIconScale: 1.2,
+	arrowPacking: 0.85,
 	contours: false,
 	breakpoints: true,
-	contourInterval: 2
+	contourInterval: 2,
+	// Animated flow (particle) style: particle count, point/trail width in px,
+	// screen speed in px/s per m/s of wind, trail persistence per frame at
+	// 60fps (higher = longer), and trail opacity (the light theme scales it
+	// down — dark strokes read heavier than light ones). All screen-relative,
+	// so one set of defaults reads the same at every zoom level.
+	particleCount: 20000,
+	particleSize: 2.5,
+	particleSpeed: 3,
+	particleTrail: 0.955,
+	particleOpacity: 0.8
 };
 
 // Preferences defaults
@@ -17,7 +37,8 @@ export const DEFAULT_PREFERENCES = {
 	terrain: false,
 	hillshade: false,
 	clipWater: false,
-	showScale: true
+	showScale: true,
+	showSeamlessBorders: true
 };
 
 // Layer names for map rendering

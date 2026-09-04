@@ -11,10 +11,16 @@ export const fmtModelRun = (modelRun: Date): string =>
 export const fmtSelectedTime = (t: Date): string =>
 	`${t.getUTCFullYear()}-${pad(t.getUTCMonth() + 1)}-${pad(t.getUTCDate())}T${pad(t.getUTCHours())}${pad(t.getUTCMinutes())}`;
 
+// The canonical rate-limited API endpoint of the data API.
+export const DATA_SPATIAL_BASE_URI = 'https://data-spatial.open-meteo.com/data_spatial';
+
 // Override with e.g. VITE_DATA_BASE_URI=http://localhost:8090/data_spatial in
 // .env.local to develop against a local or staging data endpoint.
-export const BASE_URI =
-	import.meta.env.VITE_DATA_BASE_URI || 'https://data-spatial.open-meteo.com/data_spatial';
+export const BASE_URI = import.meta.env.VITE_DATA_BASE_URI || DATA_SPATIAL_BASE_URI;
+
+// Same files served straight from S3: no rate limit, but uncached and slower.
+// Fallback once the daily request limit of the primary endpoint is hit.
+export const S3_BASE_URI = 'https://openmeteo.s3.amazonaws.com/data_spatial';
 
 export const hashValue = (val: string): string => {
 	// FNV-1a 32-bit – synchronous, fast, and sufficient for cache-busting keys.

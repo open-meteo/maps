@@ -24,6 +24,7 @@ import {
 import { checkHighDefinition } from '$lib/helpers';
 import { getInitialMetaData, tryGetMetaData } from '$lib/metadata';
 
+import { activeChart, defaultChart } from './chart';
 import { cacheBlockSizeKb, cacheMaxBytesMb, customColorScales } from './om-protocol-settings';
 import { inProgress, latest, metaJson, modelRun, modelRunLocked, now, time } from './time';
 import {
@@ -51,9 +52,16 @@ export interface Preferences {
 	hillshade: boolean;
 	clipWater: boolean;
 	showScale: boolean;
+	showSeamlessBorders: boolean;
 }
 
-export const preferences = persisted('preferences', defaultPreferences);
+// Same default-merge as vectorOptions: keys added after a visitor's
+// localStorage was written must not read back as undefined
+export const preferences = persisted<Preferences, Partial<Preferences>>(
+	'preferences',
+	defaultPreferences,
+	{ beforeRead: (stored) => ({ ...defaultPreferences, ...stored }) }
+);
 
 // URL object containing current url states setings and flags
 export const url: Writable<URL> = writable();
@@ -85,6 +93,12 @@ export const localStorageVersion: Persisted<string | undefined> = persisted(
 	'local-storage-version',
 	undefined
 );
+
+/**
+ * Settings sections a visitor collapsed, by title. Absent means open, so a
+ * newly added section shows up expanded.
+ */
+export const collapsedSettings = persisted<Record<string, boolean>>('settings-collapsed', {});
 
 export const helpOpen = writable(false);
 
@@ -136,6 +150,9 @@ export const resetStates = async () => {
 
 	domain.set('dwd_icon');
 	variable.set('temperature_2m');
+	// After the vector defaults above so the plain chart is built from them.
+	// Saved charts are user data and deliberately survive a reset.
+	activeChart.set(defaultChart());
 
 	domainSelectionOpen.set(false);
 	variableSelectionOpen.set(false);

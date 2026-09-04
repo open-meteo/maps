@@ -6,11 +6,15 @@
 	import ArrowsSettings from './arrows-settings.svelte';
 	import CacheSettings from './cache-settings.svelte';
 	import ContourSettings from './contour-settings.svelte';
+	import EndpointSettings from './endpoint-settings.svelte';
+	import GpuSettings from './gpu-settings.svelte';
 	import GridSettings from './grid-settings.svelte';
 	import InterpolationSettings from './interpolation-settings.svelte';
 	import OpacitySetting from './opacity-setting.svelte';
 	import PopupSettings from './popup-settings.svelte';
+	import SeamlessBorderSettings from './seamless-border-settings.svelte';
 	import StateSettings from './state-settings.svelte';
+	import SunSettings from './sun-settings.svelte';
 	import TileSizeSettings from './tile-size-settings.svelte';
 	import UnitSettings from './unit-settings.svelte';
 	import WaterClipSetting from './water-clip-setting.svelte';
@@ -21,7 +25,7 @@
 		preventScroll={false}
 		class="z-100 bg-glass/80 backdrop-blur-sm max-h-screen w-96 border-none"
 	>
-		<div class="flex flex-col px-6 pt-12 pb-18 gap-6 min-h-full overflow-y-scroll">
+		<div class="flex flex-col px-6 pt-12 pb-18 gap-2 min-h-full overflow-y-scroll">
 			<UnitSettings />
 			<GridSettings />
 			<ArrowsSettings />
@@ -30,8 +34,12 @@
 			<InterpolationSettings />
 			<PopupSettings />
 			<WaterClipSetting />
+			<SunSettings />
+			<SeamlessBorderSettings />
 			<OpacitySetting />
+			<GpuSettings />
 			<CacheSettings />
+			<EndpointSettings />
 			<StateSettings />
 		</div>
 	</Sheet.Content>

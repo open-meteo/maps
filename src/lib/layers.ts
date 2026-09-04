@@ -1,326 +1,715 @@
+/**
+ * Chart layer orchestration, GPU edition: every raster source renders through
+ * a persistent tile-free `WeatherGpuLayer` (GpuRasterManager) — timestep
+ * changes blend data values in-shader instead of cross-fading raster tiles —
+ * while vector channels (contours/arrows/grid) stay on the CPU tile pipeline
+ * via the FrameManager. Data is still shared per variable inside the om
+ * protocol state, so a raster layer and a vector channel of the same source
+ * trigger a single fetch.
+ */
 import { get } from 'svelte/store';
 
+import {
+	GridFactory,
+	getDataState,
+	getDomainFootprint,
+	isSeamlessDomain,
+	resolveConcreteDomain
+} from '@openmeteo/weather-map-layer';
 import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
 import { toast } from 'svelte-sonner';
 
+import { chartSources } from '$lib/stores/chart';
+import { gpuRenderOptions } from '$lib/stores/gpu-render';
 import { map as m } from '$lib/stores/map';
 import { loading, opacity, preferences as p } from '$lib/stores/preferences';
-import { vectorOptions as vO } from '$lib/stores/vector';
+import { modelRun, time } from '$lib/stores/time';
+import { selectedDomain, variable as variableStore } from '$lib/stores/variables';
+import { type VectorOptions, vectorOptions as vO } from '$lib/stores/vector';
 
+import { windIconSizePx, windIconSpacing } from '$lib/arrow-sprites';
+import { sourceKey } from '$lib/chart-encoding';
+import { defaultArrowStyle, defaultContourStyle } from '$lib/chart-styles';
+import { alphaOfCssColor } from '$lib/color';
+import { createCommitBarrier } from '$lib/commit-barrier';
 import {
 	BEFORE_LAYER_RASTER,
 	BEFORE_LAYER_VECTOR,
 	BEFORE_LAYER_VECTOR_WATER_CLIP,
 	HILLSHADE_LAYER
 } from '$lib/constants';
-import { type SlotLayer, SlotManager } from '$lib/slot-manager';
+import { type FrameChannel, FrameManager } from '$lib/frame-manager';
+import { GpuRasterManager, type GpuRasterSlotSpec } from '$lib/gpu-raster-manager';
+import { fmtSelectedTime } from '$lib/helpers';
+import { vectorChannel } from '$lib/om-layer-defs';
+import { isPrefetched } from '$lib/prefetch';
 
 import { refreshPopup } from './popup';
-import { currentOmUrl } from './stores/om-url';
-import { getOMUrl } from './url';
+import { gpuCacheMb, omProtocolSettings } from './stores/om-protocol-settings';
+import { getOmUrlForSource, getSunUrl } from './url';
 
-// =============================================================================
-// Expression helpers
-// =============================================================================
+import type {
+	GpuArrowConfig,
+	GpuContourStyle,
+	GpuParticleConfig
+} from '@openmeteo/weather-map-layer';
+import type { RasterTileSource } from 'maplibre-gl';
 
-const isDark = (): boolean => mode.current === 'dark';
-const lightOrDark = (light: string, dark: string): string => (isDark() ? dark : light);
+let frameManager: FrameManager | undefined;
+let gpuRasters: GpuRasterManager | undefined;
+
+// Combined loading indicator: GPU raster loads and vector tile frames finish
+// independently; the spinner shows while either is pending.
+let vectorLoading = false;
+let rasterLoading = false;
+const updateLoading = (): void => loading.set(vectorLoading || rasterLoading);
 
 const getRasterOpacity = (): number => {
 	const opacityValue = get(opacity) / 100;
-	return isDark() ? Math.max(0, (opacityValue * 100 - 10) / 100) : opacityValue;
+	return mode.current === 'dark' ? Math.max(0, (opacityValue * 100 - 10) / 100) : opacityValue;
 };
 
-const makeArrowColor = (): maplibregl.ExpressionSpecification => {
-	let expr: maplibregl.ExpressionSpecification = [
-		'literal',
-		lightOrDark('rgba(0,0,0, 0.2)', 'rgba(255,255,255, 0.2)')
-	];
-	const thresholds: [number, string, string][] = [
-		[2, 'rgba(0,0,0, 0.3)', 'rgba(255,255,255, 0.3)'],
-		[3, 'rgba(0,0,0, 0.4)', 'rgba(255,255,255, 0.4)'],
-		[4, 'rgba(0,0,0, 0.5)', 'rgba(255,255,255, 0.5)'],
-		[5, 'rgba(0,0,0, 0.6)', 'rgba(255,255,255, 0.6)'],
-		[10, 'rgba(0,0,0, 0.7)', 'rgba(255,255,255, 0.7)']
-	];
-	for (const [threshold, light, dark] of [...thresholds]) {
-		expr = [
-			'case',
-			['boolean', ['>', ['to-number', ['get', 'value']], threshold], false],
-			lightOrDark(light, dark),
-			expr
-		];
-	}
-	return expr;
-};
+interface RenderState {
+	rasters: GpuRasterSlotSpec[];
+	vectors: FrameChannel[];
+}
 
-const makeArrowWidth = (): maplibregl.ExpressionSpecification => [
-	'case',
-	['boolean', ['>', ['to-number', ['get', 'value']], 20], false],
-	2.8,
-	[
-		'case',
-		['boolean', ['>', ['to-number', ['get', 'value']], 10], false],
-		2.2,
-		[
-			'case',
-			['boolean', ['>', ['to-number', ['get', 'value']], 5], false],
-			2,
-			[
-				'case',
-				['boolean', ['>', ['to-number', ['get', 'value']], 3], false],
-				1.8,
-				['case', ['boolean', ['>', ['to-number', ['get', 'value']], 2], false], 1.6, 1.5]
-			]
-		]
-	]
-];
-
-const makeContourColor = (): maplibregl.ExpressionSpecification => [
-	'case',
-	['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
-	lightOrDark('rgba(0,0,0, 0.6)', 'rgba(255,255,255, 0.8)'),
-	[
-		'case',
-		['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
-		lightOrDark('rgba(0,0,0, 0.5)', 'rgba(255,255,255, 0.7)'),
-		[
-			'case',
-			['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
-			lightOrDark('rgba(0,0,0, 0.4)', 'rgba(255,255,255, 0.6)'),
-			lightOrDark('rgba(0,0,0, 0.3)', 'rgba(255,255,255, 0.5)')
-		]
-	]
-];
-
-const makeContourWidth = (): maplibregl.ExpressionSpecification => [
-	'case',
-	['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
-	3,
-	[
-		'case',
-		['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
-		2.5,
-		['case', ['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false], 2, 1]
-	]
-];
-
-// =============================================================================
-// Layer definitions
-// =============================================================================
-
-const rasterLayer = (): SlotLayer => ({
-	id: 'omRasterLayer',
-	opacityProp: 'raster-opacity',
-	commitOpacity: getRasterOpacity(),
-	add: (map, sourceId, layerId, beforeLayer) => {
-		map.addLayer(
-			{
-				id: layerId,
-				type: 'raster',
-				source: sourceId,
-				paint: {
-					'raster-opacity': 0.0,
-					'raster-opacity-transition': { duration: 2, delay: 0 }
-				}
-			},
-			beforeLayer
-		);
-	}
-});
-
-const vectorArrowLayer = (): SlotLayer => ({
-	id: 'omVectorArrowLayer',
-	opacityProp: 'line-opacity',
-	commitOpacity: 1,
-	add: (map, sourceId, layerId, beforeLayer) => {
-		const vectorOptions = get(vO);
-		if (!vectorOptions.arrows) return;
-		map.addLayer(
-			{
-				id: layerId,
-				type: 'line',
-				source: sourceId,
-				'source-layer': 'wind-arrows',
-				paint: {
-					'line-opacity': 0,
-					'line-opacity-transition': { duration: 200, delay: 0 },
-					'line-color': makeArrowColor(),
-					'line-width': makeArrowWidth()
-				},
-				layout: { 'line-cap': 'round' }
-			},
-			beforeLayer
-		);
-	}
-});
-
-const vectorGridLayer = (): SlotLayer => ({
-	id: 'omVectorGridLayer',
-	opacityProp: 'circle-opacity',
-	commitOpacity: 1,
-	add: (map, sourceId, layerId, beforeLayer) => {
-		const vectorOptions = get(vO);
-		if (!vectorOptions.grid) return;
-		map.addLayer(
-			{
-				id: layerId,
-				type: 'circle',
-				source: sourceId,
-				'source-layer': 'grid',
-				paint: {
-					'circle-opacity': 0,
-					'circle-opacity-transition': { duration: 200, delay: 0 },
-					'circle-radius': ['interpolate', ['exponential', 1.5], ['zoom'], 0, 0.1, 12, 10],
-					'circle-color': 'orange'
-				}
-			},
-			beforeLayer
-		);
-	}
-});
-
-const vectorContourLayer = (): SlotLayer => ({
-	id: 'omVectorContourLayer',
-	opacityProp: 'line-opacity',
-	commitOpacity: 1,
-	add: (map, sourceId, layerId, beforeLayer) => {
-		const vectorOptions = get(vO);
-		if (!vectorOptions.contours) return;
-		map.addLayer(
-			{
-				id: layerId,
-				type: 'line',
-				source: sourceId,
-				'source-layer': 'contours',
-				paint: {
-					'line-opacity': 0,
-					'line-opacity-transition': { duration: 200, delay: 0 },
-					'line-color': makeContourColor(),
-					'line-width': makeContourWidth()
-				}
-			},
-			beforeLayer
-		);
-	}
-});
-
-const vectorContourLabelsLayer = (): SlotLayer => ({
-	id: 'omVectorContourLayerLabels',
-	opacityProp: 'text-opacity',
-	commitOpacity: 1,
-	add: (map, sourceId, layerId, beforeLayer) => {
-		const vectorOptions = get(vO);
-		if (!vectorOptions.contours) return;
-		map.addLayer(
-			{
-				id: layerId,
-				type: 'symbol',
-				source: sourceId,
-				'source-layer': 'contours',
-				layout: {
-					'symbol-placement': 'line-center',
-					'symbol-spacing': 1,
-					'text-font': ['Noto Sans Regular'],
-					'text-field': ['to-string', ['get', 'value']],
-					'text-padding': 1,
-					'text-offset': [0, -0.6]
-				},
-				paint: {
-					'text-opacity': 0,
-					'text-opacity-transition': { duration: 200, delay: 0 },
-					'text-color': lightOrDark('rgba(0,0,0, 0.7)', 'rgba(255,255,255, 0.8)')
-				}
-			},
-			beforeLayer
-		);
-	}
-});
-
-// =============================================================================
-// Manager instances
-// =============================================================================
-
-export let rasterManager: SlotManager | undefined;
-export let vectorManager: SlotManager | undefined;
-
-export const createManagers = (): void => {
-	const map = get(m);
-	if (!map) return;
-
+/** Build the render state for the current chart, or undefined while not ready. */
+const buildRenderState = (): RenderState | undefined => {
+	const sources = get(chartSources);
 	const preferences = get(p);
+	const vectorOptions = get(vO);
+	const dark = mode.current === 'dark';
+	const rasterBefore = preferences.hillshade ? HILLSHADE_LAYER : BEFORE_LAYER_RASTER;
+	const vectorBefore = preferences.clipWater ? BEFORE_LAYER_VECTOR_WATER_CLIP : BEFORE_LAYER_VECTOR;
 
-	rasterManager = new SlotManager(map, {
-		sourceIdPrefix: 'omRasterSource',
-		beforeLayer: preferences.hillshade ? HILLSHADE_LAYER : BEFORE_LAYER_RASTER,
-		layerFactory: () => [rasterLayer()],
-		sourceSpec: (sourceUrl) => ({
-			url: sourceUrl,
-			type: 'raster',
-			maxzoom: 14
-		}),
-		removeDelayMs: 300,
-		onCommit: () => {
-			loading.set(false);
-			refreshPopup();
-		},
-		onError: () => {
-			loading.set(false);
-			// Without this the slot manager fails silently and just keeps the
-			// previous layer — on a first load that is an empty map with no hint
-			toast.error('Could not load the weather data for this view.', { id: 'om-data-error' });
-		},
-		slowLoadWarningMs: 10000,
-		onSlowLoad: () =>
-			toast.warning('Loading raster data might be limited by bandwidth or upstream server speed.')
-	});
+	const gpuRender = get(gpuRenderOptions);
+	const rasters: GpuRasterSlotSpec[] = [];
+	const vectors: FrameChannel[] = [];
+	for (const source of sources) {
+		const omUrl = getOmUrlForSource(source);
+		// A cross-domain (EPS) source is skipped rather than fatal while its
+		// sibling metadata loads; the epsMeta subscription re-renders then.
+		if (!omUrl) {
+			if (source.domain) continue;
+			return undefined;
+		}
+		const url = 'om://' + omUrl;
 
-	vectorManager = new SlotManager(map, {
-		sourceIdPrefix: 'omVectorSource',
-		beforeLayer: preferences.clipWater ? BEFORE_LAYER_VECTOR_WATER_CLIP : BEFORE_LAYER_VECTOR,
-		layerFactory: () => [
-			vectorArrowLayer(),
-			vectorGridLayer(),
-			vectorContourLayer(),
-			vectorContourLabelsLayer()
-		],
-		sourceSpec: (sourceUrl) => ({ url: sourceUrl, type: 'vector' }),
-		removeDelayMs: 250,
-		onError: () =>
-			toast.error('Could not load the weather data for this view.', { id: 'om-data-error' })
-	});
+		// Plain-style arrows render as instanced overlays of the GPU layer (they
+		// morph with the raster blend and follow the globe); the animated wind
+		// style renders as the GPU particle pass; barbs keep the CPU tile
+		// pipeline for their discrete glyph alphabet.
+		const gpuArrows = !!source.arrows && vectorOptions.arrowStyle === 'arrow';
+		const gpuParticles = !!source.arrows && vectorOptions.arrowStyle === 'particles';
+		const cpuArrows = !!source.arrows && !gpuArrows && !gpuParticles;
+
+		if (source.raster) {
+			rasters.push({
+				key: sourceKey(source),
+				url,
+				opacity: getRasterOpacity() * (source.opacity ?? 1),
+				beforeLayer: rasterBefore,
+				raster: true,
+				// Precipitation/cloud blends advect along the wind (radar-like
+				// motion); domains without the wind variable fall back silently.
+				advectWind:
+					gpuRender.advectedBlend && ADVECTED_VARIABLES.test(source.variable)
+						? 'wind_u_component_10m'
+						: undefined
+			});
+		}
+		if (gpuArrows) {
+			rasters.push({
+				key: `${sourceKey(source)}:arrows`,
+				url,
+				opacity: source.opacity ?? 1,
+				// Arrows sit with the other vector overlays above the raster stack,
+				// unless the source inlines its vectors into the raster stack
+				beforeLayer: source.inlineVectors ? rasterBefore : vectorBefore,
+				raster: false,
+				arrows: gpuArrowConfig(vectorOptions.arrowIconScale, dark)
+			});
+		}
+		if (gpuParticles) {
+			rasters.push({
+				key: `${sourceKey(source)}:particles`,
+				url,
+				opacity: source.opacity ?? 1,
+				beforeLayer: source.inlineVectors ? rasterBefore : vectorBefore,
+				raster: false,
+				particles: gpuParticleConfig(vectorOptions, dark, source.variable)
+			});
+		}
+		if (gpuRender.rainAnimation && source.raster && RAIN_VARIABLES.test(source.variable)) {
+			rasters.push({
+				key: `${sourceKey(source)}:rain`,
+				url,
+				opacity: source.opacity ?? 1,
+				beforeLayer: source.inlineVectors ? rasterBefore : vectorBefore,
+				raster: false,
+				particles: rainParticleConfig(dark)
+			});
+		}
+		// Contour lines render in-shader (they morph with the temporal blend and
+		// have no tile seams); the CPU channel below only contributes the labels.
+		if (source.contours) {
+			rasters.push({
+				key: `${sourceKey(source)}:contours`,
+				url,
+				opacity: source.opacity ?? 1,
+				beforeLayer: source.inlineVectors ? rasterBefore : vectorBefore,
+				raster: false,
+				contours: gpuContourStyle(source.lineWidth, dark)
+			});
+		}
+		if (source.contours || cpuArrows || vectorOptions.grid) {
+			vectors.push(
+				vectorChannel(sourceKey(source), url, {
+					contours: !!source.contours,
+					contourLines: false,
+					arrows: cpuArrows,
+					// The particle style never reaches the CPU channel; keep its
+					// arrowStyle a valid icon alphabet.
+					arrowStyle: vectorOptions.arrowStyle === 'barb' ? 'barb' : 'arrow',
+					arrowRender: vectorOptions.arrowRender,
+					arrowIconScale: vectorOptions.arrowIconScale,
+					grid: vectorOptions.grid,
+					dark,
+					// Inline vectors join the raster stack right above their own
+					// raster, so rasters of later sources overlap them
+					beforeLayer: source.inlineVectors ? rasterBefore : vectorBefore,
+					inline: !!source.inlineVectors,
+					lineWidth: source.lineWidth
+				})
+			);
+		}
+	}
+	return { rasters, vectors };
 };
 
-// =============================================================================
-// Public layer API
-// =============================================================================
+/**
+ * The GPU arrow pass, based on the CPU icon renderer's lattice but calmer:
+ * wider spacing and lighter strokes — the per-pixel raster already carries the
+ * magnitude, the arrows only need to show flow.
+ */
+const GPU_ARROW_SPACING = 1.5;
+const GPU_ARROW_WEIGHT = 0.7;
 
+/** The GPU isoline pass styled like the CPU contour line layer would be. */
+const gpuContourStyle = (lineWidth: number | undefined, dark: boolean): GpuContourStyle => {
+	const levels = defaultContourStyle.levels;
+	const width = lineWidth ?? 1;
+	return {
+		color: dark ? [1, 1, 1] : [0, 0, 0],
+		classAlphas: levels.map((level) =>
+			alphaOfCssColor(dark ? level.darkColor : level.lightColor)
+		) as [number, number, number, number],
+		classWidths: levels.map((level) => level.width * width) as [number, number, number, number],
+		moduli: levels.slice(1).map((level) => level.modulo) as [number, number, number]
+	};
+};
+
+/** Raster variables whose temporal blend advects along the wind. */
+const ADVECTED_VARIABLES =
+	/^(precipitation|rain|showers|snowfall|cloud_cover|cloud_base|cloud_top)/;
+/** Raster variables that can carry the decorative rain-streak overlay. */
+const RAIN_VARIABLES = /^(precipitation|rain|showers)/;
+
+/**
+ * The animated flow: a veil of particles whose fading trails trace the
+ * streamlines. Like the arrows, the particles only show the flow — the raster
+ * underneath carries the magnitude — so they stay thin and translucent.
+ * Density, size, speed and trail length come from the settings pane; the
+ * variable family adapts the presentation (waves march as slow dashes, ocean
+ * currents get amplified speed and long trails).
+ */
+const gpuParticleConfig = (
+	options: VectorOptions,
+	dark: boolean,
+	variable: string
+): GpuParticleConfig => {
+	const base: GpuParticleConfig = {
+		count: options.particleCount,
+		sizePx: options.particleSize,
+		color: dark ? [1, 1, 1] : [0, 0, 0],
+		// Black strokes on the light basemap read heavier than white on dark;
+		// scale the configured opacity down there so both themes match visually.
+		opacity: options.particleOpacity * (dark ? 1 : 0.7),
+		speedPxPerSec: options.particleSpeed,
+		fadeOpacity: options.particleTrail,
+		maxAgeSec: 6,
+		// Thin the population where the field is near-static (calm highs,
+		// sheltered seas): idle particles are clutter, not information.
+		calmThreshold: 0.8,
+		calmThinning: 3
+	};
+	if (/wave/.test(variable)) {
+		// Magnitude is the wave height (m), not a speed: scale it up so a 2 m
+		// swell still marches visibly, and draw crest-oriented dashes.
+		return {
+			...base,
+			shape: 'dash',
+			dashLengthPx: 10,
+			speedPxPerSec: options.particleSpeed * 2,
+			fadeOpacity: Math.min(options.particleTrail, 0.94),
+			maxAgeSec: 8,
+			calmThreshold: 0.5,
+			calmThinning: 4
+		};
+	}
+	if (/current/.test(variable)) {
+		// ~0.5 m/s flows: amplify and let long trails accumulate the gyres.
+		return {
+			...base,
+			speedPxPerSec: options.particleSpeed * 15,
+			fadeOpacity: 0.985,
+			maxAgeSec: 12,
+			calmThreshold: 0.04
+		};
+	}
+	return base;
+};
+
+/** Rain streaks: falling dashes whose alpha follows the precipitation field. */
+const rainParticleConfig = (dark: boolean): GpuParticleConfig => ({
+	count: 4000,
+	mode: 'rain',
+	shape: 'dash',
+	sizePx: 1.1,
+	dashLengthPx: 11,
+	speedPxPerSec: 130,
+	maxAgeSec: 0.9,
+	fadeOpacity: 0.35,
+	rainRefValue: 1.5,
+	minZoom: 4,
+	color: dark ? [0.75, 0.85, 1] : [0.25, 0.35, 0.55],
+	opacity: 0.7
+});
+
+const gpuArrowConfig = (scale: number | undefined, dark: boolean): GpuArrowConfig => ({
+	spacingPx: windIconSpacing('arrow', scale ?? 1) * GPU_ARROW_SPACING,
+	sizePx: windIconSizePx('arrow', scale ?? 1),
+	// No zoom gate: the lattice spacing follows the fractional zoom, so the
+	// arrow count per screen is the same at every zoom level and world views
+	// read as calm as any other zoom.
+	color: dark ? [1, 1, 1] : [0, 0, 0],
+	levels: defaultArrowStyle.levels.map((level) => ({
+		minSpeed: level.minSpeed,
+		alpha: alphaOfCssColor(dark ? level.darkColor : level.lightColor),
+		width: level.width * GPU_ARROW_WEIGHT
+	}))
+});
+
+/**
+ * (Re)initialize the frame manager. Called on map load and after every
+ * basemap style reload (which wipes all sources/layers).
+ */
 export const addOmFileLayers = (): void => {
 	const map = get(m);
 	if (!map) return;
-	const omUrl = getOMUrl();
-	createManagers();
-	rasterManager?.update('om://' + omUrl);
-	vectorManager?.update('om://' + omUrl);
+
+	frameManager?.destroy();
+	frameManager = new FrameManager(map, {
+		crossFadeMs: 250,
+		retainMax: 3,
+		getChannelDataState: getDataState,
+		onLoadingChange: (isLoading) => {
+			vectorLoading = isLoading;
+			updateLoading();
+		},
+		onCommit: () => refreshPopup(),
+		// Without this a failed frame is silent and just keeps the previous one
+		// — on a first load that is an empty map with no hint
+		onError: () =>
+			toast.error('Could not load the weather data for this view.', { id: 'om-data-error' }),
+		slowLoadWarningMs: 10000,
+		onSlowLoad: () =>
+			toast.warning('Loading data might be limited by bandwidth or upstream server speed.')
+	});
+
+	gpuRasters?.destroy();
+	gpuRasters = new GpuRasterManager(map, {
+		settings: get(omProtocolSettings),
+		textureCacheMb: get(gpuCacheMb),
+		onLoadingChange: (isLoading) => {
+			rasterLoading = isLoading;
+			updateLoading();
+		},
+		onShown: () => refreshPopup(),
+		onError: () =>
+			toast.error('Could not load the weather data for this view.', { id: 'om-data-error' })
+	});
+	applyFadeMs();
+	// A style reload wiped the sun source with everything else; forget the URL
+	// so updateSunLayer re-adds the layer instead of considering it unchanged.
+	currentSunUrl = undefined;
+	// A style reload also dropped the border layers; force them to be redrawn.
+	resetSeamlessBorderLayer();
+	changeOMfileURL();
 };
 
-export const changeOMfileURL = (vectorOnly = false, rasterOnly = false): void => {
+/**
+ * Move all resident raster stacks (and inline vectors, which share the
+ * anchor) to the insertion point matching the current hillshade preference.
+ * Called by the hillshade toggle, which changes the basemap stack without a
+ * style reload.
+ */
+export const reanchorRasterLayers = (): void => {
+	const hillshade = get(p).hillshade;
+	const [from, to] = hillshade
+		? [BEFORE_LAYER_RASTER, HILLSHADE_LAYER]
+		: [HILLSHADE_LAYER, BEFORE_LAYER_RASTER];
+	gpuRasters?.reanchor(from, to);
+	// Inline vector channels share the raster anchor
+	frameManager?.reanchor(from, to);
+};
+
+/**
+ * Re-render the active chart. The frame manager deduplicates unchanged
+ * render states, so this is safe to call on every store change.
+ */
+export const changeOMfileURL = (): void => {
+	const map = get(m);
+	if (!map || !frameManager || !gpuRasters) return;
+
+	// The sun overlay only depends on the map, the selected time and its own
+	// settings, so it updates even while chart sources are not ready yet.
+	updateSunLayer();
+	updateSeamlessBorderLayer();
+
+	// `undefined` means a source is not ready yet; an empty state means the
+	// chart deliberately draws nothing, which removes the GPU layers and
+	// commits a blank vector frame
+	const renderState = buildRenderState();
+	if (!renderState) return;
+
+	// Both managers load independently but commit through one barrier, so every
+	// layer of the new render state starts animating in the same frame.
+	// The GPU layers parse URLs against the settings object, which the store
+	// replaces on changes (clipping, colour scales) — hand them the live one.
+	gpuRasters.updateSettings(get(omProtocolSettings));
+	const barrier = createCommitBarrier(2);
+	gpuRasters.show(renderState.rasters, barrier);
+	frameManager.show(renderState.vectors, barrier);
+};
+
+/**
+ * om:// source URL per source key (`variable` or `variable@domain`) of the
+ * currently visible frame, in chart source order (used by the popup).
+ */
+/** VRAM used/budgeted by the GPU weather layers (for the settings pane). */
+export const getGpuMemoryUsage = (): { bytes: number; budgetBytes: number; textures: number } =>
+	gpuRasters?.getMemoryUsage() ?? { bytes: 0, budgetBytes: 0, textures: 0 };
+
+/**
+ * Set the GPU layers' temporal blend duration. The animate loop matches it to
+ * its frame interval for one continuous morph; pass undefined to restore the
+ * default 250ms scrub blend. With temporal animation disabled in the settings,
+ * every commit snaps instead, whatever duration was requested.
+ */
+let requestedFadeMs = 250;
+export const setRasterFadeMs = (fadeMs?: number): void => {
+	requestedFadeMs = fadeMs ?? 250;
+	applyFadeMs();
+};
+const applyFadeMs = (): void =>
+	gpuRasters?.setFadeMs(get(gpuRenderOptions).temporalBlend ? requestedFadeMs : 0);
+gpuRenderOptions.subscribe(() => applyFadeMs());
+
+/**
+ * Cache residency of the primary source per timestep: 'vram' = texture on the
+ * GPU, 'ram' = decoded in the protocol state or prefetched into the block
+ * cache (near-instant to show), 'none' = would need a network fetch.
+ */
+export const getTimestepResidency = (times: Date[]): ('none' | 'ram' | 'vram')[] => {
+	const base = gpuRasters?.getTimestepResidency(times, fmtSelectedTime) ?? times.map(() => 'none');
+	const run = get(modelRun);
+	const domainValue = get(selectedDomain)?.value;
+	const variableValue = get(variableStore);
+	if (!run || !domainValue || !variableValue) return base;
+	return base.map((state, i) =>
+		state === 'none' && isPrefetched(domainValue, variableValue, run, times[i]) ? 'ram' : state
+	);
+};
+
+export const getActiveOmUrls = (): Map<string, string> => {
+	// GPU raster slots are keyed by the source key directly
+	const urls = gpuRasters?.getActiveUrls() ?? new Map<string, string>();
+	for (const channel of frameManager?.getActiveChannels() ?? []) {
+		// Channel keys are `${sourceKey}:kind:...`; source keys contain no colon
+		const key = channel.key.slice(0, channel.key.indexOf(':'));
+		if (!urls.has(key)) urls.set(key, channel.url);
+	}
+	return urls;
+};
+
+// =============================================================================
+// Sun cycle shadow overlay
+// =============================================================================
+// A single analytical raster layer above the weather layers, below the place
+// labels. Managed directly rather than through the frame manager: it has no
+// timestep frames — the source URL simply retargets when the selected time or
+// the shadow settings change.
+
+const SUN_SOURCE_ID = 'sunShadowSource';
+const SUN_LAYER_ID = 'sunShadowLayer';
+let currentSunUrl: string | undefined;
+let lastSunPreviewUrl: string | undefined;
+
+export const updateSunLayer = (): void => {
 	const map = get(m);
 	if (!map) return;
 
-	const omUrl = getOMUrl();
-	if (get(currentOmUrl) == omUrl || !omUrl) return;
-	currentOmUrl.set(omUrl);
+	const sunUrl = getSunUrl();
+	if (sunUrl === currentSunUrl) return;
+	currentSunUrl = sunUrl;
+	lastSunPreviewUrl = undefined;
 
-	loading.set(true);
+	if (!sunUrl) {
+		if (map.getLayer(SUN_LAYER_ID)) map.removeLayer(SUN_LAYER_ID);
+		if (map.getSource(SUN_SOURCE_ID)) map.removeSource(SUN_SOURCE_ID);
+		return;
+	}
+
+	const source = map.getSource(SUN_SOURCE_ID) as RasterTileSource | undefined;
+	if (source) {
+		// Retarget the existing source; see previewSunTime for why setUrl.
+		source.setUrl(sunUrl);
+		return;
+	}
+
+	map.addSource(SUN_SOURCE_ID, { url: sunUrl, type: 'raster' });
+	map.addLayer(
+		{
+			id: SUN_LAYER_ID,
+			type: 'raster',
+			source: SUN_SOURCE_ID,
+			// The shadow opacity is baked into the tile alpha, so the layer stays at 1.
+			paint: { 'raster-opacity': 1 }
+		},
+		BEFORE_LAYER_VECTOR
+	);
+};
+
+// Retargets the active sun source to another moment (minute resolution) without
+// replacing the layer — cheap enough to follow the time-selector hover. Passing
+// null snaps back to the selected time. Uses setUrl, not setTiles: for
+// url-based sources the tilejson refetch would restore the old template over
+// setTiles.
+export const previewSunTime = (date: Date | null): void => {
+	const map = get(m);
+	if (!map || !currentSunUrl) return;
+
+	const sunUrl = getSunUrl(date ?? undefined);
+	if (!sunUrl || sunUrl === lastSunPreviewUrl) return;
+
+	const source = map.getSource(SUN_SOURCE_ID) as RasterTileSource | undefined;
+	if (!source) return;
+
+	lastSunPreviewUrl = sunUrl;
+	source.setUrl(sunUrl);
+};
+
+// =============================================================================
+// Seamless domain border overlay
+// =============================================================================
+
+const SEAMLESS_BORDER_SOURCE_ID = 'seamlessBorderSource';
+
+const removeSeamlessBorderLayer = (): void => {
+	const map = get(m);
+	if (!map) return;
+	// Collect IDs first to avoid mutating the layer list while iterating
+	const toRemove = (map.getStyle()?.layers ?? [])
+		.map((l) => l.id)
+		.filter((id) => id.startsWith('seamless-border-'));
+	for (const id of toRemove) {
+		if (map.getLayer(id)) map.removeLayer(id);
+	}
+	if (map.getSource(SEAMLESS_BORDER_SOURCE_ID)) map.removeSource(SEAMLESS_BORDER_SOURCE_ID);
+};
+
+// Tracks what the borders were last drawn for, so repeated calls (e.g. on every
+// timestep change via changeOMfileURL) don't needlessly remove + re-add the
+// layers — which restarts their fade-in transition and makes them flash.
+let lastBorderSignature: string | null = null;
+
+/** Forces the next updateSeamlessBorderLayer() to redraw (e.g. after a style reload). */
+export const resetSeamlessBorderLayer = (): void => {
+	lastBorderSignature = null;
+};
+
+export const updateSeamlessBorderLayer = (): void => {
+	const map = get(m);
+	if (!map) return;
 
 	const preferences = get(p);
-	vectorManager?.setBeforeLayer(
-		preferences.clipWater ? BEFORE_LAYER_VECTOR_WATER_CLIP : BEFORE_LAYER_VECTOR
-	);
-	rasterManager?.setBeforeLayer(preferences.hillshade ? HILLSHADE_LAYER : BEFORE_LAYER_RASTER);
+	const domain = get(selectedDomain);
+	const draw = preferences.showSeamlessBorders && isSeamlessDomain(domain);
 
-	if (!vectorOnly) rasterManager?.update('om://' + omUrl);
-	if (!rasterOnly) vectorManager?.update('om://' + omUrl);
+	// A regional sub-layer only has data up to its forecast horizon
+	// (maxForecastHours). Past it the seamless composite falls back to a coarser
+	// model, so the regional border must disappear too. Lead time is the gap
+	// between the selected valid time and the model run, matching the lead-time
+	// gate the seamless protocol applies when loading sub-layers.
+	const modelRunDate = get(modelRun);
+	const validTime = get(time);
+	const leadTimeHours =
+		modelRunDate && validTime
+			? (validTime.getTime() - modelRunDate.getTime()) / 3_600_000
+			: undefined;
+	const layerAvailable = (maxForecastHours: number | undefined): boolean =>
+		maxForecastHours === undefined ||
+		leadTimeHours === undefined ||
+		leadTimeHours <= maxForecastHours;
+
+	// Borders depend on the domain + theme (colours) + toggle, plus which sub-layers
+	// are available at the current lead time. Skip the flashing remove/re-add when
+	// none of those changed (most timestep changes keep the same availability).
+	const availabilityKey =
+		draw && isSeamlessDomain(domain)
+			? domain.layers
+					.slice(0, -1)
+					.map((l) => (layerAvailable(l.maxForecastHours) ? '1' : '0'))
+					.join('')
+			: '';
+	const signature = draw ? `${domain.value}|${mode.current === 'dark'}|${availabilityKey}` : 'none';
+	if (signature === lastBorderSignature) return;
+	lastBorderSignature = signature;
+
+	removeSeamlessBorderLayer();
+	if (!isSeamlessDomain(domain) || !preferences.showSeamlessBorders) return;
+
+	const seamlessDomain = domain;
+	const settings = get(omProtocolSettings);
+
+	// Build a boundary outline for each sub-layer except the global fallback
+	// (last layer), which covers the whole world and needs no border.
+	const features: GeoJSON.Feature<GeoJSON.LineString>[] = [];
+	for (let i = 0; i < seamlessDomain.layers.length - 1; i++) {
+		const layer = seamlessDomain.layers[i];
+		// Hide the border for a sub-layer whose data isn't available at this lead time.
+		if (!layerAvailable(layer.maxForecastHours)) continue;
+		const concreteDomain = resolveConcreteDomain(layer.domainValue, settings.domainOptions);
+		if (!concreteDomain) continue;
+
+		// Follow the domain's true outline: a precomputed data-shape footprint for
+		// NULL-padded reprojected grids, otherwise a curved perimeter for projected
+		// grids / the bounds rectangle for plain regular grids.
+		//
+		// Drawn as a LineString rather than a Polygon: the ring already closes on
+		// itself, and a polygon's implicit ring-closing segment would jump ~360°
+		// across the map for boundaries that cross the antimeridian or encircle a
+		// pole (the perimeter's longitudes are continuous but may exceed ±180°).
+		const ring =
+			getDomainFootprint(concreteDomain.value) ??
+			GridFactory.create(concreteDomain.grid, null).getBoundaryPolygon();
+		features.push({
+			type: 'Feature',
+			geometry: {
+				type: 'LineString',
+				coordinates: ring
+			},
+			properties: {
+				layerIndex: i,
+				minZoom: layer.minZoom,
+				label: concreteDomain.label ?? concreteDomain.value
+			}
+		});
+	}
+
+	if (features.length === 0) return;
+
+	map.addSource(SEAMLESS_BORDER_SOURCE_ID, {
+		type: 'geojson',
+		data: { type: 'FeatureCollection', features }
+	});
+
+	// Add one line + one symbol MapLibre layer per boundary so each can carry its
+	// own zoom-dependent opacity that fades in 2 zoom levels before the sub-domain
+	// becomes active (i.e. when its minZoom threshold is reached by the user).
+	const lineColor = mode.current === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)';
+	const textColor = mode.current === 'dark' ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.75)';
+	const textHalo = mode.current === 'dark' ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)';
+	// Highlight colour once the sub-domain becomes active (zoom >= its minZoom).
+	const activeLineColor = 'rgba(30,120,255,0.8)';
+	const activeTextColor = 'rgba(30,120,255,1)';
+
+	for (const feature of features) {
+		const i = feature.properties!.layerIndex as number;
+		const minZoom = feature.properties!.minZoom as number;
+		// Start fading in 2 zoom levels before the layer becomes active
+		const fadeStart = Math.max(0, minZoom - 3);
+
+		// When fadeStart === minZoom (only theoretically possible at minZoom 0),
+		// skip the interpolation and show at full opacity immediately.
+		const opacityExpr: maplibregl.ExpressionSpecification | number =
+			fadeStart < minZoom
+				? (['interpolate', ['linear'], ['zoom'], fadeStart, 0, minZoom - 0.5, 1] as const)
+				: 1;
+
+		// Turn the border/label blue at the zoom where this sub-domain takes over.
+		const lineColorExpr: maplibregl.ExpressionSpecification = [
+			'step',
+			['zoom'],
+			lineColor,
+			minZoom - 0.5,
+			activeLineColor
+		];
+		const textColorExpr: maplibregl.ExpressionSpecification = [
+			'step',
+			['zoom'],
+			textColor,
+			minZoom - 0.5,
+			activeTextColor
+		];
+
+		// Dashed bounding-box border
+		map.addLayer(
+			{
+				id: `seamless-border-line-${i}`,
+				type: 'line',
+				source: SEAMLESS_BORDER_SOURCE_ID,
+				minzoom: fadeStart,
+				filter: ['==', ['get', 'layerIndex'], i],
+				paint: {
+					'line-color': lineColorExpr,
+					'line-width': 1.5,
+					'line-dasharray': [4, 3],
+					'line-opacity': opacityExpr
+				}
+			},
+			BEFORE_LAYER_VECTOR
+		);
+
+		// Domain name label placed along the border line
+		map.addLayer(
+			{
+				id: `seamless-border-label-${i}`,
+				type: 'symbol',
+				source: SEAMLESS_BORDER_SOURCE_ID,
+				minzoom: fadeStart,
+				filter: ['==', ['get', 'layerIndex'], i],
+				layout: {
+					'text-field': ['get', 'label'],
+					'text-size': 11,
+					'symbol-placement': 'line',
+					'symbol-spacing': 400,
+					'text-rotation-alignment': 'map',
+					'text-offset': [0, -0.8],
+					'text-allow-overlap': false,
+					'text-ignore-placement': true
+				},
+				paint: {
+					'text-color': textColorExpr,
+					'text-halo-color': textHalo,
+					'text-halo-width': 1.5,
+					'text-opacity': opacityExpr
+				}
+			},
+			BEFORE_LAYER_VECTOR
+		);
+	}
 };

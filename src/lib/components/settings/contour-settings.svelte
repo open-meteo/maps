@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
 
+	import { applyVectorDefaultsToActiveChart, setContoursOnActiveChart } from '$lib/stores/chart';
 	import { defaultVectorOptions, vectorOptions } from '$lib/stores/vector';
 
 	import { Input } from '$lib/components/ui/input';
@@ -9,6 +10,8 @@
 
 	import { changeOMfileURL } from '$lib/layers';
 	import { updateUrl } from '$lib/url';
+
+	import SettingsSection from './settings-section.svelte';
 
 	let contours = $derived($vectorOptions.contours);
 	let breakpoints = $derived($vectorOptions.breakpoints);
@@ -20,13 +23,13 @@
 			String(defaultVectorOptions.contourInterval) // different urlParam and key
 		);
 		if (contours) {
+			applyVectorDefaultsToActiveChart();
 			changeOMfileURL();
 		}
 	};
 </script>
 
-<div>
-	<h2 class="text-lg font-bold">Contour settings</h2>
+<SettingsSection title="Contour settings">
 	<div class="mt-3 flex gap-3">
 		<Switch
 			id="contouring"
@@ -35,6 +38,10 @@
 			onCheckedChange={() => {
 				updateUrl('contours', String(contours));
 
+				applyVectorDefaultsToActiveChart();
+				// Applies to every source, also on presets and saved charts, so the
+				// switch says the same thing as the toggles in the chart editor
+				setContoursOnActiveChart(contours);
 				changeOMfileURL();
 				toast.info('Contours turned ' + (contours ? 'on' : 'off'));
 			}}
@@ -54,6 +61,7 @@
 				);
 
 				if (contours) {
+					applyVectorDefaultsToActiveChart();
 					changeOMfileURL();
 					toast.info('Contour interval on colorscale turned ' + (breakpoints ? 'on' : 'off'));
 				}
@@ -83,4 +91,4 @@
 			onchange={handleContourIntervalChange}
 		/>
 	</div>
-</div>
+</SettingsSection>
