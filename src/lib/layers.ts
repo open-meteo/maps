@@ -84,6 +84,7 @@ const buildRenderState = (): RenderState | undefined => {
 	const rasterBefore = preferences.hillshade ? HILLSHADE_LAYER : BEFORE_LAYER_RASTER;
 	const vectorBefore = preferences.clipWater ? BEFORE_LAYER_VECTOR_WATER_CLIP : BEFORE_LAYER_VECTOR;
 
+	const gpuRender = get(gpuRenderOptions);
 	const rasters: GpuRasterSlotSpec[] = [];
 	const vectors: FrameChannel[] = [];
 	for (const source of sources) {
@@ -110,7 +111,13 @@ const buildRenderState = (): RenderState | undefined => {
 				url,
 				opacity: getRasterOpacity() * (source.opacity ?? 1),
 				beforeLayer: rasterBefore,
-				raster: true
+				raster: true,
+				// Precipitation/cloud blends advect along the wind (radar-like
+				// motion); domains without the wind variable fall back silently.
+				advectWind:
+					gpuRender.advectedBlend && ADVECTED_VARIABLES.test(source.variable)
+						? 'wind_u_component_10m'
+						: undefined
 			});
 		}
 		if (gpuArrows) {
@@ -132,7 +139,17 @@ const buildRenderState = (): RenderState | undefined => {
 				opacity: source.opacity ?? 1,
 				beforeLayer: source.inlineVectors ? rasterBefore : vectorBefore,
 				raster: false,
-				particles: gpuParticleConfig(vectorOptions, dark)
+				particles: gpuParticleConfig(vectorOptions, dark, source.variable)
+			});
+		}
+		if (gpuRender.rainAnimation && source.raster && RAIN_VARIABLES.test(source.variable)) {
+			rasters.push({
+				key: `${sourceKey(source)}:rain`,
+				url,
+				opacity: source.opacity ?? 1,
+				beforeLayer: source.inlineVectors ? rasterBefore : vectorBefore,
+				raster: false,
+				particles: rainParticleConfig(dark)
 			});
 		}
 		// Contour lines render in-shader (they morph with the temporal blend and
@@ -194,27 +211,89 @@ const gpuContourStyle = (lineWidth: number | undefined, dark: boolean): GpuConto
 	};
 };
 
+/** Raster variables whose temporal blend advects along the wind. */
+const ADVECTED_VARIABLES =
+	/^(precipitation|rain|showers|snowfall|cloud_cover|cloud_base|cloud_top)/;
+/** Raster variables that can carry the decorative rain-streak overlay. */
+const RAIN_VARIABLES = /^(precipitation|rain|showers)/;
+
 /**
- * The animated wind flow: a veil of particles whose fading trails trace the
+ * The animated flow: a veil of particles whose fading trails trace the
  * streamlines. Like the arrows, the particles only show the flow — the raster
  * underneath carries the magnitude — so they stay thin and translucent.
- * Density, size, speed and trail length come from the settings pane.
+ * Density, size, speed and trail length come from the settings pane; the
+ * variable family adapts the presentation (waves march as slow dashes, ocean
+ * currents get amplified speed and long trails).
  */
-const gpuParticleConfig = (options: VectorOptions, dark: boolean): GpuParticleConfig => ({
-	count: options.particleCount,
-	sizePx: options.particleSize,
-	color: dark ? [1, 1, 1] : [0, 0, 0],
-	opacity: dark ? 0.8 : 0.55,
-	speedPxPerSec: options.particleSpeed,
-	fadeOpacity: options.particleTrail,
-	maxAgeSec: 6
+const gpuParticleConfig = (
+	options: VectorOptions,
+	dark: boolean,
+	variable: string
+): GpuParticleConfig => {
+	const base: GpuParticleConfig = {
+		count: options.particleCount,
+		sizePx: options.particleSize,
+		color: dark ? [1, 1, 1] : [0, 0, 0],
+		// Black strokes on the light basemap read heavier than white on dark;
+		// scale the configured opacity down there so both themes match visually.
+		opacity: options.particleOpacity * (dark ? 1 : 0.7),
+		speedPxPerSec: options.particleSpeed,
+		fadeOpacity: options.particleTrail,
+		maxAgeSec: 6,
+		// Thin the population where the field is near-static (calm highs,
+		// sheltered seas): idle particles are clutter, not information.
+		calmThreshold: 0.8,
+		calmThinning: 3
+	};
+	if (/wave/.test(variable)) {
+		// Magnitude is the wave height (m), not a speed: scale it up so a 2 m
+		// swell still marches visibly, and draw crest-oriented dashes.
+		return {
+			...base,
+			shape: 'dash',
+			dashLengthPx: 10,
+			speedPxPerSec: options.particleSpeed * 2,
+			fadeOpacity: Math.min(options.particleTrail, 0.94),
+			maxAgeSec: 8,
+			calmThreshold: 0.5,
+			calmThinning: 4
+		};
+	}
+	if (/current/.test(variable)) {
+		// ~0.5 m/s flows: amplify and let long trails accumulate the gyres.
+		return {
+			...base,
+			speedPxPerSec: options.particleSpeed * 15,
+			fadeOpacity: 0.985,
+			maxAgeSec: 12,
+			calmThreshold: 0.04
+		};
+	}
+	return base;
+};
+
+/** Rain streaks: falling dashes whose alpha follows the precipitation field. */
+const rainParticleConfig = (dark: boolean): GpuParticleConfig => ({
+	count: 4000,
+	mode: 'rain',
+	shape: 'dash',
+	sizePx: 1.1,
+	dashLengthPx: 11,
+	speedPxPerSec: 130,
+	maxAgeSec: 0.9,
+	fadeOpacity: 0.35,
+	rainRefValue: 1.5,
+	minZoom: 4,
+	color: dark ? [0.75, 0.85, 1] : [0.25, 0.35, 0.55],
+	opacity: 0.7
 });
 
 const gpuArrowConfig = (scale: number | undefined, dark: boolean): GpuArrowConfig => ({
 	spacingPx: windIconSpacing('arrow', scale ?? 1) * GPU_ARROW_SPACING,
 	sizePx: windIconSizePx('arrow', scale ?? 1),
-	// At world views arrows are clutter over the raster; fade them in from z2→3
-	minZoom: 3,
+	// No zoom gate: the lattice spacing follows the fractional zoom, so the
+	// arrow count per screen is the same at every zoom level and world views
+	// read as calm as any other zoom.
 	color: dark ? [1, 1, 1] : [0, 0, 0],
 	levels: defaultArrowStyle.levels.map((level) => ({
 		minSpeed: level.minSpeed,

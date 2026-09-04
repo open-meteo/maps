@@ -31,6 +31,8 @@ export interface VectorOptions {
 	particleSpeed: number;
 	/** Animated flow style: trail persistence per 60fps frame (0..1). */
 	particleTrail: number;
+	/** Animated flow style: trail opacity 0..1 (light theme scales it down). */
+	particleOpacity: number;
 }
 
 /**

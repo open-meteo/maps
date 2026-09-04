@@ -20,13 +20,15 @@ export const DEFAULT_VECTOR_OPTIONS = {
 	breakpoints: true,
 	contourInterval: 2,
 	// Animated flow (particle) style: particle count, point/trail width in px,
-	// screen speed in px/s per m/s of wind, and trail persistence per frame at
-	// 60fps (higher = longer). All screen-relative, so one set of defaults
-	// reads the same at every zoom level.
+	// screen speed in px/s per m/s of wind, trail persistence per frame at
+	// 60fps (higher = longer), and trail opacity (the light theme scales it
+	// down — dark strokes read heavier than light ones). All screen-relative,
+	// so one set of defaults reads the same at every zoom level.
 	particleCount: 20000,
 	particleSize: 2.5,
 	particleSpeed: 3,
-	particleTrail: 0.955
+	particleTrail: 0.955,
+	particleOpacity: 0.8
 };
 
 // Preferences defaults

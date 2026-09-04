@@ -44,6 +44,8 @@ export interface GpuRasterSlotSpec {
 	particles?: GpuParticleConfig;
 	/** In-shader contour isoline styling. */
 	contours?: GpuContourStyle;
+	/** Wind variable powering the advected temporal blend (e.g. precipitation). */
+	advectWind?: string;
 }
 
 export interface GpuRasterManagerOptions {
@@ -65,6 +67,7 @@ interface Slot {
 	arrowsKey: string;
 	particlesKey: string;
 	contoursKey: string;
+	advectWind: string | undefined;
 }
 
 /** A slot replacement in flight: new layers dissolve in over retiring ones. */
@@ -140,7 +143,8 @@ export class GpuRasterManager {
 					beforeLayer: spec.beforeLayer,
 					arrowsKey: '',
 					particlesKey: '',
-					contoursKey: ''
+					contoursKey: '',
+					advectWind: undefined
 				};
 				this.slots.set(spec.key, slot);
 				entering.push(slot);
@@ -165,6 +169,12 @@ export class GpuRasterManager {
 			if (slot.particlesKey !== particlesKey) {
 				slot.particlesKey = particlesKey;
 				slot.layer.setParticles(spec.particles);
+			}
+			if (slot.advectWind !== spec.advectWind) {
+				slot.advectWind = spec.advectWind;
+				// Applies on the next prepareUrl; the URL diff below (or the next
+				// timestep) picks it up.
+				slot.layer.setAdvection(spec.advectWind);
 			}
 			const contoursKey = spec.contours ? JSON.stringify(spec.contours) : '';
 			if (slot.contoursKey !== contoursKey) {

@@ -138,6 +138,7 @@
 	const PARTICLE_SIZE_RANGE = { min: 0.8, max: 4, step: 0.1 };
 	const PARTICLE_SPEED_RANGE = { min: 0.4, max: 4, step: 0.1 };
 	const PARTICLE_TRAIL_RANGE = { min: 0.9, max: 0.995, step: 0.005 };
+	const PARTICLE_OPACITY_RANGE = { min: 0.1, max: 1, step: 0.05 };
 
 	/** Trail length as the ~px a 10 m/s trail glows before fading below 10%. */
 	const trailLabel = $derived.by(() => {
@@ -150,7 +151,8 @@
 		$vectorOptions.particleCount === defaultVectorOptions.particleCount &&
 			$vectorOptions.particleSize === defaultVectorOptions.particleSize &&
 			$vectorOptions.particleSpeed === defaultVectorOptions.particleSpeed &&
-			$vectorOptions.particleTrail === defaultVectorOptions.particleTrail
+			$vectorOptions.particleTrail === defaultVectorOptions.particleTrail &&
+			$vectorOptions.particleOpacity === defaultVectorOptions.particleOpacity
 	);
 
 	const resetAnimation = () => {
@@ -158,6 +160,7 @@
 		$vectorOptions.particleSize = defaultVectorOptions.particleSize;
 		$vectorOptions.particleSpeed = defaultVectorOptions.particleSpeed;
 		$vectorOptions.particleTrail = defaultVectorOptions.particleTrail;
+		$vectorOptions.particleOpacity = defaultVectorOptions.particleOpacity;
 		changeOMfileURL();
 	};
 
@@ -359,6 +362,23 @@
 					onchange={changeOMfileURL}
 				/>
 				<span class="text-xs opacity-70">{$vectorOptions.particleSize.toFixed(1)} px wide</span>
+			</div>
+			<div class="flex items-center gap-3">
+				<Label class="w-16 shrink-0" for="particle-opacity">Opacity</Label>
+				<input
+					id="particle-opacity"
+					type="range"
+					class="w-28"
+					min={PARTICLE_OPACITY_RANGE.min}
+					max={PARTICLE_OPACITY_RANGE.max}
+					step={PARTICLE_OPACITY_RANGE.step}
+					disabled={!arrows}
+					bind:value={$vectorOptions.particleOpacity}
+					onchange={changeOMfileURL}
+				/>
+				<span class="text-xs opacity-70">
+					{Math.round($vectorOptions.particleOpacity * 100)}%
+				</span>
 			</div>
 			<div class="flex items-center gap-3">
 				<Label class="w-16 shrink-0" for="particle-speed">Speed</Label>
