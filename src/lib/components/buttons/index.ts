@@ -43,15 +43,15 @@ const moonSVG = `<button style="display:flex;justify-content:center;align-items:
 		<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" stroke-width="1.2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-moon-icon lucide-moon"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
        </button>`;
 
-const sunMoonSVG = `<button style="display:flex;justify-content:center;align-items:center;">
-		<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" stroke-width="1.2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sun-moon-icon lucide-sun-moon"><path d="M12 8a2.83 2.83 0 0 0 4 4 4 4 0 1 1-4-4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.9 4.9 1.4 1.4"/><path d="m17.7 17.7 1.4 1.4"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.3 17.7-1.4 1.4"/><path d="m19.1 4.9-1.4 1.4"/></svg>
+const eclipseSVG = `<button style="display:flex;justify-content:center;align-items:center;">
+		<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" stroke-width="1.2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-eclipse-icon lucide-eclipse"><circle cx="12" cy="12" r="10"/><path d="M12 2a7 7 0 1 0 10 10"/></svg>
        </button>`;
 
 /** The theme cycle the button walks through; icons show the CURRENT choice. */
 const MODE_CYCLE = ['light', 'system', 'dark'] as const;
 const MODE_ICONS: Record<(typeof MODE_CYCLE)[number], string> = {
 	light: sunSVG,
-	system: sunMoonSVG,
+	system: eclipseSVG,
 	dark: moonSVG
 };
 
