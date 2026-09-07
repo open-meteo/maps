@@ -21,6 +21,7 @@ import { WeatherGpuLayer, getStateValues, updateCurrentBounds } from '@openmeteo
 import type { CommitBarrier } from '$lib/commit-barrier';
 import type {
 	ClippingOptions,
+	GpuAdvectionSource,
 	GpuArrowConfig,
 	GpuContourStyle,
 	GpuParticleConfig,
@@ -45,8 +46,8 @@ export interface GpuRasterSlotSpec {
 	particles?: GpuParticleConfig;
 	/** In-shader contour isoline styling. */
 	contours?: GpuContourStyle;
-	/** Wind variable powering the advected temporal blend (e.g. precipitation). */
-	advectWind?: string;
+	/** Steering-wind candidates for the advected temporal blend (e.g. precipitation). */
+	advectWind?: GpuAdvectionSource[];
 }
 
 export interface GpuRasterManagerOptions {
@@ -68,7 +69,8 @@ interface Slot {
 	arrowsKey: string;
 	particlesKey: string;
 	contoursKey: string;
-	advectWind: string | undefined;
+	/** JSON identity of the advection candidates, for the diff. */
+	advectWindKey: string;
 }
 
 /** A slot replacement in flight: new layers dissolve in over retiring ones. */
@@ -145,7 +147,7 @@ export class GpuRasterManager {
 					arrowsKey: '',
 					particlesKey: '',
 					contoursKey: '',
-					advectWind: undefined
+					advectWindKey: ''
 				};
 				this.slots.set(spec.key, slot);
 				entering.push(slot);
@@ -171,8 +173,9 @@ export class GpuRasterManager {
 				slot.particlesKey = particlesKey;
 				slot.layer.setParticles(spec.particles);
 			}
-			if (slot.advectWind !== spec.advectWind) {
-				slot.advectWind = spec.advectWind;
+			const advectWindKey = spec.advectWind ? JSON.stringify(spec.advectWind) : '';
+			if (slot.advectWindKey !== advectWindKey) {
+				slot.advectWindKey = advectWindKey;
 				// Applies on the next prepareUrl; the URL diff below (or the next
 				// timestep) picks it up.
 				slot.layer.setAdvection(spec.advectWind);

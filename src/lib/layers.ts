@@ -54,6 +54,7 @@ import { getOmUrlForSource, getSunUrl } from './url';
 
 import type {
 	ClippingOptions,
+	GpuAdvectionSource,
 	GpuArrowConfig,
 	GpuContourStyle,
 	GpuParticleConfig
@@ -117,10 +118,10 @@ const buildRenderState = (): RenderState | undefined => {
 				beforeLayer: rasterBefore,
 				raster: true,
 				// Precipitation/cloud blends advect along the wind (radar-like
-				// motion); domains without the wind variable fall back silently.
+				// motion); domains without any candidate fall back silently.
 				advectWind:
 					gpuRender.advectedBlend && ADVECTED_VARIABLES.test(source.variable)
-						? 'wind_u_component_10m'
+						? ADVECT_STEERING_WINDS
 						: undefined
 			});
 		}
@@ -218,6 +219,19 @@ const gpuContourStyle = (lineWidth: number | undefined, dark: boolean): GpuConto
 /** Raster variables whose temporal blend advects along the wind. */
 const ADVECTED_VARIABLES =
 	/^(precipitation|rain|showers|snowfall|cloud_cover|cloud_base|cloud_top)/;
+
+/**
+ * Steering winds for the advected blend, tried in order. Precipitation cells
+ * move with the mid-tropospheric flow, not the surface wind — advecting with
+ * the 10 m wind under-shoots the true motion, and the misaligned blend copies
+ * made the high-value cores see-saw while the envelope translated smoothly.
+ * 700 hPa is the classic steering level; where a domain lacks it, the 10 m
+ * wind with an empirical ~1.7x steering factor approximates it.
+ */
+const ADVECT_STEERING_WINDS: GpuAdvectionSource[] = [
+	{ variable: 'wind_u_component_700hPa' },
+	{ variable: 'wind_u_component_10m', speedFactor: 1.7 }
+];
 /** Raster variables that can carry the decorative rain-streak overlay. */
 const RAIN_VARIABLES = /^(precipitation|rain|showers)/;
 
