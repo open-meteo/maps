@@ -20,6 +20,7 @@ import { WeatherGpuLayer, getStateValues, updateCurrentBounds } from '@openmeteo
 
 import type { CommitBarrier } from '$lib/commit-barrier';
 import type {
+	ClippingOptions,
 	GpuArrowConfig,
 	GpuContourStyle,
 	GpuParticleConfig,
@@ -350,6 +351,16 @@ export class GpuRasterManager {
 		if (settings === this.opts.settings) return;
 		this.opts.settings = settings;
 		for (const slot of this.slots.values()) slot.layer.setSettings(settings);
+	}
+
+	/**
+	 * Restyle the clipping of every layer's on-screen frame without reloading
+	 * any data — the live path while a clip polygon is drawn or dragged. The
+	 * finishing edit still goes through the settings store + show() so the
+	 * data crop follows.
+	 */
+	setClipping(options: ClippingOptions): void {
+		for (const slot of this.slots.values()) slot.layer.setClipping(options);
 	}
 
 	/**

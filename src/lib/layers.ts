@@ -50,6 +50,7 @@ import { gpuCacheMb, omProtocolSettings } from './stores/om-protocol-settings';
 import { getOmUrlForSource, getSunUrl } from './url';
 
 import type {
+	ClippingOptions,
 	GpuArrowConfig,
 	GpuContourStyle,
 	GpuParticleConfig
@@ -396,9 +397,15 @@ export const changeOMfileURL = (): void => {
 };
 
 /**
- * om:// source URL per source key (`variable` or `variable@domain`) of the
- * currently visible frame, in chart source order (used by the popup).
+ * Live clipping restyle: applies new clip polygons to the GPU layers already
+ * on screen without reloading data — cheap enough to follow every terra-draw
+ * change event while a polygon is drawn or dragged. The finishing edit goes
+ * through the settings store + changeOMfileURL so the data crop catches up.
  */
+export const previewClippingOptions = (options: ClippingOptions): void => {
+	gpuRasters?.setClipping(options);
+};
+
 /** VRAM used/budgeted by the GPU weather layers (for the settings pane). */
 export const getGpuMemoryUsage = (): { bytes: number; budgetBytes: number; textures: number } =>
 	gpuRasters?.getMemoryUsage() ?? { bytes: 0, budgetBytes: 0, textures: 0 };

@@ -28,7 +28,7 @@
 		buildCountryClippingOptions,
 		serializeClipCountriesParam
 	} from '$lib/clipping';
-	import { changeOMfileURL } from '$lib/layers';
+	import { changeOMfileURL, previewClippingOptions } from '$lib/layers';
 	import { updateUrl } from '$lib/url';
 
 	import CountrySelector from './country-selector.svelte';
@@ -94,10 +94,21 @@
 	export const initTerraDraw = () => {
 		if (!$map) return;
 
-		// Clean up any existing draw instance (helps with HMR)
+		// Clean up any existing draw instance (helps with HMR). stop() throws
+		// when a style reload already wiped the adapter's layers — ignore.
 		if (draw) {
-			draw.stop();
+			try {
+				draw.stop();
+			} catch {
+				// already torn down with the old style
+			}
 			draw = undefined;
+		}
+		// A re-init lands in terra-draw's default mode: reset the mode buttons
+		// so they cannot claim a drawing state the map no longer has.
+		if (activeMode !== '') {
+			activeMode = '';
+			terraDrawActive.set(false);
 		}
 
 		draw = new TerraDraw({
@@ -182,6 +193,53 @@
 			}
 			mergeDrawnGeometry();
 		});
+
+		// Live preview: while a polygon is drawn or a vertex/feature dragged, the
+		// GPU layers restyle their clip mask directly (no data reload), so the
+		// data follows the boundary as it moves. The 'finish' handlers above then
+		// run the full rebuild, which also refreshes the data crop.
+		draw.on('change', (_ids, type) => {
+			if (type === 'styling') return;
+			scheduleLivePreview();
+		});
+	};
+
+	let livePreviewRaf = 0;
+	const scheduleLivePreview = () => {
+		if (livePreviewRaf) return;
+		livePreviewRaf = requestAnimationFrame(() => {
+			livePreviewRaf = 0;
+			applyLivePreview();
+		});
+	};
+
+	/** A ring is drawable once it holds three distinct positions (closed = 4). */
+	const hasArea = (geometry: Polygon): boolean => (geometry.coordinates[0]?.length ?? 0) >= 4;
+
+	const applyLivePreview = () => {
+		if (!draw || !$map) return;
+		const snapshot = draw
+			.getSnapshot()
+			.filter((f): f is GeoJSONStoreFeatures<Polygon> => f.geometry.type === 'Polygon');
+		// In select mode the snapshot already holds every drawn feature (they
+		// were loaded in for editing); in draw modes it holds only the shape in
+		// progress, on top of the accumulated ones.
+		const base = activeMode === 'select' ? [] : drawnFeatures;
+		const features: GeoJsonFeature[] = [
+			...countryFeatures(),
+			...[...base, ...snapshot]
+				.filter((feature) => hasArea(feature.geometry))
+				.map((feature) => ({
+					type: 'Feature' as const,
+					properties: {},
+					geometry: feature.geometry as GeoJsonGeometry
+				}))
+		];
+		previewClippingOptions(
+			features.length > 0
+				? { fillRule, geojson: { type: 'FeatureCollection', features } }
+				: undefined
+		);
 	};
 
 	/** Merge drawn polygons into the current clippingOptions and notify the parent. */
@@ -218,30 +276,26 @@
 		}
 	};
 
+	/** The country clipping's features, whatever GeoJSON form it holds. */
+	const countryFeatures = (): GeoJsonFeature[] => {
+		const cg = countryClipping?.geojson;
+		if (!cg) return [];
+		if ('features' in cg) return cg.features;
+		if (cg.type === 'Feature') return [cg];
+		return [{ type: 'Feature', properties: null, geometry: cg }];
+	};
+
 	/**
 	 * Rebuild clippingOptions from both country geojson and drawn features.
 	 * Called when either source changes.
 	 */
 	export const rebuildClippingOptions = async () => {
-		// Collect country features from the stored country clipping
-		let countryFeatures: GeoJsonFeature[] = [];
-		const cg = countryClipping?.geojson;
-		if (cg) {
-			if ('features' in cg) {
-				countryFeatures = cg.features;
-			} else if (cg.type === 'Feature') {
-				countryFeatures = [cg];
-			} else {
-				countryFeatures = [{ type: 'Feature', properties: null, geometry: cg }];
-			}
-		}
-
 		const drawnGeoJsonFeatures: GeoJsonFeature[] = drawnFeatures.map((feature) => ({
 			type: 'Feature' as const,
 			properties: {},
 			geometry: feature.geometry as GeoJsonGeometry
 		}));
-		const allFeatures = [...countryFeatures, ...drawnGeoJsonFeatures];
+		const allFeatures = [...countryFeatures(), ...drawnGeoJsonFeatures];
 		if (allFeatures.length === 0) {
 			omProtocolSettings.update((s) => ({ ...s, clippingOptions: undefined }));
 		} else {
@@ -304,6 +358,10 @@
 	};
 
 	const setMode = (mode: string) => {
+		// Not initialised yet (a click can beat the map's load event, especially
+		// on mobile) or torn down by a style reload: initialise on demand instead
+		// of silently ignoring the click.
+		if (!draw && $map?.isStyleLoaded()) initTerraDraw();
 		if (!draw) return;
 		if (activeMode === mode) {
 			exitDrawingMode();
@@ -336,6 +394,13 @@
 			draw.setMode('static');
 		}
 		activeMode = '';
+		// A cancelled draw (Escape) leaves the live preview showing the partial
+		// shape; snap it back to the canonical countries + drawn features.
+		if (livePreviewRaf) {
+			cancelAnimationFrame(livePreviewRaf);
+			livePreviewRaf = 0;
+		}
+		applyLivePreview();
 		if (deferDeactivation) {
 			setTimeout(() => terraDrawActive.set(false), 50);
 		} else {
@@ -355,8 +420,8 @@
 		draw.clear();
 		drawnFeatures = [];
 		saveDrawnFeatures();
-		exitDrawingMode();
 		countryClipping = undefined;
+		exitDrawingMode();
 		countrySelectorRef?.clearAll();
 		fillRule = 'nonzero';
 		if (browser) localStorage.removeItem(FILL_RULE_KEY);
@@ -368,6 +433,22 @@
 			exitDrawingMode();
 		}
 	};
+
+	// A basemap style reload (dark mode, water-clip or globe toggle) wipes
+	// terra-draw's adapter layers with every other runtime layer, leaving a
+	// draw instance that silently ignores interactions ("needs activating
+	// twice"). Re-create it on the fresh style.
+	$effect(() => {
+		const mapInstance = $map;
+		if (!mapInstance) return;
+		const reinit = () => {
+			if (draw) initTerraDraw();
+		};
+		mapInstance.on('style.load', reinit);
+		return () => {
+			mapInstance.off('style.load', reinit);
+		};
+	});
 
 	// Auto-open the panel when country codes appear from URL parsing
 	// (parent's onMount runs urlParamsToPreferences after this component mounts)
@@ -396,6 +477,10 @@
 	onDestroy(() => {
 		if (browser) {
 			window.removeEventListener('keydown', handleEscapeKeydown, true);
+		}
+		if (livePreviewRaf) {
+			cancelAnimationFrame(livePreviewRaf);
+			livePreviewRaf = 0;
 		}
 		if (draw) {
 			draw.stop();
