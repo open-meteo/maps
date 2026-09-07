@@ -37,7 +37,10 @@ import {
 	BEFORE_LAYER_RASTER,
 	BEFORE_LAYER_VECTOR,
 	BEFORE_LAYER_VECTOR_WATER_CLIP,
-	HILLSHADE_LAYER
+	HILLSHADE_LAYER,
+	PARTICLE_BASE_COUNT,
+	PARTICLE_BASE_WIDTH_PX,
+	PARTICLE_REF_AREA
 } from '$lib/constants';
 import { type FrameChannel, FrameManager } from '$lib/frame-manager';
 import { GpuRasterManager, type GpuRasterSlotSpec } from '$lib/gpu-raster-manager';
@@ -219,12 +222,43 @@ const ADVECTED_VARIABLES =
 const RAIN_VARIABLES = /^(precipitation|rain|showers)/;
 
 /**
+ * Viewport scale for the particle presentation: the count and stroke width
+ * were tuned on a large 4K viewport, and the same absolute values overwhelm a
+ * phone. s = cbrt(viewportArea / refArea); the count scales by s and the
+ * width by √s — one cube-root law that reproduces both tuned references
+ * (desktop ×1 → 20k @ 2.5px, a typical phone s ≈ 0.4 → 8k @ ~1.6px). Clamped
+ * so extreme viewports (video walls, tiny embeds) stay sane.
+ */
+export const particleViewportScale = (viewport?: { width: number; height: number }): number => {
+	const width = viewport?.width ?? (typeof window === 'undefined' ? 0 : window.innerWidth);
+	const height = viewport?.height ?? (typeof window === 'undefined' ? 0 : window.innerHeight);
+	if (!width || !height) return 1;
+	return Math.min(1.25, Math.max(0.3, Math.cbrt((width * height) / PARTICLE_REF_AREA)));
+};
+
+/**
+ * Particle count at the current viewport for a density factor. The settings
+ * pane passes its reactively bound window size so its labels follow a resize.
+ */
+export const particleCountFor = (
+	density: number,
+	viewport?: { width: number; height: number }
+): number => Math.round(PARTICLE_BASE_COUNT * density * particleViewportScale(viewport));
+
+/** Stroke width in CSS px at the current viewport for a width factor. */
+export const particleWidthFor = (
+	width: number,
+	viewport?: { width: number; height: number }
+): number => PARTICLE_BASE_WIDTH_PX * width * Math.sqrt(particleViewportScale(viewport));
+
+/**
  * The animated flow: a veil of particles whose fading trails trace the
  * streamlines. Like the arrows, the particles only show the flow — the raster
  * underneath carries the magnitude — so they stay thin and translucent.
- * Density, size, speed and trail length come from the settings pane; the
- * variable family adapts the presentation (waves march as slow dashes, ocean
- * currents get amplified speed and long trails).
+ * Density, size, speed and trail length come from the settings pane (density
+ * and width as factors on the viewport-scaled baseline); the variable family
+ * adapts the presentation (waves march as slow dashes, ocean currents get
+ * amplified speed and long trails).
  */
 const gpuParticleConfig = (
 	options: VectorOptions,
@@ -232,8 +266,8 @@ const gpuParticleConfig = (
 	variable: string
 ): GpuParticleConfig => {
 	const base: GpuParticleConfig = {
-		count: options.particleCount,
-		sizePx: options.particleSize,
+		count: particleCountFor(options.particleDensity),
+		sizePx: particleWidthFor(options.particleWidth),
 		color: dark ? [1, 1, 1] : [0, 0, 0],
 		// Black strokes on the light basemap read heavier than white on dark;
 		// scale the configured opacity down there so both themes match visually.
@@ -273,13 +307,14 @@ const gpuParticleConfig = (
 	return base;
 };
 
-/** Rain streaks: falling dashes whose alpha follows the precipitation field. */
+/** Rain streaks: falling dashes whose alpha follows the precipitation field.
+ *  Scaled by the same viewport law as the flow particles. */
 const rainParticleConfig = (dark: boolean): GpuParticleConfig => ({
-	count: 4000,
+	count: Math.round(4000 * particleViewportScale()),
 	mode: 'rain',
 	shape: 'dash',
-	sizePx: 1.1,
-	dashLengthPx: 11,
+	sizePx: 1.1 * Math.sqrt(particleViewportScale()),
+	dashLengthPx: 11 * Math.sqrt(particleViewportScale()),
 	speedPxPerSec: 130,
 	maxAgeSec: 0.9,
 	fadeOpacity: 0.35,
@@ -307,9 +342,23 @@ const gpuArrowConfig = (scale: number | undefined, dark: boolean): GpuArrowConfi
  * (Re)initialize the frame manager. Called on map load and after every
  * basemap style reload (which wipes all sources/layers).
  */
+// The particle config derives from the viewport size; after a resize (phone
+// rotation, window drag) re-show so the count/width follow. changeOMfileURL
+// diffs, so this is a cheap uniform/config update, not a data reload.
+let resizeHandlerAttached = false;
+let resizeDebounce: ReturnType<typeof setTimeout> | undefined;
+
 export const addOmFileLayers = (): void => {
 	const map = get(m);
 	if (!map) return;
+
+	if (!resizeHandlerAttached) {
+		resizeHandlerAttached = true;
+		map.on('resize', () => {
+			clearTimeout(resizeDebounce);
+			resizeDebounce = setTimeout(() => changeOMfileURL(), 250);
+		});
+	}
 
 	frameManager?.destroy();
 	frameManager = new FrameManager(map, {
@@ -402,8 +451,11 @@ export const changeOMfileURL = (): void => {
  * change event while a polygon is drawn or dragged. The finishing edit goes
  * through the settings store + changeOMfileURL so the data crop catches up.
  */
+/** Preview masks rasterise/upload at quarter cost; the finish reload rebuilds at full quality. */
+const PREVIEW_MASK_MAX_PX = 1024;
+
 export const previewClippingOptions = (options: ClippingOptions): void => {
-	gpuRasters?.setClipping(options);
+	gpuRasters?.setClipping(options, PREVIEW_MASK_MAX_PX);
 };
 
 /** VRAM used/budgeted by the GPU weather layers (for the settings pane). */

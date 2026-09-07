@@ -359,8 +359,8 @@ export class GpuRasterManager {
 	 * finishing edit still goes through the settings store + show() so the
 	 * data crop follows.
 	 */
-	setClipping(options: ClippingOptions): void {
-		for (const slot of this.slots.values()) slot.layer.setClipping(options);
+	setClipping(options: ClippingOptions, maskMaxPx?: number): void {
+		for (const slot of this.slots.values()) slot.layer.setClipping(options, maskMaxPx);
 	}
 
 	/**

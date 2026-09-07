@@ -204,13 +204,26 @@
 		});
 	};
 
-	let livePreviewRaf = 0;
+	/**
+	 * Trailing throttle for the preview: each restyle re-rasterises + uploads
+	 * the clip mask and re-filters the arrow lattice, which at pointer-event
+	 * rate makes the drawing itself stutter. One update per interval keeps the
+	 * cursor smooth and lets the data trail the boundary by a beat.
+	 */
+	const PREVIEW_INTERVAL_MS = 150;
+	let livePreviewTimer: ReturnType<typeof setTimeout> | undefined;
 	const scheduleLivePreview = () => {
-		if (livePreviewRaf) return;
-		livePreviewRaf = requestAnimationFrame(() => {
-			livePreviewRaf = 0;
+		if (livePreviewTimer) return;
+		livePreviewTimer = setTimeout(() => {
+			livePreviewTimer = undefined;
 			applyLivePreview();
-		});
+		}, PREVIEW_INTERVAL_MS);
+	};
+	const cancelLivePreview = () => {
+		if (livePreviewTimer) {
+			clearTimeout(livePreviewTimer);
+			livePreviewTimer = undefined;
+		}
 	};
 
 	/** A ring is drawable once it holds three distinct positions (closed = 4). */
@@ -396,10 +409,7 @@
 		activeMode = '';
 		// A cancelled draw (Escape) leaves the live preview showing the partial
 		// shape; snap it back to the canonical countries + drawn features.
-		if (livePreviewRaf) {
-			cancelAnimationFrame(livePreviewRaf);
-			livePreviewRaf = 0;
-		}
+		cancelLivePreview();
 		applyLivePreview();
 		if (deferDeactivation) {
 			setTimeout(() => terraDrawActive.set(false), 50);
@@ -478,10 +488,7 @@
 		if (browser) {
 			window.removeEventListener('keydown', handleEscapeKeydown, true);
 		}
-		if (livePreviewRaf) {
-			cancelAnimationFrame(livePreviewRaf);
-			livePreviewRaf = 0;
-		}
+		cancelLivePreview();
 		if (draw) {
 			draw.stop();
 			draw = undefined;

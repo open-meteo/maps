@@ -19,17 +19,28 @@ export const DEFAULT_VECTOR_OPTIONS = {
 	contours: false,
 	breakpoints: true,
 	contourInterval: 2,
-	// Animated flow (particle) style: particle count, point/trail width in px,
-	// screen speed in px/s per m/s of wind, trail persistence per frame at
-	// 60fps (higher = longer), and trail opacity (the light theme scales it
-	// down — dark strokes read heavier than light ones). All screen-relative,
-	// so one set of defaults reads the same at every zoom level.
-	particleCount: 20000,
-	particleSize: 2.5,
+	// Animated flow (particle) style: density and width are ×-factors on a
+	// viewport-scaled baseline (see PARTICLE_BASE_* / PARTICLE_REF_AREA), so
+	// one default reads the same on a 4K monitor and a phone. Speed is screen
+	// px/s per m/s of wind, trail is persistence per frame at 60fps (higher =
+	// longer), opacity is the trail opacity (the light theme scales it down —
+	// dark strokes read heavier than light ones). All screen-relative, so one
+	// set of defaults reads the same at every zoom level.
+	particleDensity: 1,
+	particleWidth: 1,
 	particleSpeed: 3,
 	particleTrail: 0.955,
-	particleOpacity: 0.8
+	particleOpacity: 0.7
 };
+
+// The particle baselines at factor x1 on the reference viewport: the count and
+// stroke width tuned on a 4K screen at 1.25 browser zoom (~3072x1728 CSS px).
+// Smaller viewports scale them down via particleViewportScale (layers.ts):
+// count ∝ s and width ∝ √s with s = cbrt(area/ref) — a typical phone (s ≈ 0.4)
+// lands at ~8k particles of ~1.6px.
+export const PARTICLE_BASE_COUNT = 20000;
+export const PARTICLE_BASE_WIDTH_PX = 2.5;
+export const PARTICLE_REF_AREA = 3072 * 1728;
 
 // Preferences defaults
 export const DEFAULT_PREFERENCES = {

@@ -23,10 +23,10 @@ export interface VectorOptions {
 	contours: boolean;
 	breakpoints: boolean;
 	contourInterval: number;
-	/** Animated flow style: particle count on screen. */
-	particleCount: number;
-	/** Animated flow style: point/trail width in CSS px. */
-	particleSize: number;
+	/** Animated flow style: particle count as a x-factor on the viewport-scaled baseline. */
+	particleDensity: number;
+	/** Animated flow style: point/trail width as a x-factor on the viewport-scaled baseline. */
+	particleWidth: number;
 	/** Animated flow style: screen speed in px/s per m/s of wind. */
 	particleSpeed: number;
 	/** Animated flow style: trail persistence per 60fps frame (0..1). */
@@ -44,5 +44,22 @@ export interface VectorOptions {
 export const vectorOptions = persisted<VectorOptions, Partial<VectorOptions>>(
 	'vector-options',
 	defaultVectorOptions,
-	{ beforeRead: (stored) => ({ ...defaultVectorOptions, ...stored }) }
+	{
+		beforeRead: (stored) => {
+			// The factor rework replaced the absolute particleCount/particleSize
+			// with viewport-scaled x-factors; a stored object from before carries
+			// values tuned against the old semantics, so drop its particle block
+			// and start those from the new defaults.
+			if ('particleCount' in stored) {
+				const legacy = { ...stored } as Partial<VectorOptions> & Record<string, unknown>;
+				delete legacy.particleCount;
+				delete legacy.particleSize;
+				delete legacy.particleSpeed;
+				delete legacy.particleTrail;
+				delete legacy.particleOpacity;
+				stored = legacy;
+			}
+			return { ...defaultVectorOptions, ...stored };
+		}
+	}
 );

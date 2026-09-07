@@ -20,7 +20,7 @@
 		windIconSizePx,
 		windIconSpacing
 	} from '$lib/arrow-sprites';
-	import { changeOMfileURL } from '$lib/layers';
+	import { changeOMfileURL, particleCountFor, particleWidthFor } from '$lib/layers';
 	import { updateUrl } from '$lib/url';
 
 	import SettingsSection from './settings-section.svelte';
@@ -132,13 +132,35 @@
 		changeOMfileURL();
 	};
 
-	// Animated-flow tuning. Trail persistence is per 60fps frame, so useful
-	// values crowd near 1; the slider walks that end in small steps.
-	const PARTICLE_COUNT_RANGE = { min: 1000, max: 30000, step: 500 };
-	const PARTICLE_SIZE_RANGE = { min: 0.8, max: 4, step: 0.1 };
-	const PARTICLE_SPEED_RANGE = { min: 0.4, max: 4, step: 0.1 };
-	const PARTICLE_TRAIL_RANGE = { min: 0.9, max: 0.995, step: 0.005 };
-	const PARTICLE_OPACITY_RANGE = { min: 0.1, max: 1, step: 0.05 };
+	// Animated-flow tuning. Density and width are x-factors on a baseline that
+	// scales with the viewport (a phone runs fewer, thinner particles than a 4K
+	// monitor at the same factor); every range is symmetric around its default,
+	// so untouched sliders sit in the middle. Trail persistence is per 60fps
+	// frame, so useful values crowd near 1; the slider walks that end in small
+	// steps.
+	const PARTICLE_DENSITY_RANGE = { min: 0.1, max: 1.9, step: 0.05 };
+	const PARTICLE_WIDTH_RANGE = { min: 0.3, max: 1.7, step: 0.05 };
+	const PARTICLE_SPEED_RANGE = { min: 0.4, max: 5.6, step: 0.1 };
+	const PARTICLE_TRAIL_RANGE = { min: 0.915, max: 0.995, step: 0.005 };
+	const PARTICLE_OPACITY_RANGE = { min: 0.4, max: 1, step: 0.05 };
+
+	// Bound reactively so the computed labels follow a window resize/rotation
+	// while the pane is open (the helpers read the live window otherwise).
+	let viewportWidth = $state(0);
+	let viewportHeight = $state(0);
+	const labelViewport = $derived(
+		viewportWidth > 0 ? { width: viewportWidth, height: viewportHeight } : undefined
+	);
+
+	/** The factor plus what it works out to on this screen. */
+	const densityLabel = $derived.by(() => {
+		const count = particleCountFor($vectorOptions.particleDensity, labelViewport);
+		return `×${$vectorOptions.particleDensity.toFixed(2)} ≈ ${(count / 1000).toFixed(1)}k particles`;
+	});
+	const widthLabel = $derived.by(() => {
+		const px = particleWidthFor($vectorOptions.particleWidth, labelViewport);
+		return `×${$vectorOptions.particleWidth.toFixed(2)} ≈ ${px.toFixed(1)} px wide`;
+	});
 
 	/** Trail length as the ~px a 10 m/s trail glows before fading below 10%. */
 	const trailLabel = $derived.by(() => {
@@ -148,16 +170,16 @@
 	});
 
 	const atDefaultAnimation = $derived(
-		$vectorOptions.particleCount === defaultVectorOptions.particleCount &&
-			$vectorOptions.particleSize === defaultVectorOptions.particleSize &&
+		$vectorOptions.particleDensity === defaultVectorOptions.particleDensity &&
+			$vectorOptions.particleWidth === defaultVectorOptions.particleWidth &&
 			$vectorOptions.particleSpeed === defaultVectorOptions.particleSpeed &&
 			$vectorOptions.particleTrail === defaultVectorOptions.particleTrail &&
 			$vectorOptions.particleOpacity === defaultVectorOptions.particleOpacity
 	);
 
 	const resetAnimation = () => {
-		$vectorOptions.particleCount = defaultVectorOptions.particleCount;
-		$vectorOptions.particleSize = defaultVectorOptions.particleSize;
+		$vectorOptions.particleDensity = defaultVectorOptions.particleDensity;
+		$vectorOptions.particleWidth = defaultVectorOptions.particleWidth;
 		$vectorOptions.particleSpeed = defaultVectorOptions.particleSpeed;
 		$vectorOptions.particleTrail = defaultVectorOptions.particleTrail;
 		$vectorOptions.particleOpacity = defaultVectorOptions.particleOpacity;
@@ -170,6 +192,8 @@
 		changeOMfileURL();
 	};
 </script>
+
+<svelte:window bind:innerWidth={viewportWidth} bind:innerHeight={viewportHeight} />
 
 <SettingsSection title="Arrows settings">
 	<div class="mt-3 flex gap-3">
@@ -329,39 +353,38 @@
 		<h3 class="mt-4 font-semibold">Animation</h3>
 		<p class="text-xs opacity-75">
 			The flow keeps the same screen speed at every zoom; density is per screen, not per area.
+			Density and size adapt to the screen size — the sliders scale that baseline.
 		</p>
 		<div class="mt-2 flex flex-col gap-2">
 			<div class="flex items-center gap-3">
-				<Label class="w-16 shrink-0" for="particle-count">Density</Label>
+				<Label class="w-16 shrink-0" for="particle-density">Density</Label>
 				<input
-					id="particle-count"
+					id="particle-density"
 					type="range"
 					class="w-28"
-					min={PARTICLE_COUNT_RANGE.min}
-					max={PARTICLE_COUNT_RANGE.max}
-					step={PARTICLE_COUNT_RANGE.step}
+					min={PARTICLE_DENSITY_RANGE.min}
+					max={PARTICLE_DENSITY_RANGE.max}
+					step={PARTICLE_DENSITY_RANGE.step}
 					disabled={!arrows}
-					bind:value={$vectorOptions.particleCount}
+					bind:value={$vectorOptions.particleDensity}
 					onchange={changeOMfileURL}
 				/>
-				<span class="text-xs opacity-70">
-					{($vectorOptions.particleCount / 1000).toFixed(1)}k particles
-				</span>
+				<span class="text-xs opacity-70">{densityLabel}</span>
 			</div>
 			<div class="flex items-center gap-3">
-				<Label class="w-16 shrink-0" for="particle-size">Size</Label>
+				<Label class="w-16 shrink-0" for="particle-width">Size</Label>
 				<input
-					id="particle-size"
+					id="particle-width"
 					type="range"
 					class="w-28"
-					min={PARTICLE_SIZE_RANGE.min}
-					max={PARTICLE_SIZE_RANGE.max}
-					step={PARTICLE_SIZE_RANGE.step}
+					min={PARTICLE_WIDTH_RANGE.min}
+					max={PARTICLE_WIDTH_RANGE.max}
+					step={PARTICLE_WIDTH_RANGE.step}
 					disabled={!arrows}
-					bind:value={$vectorOptions.particleSize}
+					bind:value={$vectorOptions.particleWidth}
 					onchange={changeOMfileURL}
 				/>
-				<span class="text-xs opacity-70">{$vectorOptions.particleSize.toFixed(1)} px wide</span>
+				<span class="text-xs opacity-70">{widthLabel}</span>
 			</div>
 			<div class="flex items-center gap-3">
 				<Label class="w-16 shrink-0" for="particle-opacity">Opacity</Label>
