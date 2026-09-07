@@ -1,7 +1,7 @@
 import { get } from 'svelte/store';
 
 import maplibregl from 'maplibre-gl';
-import { mode, setMode } from 'mode-watcher';
+import { setMode, userPrefersMode } from 'mode-watcher';
 
 import { clippingPanelOpen } from '$lib/stores/clipping';
 import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
@@ -12,7 +12,7 @@ import {
 	sheet
 } from '$lib/stores/preferences';
 
-import { addHillshadeLayer, reloadStyles, terrainHandler } from '$lib/map-controls';
+import { addHillshadeLayer, terrainHandler } from '$lib/map-controls';
 import { updateUrl } from '$lib/url';
 
 const preferences = get(p);
@@ -35,13 +35,25 @@ export class SettingsButton {
 	onRemove() {}
 }
 
-const darkSVG = `<button style="display:flex;justify-content:center;align-items:center;">
+const sunSVG = `<button style="display:flex;justify-content:center;align-items:center;">
 		<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" stroke-width="1.2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sun-icon lucide-sun"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
             </button>`;
 
-const lightSVG = `<button style="display:flex;justify-content:center;align-items:center;">
+const moonSVG = `<button style="display:flex;justify-content:center;align-items:center;">
 		<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" stroke-width="1.2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-moon-icon lucide-moon"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
        </button>`;
+
+const sunMoonSVG = `<button style="display:flex;justify-content:center;align-items:center;">
+		<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" stroke-width="1.2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sun-moon-icon lucide-sun-moon"><path d="M12 8a2.83 2.83 0 0 0 4 4 4 4 0 1 1-4-4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.9 4.9 1.4 1.4"/><path d="m17.7 17.7 1.4 1.4"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.3 17.7-1.4 1.4"/><path d="m19.1 4.9-1.4 1.4"/></svg>
+       </button>`;
+
+/** The theme cycle the button walks through; icons show the CURRENT choice. */
+const MODE_CYCLE = ['light', 'system', 'dark'] as const;
+const MODE_ICONS: Record<(typeof MODE_CYCLE)[number], string> = {
+	light: sunSVG,
+	system: sunMoonSVG,
+	dark: moonSVG
+};
 
 export class DarkModeButton {
 	private div: HTMLDivElement | undefined;
@@ -49,20 +61,19 @@ export class DarkModeButton {
 	onAdd() {
 		const div = document.createElement('div');
 		this.div = div;
-		div.title = 'Darkmode';
 
 		div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
 
-		div.innerHTML = mode.current !== 'dark' ? lightSVG : darkSVG;
+		this.refresh();
 		div.addEventListener('contextmenu', (e) => e.preventDefault());
 		div.addEventListener('click', () => {
-			if (mode.current === 'light') {
-				setMode('dark');
-			} else {
-				setMode('light');
-			}
+			// Cycle light → system → dark. The style reload is not triggered
+			// here: the page-level mode watcher reloads whenever the RESOLVED
+			// mode drifts from the applied basemap style, so choosing e.g.
+			// 'system' on a dark OS while already dark reloads nothing.
+			const index = MODE_CYCLE.indexOf(userPrefersMode.current as (typeof MODE_CYCLE)[number]);
+			setMode(MODE_CYCLE[(index + 1) % MODE_CYCLE.length]);
 			this.refresh();
-			reloadStyles();
 		});
 		return div;
 	}
@@ -70,7 +81,11 @@ export class DarkModeButton {
 	/** Re-render the icon after a mode change that didn't come from this button. */
 	refresh() {
 		if (!this.div) return;
-		this.div.innerHTML = mode.current !== 'dark' ? lightSVG : darkSVG;
+		const preference = MODE_CYCLE.includes(userPrefersMode.current as (typeof MODE_CYCLE)[number])
+			? (userPrefersMode.current as (typeof MODE_CYCLE)[number])
+			: 'system';
+		this.div.title = `Theme: ${preference}`;
+		this.div.innerHTML = MODE_ICONS[preference];
 	}
 
 	onRemove() {}
