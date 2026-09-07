@@ -6,8 +6,8 @@ export const DEFAULT_VARIABLE = 'temperature_2m';
 export const DEFAULT_VECTOR_OPTIONS = {
 	grid: false,
 	arrows: true,
-	// 'arrow' = plain arrow, 'barb' = station-model wind barbs
-	arrowStyle: 'arrow' as const,
+	// 'particles' = animated flow, 'arrow' = plain arrow, 'barb' = wind barbs
+	arrowStyle: 'particles' as const,
 	// 'line' = tile geometry (scales with the zoom), 'icon' = map symbols
 	arrowRender: 'line' as const,
 	// Icon size multiplier and the spacing between icons, as a share of one.

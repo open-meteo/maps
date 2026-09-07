@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { DEFAULT_ARROW_STYLE } from '@openmeteo/weather-map-layer';
 	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
@@ -117,7 +116,7 @@
 		$vectorOptions.arrowStyle = style;
 		// The store key is `arrowStyle`, so the default has to be passed in for
 		// the param to drop out of the URL again
-		updateUrl('arrow_style', style, DEFAULT_ARROW_STYLE);
+		updateUrl('arrow_style', style, defaultVectorOptions.arrowStyle);
 		changeOMfileURL();
 	};
 

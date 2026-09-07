@@ -5,7 +5,6 @@ import {
 	type AnyDomain,
 	type ArrowRender,
 	DEFAULT_ARROW_RENDER,
-	DEFAULT_ARROW_STYLE,
 	type Domain,
 	type DomainMetaDataJson,
 	VALID_ARROW_RENDERS,
@@ -42,7 +41,12 @@ import {
 } from '$lib/stores/preferences';
 import { modelRun as mR, modelRunLocked as mRL, time } from '$lib/stores/time';
 import { domain as d, variable as v } from '$lib/stores/variables';
-import { VALID_WIND_STYLES, type WindStyle, vectorOptions as vO } from '$lib/stores/vector';
+import {
+	VALID_WIND_STYLES,
+	type WindStyle,
+	defaultVectorOptions,
+	vectorOptions as vO
+} from '$lib/stores/vector';
 
 import { windPointLattice } from '$lib/arrow-sprites';
 import { parseSources, serializeSources } from '$lib/chart-encoding';
@@ -156,7 +160,7 @@ export const urlParamsToPreferences = () => {
 		if (VALID_WIND_STYLES.includes(arrowStyleRaw as WindStyle)) {
 			vectorOptions.arrowStyle = arrowStyleRaw as WindStyle;
 		}
-	} else if (vectorOptions.arrowStyle !== DEFAULT_ARROW_STYLE) {
+	} else if (vectorOptions.arrowStyle !== defaultVectorOptions.arrowStyle) {
 		url.searchParams.set('arrow_style', vectorOptions.arrowStyle);
 	}
 
