@@ -84,7 +84,17 @@ export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
 		// derivation off the main thread — mobile froze ~1s per load inline).
 		// The worker builds its own cache from these options; the shared
 		// cacheName means both sides serve from one persistent Cache API store.
-		workerCacheOptions: browser ? blockCacheOptions() : undefined
+		workerCacheOptions: browser ? blockCacheOptions() : undefined,
+		// The bundled worker cannot locate the wasm itself (blob-URL worker);
+		// resolve it through vite and hand it over absolute. The package's
+		// exports map hides the .wasm subpath, so `?url` cannot import it —
+		// the `new URL(relative, import.meta.url)` asset form bypasses that.
+		workerWasmUrl: browser
+			? new URL(
+					'../../../node_modules/@openmeteo/file-format-wasm/dist/om_reader_wasm.web.wasm',
+					import.meta.url
+				).href
+			: undefined
 	},
 
 	// dynamic (can be changed during runtime)
