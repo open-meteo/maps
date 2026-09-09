@@ -8,6 +8,7 @@ import {
 	updateCurrentBounds
 } from '@openmeteo/weather-map-layer';
 import * as maplibregl from 'maplibre-gl';
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import { mode } from 'mode-watcher';
 
 import { map as m } from '$lib/stores/map';
@@ -23,6 +24,10 @@ import { updateUrl } from './url';
 import type { RequestParameters } from 'maplibre-gl';
 
 export const createMap = async (container: HTMLElement) => {
+	// MapLibre 6 loads its worker from a URL relative to its own module, which a
+	// bundled app cannot serve (404, blank map). Use the worker bundled by Vite.
+	maplibregl.setWorkerUrl(maplibreWorkerUrl);
+
 	maplibregl.addProtocol('om', (params: RequestParameters, abortController: AbortController) =>
 		omProtocol(params, abortController, get(omProtocolSettings))
 	);
