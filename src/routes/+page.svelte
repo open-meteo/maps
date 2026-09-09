@@ -56,8 +56,8 @@
 
 	const darkModeButton = new DarkModeButton();
 
-	// Before any data access: the domain subscription below already fetches
-	// metadata, and every request counts against the daily API limit.
+	// Before any data access: every request to the data API counts against the
+	// daily limit, and the wrapper also reroutes them once it is exhausted.
 	installRequestCounter();
 
 	// The single place that keeps the basemap in sync with the RESOLVED theme:

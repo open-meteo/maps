@@ -27,7 +27,7 @@ import type {
 	GpuParticleConfig,
 	OmProtocolSettings
 } from '@openmeteo/weather-map-layer';
-import type maplibregl from 'maplibre-gl';
+import type * as maplibregl from 'maplibre-gl';
 
 export interface GpuRasterSlotSpec {
 	/** Stable slot key: the chart source key, or `<sourceKey>:arrows`. */

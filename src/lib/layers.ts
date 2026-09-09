@@ -10,9 +10,8 @@
 import { get } from 'svelte/store';
 
 import {
-	GridFactory,
 	getDataState,
-	getDomainFootprint,
+	getDomainBoundary,
 	isSeamlessDomain,
 	resolveConcreteDomain
 } from '@openmeteo/weather-map-layer';
@@ -676,9 +675,7 @@ export const updateSeamlessBorderLayer = (): void => {
 		// itself, and a polygon's implicit ring-closing segment would jump ~360°
 		// across the map for boundaries that cross the antimeridian or encircle a
 		// pole (the perimeter's longitudes are continuous but may exceed ±180°).
-		const ring =
-			getDomainFootprint(concreteDomain.value) ??
-			GridFactory.create(concreteDomain.grid, null).getBoundaryPolygon();
+		const ring = getDomainBoundary(concreteDomain);
 		features.push({
 			type: 'Feature',
 			geometry: {

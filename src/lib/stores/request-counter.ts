@@ -207,7 +207,9 @@ let installed = false;
  * goes through main-thread fetch, so one wrapper sees it all. While an S3 or
  * custom endpoint override is active, requests are rewritten here at the
  * network layer: URL strings elsewhere (cache keys, UI) keep the canonical
- * endpoint.
+ * endpoint. The block cache keys blocks by the file URL the reader was given,
+ * so it stays one shared cache across endpoints: blocks fetched from S3 are
+ * served from the cache after switching back, and vice versa.
  */
 export const installRequestCounter = (): void => {
 	if (!browser || installed) return;
