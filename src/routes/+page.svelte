@@ -7,6 +7,7 @@
 
 	import { map } from '$lib/stores/map';
 	import { initStoredState, loading, url } from '$lib/stores/preferences';
+	import { installRequestCounter } from '$lib/stores/request-counter';
 	import { modelRun } from '$lib/stores/time';
 	import { domain, selectedDomain, selectedVariable, variable } from '$lib/stores/variables';
 
@@ -48,6 +49,10 @@
 	let mapContainer: HTMLElement | null;
 
 	const darkModeButton = new DarkModeButton();
+
+	// Before any data access: every request to the data API counts against the
+	// daily limit, and the wrapper also reroutes them once it is exhausted.
+	installRequestCounter();
 
 	// The single place that keeps the basemap in sync with the RESOLVED theme:
 	// covers the button cycle, an OS light/dark switch while the theme is
