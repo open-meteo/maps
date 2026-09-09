@@ -767,6 +767,9 @@ export const updateSeamlessBorderLayer = (): void => {
 				filter: ['==', ['get', 'layerIndex'], i],
 				layout: {
 					'text-field': ['get', 'label'],
+					// Without an explicit font MapLibre requests its default stack
+					// (Open Sans/Arial Unicode), which the assets bucket doesn't carry
+					'text-font': ['Noto Sans Regular'],
 					'text-size': 11,
 					'symbol-placement': 'line',
 					'symbol-spacing': 400,
