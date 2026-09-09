@@ -2,6 +2,8 @@ import { type Writable, get, writable } from 'svelte/store';
 
 import { renderPopup } from '$lib/popup';
 
+import type * as maplibregl from 'maplibre-gl';
+
 export const map: Writable<maplibregl.Map> = writable();
 
 export const popup: Writable<maplibregl.Marker | undefined> = writable(undefined);

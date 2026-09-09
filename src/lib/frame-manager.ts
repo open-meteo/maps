@@ -19,11 +19,18 @@ import * as maplibregl from 'maplibre-gl';
  * still trigger tile loads on pan/zoom.
  */
 
+type PaintProperty = Parameters<maplibregl.Map['setPaintProperty']>[1];
+/** Paint properties MapLibre accepts, narrowed to the opacity ones a layer fades. */
+type OpacityPaintProperty = Extract<PaintProperty, `${string}-opacity`>;
+/** The typed paint keys leave out the `-transition` variants the map accepts at runtime. */
+const transitionOf = (prop: OpacityPaintProperty): PaintProperty =>
+	`${prop}-transition` as PaintProperty;
+
 export interface ChannelLayerDef {
 	/** Base layer id — suffixed per frame for uniqueness. */
 	id: string;
 	/** Paint property used to fade this layer, e.g. `raster-opacity`. */
-	opacityProp: string;
+	opacityProp: OpacityPaintProperty;
 	/** Target opacity when the frame is shown. */
 	peakOpacity: number;
 	/** Layer id in the basemap style to insert before. */
@@ -63,7 +70,7 @@ export interface FrameManagerOptions {
 
 interface FrameLayer {
 	layerId: string;
-	opacityProp: string;
+	opacityProp: OpacityPaintProperty;
 	peak: number;
 	beforeLayer?: string;
 }
@@ -95,7 +102,9 @@ export class FrameManager {
 	/** Frame whose commit waits for the running dissolve to finish. */
 	private queuedCommit?: Frame;
 	private hideTimers = new Map<string, ReturnType<typeof setTimeout>>();
-	private onMapError: (e: maplibregl.MapSourceDataEvent) => void;
+	// Source errors arrive as ErrorEvents; the source cache forwarding them
+	// attaches the sourceId, which the event type does not declare.
+	private onMapError: (e: maplibregl.ErrorEvent & { sourceId?: string }) => void;
 
 	constructor(map: maplibregl.Map, opts: FrameManagerOptions = {}) {
 		this.map = map;
@@ -385,7 +394,7 @@ export class FrameManager {
 		// Direct per-frame updates; the declarative transition must not smooth them
 		for (const layer of [...newRasters, ...oldRasters]) {
 			if (this.map.getLayer(layer.layerId)) {
-				this.map.setPaintProperty(layer.layerId, layer.opacityProp + '-transition', {
+				this.map.setPaintProperty(layer.layerId, transitionOf(layer.opacityProp), {
 					duration: 0,
 					delay: 0
 				});
@@ -451,7 +460,7 @@ export class FrameManager {
 			if (filter && !filter(layer)) continue;
 			if (!this.map.getLayer(layer.layerId)) continue;
 			if (durationMs !== undefined) {
-				this.map.setPaintProperty(layer.layerId, layer.opacityProp + '-transition', {
+				this.map.setPaintProperty(layer.layerId, transitionOf(layer.opacityProp), {
 					duration: durationMs,
 					delay: 0
 				});
