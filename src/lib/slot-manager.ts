@@ -22,11 +22,17 @@ import * as maplibregl from 'maplibre-gl';
 
 type Slot = 'A' | 'B';
 
+/** Paint properties MapLibre accepts, narrowed to the opacity ones a slot fades. */
+type OpacityPaintProperty = Extract<
+	Parameters<maplibregl.Map['setPaintProperty']>[1],
+	`${string}-opacity`
+>;
+
 export interface SlotLayer {
 	/** Base layer id — suffixed with `_A` or `_B` per slot. */
 	id: string;
 	/** Paint property used for opacity (e.g. `raster-opacity`, `line-opacity`). */
-	opacityProp: string;
+	opacityProp: OpacityPaintProperty;
 	/** Target opacity set when the slot becomes active. */
 	commitOpacity: number;
 	/** Add the layer to the map. Must set initial opacity to 0 for fade-in. */
@@ -216,7 +222,9 @@ export class SlotManager {
 			}
 		};
 
-		const onError = (e: maplibregl.MapSourceDataEvent): void => {
+		// Source errors arrive as ErrorEvents; the source cache forwarding them
+		// attaches the sourceId, which the event type does not declare.
+		const onError = (e: maplibregl.ErrorEvent & { sourceId?: string }): void => {
 			if (e.sourceId !== sourceId) return;
 			cleanup();
 			this.opts.onError?.();
