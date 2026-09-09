@@ -2,6 +2,7 @@
 	import { onDestroy, onMount, tick } from 'svelte';
 
 	import 'maplibre-gl/dist/maplibre-gl.css';
+	import { mode, userPrefersMode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
 	import { map } from '$lib/stores/map';
@@ -30,7 +31,12 @@
 	import { unwatchAttributionOverlap, watchAttributionOverlap } from '$lib/attribution';
 	import { postEmbedderReady, startEmbedderBridge, stopEmbedderBridge } from '$lib/embed';
 	import { addOmFileLayers, changeOMfileURL } from '$lib/layers';
-	import { addTerrainSource, createMap } from '$lib/map-controls';
+	import {
+		addTerrainSource,
+		createMap,
+		getAppliedStyleMode,
+		reloadStyles
+	} from '$lib/map-controls';
 	import { loadDomainMetaData } from '$lib/metadata';
 	import { addPopup } from '$lib/popup';
 	import { updateUrl, urlParamsToPreferences } from '$lib/url';
@@ -43,13 +49,29 @@
 
 	const darkModeButton = new DarkModeButton();
 
+	// The single place that keeps the basemap in sync with the RESOLVED theme:
+	// covers the button cycle, an OS light/dark switch while the theme is
+	// 'system', and an embedder propagating its colour scheme into ours. The
+	// style only reloads when the resolved mode actually drifts from what the
+	// map has applied, so redundant transitions (e.g. picking 'system' on a
+	// dark OS while already dark) reload nothing.
+	$effect(() => {
+		const resolved = mode.current === 'dark' ? 'dark' : 'light';
+		void userPrefersMode.current; // icon shows the preference, not the resolved mode
+		if (!$map) return;
+		darkModeButton.refresh();
+		if (resolved !== getAppliedStyleMode()) {
+			reloadStyles();
+		}
+	});
+
 	onMount(async () => {
 		$url = new URL(document.location.href);
 		urlParamsToPreferences();
 		await initStoredState();
 
 		await createMap(mapContainer as HTMLElement);
-		startEmbedderBridge(darkModeButton);
+		startEmbedderBridge();
 
 		$map.on('load', async () => {
 			$map.addControl(darkModeButton);
