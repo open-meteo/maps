@@ -100,7 +100,7 @@
 							<Kbd.Root>d</Kbd.Root> Domain Selection
 						</div>
 						<div class="flex items-center gap-2">
-							<Kbd.Root>v</Kbd.Root> Variable Selection
+							<Kbd.Root>v</Kbd.Root> All Variables Dialog
 						</div>
 						<div class="flex items-center gap-2">
 							<Kbd.Root>l</Kbd.Root> Level Selection
@@ -421,7 +421,9 @@
 					</div>
 					<b>Grid</b> - Show individual model grid points as orange dots on map
 					<div>
-						<b>Arrows</b> - Show directional arrows on maps with speed and direction (wind / wave)
+						<b>Arrows</b> - Show directional arrows on maps with speed and direction (wind / wave). Switch
+						the style to wind barbs to read the speed off the staff: half barb 5 knots, full barb 10,
+						pennant 50.
 					</div>
 					<div><b>Contours</b> - Show contour lines between certain thresholds</div>
 					<div>

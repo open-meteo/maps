@@ -1,0 +1,73 @@
+/**
+ * Chart model: everything rendered on the map is a chart. A chart is a list
+ * of sources, each source a variable plus individual toggles for the layer
+ * types it renders (raster fill, contour lines, wind arrows). Plain
+ * single-variable selection is simply a chart with one raster source.
+ */
+
+export interface ChartSource {
+	/** Full variable id incl. level suffix, e.g. `temperature_850hPa`. */
+	variable: string;
+	/**
+	 * Serve this source from another domain instead of the active one, e.g.
+	 * the EPS sibling of the active deterministic model (`dwd_icon_eps` while
+	 * `dwd_icon` is selected). The source uses that domain's latest model run
+	 * and clamps the selected time to its own valid steps.
+	 */
+	domain?: string;
+	/** Show the raster (colour fill) layer for this source. Default: false */
+	raster?: boolean;
+	/** Show contour lines for this source. Default: false */
+	contours?: boolean;
+	/** Contour interval. Undefined = use the colour-scale breakpoints. */
+	contourInterval?: number;
+	/** Show wind arrow vectors for this source. Default: false */
+	arrows?: boolean;
+	/**
+	 * Raster opacity multiplier (0..1) applied on top of the global opacity
+	 * preference. Not editable in the UI; carried by the `sources` URL
+	 * encoding as the `o` flag.
+	 */
+	opacity?: number;
+	/**
+	 * Width multiplier for this source's contour and arrow lines. Not
+	 * editable in the UI; carried by the `sources` encoding as the `w` flag.
+	 */
+	lineWidth?: number;
+	/**
+	 * Render this source's contours/arrows directly on top of its own raster
+	 * (inside the raster stack) instead of in the high vector stack. Rasters
+	 * of later sources then overlap them. Not editable in the UI; carried by
+	 * the `sources` encoding as the `i` flag.
+	 */
+	inlineVectors?: boolean;
+}
+
+export interface ChartPreset {
+	/** Unique identifier — also used as the `chart` URL parameter. */
+	id: string;
+	/** Human-readable name shown in the selector. */
+	label: string;
+	/** One-line description shown under the label. */
+	description?: string;
+	/** Grouping label (e.g. "Upper-level", "Surface"). */
+	group?: string;
+	/** One or more sources rendered together on the map. */
+	sources: ChartSource[];
+}
+
+export interface ChartState {
+	/** Set while an unmodified preset is active. */
+	presetId?: string;
+	/** Set when loaded from an unmodified saved custom chart. */
+	name?: string;
+	/** At least one source; variables are unique. */
+	sources: ChartSource[];
+}
+
+export interface SavedChart {
+	id: string;
+	name: string;
+	sources: ChartSource[];
+	createdAt: number;
+}

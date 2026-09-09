@@ -10,6 +10,8 @@
 	import { reloadStyles } from '$lib/map-controls';
 	import { updateUrl } from '$lib/url';
 
+	import SettingsSection from './settings-section.svelte';
+
 	const reset = async () => {
 		await resetStates();
 		for (let [key] of $url.searchParams) {
@@ -24,8 +26,9 @@
 </script>
 
 <div class="mt-auto justify-self-end">
-	<h2 class="text-lg font-bold">States</h2>
-	<div class="mt-3">
-		<Button class="cursor-pointer" onclick={reset}>Reset all states</Button>
-	</div>
+	<SettingsSection title="States">
+		<div class="mt-3">
+			<Button class="cursor-pointer" onclick={reset}>Reset all states</Button>
+		</div>
+	</SettingsSection>
 </div>

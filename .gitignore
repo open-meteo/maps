@@ -8,6 +8,7 @@ node_modules
 /.svelte-kit
 /build
 /coverage
+.claude
 
 # OS
 .DS_Store
@@ -29,3 +30,7 @@ vite.config.ts.timestamp-*
 /static/images/weather-icons
 # README screenshot, lives at maps/media/example.png in the bucket
 /static/example.png
+
+# Claude Code local files
+.claude/
+.mcp.json

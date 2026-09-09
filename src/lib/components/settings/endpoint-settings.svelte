@@ -23,6 +23,8 @@
 
 	import { BASE_URI, DATA_SPATIAL_BASE_URI, S3_BASE_URI } from '$lib/helpers';
 
+	import SettingsSection from './settings-section.svelte';
+
 	// The known endpoints, skipping whichever one BASE_URI already is (in dev a
 	// VITE_DATA_BASE_URI override can point the default at S3 or localhost).
 	const endpointOptions: { value: EndpointMode; label: string }[] = [
@@ -33,8 +35,7 @@
 	].filter((option, i) => i === 0 || option.label !== new URL(BASE_URI).host);
 </script>
 
-<div>
-	<h2 class="text-lg font-bold">Data endpoint</h2>
+<SettingsSection title="Data endpoint">
 	<div class="mt-3 flex flex-col gap-3">
 		<Select.Root
 			type="single"
@@ -107,4 +108,4 @@
 			{/if}
 		</div>
 	</div>
-</div>
+</SettingsSection>
