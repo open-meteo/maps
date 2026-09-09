@@ -1,6 +1,6 @@
 import { get } from 'svelte/store';
 
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
 import { mode, setMode } from 'mode-watcher';
 
 import { clippingPanelOpen } from '$lib/stores/clipping';
