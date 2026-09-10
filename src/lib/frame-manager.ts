@@ -52,12 +52,6 @@ export interface FrameManagerOptions {
 	crossFadeMs?: number;
 	/** Retained non-visible frames beyond the current one. Default 3. */
 	retainMax?: number;
-	/**
-	 * Ground-truth data availability per channel url (from the om protocol).
-	 * MapLibre counts failed tiles as complete, so tile state alone cannot
-	 * distinguish "everything rendered" from "everything failed".
-	 */
-	getChannelDataState?: (url: string) => 'loaded' | 'loading' | 'error' | 'missing';
 	onLoadingChange?: (loading: boolean) => void;
 	/** Fired when a frame becomes visible. */
 	onCommit?: () => void;
@@ -111,8 +105,8 @@ export class FrameManager {
 		this.onMapError = (e) => {
 			// Only errors attributable to one of our own sources fail a frame.
 			// Source-less errors (basemap tiles, terrain, glyphs) must not
-			// cancel a pending weather switch; om data-load failures surface
-			// through getChannelDataState and om tile errors carry a sourceId.
+			// cancel a pending weather switch; a failed om data load rejects the
+			// tile request, and the source cache tags that error with a sourceId.
 			if (!e.sourceId) return;
 			const sourceId = e.sourceId;
 			const frame = [...this.frames.values()].find((f) => f.sourceIds.includes(sourceId));
@@ -260,29 +254,12 @@ export class FrameManager {
 		}
 	}
 
-	/** The underlying variable data of every channel has loaded. */
-	private frameDataState(frame: Frame): 'loaded' | 'loading' | 'error' {
-		const getState = this.opts.getChannelDataState;
-		if (!getState) return 'loaded';
-		let result: 'loaded' | 'loading' = 'loaded';
-		for (const channel of frame.channels) {
-			const state = getState(channel.url);
-			if (state === 'error') return 'error';
-			if (state !== 'loaded') result = 'loading';
-		}
-		return result;
-	}
-
 	private isFrameLoaded(frame: Frame): boolean {
-		// Source.loaded() only covers the source metadata (TileJSON); the map
-		// must additionally have all requested tiles AND the protocol must
-		// hold actual data for every channel. Failed tiles count as
-		// "complete" in areTilesLoaded(), so without the data check an empty
-		// frame would commit and fade the previous data out. Errored frames
-		// never commit.
+		// Source.loaded() only covers the source metadata (TileJSON), which the
+		// om protocol answers before the data download finishes, so the map must
+		// additionally have every requested tile. Errored frames never commit.
 		return (
 			!frame.errored &&
-			this.frameDataState(frame) === 'loaded' &&
 			frame.sourceIds.every((id) => this.map.getSource(id)?.loaded()) &&
 			this.map.areTilesLoaded()
 		);
@@ -307,7 +284,7 @@ export class FrameManager {
 				this.unwatchFrame(frame);
 				return;
 			}
-			if (frame.errored || this.frameDataState(frame) === 'error') {
+			if (frame.errored) {
 				this.failPending(frame);
 				return;
 			}

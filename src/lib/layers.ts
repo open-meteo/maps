@@ -7,7 +7,6 @@
  */
 import { get } from 'svelte/store';
 
-import { getDataState } from '@openmeteo/weather-map-layer';
 import { mode } from 'mode-watcher';
 import { toast } from 'svelte-sonner';
 
@@ -79,7 +78,6 @@ export const addOmFileLayers = (): void => {
 	frameManager = new FrameManager(map, {
 		crossFadeMs: 250,
 		retainMax: 3,
-		getChannelDataState: getDataState,
 		onLoadingChange: (isLoading) => loading.set(isLoading),
 		onCommit: () => refreshPopup(),
 		// Without this a failed frame is silent and just keeps the previous one
