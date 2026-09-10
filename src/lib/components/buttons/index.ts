@@ -12,6 +12,7 @@ import {
 	sheet
 } from '$lib/stores/preferences';
 
+import { reanchorRasterLayers } from '$lib/layers';
 import { addHillshadeLayer, terrainHandler } from '$lib/map-controls';
 import { updateUrl } from '$lib/url';
 
@@ -124,12 +125,14 @@ export class HillshadeButton {
 			if (preferences.hillshade) {
 				div.innerHTML = hillshadeSVG;
 				addHillshadeLayer();
+				reanchorRasterLayers();
 
 				map.once('styledata', () => {
 					setTimeout(() => this.addTerrainControl(), 50);
 				});
 			} else {
 				div.innerHTML = noHillshadeSVG;
+				reanchorRasterLayers();
 				if (map.getLayer('hillshadeLayer')) {
 					map.removeLayer('hillshadeLayer');
 				}
