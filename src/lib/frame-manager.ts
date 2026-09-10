@@ -79,6 +79,8 @@ interface Frame {
 	onData?: () => void;
 	/** A source of this frame failed; it must not commit (retried on re-show). */
 	errored?: boolean;
+	/** Waiting for the render pass that re-populates its sources (see `show`). */
+	awaitingRender?: boolean;
 }
 
 export class FrameManager {
@@ -172,14 +174,34 @@ export class FrameManager {
 		}
 		this.touchLru(key);
 
-		if (this.isFrameLoaded(frame)) {
-			this.commit(frame);
-		} else {
-			this.pendingKey = key;
-			this.setLoading(true);
-			this.watchFrame(frame);
-			this.startSlowLoadTimer();
-		}
+		this.pendingKey = key;
+		this.setLoading(true);
+		this.watchFrame(frame);
+		this.startSlowLoadTimer();
+		// Superseded frames stay resident, so the cap has to hold here too:
+		// commit (the other eviction point) may be many switches away.
+		this.evict();
+		// A fully cached frame commits in the very next render pass
+		this.awaitRender(frame);
+	}
+
+	/**
+	 * Hold the frame back until the map has rendered once. MapLibre only
+	 * re-populates a source's tiles in the render pass after its layers became
+	 * visible again, and reports a source that is not (yet) used by a visible
+	 * layer as loaded — so a frame just made visible would look ready while its
+	 * tiles are still missing.
+	 */
+	private awaitRender(frame: Frame): void {
+		frame.awaitingRender = true;
+		this.map.once('render', () => {
+			frame.awaitingRender = false;
+			// Re-check: the render itself fires no sourcedata event
+			frame.onData?.();
+		});
+		// Adding or unhiding layers already schedules one, but a frame whose
+		// layers all went missing (style reload) would wait forever otherwise
+		this.map.triggerRepaint();
 	}
 
 	/** Remove every frame (also used before/after a basemap style reload). */
@@ -255,13 +277,17 @@ export class FrameManager {
 	}
 
 	private isFrameLoaded(frame: Frame): boolean {
-		// Source.loaded() only covers the source metadata (TileJSON), which the
-		// om protocol answers before the data download finishes, so the map must
-		// additionally have every requested tile. Errored frames never commit.
+		// Source.loaded() only covers the source metadata (TileJSON), which the om
+		// protocol answers before the data download finishes, so every requested
+		// tile has to be there too — `isSourceLoaded` covers both, per source.
+		// Map-wide (`areTilesLoaded`) it would also wait for the basemap and, worse,
+		// for the tiles of the frames the user just scrolled past, which keeps a
+		// frame from ever committing while someone scrubs the time slider.
+		// Errored frames never commit.
 		return (
 			!frame.errored &&
-			frame.sourceIds.every((id) => this.map.getSource(id)?.loaded()) &&
-			this.map.areTilesLoaded()
+			!frame.awaitingRender &&
+			frame.sourceIds.every((id) => this.map.getSource(id) && this.map.isSourceLoaded(id))
 		);
 	}
 
@@ -308,9 +334,8 @@ export class FrameManager {
 	private commit(frame: Frame): void {
 		// Never interrupt a running dissolve (snapping it mid-way is a visible
 		// jump). The commit waits for it — at most crossFadeMs — and chains.
-		// pendingKey must cover the wait: commits arriving via the
-		// already-loaded show() path have not set it, and runQueuedCommit
-		// discards a queued frame that is no longer the pending one.
+		// pendingKey keeps covering the wait, so that a show() arriving in the
+		// meantime abandons the queued frame like any other pending one.
 		if (this.dissolve) {
 			this.queuedCommit = frame;
 			this.pendingKey = frame.key;
@@ -415,13 +440,19 @@ export class FrameManager {
 
 	private abandonPending(): void {
 		this.queuedCommit = undefined;
-		if (!this.pendingKey) return;
 		const pending = this.pendingFrame();
-		if (pending) this.unwatchFrame(pending);
-		// Keep the partially loaded frame resident; it may be shown later
-		this.scheduleHide(this.pendingKey);
+		if (pending) {
+			this.unwatchFrame(pending);
+			// Keep the partially loaded frame resident; it may be shown later. It
+			// never was visible though, so it needs no fade-out — and hiding it
+			// right away stops it from loading tiles nobody is waiting for.
+			this.cancelHide(pending.key);
+			this.setFrameVisibility(pending, false);
+		}
 		this.pendingKey = null;
 		this.clearSlowLoadTimer();
+		// Unconditionally, so that a loading state set from outside the manager
+		// (the model run switch) clears when the switch needs no new frame
 		this.setLoading(false);
 	}
 
