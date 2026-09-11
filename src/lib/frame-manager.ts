@@ -1,8 +1,7 @@
 import * as maplibregl from 'maplibre-gl';
 
 /**
- * FrameManager: cross-fading orchestrator for a stack of MapLibre weather
- * layers (adapted from the drizzli FrameAnimator).
+ * FrameManager: cross-fading orchestrator for a stack of MapLibre weather layers
  *
  * A **frame** is one complete visual state of the weather overlay, composed
  * of one or more **channels** (e.g. a temperature raster fill, a pressure
@@ -81,6 +80,19 @@ interface Frame {
 	errored?: boolean;
 	/** Waiting for the render pass that re-populates its sources (see `show`). */
 	awaitingRender?: boolean;
+	/** Layers are `visibility: none` (set after the fade-out, see `scheduleHide`). */
+	hidden?: boolean;
+}
+
+/** A running raster dissolve, see `dissolveRasters`. */
+interface Dissolve {
+	raf: number;
+	/** Frame being faded in; it is already the current frame. */
+	intoKey: string;
+	/** Frame being faded out; re-showing it reverses the dissolve. */
+	outOfKey: string;
+	/** Flip the direction, returning the ms the unwind still takes. */
+	reverse: () => number;
 }
 
 export class FrameManager {
@@ -93,7 +105,7 @@ export class FrameManager {
 	private pendingKey: string | null = null;
 	private frameOrdinal = 0;
 	private slowLoadTimer: ReturnType<typeof setTimeout> | undefined;
-	private dissolve?: { raf: number; newRasters: FrameLayer[]; oldRasters: FrameLayer[] };
+	private dissolve?: Dissolve;
 	/** Frame whose commit waits for the running dissolve to finish. */
 	private queuedCommit?: Frame;
 	private hideTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -170,7 +182,10 @@ export class FrameManager {
 			// A previously failed frame gets another chance
 			frame.errored = false;
 			this.setFrameVisibility(frame, true);
-			this.raiseFrame(frame);
+			// Raising the frame a running dissolve fades out would invert that
+			// dissolve's stacking order, and its compensation curve with it — the
+			// reversal in `commit` keeps the frame where it is.
+			if (this.dissolve?.outOfKey !== key) this.raiseFrame(frame);
 		}
 		this.touchLru(key);
 
@@ -337,6 +352,12 @@ export class FrameManager {
 		// pendingKey keeps covering the wait, so that a show() arriving in the
 		// meantime abandons the queued frame like any other pending one.
 		if (this.dissolve) {
+			// …unless the frame to commit is the one that dissolve fades out, in
+			// which case it is unwound instead of finished (see `reverseDissolve`).
+			if (frame.key === this.dissolve.outOfKey && this.frames.has(this.dissolve.intoKey)) {
+				this.reverseDissolve(frame, this.dissolve);
+				return;
+			}
 			this.queuedCommit = frame;
 			this.pendingKey = frame.key;
 			return;
@@ -407,9 +428,12 @@ export class FrameManager {
 			}
 		};
 
-		const start = performance.now();
-		const step = (now: number): void => {
-			const t = Math.min((now - start) / duration, 1);
+		// Progress is integrated rather than derived from a start timestamp, so
+		// that the direction can flip mid-flight (`reverse`) without a jump.
+		let t = 0;
+		let direction = 1;
+		let last = performance.now();
+		const apply = (): void => {
 			const e = t * t * (3 - 2 * t); // smoothstep
 			for (const layer of newRasters) setOpacity(layer, layer.peak * e);
 			for (const layer of oldRasters) {
@@ -419,14 +443,63 @@ export class FrameManager {
 					t >= 1 || denominator <= 0.001 ? 0 : (layer.peak * (1 - e)) / denominator
 				);
 			}
-			if (t < 1) {
-				this.dissolve = { raf: requestAnimationFrame(step), newRasters, oldRasters };
+		};
+		const dissolve: Dissolve = {
+			raf: 0,
+			intoKey: newFrame.key,
+			outOfKey: oldFrame.key,
+			reverse: () => {
+				direction = -direction;
+				last = performance.now();
+				// Same rate in both directions: a flip-back right after the commit
+				// unwinds near-instantly, a late one takes almost a full fade.
+				return (direction < 0 ? t : 1 - t) * duration;
+			}
+		};
+		const step = (now: number): void => {
+			t = Math.min(Math.max(t + (direction * (now - last)) / duration, 0), 1);
+			last = now;
+			apply();
+			if (direction > 0 ? t < 1 : t > 0) {
+				dissolve.raf = requestAnimationFrame(step);
 			} else {
-				this.dissolve = undefined;
+				if (this.dissolve === dissolve) this.dissolve = undefined;
 				this.runQueuedCommit();
 			}
 		};
-		this.dissolve = { raf: requestAnimationFrame(step), newRasters, oldRasters };
+		dissolve.raf = requestAnimationFrame(step);
+		this.dissolve = dissolve;
+	}
+
+	/**
+	 * Switching back to the frame a running dissolve fades out (scrubbing the
+	 * time slider A → B → A): unwind that dissolve instead of queueing a second
+	 * one behind it. Finishing first would show B completely before returning to
+	 * A and cost twice the fade duration; the compensation curve is symmetric in
+	 * `e`, so running it backwards keeps the coverage constant all the way.
+	 */
+	private reverseDissolve(frame: Frame, dissolve: Dissolve): void {
+		const outgoing = this.frames.get(dissolve.intoKey);
+		if (!outgoing) return;
+
+		this.queuedCommit = undefined;
+		this.pendingKey = null;
+		this.clearSlowLoadTimer();
+
+		const remaining = dissolve.reverse();
+		dissolve.outOfKey = dissolve.intoKey;
+		dissolve.intoKey = frame.key;
+
+		this.currentKey = frame.key;
+		this.cancelHide(frame.key);
+		// The rAF only drives the fills; the lines cross-fade declaratively
+		this.setFrameOpacity(frame, 1, remaining, isLineLayer);
+		this.setFrameOpacity(outgoing, 0, remaining, isLineLayer);
+		this.scheduleHide(outgoing.key);
+
+		this.evict();
+		this.setLoading(false);
+		this.opts.onCommit?.();
 	}
 
 	private runQueuedCommit(): void {
@@ -481,12 +554,18 @@ export class FrameManager {
 	}
 
 	private setFrameVisibility(frame: Frame, visible: boolean): void {
+		const wasHidden = frame.hidden === true;
+		frame.hidden = !visible;
 		for (const { layerId } of frame.layers) {
 			if (this.map.getLayer(layerId)) {
 				this.map.setLayoutProperty(layerId, 'visibility', visible ? 'visible' : 'none');
 			}
 		}
-		if (visible) this.setFrameOpacity(frame, 0);
+		// Only a frame that really was off screen starts its fade-in from zero.
+		// Re-showing one that is still fading (switching back and forth within the
+		// cross-fade) must keep the opacity it currently contributes, or the
+		// basemap flashes through the half-faded incoming frame for one tick.
+		if (visible && wasHidden) this.setFrameOpacity(frame, 0);
 	}
 
 	/** After the fade-out, hide the frame's layers to stop background tile loads. */
@@ -500,6 +579,8 @@ export class FrameManager {
 				if (key === this.currentKey || key === this.pendingKey) return;
 				const frame = this.frames.get(key);
 				if (frame) this.setFrameVisibility(frame, false);
+				// It no longer counts as fading, so a deferred eviction can run
+				this.evict();
 			}, delay)
 		);
 	}
@@ -520,8 +601,14 @@ export class FrameManager {
 
 	private evict(): void {
 		const retainMax = this.opts.retainMax ?? 3;
-		// Current frame is always retained on top of the cap
-		const removable = this.lru.filter((key) => key !== this.currentKey && key !== this.pendingKey);
+		// Current frame is always retained on top of the cap, and so is every frame
+		// that is still fading out — removing its layers mid-fade pops, and during
+		// a dissolve the basemap would show through the half-faded new frame. Those
+		// are exactly the frames with a pending hide timer, which evicts again once
+		// it has taken them off screen.
+		const removable = this.lru.filter(
+			(key) => key !== this.currentKey && key !== this.pendingKey && !this.hideTimers.has(key)
+		);
 		while (removable.length > retainMax) {
 			const key = removable.shift();
 			if (key !== undefined) this.removeFrame(key);
