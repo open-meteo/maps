@@ -160,7 +160,7 @@
 	</div>
 
 	<button
-		class="bg-glass/75 backdrop-blur-sm shadow-md hover:bg-glass/95 duration-200 h-7.25 w-7.25 flex cursor-pointer items-center justify-center rounded p-0 z-20 self-start"
+		class="bg-glass/75 backdrop-blur-sm shadow-md hover:bg-glass/95 duration-200 h-8.5 w-8.5 flex cursor-pointer items-center justify-center rounded p-0 z-20 self-start"
 		onclick={() => {
 			vSE.set(!get(vSE));
 		}}
