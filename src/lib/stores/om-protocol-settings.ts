@@ -16,6 +16,7 @@ import {
 } from '$lib/constants';
 import { getNextOmUrls } from '$lib/url';
 
+import { chartSources } from './chart';
 import { metaJson } from './time';
 import { selectedDomain } from './variables';
 
@@ -74,4 +75,14 @@ export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
 			}
 		}
 	}
+});
+
+// The protocol keeps at most maxStatesWithData variable states loaded. A chart
+// needs one per source, times two while cross-fading between timesteps, plus
+// headroom for pan/zoom-created partial-bounds states.
+chartSources.subscribe((sources) => {
+	omProtocolSettings.update((settings) => ({
+		...settings,
+		maxStatesWithData: Math.max(4, sources.length * 2)
+	}));
 });

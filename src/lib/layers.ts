@@ -1,19 +1,21 @@
 /**
- * Layer orchestration: turns the active om url into FrameManager channels (a
- * raster fill and, when contours/arrows/grid are on, a vector channel) and
+ * Chart layer orchestration: turns the active chart's sources into
+ * FrameManager channels (one raster and/or one vector channel per source) and
  * shows them as one synchronized frame. Data is shared per variable inside
- * the om protocol, so both channels of a source trigger a single fetch, and
- * toggling contours/arrows re-renders from cached data.
+ * the om protocol, so a raster and vector channel of the same source trigger
+ * a single fetch, and toggling contours/arrows re-renders from cached data.
  */
 import { get } from 'svelte/store';
 
 import { mode } from 'mode-watcher';
 import { toast } from 'svelte-sonner';
 
+import { chartSources } from '$lib/stores/chart';
 import { map as m } from '$lib/stores/map';
 import { loading, opacity, preferences as p } from '$lib/stores/preferences';
 import { vectorOptions as vO } from '$lib/stores/vector';
 
+import { sourceKey } from '$lib/chart-encoding';
 import {
 	BEFORE_LAYER_RASTER,
 	BEFORE_LAYER_VECTOR,
@@ -24,45 +26,61 @@ import { type FrameChannel, FrameManager } from '$lib/frame-manager';
 import { rasterChannel, vectorChannel } from '$lib/om-layer-defs';
 
 import { refreshPopup } from './popup';
-import { getOMUrl } from './url';
+import { getOmUrlForSource } from './url';
 
 let frameManager: FrameManager | undefined;
-
-/** Single source for now; the key only has to be stable across frames. */
-const SOURCE_KEY = 'om';
 
 const getRasterOpacity = (): number => {
 	const opacityValue = get(opacity) / 100;
 	return mode.current === 'dark' ? Math.max(0, (opacityValue * 100 - 10) / 100) : opacityValue;
 };
 
-/** Build the channels for the current state, or undefined while not ready. */
+/** Build the channels for the current chart, or undefined while not ready. */
 const buildChannels = (): FrameChannel[] | undefined => {
-	const omUrl = getOMUrl();
-	if (!omUrl) return undefined;
-	const url = 'om://' + omUrl;
-
+	const sources = get(chartSources);
 	const preferences = get(p);
 	const vectorOptions = get(vO);
+	const dark = mode.current === 'dark';
 	const rasterBefore = preferences.hillshade ? HILLSHADE_LAYER : BEFORE_LAYER_RASTER;
 	const vectorBefore = preferences.clipWater ? BEFORE_LAYER_VECTOR_WATER_CLIP : BEFORE_LAYER_VECTOR;
 
-	const channels: FrameChannel[] = [
-		rasterChannel(SOURCE_KEY, url, getRasterOpacity(), rasterBefore)
-	];
+	const channels: FrameChannel[] = [];
+	for (const source of sources) {
+		const omUrl = getOmUrlForSource(source);
+		// A cross-domain (EPS) source is skipped rather than fatal while its
+		// sibling metadata loads; the epsMeta subscription re-renders then.
+		if (!omUrl) {
+			if (source.domain) continue;
+			return undefined;
+		}
+		const url = 'om://' + omUrl;
 
-	if (vectorOptions.contours || vectorOptions.arrows || vectorOptions.grid) {
-		channels.push(
-			vectorChannel(SOURCE_KEY, url, {
-				contours: vectorOptions.contours,
-				arrows: vectorOptions.arrows,
-				grid: vectorOptions.grid,
-				dark: mode.current === 'dark',
-				beforeLayer: vectorBefore
-			})
-		);
+		if (source.raster) {
+			channels.push(
+				rasterChannel(
+					sourceKey(source),
+					url,
+					getRasterOpacity() * (source.opacity ?? 1),
+					rasterBefore
+				)
+			);
+		}
+		if (source.contours || source.arrows || vectorOptions.grid) {
+			channels.push(
+				vectorChannel(sourceKey(source), url, {
+					contours: !!source.contours,
+					arrows: !!source.arrows,
+					grid: vectorOptions.grid,
+					dark,
+					// Inline vectors join the raster stack right above their own
+					// raster, so rasters of later sources overlap them
+					beforeLayer: source.inlineVectors ? rasterBefore : vectorBefore,
+					inline: !!source.inlineVectors,
+					lineWidth: source.lineWidth
+				})
+			);
+		}
 	}
-
 	return channels;
 };
 
@@ -92,9 +110,10 @@ export const addOmFileLayers = (): void => {
 };
 
 /**
- * Move all resident raster stacks to the insertion point matching the current
- * hillshade preference. Called by the hillshade toggle, which changes the
- * basemap stack without a style reload.
+ * Move all resident raster stacks (and inline vectors, which share the
+ * anchor) to the insertion point matching the current hillshade preference.
+ * Called by the hillshade toggle, which changes the basemap stack without a
+ * style reload.
  */
 export const reanchorRasterLayers = (): void => {
 	const hillshade = get(p).hillshade;
@@ -105,18 +124,32 @@ export const reanchorRasterLayers = (): void => {
 };
 
 /**
- * Re-render the current state. The frame manager deduplicates unchanged
+ * Re-render the active chart. The frame manager deduplicates unchanged
  * render states, so this is safe to call on every store change.
  */
 export const changeOMfileURL = (): void => {
 	const map = get(m);
 	if (!map || !frameManager) return;
 
+	// `undefined` means a source is not ready yet; an empty list means the chart
+	// deliberately draws nothing, which the frame manager commits as a blank
+	// frame and fades the previous one out
 	const channels = buildChannels();
 	if (!channels) return;
 
 	frameManager.show(channels);
 };
 
-/** om:// source url of the currently visible frame (used by the popup). */
-export const getActiveOmUrl = (): string | undefined => frameManager?.getActiveChannels()[0]?.url;
+/**
+ * om:// source URL per source key (`variable` or `variable@domain`) of the
+ * currently visible frame, in chart source order (used by the popup).
+ */
+export const getActiveOmUrls = (): Map<string, string> => {
+	const urls = new Map<string, string>();
+	for (const channel of frameManager?.getActiveChannels() ?? []) {
+		// Channel keys are `${sourceKey}:kind:...`; source keys contain no colon
+		const key = channel.key.slice(0, channel.key.indexOf(':'));
+		if (!urls.has(key)) urls.set(key, channel.url);
+	}
+	return urls;
+};

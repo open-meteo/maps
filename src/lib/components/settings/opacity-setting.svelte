@@ -15,7 +15,7 @@
 		<Label for="interval">Opacity:</Label>
 		<input
 			id="interval_slider"
-			class="w-[100px] delay-75 duration-200"
+			class="w-25 delay-75 duration-200"
 			type="range"
 			min="0"
 			max="100"
