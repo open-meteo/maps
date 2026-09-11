@@ -9,6 +9,8 @@
 
 	import { changeOMfileURL } from '$lib/layers';
 
+	import SettingsSection from './settings-section.svelte';
+
 	import type { InterpolationMethod } from '@openmeteo/weather-map-layer';
 
 	// `cost` is the approximate render cost relative to nearest-neighbour.
@@ -33,8 +35,7 @@
 	};
 </script>
 
-<div>
-	<h2 class="text-lg font-bold">Interpolation</h2>
+<SettingsSection title="Interpolation">
 	<p class="mt-1 text-sm opacity-75">
 		How raster pixels are sampled between grid points. Cubic removes bilinear faceting; Monotone is
 		shape-preserving cubic (smooth but never overshoots).
@@ -60,4 +61,4 @@
 		<Switch id="color-blend" checked={colorBlend} onCheckedChange={toggleColorBlend} />
 		<Label for="color-blend">Blend between bands {colorBlend ? 'on' : 'off'}</Label>
 	</div>
-</div>
+</SettingsSection>
