@@ -1,6 +1,12 @@
+/**
+ * Layer orchestration: turns the active om url into FrameManager channels (a
+ * raster fill and, when contours/arrows/grid are on, a vector channel) and
+ * shows them as one synchronized frame. Data is shared per variable inside
+ * the om protocol, so both channels of a source trigger a single fetch, and
+ * toggling contours/arrows re-renders from cached data.
+ */
 import { get } from 'svelte/store';
 
-import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
 import { toast } from 'svelte-sonner';
 
@@ -14,313 +20,103 @@ import {
 	BEFORE_LAYER_VECTOR_WATER_CLIP,
 	HILLSHADE_LAYER
 } from '$lib/constants';
-import { type SlotLayer, SlotManager } from '$lib/slot-manager';
+import { type FrameChannel, FrameManager } from '$lib/frame-manager';
+import { rasterChannel, vectorChannel } from '$lib/om-layer-defs';
 
 import { refreshPopup } from './popup';
-import { currentOmUrl } from './stores/om-url';
 import { getOMUrl } from './url';
 
-// =============================================================================
-// Expression helpers
-// =============================================================================
+let frameManager: FrameManager | undefined;
 
-const isDark = (): boolean => mode.current === 'dark';
-const lightOrDark = (light: string, dark: string): string => (isDark() ? dark : light);
+/** Single source for now; the key only has to be stable across frames. */
+const SOURCE_KEY = 'om';
 
 const getRasterOpacity = (): number => {
 	const opacityValue = get(opacity) / 100;
-	return isDark() ? Math.max(0, (opacityValue * 100 - 10) / 100) : opacityValue;
+	return mode.current === 'dark' ? Math.max(0, (opacityValue * 100 - 10) / 100) : opacityValue;
 };
 
-const makeArrowColor = (): maplibregl.ExpressionSpecification => {
-	let expr: maplibregl.ExpressionSpecification = [
-		'literal',
-		lightOrDark('rgba(0,0,0, 0.2)', 'rgba(255,255,255, 0.2)')
-	];
-	const thresholds: [number, string, string][] = [
-		[2, 'rgba(0,0,0, 0.3)', 'rgba(255,255,255, 0.3)'],
-		[3, 'rgba(0,0,0, 0.4)', 'rgba(255,255,255, 0.4)'],
-		[4, 'rgba(0,0,0, 0.5)', 'rgba(255,255,255, 0.5)'],
-		[5, 'rgba(0,0,0, 0.6)', 'rgba(255,255,255, 0.6)'],
-		[10, 'rgba(0,0,0, 0.7)', 'rgba(255,255,255, 0.7)']
-	];
-	for (const [threshold, light, dark] of [...thresholds]) {
-		expr = [
-			'case',
-			['boolean', ['>', ['to-number', ['get', 'value']], threshold], false],
-			lightOrDark(light, dark),
-			expr
-		];
-	}
-	return expr;
-};
-
-const makeArrowWidth = (): maplibregl.ExpressionSpecification => [
-	'case',
-	['boolean', ['>', ['to-number', ['get', 'value']], 20], false],
-	2.8,
-	[
-		'case',
-		['boolean', ['>', ['to-number', ['get', 'value']], 10], false],
-		2.2,
-		[
-			'case',
-			['boolean', ['>', ['to-number', ['get', 'value']], 5], false],
-			2,
-			[
-				'case',
-				['boolean', ['>', ['to-number', ['get', 'value']], 3], false],
-				1.8,
-				['case', ['boolean', ['>', ['to-number', ['get', 'value']], 2], false], 1.6, 1.5]
-			]
-		]
-	]
-];
-
-const makeContourColor = (): maplibregl.ExpressionSpecification => [
-	'case',
-	['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
-	lightOrDark('rgba(0,0,0, 0.6)', 'rgba(255,255,255, 0.8)'),
-	[
-		'case',
-		['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
-		lightOrDark('rgba(0,0,0, 0.5)', 'rgba(255,255,255, 0.7)'),
-		[
-			'case',
-			['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false],
-			lightOrDark('rgba(0,0,0, 0.4)', 'rgba(255,255,255, 0.6)'),
-			lightOrDark('rgba(0,0,0, 0.3)', 'rgba(255,255,255, 0.5)')
-		]
-	]
-];
-
-const makeContourWidth = (): maplibregl.ExpressionSpecification => [
-	'case',
-	['boolean', ['==', ['%', ['to-number', ['get', 'value']], 100], 0], false],
-	3,
-	[
-		'case',
-		['boolean', ['==', ['%', ['to-number', ['get', 'value']], 50], 0], false],
-		2.5,
-		['case', ['boolean', ['==', ['%', ['to-number', ['get', 'value']], 10], 0], false], 2, 1]
-	]
-];
-
-// =============================================================================
-// Layer definitions
-// =============================================================================
-
-const rasterLayer = (): SlotLayer => ({
-	id: 'omRasterLayer',
-	opacityProp: 'raster-opacity',
-	commitOpacity: getRasterOpacity(),
-	add: (map, sourceId, layerId, beforeLayer) => {
-		map.addLayer(
-			{
-				id: layerId,
-				type: 'raster',
-				source: sourceId,
-				paint: {
-					'raster-opacity': 0.0,
-					'raster-opacity-transition': { duration: 2, delay: 0 }
-				}
-			},
-			beforeLayer
-		);
-	}
-});
-
-const vectorArrowLayer = (): SlotLayer => ({
-	id: 'omVectorArrowLayer',
-	opacityProp: 'line-opacity',
-	commitOpacity: 1,
-	add: (map, sourceId, layerId, beforeLayer) => {
-		const vectorOptions = get(vO);
-		if (!vectorOptions.arrows) return;
-		map.addLayer(
-			{
-				id: layerId,
-				type: 'line',
-				source: sourceId,
-				'source-layer': 'wind-arrows',
-				paint: {
-					'line-opacity': 0,
-					'line-opacity-transition': { duration: 200, delay: 0 },
-					'line-color': makeArrowColor(),
-					'line-width': makeArrowWidth()
-				},
-				layout: { 'line-cap': 'round' }
-			},
-			beforeLayer
-		);
-	}
-});
-
-const vectorGridLayer = (): SlotLayer => ({
-	id: 'omVectorGridLayer',
-	opacityProp: 'circle-opacity',
-	commitOpacity: 1,
-	add: (map, sourceId, layerId, beforeLayer) => {
-		const vectorOptions = get(vO);
-		if (!vectorOptions.grid) return;
-		map.addLayer(
-			{
-				id: layerId,
-				type: 'circle',
-				source: sourceId,
-				'source-layer': 'grid',
-				paint: {
-					'circle-opacity': 0,
-					'circle-opacity-transition': { duration: 200, delay: 0 },
-					'circle-radius': ['interpolate', ['exponential', 1.5], ['zoom'], 0, 0.1, 12, 10],
-					'circle-color': 'orange'
-				}
-			},
-			beforeLayer
-		);
-	}
-});
-
-const vectorContourLayer = (): SlotLayer => ({
-	id: 'omVectorContourLayer',
-	opacityProp: 'line-opacity',
-	commitOpacity: 1,
-	add: (map, sourceId, layerId, beforeLayer) => {
-		const vectorOptions = get(vO);
-		if (!vectorOptions.contours) return;
-		map.addLayer(
-			{
-				id: layerId,
-				type: 'line',
-				source: sourceId,
-				'source-layer': 'contours',
-				paint: {
-					'line-opacity': 0,
-					'line-opacity-transition': { duration: 200, delay: 0 },
-					'line-color': makeContourColor(),
-					'line-width': makeContourWidth()
-				}
-			},
-			beforeLayer
-		);
-	}
-});
-
-const vectorContourLabelsLayer = (): SlotLayer => ({
-	id: 'omVectorContourLayerLabels',
-	opacityProp: 'text-opacity',
-	commitOpacity: 1,
-	add: (map, sourceId, layerId, beforeLayer) => {
-		const vectorOptions = get(vO);
-		if (!vectorOptions.contours) return;
-		map.addLayer(
-			{
-				id: layerId,
-				type: 'symbol',
-				source: sourceId,
-				'source-layer': 'contours',
-				layout: {
-					'symbol-placement': 'line-center',
-					'symbol-spacing': 1,
-					'text-font': ['Noto Sans Regular'],
-					'text-field': ['to-string', ['get', 'value']],
-					'text-padding': 1,
-					'text-offset': [0, -0.6]
-				},
-				paint: {
-					'text-opacity': 0,
-					'text-opacity-transition': { duration: 200, delay: 0 },
-					'text-color': lightOrDark('rgba(0,0,0, 0.7)', 'rgba(255,255,255, 0.8)')
-				}
-			},
-			beforeLayer
-		);
-	}
-});
-
-// =============================================================================
-// Manager instances
-// =============================================================================
-
-export let rasterManager: SlotManager | undefined;
-export let vectorManager: SlotManager | undefined;
-
-export const createManagers = (): void => {
-	const map = get(m);
-	if (!map) return;
+/** Build the channels for the current state, or undefined while not ready. */
+const buildChannels = (): FrameChannel[] | undefined => {
+	const omUrl = getOMUrl();
+	if (!omUrl) return undefined;
+	const url = 'om://' + omUrl;
 
 	const preferences = get(p);
+	const vectorOptions = get(vO);
+	const rasterBefore = preferences.hillshade ? HILLSHADE_LAYER : BEFORE_LAYER_RASTER;
+	const vectorBefore = preferences.clipWater ? BEFORE_LAYER_VECTOR_WATER_CLIP : BEFORE_LAYER_VECTOR;
 
-	rasterManager = new SlotManager(map, {
-		sourceIdPrefix: 'omRasterSource',
-		beforeLayer: preferences.hillshade ? HILLSHADE_LAYER : BEFORE_LAYER_RASTER,
-		layerFactory: () => [rasterLayer()],
-		sourceSpec: (sourceUrl) => ({
-			url: sourceUrl,
-			type: 'raster',
-			maxzoom: 14
-		}),
-		removeDelayMs: 300,
-		onCommit: () => {
-			loading.set(false);
-			refreshPopup();
-		},
-		onError: () => {
-			loading.set(false);
-			// Without this the slot manager fails silently and just keeps the
-			// previous layer — on a first load that is an empty map with no hint
-			toast.error('Could not load the weather data for this view.', { id: 'om-data-error' });
-		},
-		slowLoadWarningMs: 10000,
-		onSlowLoad: () =>
-			toast.warning('Loading raster data might be limited by bandwidth or upstream server speed.')
-	});
+	const channels: FrameChannel[] = [
+		rasterChannel(SOURCE_KEY, url, getRasterOpacity(), rasterBefore)
+	];
 
-	vectorManager = new SlotManager(map, {
-		sourceIdPrefix: 'omVectorSource',
-		beforeLayer: preferences.clipWater ? BEFORE_LAYER_VECTOR_WATER_CLIP : BEFORE_LAYER_VECTOR,
-		layerFactory: () => [
-			vectorArrowLayer(),
-			vectorGridLayer(),
-			vectorContourLayer(),
-			vectorContourLabelsLayer()
-		],
-		sourceSpec: (sourceUrl) => ({ url: sourceUrl, type: 'vector' }),
-		removeDelayMs: 250,
-		onError: () =>
-			toast.error('Could not load the weather data for this view.', { id: 'om-data-error' })
-	});
+	if (vectorOptions.contours || vectorOptions.arrows || vectorOptions.grid) {
+		channels.push(
+			vectorChannel(SOURCE_KEY, url, {
+				contours: vectorOptions.contours,
+				arrows: vectorOptions.arrows,
+				grid: vectorOptions.grid,
+				dark: mode.current === 'dark',
+				beforeLayer: vectorBefore
+			})
+		);
+	}
+
+	return channels;
 };
 
-// =============================================================================
-// Public layer API
-// =============================================================================
-
+/**
+ * (Re)initialize the frame manager. Called on map load and after every
+ * basemap style reload (which wipes all sources/layers).
+ */
 export const addOmFileLayers = (): void => {
 	const map = get(m);
 	if (!map) return;
-	const omUrl = getOMUrl();
-	createManagers();
-	rasterManager?.update('om://' + omUrl);
-	vectorManager?.update('om://' + omUrl);
+
+	frameManager?.destroy();
+	frameManager = new FrameManager(map, {
+		crossFadeMs: 250,
+		retainMax: 3,
+		onLoadingChange: (isLoading) => loading.set(isLoading),
+		onCommit: () => refreshPopup(),
+		// Without this a failed frame is silent and just keeps the previous one
+		// — on a first load that is an empty map with no hint
+		onError: () =>
+			toast.error('Could not load the weather data for this view.', { id: 'om-data-error' }),
+		slowLoadWarningMs: 10000,
+		onSlowLoad: () =>
+			toast.warning('Loading data might be limited by bandwidth or upstream server speed.')
+	});
+	changeOMfileURL();
 };
 
-export const changeOMfileURL = (vectorOnly = false, rasterOnly = false): void => {
+/**
+ * Move all resident raster stacks to the insertion point matching the current
+ * hillshade preference. Called by the hillshade toggle, which changes the
+ * basemap stack without a style reload.
+ */
+export const reanchorRasterLayers = (): void => {
+	const hillshade = get(p).hillshade;
+	const [from, to] = hillshade
+		? [BEFORE_LAYER_RASTER, HILLSHADE_LAYER]
+		: [HILLSHADE_LAYER, BEFORE_LAYER_RASTER];
+	frameManager?.reanchor(from, to);
+};
+
+/**
+ * Re-render the current state. The frame manager deduplicates unchanged
+ * render states, so this is safe to call on every store change.
+ */
+export const changeOMfileURL = (): void => {
 	const map = get(m);
-	if (!map) return;
+	if (!map || !frameManager) return;
 
-	const omUrl = getOMUrl();
-	if (get(currentOmUrl) == omUrl || !omUrl) return;
-	currentOmUrl.set(omUrl);
+	const channels = buildChannels();
+	if (!channels) return;
 
-	loading.set(true);
-
-	const preferences = get(p);
-	vectorManager?.setBeforeLayer(
-		preferences.clipWater ? BEFORE_LAYER_VECTOR_WATER_CLIP : BEFORE_LAYER_VECTOR
-	);
-	rasterManager?.setBeforeLayer(preferences.hillshade ? HILLSHADE_LAYER : BEFORE_LAYER_RASTER);
-
-	if (!vectorOnly) rasterManager?.update('om://' + omUrl);
-	if (!rasterOnly) vectorManager?.update('om://' + omUrl);
+	frameManager.show(channels);
 };
+
+/** om:// source url of the currently visible frame (used by the popup). */
+export const getActiveOmUrl = (): string | undefined => frameManager?.getActiveChannels()[0]?.url;

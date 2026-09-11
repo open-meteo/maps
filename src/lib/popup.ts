@@ -17,7 +17,7 @@ import { convertValue, getDisplayUnit, unitPreferences } from '$lib/stores/units
 import { selectedDomain, variable as v } from '$lib/stores/variables';
 
 import { textWhite } from './helpers';
-import { rasterManager } from './layers';
+import { getActiveOmUrl } from './layers';
 import { terraDrawActive } from './stores/clipping';
 import { desktop, opacity } from './stores/preferences';
 
@@ -73,7 +73,7 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 	const elevation = map?.queryTerrainElevation(coordinates);
 	const hasElevation = typeof elevation === 'number' && isFinite(elevation);
 
-	const activeUrl = rasterManager?.getActiveSourceUrl();
+	const activeUrl = getActiveOmUrl();
 	if (!activeUrl) return;
 
 	const { value } = await getValueFromLatLong(coordinates.lat, coordinates.lng, activeUrl);
