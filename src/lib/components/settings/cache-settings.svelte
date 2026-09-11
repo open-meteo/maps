@@ -12,6 +12,8 @@
 	import { Label } from '$lib/components/ui/label';
 	import * as Select from '$lib/components/ui/select';
 
+	import SettingsSection from './settings-section.svelte';
+
 	const blockSizeOptions = [
 		{ value: '16', label: '16 KiB' },
 		{ value: '32', label: '32 KiB' },
@@ -40,8 +42,7 @@
 	});
 </script>
 
-<div>
-	<h2 class="text-lg font-bold">Cache</h2>
+<SettingsSection title="Cache">
 	<div class="mt-3 flex flex-col gap-3">
 		<div class="flex items-center gap-3">
 			<Label class="w-28 shrink-0">Block Size</Label>
@@ -79,4 +80,4 @@
 			</div>
 		{/if}
 	</div>
-</div>
+</SettingsSection>
