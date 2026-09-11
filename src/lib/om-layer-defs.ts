@@ -3,9 +3,11 @@
  * FrameManager channels that render it. All inputs (urls, styles, dark mode,
  * insertion points) are explicit parameters — no store reads at add time.
  */
+import { registerWindSprites, windIconExpression, windRotateExpression } from '$lib/arrow-sprites';
 import {
 	buildArrowColorExpr,
 	buildArrowWidthExpr,
+	buildBarbColorExpr,
 	buildContourColorExpr,
 	buildContourWidthExpr,
 	defaultArrowStyle,
@@ -13,6 +15,7 @@ import {
 } from '$lib/chart-styles';
 
 import type { ChannelLayerDef, FrameChannel } from '$lib/frame-manager';
+import type { ArrowRender, ArrowStyle } from '@openmeteo/weather-map-layer';
 import type * as maplibregl from 'maplibre-gl';
 
 /** Opacity fade duration; matches the FrameManager cross-fade. */
@@ -55,9 +58,23 @@ export const rasterChannel = (
 	]
 });
 
+/**
+ * Barbs are drawn at one thin, even weight instead of the arrows' width ramp:
+ * the shape already carries the speed, and it is the thin line that keeps the
+ * individual barbs apart at map scale. The colour still follows the speed, on
+ * the shallower ramp in `buildBarbColorExpr`.
+ */
+const BARB_LINE_WIDTH = 1.3;
+
 export interface VectorChannelOptions {
 	contours: boolean;
 	arrows: boolean;
+	/** Shape of the arrows; barbs are styled differently to stay readable. */
+	arrowStyle: ArrowStyle;
+	/** Tile geometry (grows with the zoom) or constant-size map symbols. */
+	arrowRender: ArrowRender;
+	/** Icon size multiplier, for the icon renderer. */
+	arrowIconScale?: number;
 	grid: boolean;
 	dark: boolean;
 	beforeLayer: string;
@@ -78,11 +95,54 @@ export const vectorChannel = (
 	url: string,
 	options: VectorChannelOptions
 ): FrameChannel => {
-	const { contours, arrows, grid, dark, beforeLayer } = options;
+	const { contours, arrows, arrowStyle, arrowRender, grid, dark, beforeLayer } = options;
 	const lineWidth = options.lineWidth ?? 1;
+	const iconScale = options.arrowIconScale ?? 1;
 	const layers: ChannelLayerDef[] = [];
 
-	if (arrows) {
+	if (arrows && arrowRender === 'icon') {
+		// One symbol per sampled point: the shape lives in the sprite, so it
+		// keeps its size on screen. Every point is drawn, since collision
+		// thinning would drop diagonal icons more often than upright ones (a
+		// rotated icon's axis-aligned box is larger) and the density would then
+		// depend on the wind direction.
+		layers.push({
+			id: 'arrow-icons',
+			opacityProp: 'icon-opacity',
+			peakOpacity: 1,
+			beforeLayer,
+			add: (map, sourceId, layerId, before) => {
+				registerWindSprites(map, arrowStyle, dark, iconScale);
+				map.addLayer(
+					{
+						id: layerId,
+						type: 'symbol',
+						source: sourceId,
+						'source-layer': 'wind-points',
+						layout: {
+							'icon-image': windIconExpression(arrowStyle, dark, iconScale),
+							'icon-rotate': windRotateExpression(arrowStyle),
+							'icon-rotation-alignment': 'map',
+							'icon-allow-overlap': true,
+							// Kept out of the collision index entirely, so they
+							// neither thin each other nor hide the basemap labels
+							'icon-ignore-placement': true,
+							// Stronger winds draw over weaker ones where they touch
+							'symbol-sort-key': ['-', 0, ['get', 'value']]
+						},
+						paint: {
+							'icon-opacity': 0,
+							'icon-opacity-transition': { duration: FADE_MS, delay: 0 }
+						}
+					},
+					before
+				);
+			}
+		});
+	}
+
+	if (arrows && arrowRender !== 'icon') {
+		const barbs = arrowStyle === 'barb';
 		layers.push({
 			id: 'arrows',
 			opacityProp: 'line-opacity',
@@ -98,8 +158,12 @@ export const vectorChannel = (
 						paint: {
 							'line-opacity': 0,
 							'line-opacity-transition': { duration: FADE_MS, delay: 0 },
-							'line-color': buildArrowColorExpr(defaultArrowStyle, dark),
-							'line-width': scaleWidth(buildArrowWidthExpr(defaultArrowStyle), lineWidth)
+							'line-color': barbs
+								? buildBarbColorExpr(defaultArrowStyle, dark)
+								: buildArrowColorExpr(defaultArrowStyle, dark),
+							'line-width': barbs
+								? BARB_LINE_WIDTH * lineWidth
+								: scaleWidth(buildArrowWidthExpr(defaultArrowStyle), lineWidth)
 						},
 						layout: { 'line-cap': 'round' }
 					},
@@ -107,6 +171,34 @@ export const vectorChannel = (
 				);
 			}
 		});
+
+		if (barbs) {
+			// Pennants are solid on a printed plot, so they arrive as polygons in
+			// their own source layer and are filled under their own outline
+			layers.push({
+				id: 'arrow-pennants',
+				opacityProp: 'fill-opacity',
+				peakOpacity: 1,
+				beforeLayer,
+				add: (map, sourceId, layerId, before) => {
+					map.addLayer(
+						{
+							id: layerId,
+							type: 'fill',
+							source: sourceId,
+							'source-layer': 'wind-barb-pennants',
+							paint: {
+								'fill-opacity': 0,
+								'fill-opacity-transition': { duration: FADE_MS, delay: 0 },
+								'fill-color': buildBarbColorExpr(defaultArrowStyle, dark),
+								'fill-antialias': true
+							}
+						},
+						before
+					);
+				}
+			});
+		}
 	}
 
 	if (grid) {
@@ -202,9 +294,9 @@ export const vectorChannel = (
 	}
 
 	return {
-		// Line width and stack placement are part of the identity, like
-		// raster opacity
-		key: `${sourceKey}:vector:${lineWidth}${options.inline ? ':inline' : ''}`,
+		// Line width, arrow shape and stack placement are part of the identity,
+		// like raster opacity
+		key: `${sourceKey}:vector:${lineWidth}:${arrowStyle}:${arrowRender}:${iconScale}${options.inline ? ':inline' : ''}`,
 		url,
 		sourceSpec: { type: 'vector', url },
 		layers

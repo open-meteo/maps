@@ -119,7 +119,12 @@
 	const totalHeight = $derived(colorBlockHeight * labeledColors.length);
 </script>
 
-<div class="relative flex items-end gap-0.5 select-none" style="max-height: {totalHeight + 100}px;">
+<!-- Lifted while editing: legends are siblings at z-auto, so the picker of one
+	legend would otherwise paint under the legends after it -->
+<div
+	class="relative flex items-end gap-0.5 select-none {editingIndex !== null ? 'z-50' : ''}"
+	style="max-height: {totalHeight + 100}px;"
+>
 	<div class="flex flex-col-reverse rounded shadow-md">
 		<div class="flex flex-col-reverse bg-glass/30 backdrop-blur-sm rounded-b">
 			{#each labeledColors as lc, i (lc.index)}
@@ -142,15 +147,6 @@
 							.color[2]}); opacity: {(alphaValue * $opacity) / 100};"
 					></div>
 				</button>
-				<!-- Color Picker Popover -->
-				{#if editingIndex === i}
-					<ColorPicker
-						color={rgbaToHex(lc.color)}
-						alpha={alphaValue}
-						onchange={handleColorChange}
-						onclose={closePicker}
-					/>
-				{/if}
 			{/each}
 		</div>
 
@@ -222,5 +218,18 @@
 		>
 			{label}
 		</div>
+	{/if}
+
+	<!-- Color picker popover. A child of the legend root, not of the colour
+		column: that column's backdrop blur traps its descendants in a stacking
+		context, under the value labels and the legends beside it. -->
+	{#if editingIndex !== null && labeledColors[editingIndex]}
+		{@const editing = labeledColors[editingIndex]}
+		<ColorPicker
+			color={rgbaToHex(editing.color)}
+			alpha={getAlpha(editing.color)}
+			onchange={handleColorChange}
+			onclose={closePicker}
+		/>
 	{/if}
 </div>
