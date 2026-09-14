@@ -2,8 +2,14 @@ import { tick } from 'svelte';
 import { get } from 'svelte/store';
 
 import {
+	type ArrowRender,
+	type ArrowStyle,
+	DEFAULT_ARROW_RENDER,
+	DEFAULT_ARROW_STYLE,
 	type Domain,
 	type DomainMetaDataJson,
+	VALID_ARROW_RENDERS,
+	VALID_ARROW_STYLES,
 	closestModelRun,
 	defaultOmProtocolSettings,
 	domainStep
@@ -35,6 +41,7 @@ import { modelRun as mR, modelRunLocked as mRL, time } from '$lib/stores/time';
 import { domain as d, variable as v } from '$lib/stores/variables';
 import { vectorOptions as vO } from '$lib/stores/vector';
 
+import { windPointLattice } from '$lib/arrow-sprites';
 import { parseSources, serializeSources } from '$lib/chart-encoding';
 import { getChartPreset } from '$lib/chart-presets';
 
@@ -137,6 +144,24 @@ export const urlParamsToPreferences = () => {
 		url.searchParams.set('arrows', String(vectorOptions.arrows));
 	}
 
+	const arrowStyleRaw = params.get('arrow_style');
+	if (arrowStyleRaw !== null) {
+		if (VALID_ARROW_STYLES.includes(arrowStyleRaw as ArrowStyle)) {
+			vectorOptions.arrowStyle = arrowStyleRaw as ArrowStyle;
+		}
+	} else if (vectorOptions.arrowStyle !== DEFAULT_ARROW_STYLE) {
+		url.searchParams.set('arrow_style', vectorOptions.arrowStyle);
+	}
+
+	const arrowRenderRaw = params.get('arrow_render');
+	if (arrowRenderRaw !== null) {
+		if (VALID_ARROW_RENDERS.includes(arrowRenderRaw as ArrowRender)) {
+			vectorOptions.arrowRender = arrowRenderRaw as ArrowRender;
+		}
+	} else if (vectorOptions.arrowRender !== DEFAULT_ARROW_RENDER) {
+		url.searchParams.set('arrow_render', vectorOptions.arrowRender);
+	}
+
 	const contoursRaw = params.get('contours');
 	if (contoursRaw !== null) {
 		vectorOptions.contours = contoursRaw === 'true';
@@ -230,7 +255,19 @@ export const getOmUrlForSource = (source: ChartSource): string | undefined => {
 	if (mode.current === 'dark') result += '&dark=true';
 	const vectorOptions = get(vO);
 	if (vectorOptions.grid) result += '&grid=true';
-	if (source.arrows) result += '&arrows=true';
+	if (source.arrows) {
+		result += '&arrows=true';
+		if (vectorOptions.arrowStyle !== 'arrow') result += `&arrow_style=${vectorOptions.arrowStyle}`;
+		if (vectorOptions.arrowRender !== 'line') {
+			result += `&arrow_render=${vectorOptions.arrowRender}`;
+			// The tile lattice is the one the renderer sized its icons against
+			result += `&arrow_points=${windPointLattice(
+				vectorOptions.arrowStyle,
+				vectorOptions.arrowIconScale,
+				vectorOptions.arrowPacking
+			)}`;
+		}
+	}
 	if (source.contours) result += '&contours=true';
 	if (source.contours && source.contourInterval !== undefined)
 		result += `&intervals=${source.contourInterval}`;

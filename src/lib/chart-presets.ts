@@ -28,7 +28,7 @@ export const chartPresets: ChartPreset[] = [
 				contours: true,
 				contourInterval: 12.5
 			},
-			{ variable: 'pressure_msl', contours: true, contourInterval: 5 }
+			{ variable: 'pressure_msl', contours: true, contourInterval: 2 }
 		]
 	},
 	{
@@ -191,7 +191,7 @@ export const chartPresets: ChartPreset[] = [
 		group: 'Precipitation',
 		sources: [
 			{ variable: 'precipitation', raster: true },
-			{ variable: 'pressure_msl', contours: true, contourInterval: 5 }
+			{ variable: 'pressure_msl', contours: true, contourInterval: 2 }
 		]
 	},
 	{
@@ -201,7 +201,7 @@ export const chartPresets: ChartPreset[] = [
 		group: 'Precipitation',
 		sources: [
 			{ variable: 'snowfall', raster: true },
-			{ variable: 'pressure_msl', contours: true, contourInterval: 5 }
+			{ variable: 'pressure_msl', contours: true, contourInterval: 2 }
 		]
 	},
 	{
@@ -211,7 +211,7 @@ export const chartPresets: ChartPreset[] = [
 		group: 'Precipitation',
 		sources: [
 			{ variable: 'freezing_level_height', raster: true },
-			{ variable: 'pressure_msl', contours: true, contourInterval: 5 }
+			{ variable: 'pressure_msl', contours: true, contourInterval: 2 }
 		]
 	},
 	{
@@ -280,7 +280,6 @@ export const popularVariables: PopularVariable[] = [
 	// everywhere else, since only these domains serve the variables. ──────
 	// Ensemble domains (dwd_icon_*_eps, ncep_gefs*)
 	{ id: 'precipitation_probability' },
-
 	{ id: 'snowfall' },
 
 	// Air-quality domains (cams_*)
@@ -290,6 +289,7 @@ export const popularVariables: PopularVariable[] = [
 	{ id: 'nitrogen_dioxide' },
 	{ id: 'dust' },
 	{ id: 'uv_index' },
+
 	// Marine domains (ecmwf_wam*, dwd_*wam, ncep_gfswave*, meteofrance_wave)
 	{ id: 'wave_height' },
 	{ id: 'wave_period' },
