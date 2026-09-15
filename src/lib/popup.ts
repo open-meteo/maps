@@ -143,6 +143,10 @@ let arrowPose: ArrowPose | undefined;
 let arrowTarget: ArrowPose | undefined;
 let arrowFrame = 0;
 
+/** Latest sample, so the arrow can be re-aimed when only the map rotates. */
+let arrowDirection: number | undefined;
+let arrowSpeed = 0;
+
 /** Share of the remaining distance covered per frame. */
 const ARROW_EASE = 0.25;
 
@@ -210,6 +214,8 @@ const stepArrow = (): void => {
  */
 const setArrow = (direction: number | undefined, speed: number): void => {
 	if (!arrowSpan || !arrowSvg || !arrowPath) return;
+	arrowDirection = direction;
+	arrowSpeed = speed;
 	if (direction === undefined || !isFinite(direction)) {
 		if (arrowFrame) cancelAnimationFrame(arrowFrame);
 		arrowFrame = 0;
@@ -220,8 +226,12 @@ const setArrow = (direction: number | undefined, speed: number): void => {
 		return;
 	}
 
+	// The marker stays viewport-aligned so the text reads upright, which means
+	// the map's bearing has to be taken out here for the arrow to keep pointing
+	// the same way as the arrows layer underneath it.
+	const bearing = get(m)?.getBearing() ?? 0;
 	// Shortest way round from the angle currently targeted
-	arrowAngle += ((((direction + 180 - arrowAngle) % 360) + 540) % 360) - 180;
+	arrowAngle += ((((direction + 180 - bearing - arrowAngle) % 360) + 540) % 360) - 180;
 
 	const style = arrowStyleAnchors(mode.current === 'dark');
 	arrowTarget = {
@@ -239,6 +249,11 @@ const setArrow = (direction: number | undefined, speed: number): void => {
 		return;
 	}
 	if (!arrowFrame) arrowFrame = requestAnimationFrame(stepArrow);
+};
+
+/** Re-aim the arrow at the last sample after the map rotated under it. */
+const realignArrow = (): void => {
+	if (get(p)) setArrow(arrowDirection, arrowSpeed);
 };
 
 const initPopupDiv = (): void => {
@@ -431,6 +446,7 @@ export const addPopup = (): void => {
 	if (!map) return;
 
 	map.on('mousemove', updatePopup);
+	map.on('rotate', realignArrow);
 
 	const togglePopupAt = async (lngLat: maplibregl.LngLat): Promise<void> => {
 		if (!map || get(terraDrawActive)) return;
