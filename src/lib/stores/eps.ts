@@ -12,11 +12,23 @@ import { domain } from './variables';
 
 /** EPS sibling domain per deterministic domain. */
 export const EPS_SIBLINGS: Record<string, string> = {
+	cmc_gem_gdps_15km: 'cmc_gem_geps',
+
 	dwd_icon: 'dwd_icon_eps',
 	dwd_icon_eu: 'dwd_icon_eu_eps',
 	dwd_icon_d2: 'dwd_icon_d2_eps',
+
+	ecmwf_ifs025: 'ecmwf_ifs025_ensemble',
+	ecmwf_aifs025: 'ecmwf_aifs025_ensemble',
+
+	meteoswiss_icon_ch1: 'meteoswiss_icon_ch1_ensemble',
+	meteoswiss_icon_ch2: 'meteoswiss_icon_ch2_ensemble',
+
 	ncep_gfs025: 'ncep_gefs025',
-	ncep_gfs013: 'ncep_gefs025'
+	ncep_gfs013: 'ncep_gefs025',
+
+	ukmo_global_deterministic_10km: 'ukmo_global_ensemble_20km',
+	ukmo_uk_deterministic_2km: 'ukmo_uk_ensemble_2km'
 };
 
 export interface EpsMeta {
