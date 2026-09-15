@@ -15,11 +15,6 @@ import { chartPresets } from '$lib/chart-presets';
 import type { ChartPreset, ChartSource } from '$lib/chart-types';
 
 /**
- * Variables that can render arrows: the WML protocol only derives directions
- * for u/v components, speed/direction pairs and wave height/direction (see
- * DEFAULT_DERIVATION_RULES in weather-map-layer).
- */
-/**
  * Unique identity of a source within a chart: variable plus optional domain
  * (`temperature_2m` / `temperature_2m@dwd_icon_eps`). Used as URL merge key,
  * render-channel key and popup lookup key; contains no colon.
@@ -27,6 +22,11 @@ import type { ChartPreset, ChartSource } from '$lib/chart-types';
 export const sourceKey = (source: Pick<ChartSource, 'variable' | 'domain'>): string =>
 	source.domain ? `${source.variable}@${source.domain}` : source.variable;
 
+/**
+ * Variables that can render arrows: the WML protocol only derives directions
+ * for u/v components, speed/direction pairs and wave height/direction (see
+ * DEFAULT_DERIVATION_RULES in weather-map-layer).
+ */
 export const variableSupportsArrows = (variable: string): boolean =>
 	/_[uv]_(component|current)/.test(variable) ||
 	/_(?:speed|direction)_/.test(variable) ||

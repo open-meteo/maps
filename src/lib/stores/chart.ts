@@ -142,11 +142,6 @@ export const setArrowsOnActiveChart = (enabled: boolean): void => {
 };
 
 /**
- * True when the chart is exactly what picking its primary variable from the
- * variable list would produce, i.e. representable by the legacy `variable`
- * URL param plus the persisted vector defaults.
- */
-/**
  * True when the chart is one variable's own chart, whatever per-source styling
  * it carries: a preset's opacity, for instance, survives removing the other
  * source. The selection panel reads this as "this variable is selected", for
@@ -156,6 +151,11 @@ export const setArrowsOnActiveChart = (enabled: boolean): void => {
 export const isSingleVariableChart = (chart: ChartState): boolean =>
 	chart.sources.length === 1 && !chart.sources[0].domain;
 
+/**
+ * True when the chart is exactly what picking its primary variable from the
+ * variable list would produce, i.e. representable by the legacy `variable`
+ * URL param plus the persisted vector defaults.
+ */
 export const isDefaultsPlainChart = (chart: ChartState): boolean =>
 	chart.sources.length === 1 &&
 	sourcesEqual(chart.sources, plainChartFor(chart.sources[0].variable).sources);
