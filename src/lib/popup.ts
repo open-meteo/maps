@@ -143,7 +143,7 @@ let arrowPose: ArrowPose | undefined;
 let arrowTarget: ArrowPose | undefined;
 let arrowFrame = 0;
 
-/** Latest sample, so the arrow can be re-aimed when only the map rotates. */
+/** Latest sample, so the arrow can be re-aimed when only the view changes. */
 let arrowDirection: number | undefined;
 let arrowSpeed = 0;
 
@@ -207,6 +207,31 @@ const stepArrow = (): void => {
 };
 
 /**
+ * On-screen angle, degrees clockwise from up, of a compass `heading` at
+ * `lngLat`. The marker stays viewport-aligned so the text reads upright, so
+ * bearing, pitch and perspective are all applied here instead: a short step
+ * along the heading is pushed through the map's projection and the direction
+ * of the resulting screen vector is what the arrows layer underneath shows.
+ * Only the orientation is taken; the glyph keeps its shape, since a
+ * foreshortened arrow next to upright text reads as broken rather than tilted.
+ */
+const screenAngle = (map: maplibregl.Map, lngLat: maplibregl.LngLat, heading: number): number => {
+	const from = maplibregl.MercatorCoordinate.fromLngLat(lngLat);
+	const radians = (heading * Math.PI) / 180;
+	// About one screen pixel at the current zoom, so perspective is sampled
+	// locally; Mercator y grows southward
+	const step = 2 ** -(map.getZoom() + 9);
+	const to = new maplibregl.MercatorCoordinate(
+		from.x + Math.sin(radians) * step,
+		from.y - Math.cos(radians) * step,
+		0
+	);
+	const a = map.project(lngLat);
+	const b = map.project(to.toLngLat());
+	return (Math.atan2(b.x - a.x, a.y - b.y) * 180) / Math.PI;
+};
+
+/**
  * Point the popup arrow the way the flow goes and size it for `speed` (the
  * raw value, in the same unit the arrows layer thresholds use). `direction`
  * is the meteorological direction the flow comes *from*, matching the map
@@ -226,12 +251,11 @@ const setArrow = (direction: number | undefined, speed: number): void => {
 		return;
 	}
 
-	// The marker stays viewport-aligned so the text reads upright, which means
-	// the map's bearing has to be taken out here for the arrow to keep pointing
-	// the same way as the arrows layer underneath it.
-	const bearing = get(m)?.getBearing() ?? 0;
+	const map = get(m);
+	const lngLat = get(p)?.getLngLat();
+	const target = map && lngLat ? screenAngle(map, lngLat, direction + 180) : direction + 180;
 	// Shortest way round from the angle currently targeted
-	arrowAngle += ((((direction + 180 - bearing - arrowAngle) % 360) + 540) % 360) - 180;
+	arrowAngle += ((((target - arrowAngle) % 360) + 540) % 360) - 180;
 
 	const style = arrowStyleAnchors(mode.current === 'dark');
 	arrowTarget = {
@@ -251,7 +275,7 @@ const setArrow = (direction: number | undefined, speed: number): void => {
 	if (!arrowFrame) arrowFrame = requestAnimationFrame(stepArrow);
 };
 
-/** Re-aim the arrow at the last sample after the map rotated under it. */
+/** Re-aim the arrow at the last sample after the view changed under it. */
 const realignArrow = (): void => {
 	if (get(p)) setArrow(arrowDirection, arrowSpeed);
 };
@@ -446,7 +470,9 @@ export const addPopup = (): void => {
 	if (!map) return;
 
 	map.on('mousemove', updatePopup);
-	map.on('rotate', realignArrow);
+	// Bearing, pitch and, under pitch, the marker's screen position all change
+	// the apparent direction; `move` covers every one of them
+	map.on('move', realignArrow);
 
 	const togglePopupAt = async (lngLat: maplibregl.LngLat): Promise<void> => {
 		if (!map || get(terraDrawActive)) return;
