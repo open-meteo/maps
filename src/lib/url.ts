@@ -1,18 +1,7 @@
 import { tick } from 'svelte';
 import { get } from 'svelte/store';
 
-import {
-	type AnyDomain,
-	type Domain,
-	type DomainMetaDataJson,
-	closestModelRun,
-	defaultOmProtocolSettings,
-	domainOptions,
-	domainStep,
-	getFallbackDomain,
-	isSeamlessDomain,
-	resolveConcreteDomain
-} from '@openmeteo/weather-map-layer';
+import { defaultOmProtocolSettings } from '@openmeteo/weather-map-layer';
 import { mode } from 'mode-watcher';
 
 import { replaceState } from '$app/navigation';
@@ -39,7 +28,7 @@ import {
 import { BASE_URI, fmtModelRun, fmtSelectedTime, hashValue } from './helpers';
 import { clippingCountryCodes } from './stores/clipping';
 import { omProtocolSettings } from './stores/om-protocol-settings';
-import { formatISOUTCWithZ, parseISOWithoutTimezone } from './time-format';
+import { parseISOWithoutTimezone } from './time-format';
 
 export const updateUrl = async (
 	urlParam?: string,
@@ -219,74 +208,4 @@ export const getOMUrl = () => {
 	}
 
 	return result;
-};
-
-/** The valid times one step before/after `date`, from metadata if present. */
-const prevNextDates = (
-	date: Date,
-	step: Domain['time_interval'],
-	metaJson: DomainMetaDataJson | undefined
-): [prev: Date, next: Date] => {
-	if (metaJson) {
-		const idx = metaJson.valid_times.findIndex((s) => s === formatISOUTCWithZ(date));
-		return [new Date(metaJson.valid_times[idx + 1]), new Date(metaJson.valid_times[idx - 1])];
-	}
-	return [domainStep(date, step, 'backward'), domainStep(date, step, 'forward')];
-};
-
-/**
- * OM file URLs to cache-warm around the current selection, as a grid of
- * (model-run, valid-time) stamps × domain paths:
- *
- * - Regular domain: the previous/next timestep files of the domain itself, so
- *   stepping through time is instant.
- * - Seamless composite: those same timesteps plus the current one, for every
- *   concrete sub-layer — including ones the viewport gate skips because they are
- *   off-screen — so panning to a regional model is instant too.
- *
- * The seamless protocol builds each sub-layer URL by swapping only the
- * `/data_spatial/<domain>/` segment of the request URL, keeping the composite's
- * host and model-run path. Deriving every stamp from the fallback domain mirrors
- * that, so the warmed files match exactly what the protocol fetches. Each
- * timestep uses its closest model run, clamped to the currently published run so
- * we never point past data that exists.
- */
-export const getNextOmUrls = (
-	anyDomain: AnyDomain,
-	metaJson: DomainMetaDataJson | undefined
-): string[] => {
-	const fallback = getFallbackDomain(anyDomain, domainOptions);
-	const date = get(time);
-	if (!fallback || isNaN(date.getTime())) return [];
-
-	const currentModelRun = metaJson ? new Date(metaJson.reference_time) : undefined;
-	const runFor = (t: Date): Date => {
-		const run = closestModelRun(t, fallback.model_interval);
-		return currentModelRun && run > currentModelRun ? currentModelRun : run;
-	};
-
-	const [prevDate, nextDate] = prevNextDates(date, fallback.time_interval, metaJson);
-	const stamps = [prevDate, nextDate]
-		.filter((t) => !isNaN(t.getTime()))
-		.map((t): [run: Date, validTime: Date] => [runFor(t), t]);
-	let domainValues = [fallback.value];
-
-	if (isSeamlessDomain(anyDomain)) {
-		// Off-screen sub-layers have not even loaded the current timestep yet, so
-		// warm it as well — with the selected model run, as the protocol requests it.
-		const selectedRun = get(mR);
-		if (!selectedRun) return [];
-		stamps.unshift([selectedRun, date]);
-		domainValues = anyDomain.layers
-			.map((layer) => resolveConcreteDomain(layer.domainValue, domainOptions)?.value)
-			.filter((value): value is string => value !== undefined);
-	}
-
-	const urls = new Set<string>();
-	for (const domainValue of domainValues) {
-		for (const [run, t] of stamps) {
-			urls.add(`${BASE_URI}/${domainValue}/${fmtModelRun(run)}/${fmtSelectedTime(t)}.om`);
-		}
-	}
-	return [...urls];
 };
