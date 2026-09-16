@@ -22,7 +22,7 @@ import { toast } from 'svelte-sonner';
 import { chartSources } from '$lib/stores/chart';
 import { gpuRenderOptions } from '$lib/stores/gpu-render';
 import { map as m } from '$lib/stores/map';
-import { renderer } from '$lib/stores/preferences';
+import { type Renderer, renderer } from '$lib/stores/preferences';
 import { loading, opacity, preferences as p } from '$lib/stores/preferences';
 import { modelRun, time } from '$lib/stores/time';
 import { selectedDomain, variable as variableStore } from '$lib/stores/variables';
@@ -63,6 +63,8 @@ import type { RasterTileSource } from 'maplibre-gl';
 
 let frameManager: FrameManager | undefined;
 let gpuRasters: GpuRasterManager | undefined;
+/** Renderer of the last shown render state: a change cross-dissolves the paths. */
+let shownRenderer: Renderer | undefined;
 
 // Combined loading indicator: GPU raster loads and vector tile frames finish
 // independently; the spinner shows while either is pending.
@@ -470,8 +472,14 @@ export const changeOMfileURL = (): void => {
 	// replaces on changes (clipping, colour scales) — hand them the live one.
 	gpuRasters.updateSettings(get(omProtocolSettings));
 	const barrier = createCommitBarrier(2);
-	gpuRasters.show(renderState.rasters, barrier);
-	frameManager.show(renderState.vectors, barrier);
+	// A GPU/CPU switch moves the rasters between the two paths: the GPU side
+	// fades in or out at the barrier's commit, opposite the tile frame's own
+	// cross-fade, like a variable switch within one path.
+	const currentRenderer = get(renderer);
+	const crossfade = shownRenderer !== undefined && shownRenderer !== currentRenderer;
+	shownRenderer = currentRenderer;
+	const transition = gpuRasters.show(renderState.rasters, barrier, { crossfade });
+	frameManager.show(renderState.vectors, barrier, transition);
 };
 
 /**

@@ -171,6 +171,11 @@ export const urlParamsToPreferences = () => {
 	} else if (vectorOptions.arrowStyle !== defaultVectorOptions.arrowStyle) {
 		url.searchParams.set('arrow_style', vectorOptions.arrowStyle);
 	}
+	// The animated flow only exists on the GPU path (see renderer-settings).
+	if (get(rD) === 'cpu' && vectorOptions.arrowStyle === 'particles') {
+		vectorOptions.arrowStyle = 'arrow';
+		url.searchParams.set('arrow_style', 'arrow');
+	}
 
 	const arrowRenderRaw = params.get('arrow_render');
 	if (arrowRenderRaw !== null) {

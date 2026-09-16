@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { DEFAULT_RENDERER, type Renderer, renderer } from '$lib/stores/preferences';
+	import { defaultVectorOptions, vectorOptions } from '$lib/stores/vector';
 
 	import Button from '$lib/components/ui/button/button.svelte';
 
@@ -12,6 +13,12 @@
 		if (value === $renderer) return;
 		renderer.set(value);
 		updateUrl('renderer', value, DEFAULT_RENDERER);
+		// The animated flow is a GPU pass: CPU tiles fall back to plain arrows,
+		// so the setting follows rather than showing a style that cannot draw.
+		if (value === 'cpu' && $vectorOptions.arrowStyle === 'particles') {
+			$vectorOptions.arrowStyle = 'arrow';
+			updateUrl('arrow_style', 'arrow', defaultVectorOptions.arrowStyle);
+		}
 		changeOMfileURL();
 	};
 </script>

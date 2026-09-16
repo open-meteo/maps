@@ -19,6 +19,7 @@
 import { WeatherGpuLayer, getStateValues, updateCurrentBounds } from '@openmeteo/weather-map-layer';
 
 import type { CommitBarrier } from '$lib/commit-barrier';
+import type { ExternalRasterTransition } from '$lib/frame-manager';
 import type {
 	ClippingOptions,
 	GpuAdvectionSource,
@@ -77,6 +78,8 @@ interface Slot {
 interface Transition {
 	entering: Slot[];
 	retiring: Slot[];
+	/** Driven by the tile frame's dissolve (renderer switch), not by startDissolve. */
+	external?: boolean;
 }
 
 export class GpuRasterManager {
@@ -116,7 +119,21 @@ export class GpuRasterManager {
 	 * load in the background; their visual swaps run together when the last one
 	 * (and, through `barrier`, the accompanying vector frame) is ready.
 	 */
-	show(specs: GpuRasterSlotSpec[], barrier?: CommitBarrier): void {
+	show(
+		specs: GpuRasterSlotSpec[],
+		barrier?: CommitBarrier,
+		options?: {
+			/**
+			 * The counterpart of this batch lives in the other render path (a
+			 * GPU/CPU renderer switch): slots leaving without a replacement
+			 * retire and slots entering without a predecessor start invisible;
+			 * the returned handles let the tile frame's commit dissolve them
+			 * together with its own fills, on one compensation curve.
+			 */
+			crossfade?: boolean;
+		}
+	): ExternalRasterTransition | undefined {
+		const crossfade = options?.crossfade ?? false;
 		this.syncBounds();
 		this.finalizeTransition();
 		const seen = new Set<string>();
@@ -194,29 +211,47 @@ export class GpuRasterManager {
 		// A replaced source (e.g. a variable switch swaps the slot key) keeps its
 		// old layer on screen while the new one loads, then both dissolve — the
 		// same visual as a timestep morph, but as an opacity crossfade. A plain
-		// removal (source deleted) disappears immediately.
+		// removal (source deleted) disappears immediately, unless the other
+		// render path takes over (crossfade).
 		const retiring: Slot[] = [];
 		for (const [key, slot] of [...this.slots]) {
 			if (seen.has(key)) continue;
 			this.slots.delete(key);
-			if (entering.length > 0 && prepares.length > 0) {
+			if (crossfade || (entering.length > 0 && prepares.length > 0)) {
 				retiring.push(slot);
 			} else if (this.map.getLayer(slot.layerId)) {
 				this.map.removeLayer(slot.layerId);
 			}
 		}
 		let transition: Transition | undefined;
-		if (retiring.length > 0) {
+		let external: ExternalRasterTransition | undefined;
+		if (retiring.length > 0 || (crossfade && entering.length > 0)) {
 			// Entering layers show nothing until their commit; start them invisible
 			// so the dissolve controls their appearance.
 			for (const slot of entering) slot.layer.setOpacity(0);
-			transition = { entering, retiring };
+			transition = { entering, retiring, external: crossfade };
 			this.pendingTransition = transition;
+			if (crossfade) {
+				const handle = (slot: Slot): ExternalRasterTransition['entering'][number] => ({
+					peak: slot.opacity,
+					set: (opacity) => slot.layer.setOpacity(opacity)
+				});
+				const done = transition;
+				external = {
+					entering: entering.map(handle),
+					retiring: retiring.map(handle),
+					finish: () => {
+						if (this.pendingTransition !== done) return;
+						this.pendingTransition = undefined;
+						this.endTransition(done);
+					}
+				};
+			}
 		}
 
 		if (prepares.length === 0) {
 			barrier?.arrive();
-			return;
+			return external;
 		}
 
 		this.pendingLoads++;
@@ -230,7 +265,9 @@ export class GpuRasterManager {
 					valid.length > 0
 						? (): void => {
 								for (const commit of valid) commit();
-								if (transition && this.pendingTransition === transition) {
+								// An external transition dissolves at the tile frame's commit
+								// (same barrier tick) and finishes from there.
+								if (transition && !transition.external && this.pendingTransition === transition) {
 									this.pendingTransition = undefined;
 									this.startDissolve(transition);
 								}
@@ -252,6 +289,7 @@ export class GpuRasterManager {
 				this.pendingLoads--;
 				if (this.pendingLoads === 0) this.opts.onLoadingChange?.(false);
 			});
+		return external;
 	}
 
 	/** Cross-dissolve entering layers over retiring ones, then drop the old. */
