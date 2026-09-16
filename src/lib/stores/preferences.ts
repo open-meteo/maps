@@ -1,19 +1,28 @@
 import { MediaQuery } from 'svelte/reactivity';
-import { type Writable, writable } from 'svelte/store';
+import { type Writable, get, writable } from 'svelte/store';
 
-import { clearBlockCache } from '@openmeteo/weather-map-layer';
+import {
+	type InterpolationMethod,
+	clearBackends,
+	clearBlockCache
+} from '@openmeteo/weather-map-layer';
 import { setMode } from 'mode-watcher';
 import { type Persisted, persisted } from 'svelte-persisted-store';
+
+import { version } from '$app/environment';
 
 import {
 	COMPLETE_DEFAULT_VALUES,
 	DEFAULT_CACHE_BLOCK_SIZE_KB,
 	DEFAULT_CACHE_MAX_BYTES_MB,
+	DEFAULT_COLOR_BLEND,
+	DEFAULT_INTERPOLATION,
 	DEFAULT_OPACITY,
 	DEFAULT_PREFERENCES,
 	DEFAULT_TILE_SIZE
 } from '$lib/constants';
-import { getInitialMetaData, getMetaData } from '$lib/metadata';
+import { checkHighDefinition } from '$lib/helpers';
+import { getInitialMetaData, tryGetMetaData } from '$lib/metadata';
 
 import { cacheBlockSizeKb, cacheMaxBytesMb, customColorScales } from './om-protocol-settings';
 import { inProgress, latest, metaJson, modelRun, modelRunLocked, now, time } from './time';
@@ -44,7 +53,13 @@ export interface Preferences {
 	showScale: boolean;
 }
 
-export const preferences = persisted('preferences', defaultPreferences);
+// Same default-merge as vectorOptions: keys added after a visitor's
+// localStorage was written must not read back as undefined
+export const preferences = persisted<Preferences, Partial<Preferences>>(
+	'preferences',
+	defaultPreferences,
+	{ beforeRead: (stored) => ({ ...defaultPreferences, ...stored }) }
+);
 
 // URL object containing current url states setings and flags
 export const url: Writable<URL> = writable();
@@ -60,6 +75,14 @@ export const tileSize: Persisted<64 | 128 | 256 | 512 | 1024 | 2048> = persisted
 // check for retina / hd on first load, afterwards the tile-size won't be set
 export const tileSizeSet = persisted('tile-size-set', false);
 
+export const interpolation: Persisted<InterpolationMethod> = persisted<InterpolationMethod>(
+	'interpolation',
+	DEFAULT_INTERPOLATION
+);
+
+// Interpolate colours between colour-scale breakpoints
+export const colorBlend: Persisted<boolean> = persisted('color_blend', DEFAULT_COLOR_BLEND);
+
 export const opacity = persisted('opacity', DEFAULT_OPACITY);
 
 export { cacheBlockSizeKb, cacheMaxBytesMb } from './om-protocol-settings';
@@ -69,9 +92,35 @@ export const localStorageVersion: Persisted<string | undefined> = persisted(
 	undefined
 );
 
+/**
+ * Settings sections a visitor collapsed, by title. Absent means open, so a
+ * newly added section shows up expanded.
+ */
+export const collapsedSettings = persisted<Record<string, boolean>>('settings-collapsed', {});
+
 export const helpOpen = writable(false);
 
 export const typing = writable(false);
+
+// Runs once on startup. On the very first visit, checks if the monitor
+// supports high definition, for increased tile size. Resets all the states
+// when a new version is set in 'package.json' and a version was already set
+// before.
+export const initStoredState = async () => {
+	if (!get(tileSizeSet)) {
+		if (checkHighDefinition()) {
+			tileSize.set(1024);
+		}
+		tileSizeSet.set(true);
+	}
+
+	if (version !== get(localStorageVersion)) {
+		if (get(localStorageVersion)) {
+			await resetStates();
+		}
+		localStorageVersion.set(version);
+	}
+};
 
 export const resetStates = async () => {
 	modelRunLocked.set(false);
@@ -79,8 +128,12 @@ export const resetStates = async () => {
 	latest.set(undefined);
 	inProgress.set(undefined);
 	modelRun.set(undefined);
-	await getInitialMetaData();
-	metaJson.set(await getMetaData());
+	// A failed load already toasted; the reset continues with the run info
+	// (and metadata) simply left unset
+	if (await getInitialMetaData()) {
+		const meta = await tryGetMetaData();
+		if (meta) metaJson.set(meta);
+	}
 
 	preferences.set(defaultPreferences);
 	vectorOptions.set(defaultVectorOptions);
@@ -98,10 +151,13 @@ export const resetStates = async () => {
 
 	domainSelectionOpen.set(false);
 	variableSelectionOpen.set(false);
-	variableSelectionExtended.set(undefined);
+	variableSelectionExtended.set(null);
 
 	tileSize.set(DEFAULT_TILE_SIZE);
 	tileSizeSet.set(false);
+
+	interpolation.set(DEFAULT_INTERPOLATION);
+	colorBlend.set(DEFAULT_COLOR_BLEND);
 
 	opacity.set(DEFAULT_OPACITY);
 
@@ -118,6 +174,7 @@ export const resetStates = async () => {
 
 	setMode('system');
 
+	clearBackends();
 	await clearBlockCache();
 };
 

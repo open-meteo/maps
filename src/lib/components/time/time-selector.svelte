@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy, onMount, tick } from 'svelte';
+	import { onDestroy, onMount, tick, untrack } from 'svelte';
 	import { SvelteDate } from 'svelte/reactivity';
 	import { fade } from 'svelte/transition';
 
@@ -25,7 +25,7 @@
 	} from '$lib/constants';
 	import { throttle } from '$lib/helpers';
 	import { changeOMfileURL } from '$lib/layers';
-	import { getMetaData } from '$lib/metadata';
+	import { getMetaData, tryGetMetaData } from '$lib/metadata';
 	import {
 		formatISOWithoutTimezone,
 		formatLocalDate,
@@ -50,7 +50,11 @@
 	// load, or jumps from other components). User interactions update currentDate
 	// directly before committing to $time, so when they match this is a no-op.
 	$effect(() => {
-		if (currentDate.getTime() !== $time.getTime()) {
+		const timeMs = $time.getTime();
+		// Read currentDate untracked so this only reacts to external $time changes.
+		// Otherwise mobile drag updates to currentDate would retrigger this effect and
+		// snap currentDate back to $time, breaking drag-to-select.
+		if (untrack(() => currentDate.getTime()) !== timeMs) {
 			currentDate = new SvelteDate($time);
 		}
 	});
@@ -306,10 +310,20 @@
 
 	// changes the selected model run and updates available time steps
 	const onModelRunChange = async (step: Date) => {
+		const previousModelRun = $modelRun;
+		const previousLocked = $modelRunLocked;
 		$loading = true;
 		$modelRunLocked = true;
 		$modelRun = step;
-		$metaJson = await getMetaData();
+		const meta = await tryGetMetaData();
+		if (!meta) {
+			// Failed load already toasted; put the selection back where it was
+			$modelRun = previousModelRun;
+			$modelRunLocked = previousLocked;
+			$loading = false;
+			return;
+		}
+		$metaJson = meta;
 
 		let closestTime = new SvelteDate($modelRun);
 		for (const vT of $metaJson.valid_times) {
@@ -821,7 +835,7 @@
 </script>
 
 <div
-	class="fixed bottom-0 w-full md:w-[unset] md:max-w-[75vw] -translate-x-1/2 left-1/2 z-40 {disabled
+	class="time-selector-container fixed bottom-0 w-full md:w-[unset] md:max-w-[75vw] -translate-x-1/2 left-1/2 z-40 {disabled
 		? 'text-foreground/50 cursor-not-allowed'
 		: ''}"
 >

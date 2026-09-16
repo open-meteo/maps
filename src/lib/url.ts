@@ -1,13 +1,7 @@
 import { tick } from 'svelte';
 import { get } from 'svelte/store';
 
-import {
-	type Domain,
-	type DomainMetaDataJson,
-	closestModelRun,
-	defaultOmProtocolSettings,
-	domainStep
-} from '@openmeteo/weather-map-layer';
+import { defaultOmProtocolSettings } from '@openmeteo/weather-map-layer';
 import { mode } from 'mode-watcher';
 
 import { replaceState } from '$app/navigation';
@@ -15,7 +9,9 @@ import { replaceState } from '$app/navigation';
 import { map as m } from '$lib/stores/map';
 import {
 	type Preferences,
+	colorBlend as cB,
 	completeDefaultValues,
+	interpolation as iP,
 	preferences as p,
 	tileSize as tS,
 	url as u
@@ -29,11 +25,11 @@ import {
 	parseClipCountriesParam,
 	serializeClipCountriesParam
 } from './clipping';
-import { fmtModelRun, fmtSelectedTime, getBaseUri, hashValue } from './helpers';
+import { BASE_URI, fmtModelRun, fmtSelectedTime, hashValue } from './helpers';
 import { clippingCountryCodes } from './stores/clipping';
 import { localOmBase } from './stores/local-file';
 import { omProtocolSettings } from './stores/om-protocol-settings';
-import { formatISOUTCWithZ, parseISOWithoutTimezone } from './time-format';
+import { parseISOWithoutTimezone } from './time-format';
 
 export const updateUrl = async (
 	urlParam?: string,
@@ -172,7 +168,7 @@ export const getOMUrl = () => {
 		result = `${localBase}?variable=${get(v)}`;
 	} else {
 		const domain = get(d);
-		const base = `${getBaseUri(domain)}/data_spatial/${domain}`;
+		const base = `${BASE_URI}/${domain}`;
 		const modelRun = get(mR);
 		if (!modelRun) return undefined;
 		const selectedTime = get(time);
@@ -191,6 +187,11 @@ export const getOMUrl = () => {
 
 	const tileSize = get(tS);
 	if (tileSize !== 256) result += `&tile_size=${tileSize}`;
+
+	const interpolation = get(iP);
+	if (interpolation !== 'linear') result += `&interpolation=${interpolation}`;
+
+	if (get(cB)) result += `&color_blend=true`;
 
 	const omProtocolSettingsState = get(omProtocolSettings);
 	if (
@@ -216,43 +217,4 @@ export const getOMUrl = () => {
 	}
 
 	return result;
-};
-
-export const getNextOmUrls = (
-	_omUrl: string,
-	domain: Domain,
-	metaJson: DomainMetaDataJson | undefined
-): [string | undefined, string | undefined] => {
-	const base = `https://map-tiles.open-meteo.com/data_spatial/${domain.value}`;
-	const date = get(time);
-	const dateString = formatISOUTCWithZ(date);
-
-	let prevDate: Date;
-	let nextDate: Date;
-
-	if (metaJson) {
-		const idx = metaJson.valid_times.findIndex((s) => s === dateString);
-		prevDate = new Date(metaJson.valid_times[idx + 1]);
-		nextDate = new Date(metaJson.valid_times[idx - 1]);
-	} else {
-		prevDate = domainStep(date, domain.time_interval, 'backward');
-		nextDate = domainStep(date, domain.time_interval, 'forward');
-	}
-
-	const currentModelRun = metaJson ? new Date(metaJson.reference_time) : undefined;
-
-	const clampRun = (run: Date): Date =>
-		currentModelRun && run > currentModelRun ? currentModelRun : run;
-
-	const prevModelRun = clampRun(closestModelRun(prevDate, domain.model_interval));
-	const nextModelRun = clampRun(closestModelRun(nextDate, domain.model_interval));
-
-	const prevUrl = !isNaN(prevDate.getTime())
-		? `${base}/${fmtModelRun(prevModelRun)}/${fmtSelectedTime(prevDate)}.om`
-		: undefined;
-	const nextUrl = !isNaN(nextDate.getTime())
-		? `${base}/${fmtModelRun(nextModelRun)}/${fmtSelectedTime(nextDate)}.om`
-		: undefined;
-
-	return [prevUrl, nextUrl];
 };
