@@ -35,7 +35,11 @@ export default ({ mode }: { mode: string }) => {
 	return defineConfig({
 		plugins: [tailwindcss(), sveltekit(), viteServerConfig()],
 		optimizeDeps: {
-			exclude: ['@openmeteo/file-reader', '@openmeteo/file-format-wasm']
+			exclude: [
+				'@openmeteo/file-reader',
+				'@openmeteo/file-format-wasm',
+				'@openmeteo/weather-map-layer'
+			]
 		},
 		server: {
 			fs: {
