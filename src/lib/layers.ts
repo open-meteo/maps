@@ -286,6 +286,9 @@ const gpuParticleConfig = (
 		// scale the configured opacity down there so both themes match visually.
 		opacity: options.particleOpacity * (dark ? 1 : 0.7),
 		speedPxPerSec: options.particleSpeed,
+		// Zoomed in, the zoom-invariant screen speed reads as a near standstill
+		// against the fine map detail: gain speed per level above zoom 8.
+		zoomSpeedGain: 0.25,
 		fadeOpacity: options.particleTrail,
 		maxAgeSec: 6,
 		// Thin the population where the field is near-static (calm highs,
