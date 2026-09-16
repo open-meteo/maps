@@ -11,10 +11,6 @@ import { browser, version } from '$app/environment';
 import { map as m } from '$lib/stores/map';
 import { domain } from '$lib/stores/variables';
 
-import { getAppliedStyleMode, reloadStyles } from '$lib/map-controls';
-
-import type { DarkModeButton } from '$lib/components/buttons';
-
 // Domains this build can actually render. Seamless composites are excluded
 // until the app supports them; drop the filter once they work and embedders
 // will pick them up automatically through the ready handshake.
@@ -25,8 +21,6 @@ const supportedDomainValues = new Set(
 );
 
 const isEmbedded = () => window.parent !== window;
-
-let darkModeButton: DarkModeButton | undefined;
 
 // Any origin may send this; the payload is validated and each field has the
 // same effect as the matching UI interaction.
@@ -49,31 +43,16 @@ const onEmbedderMessage = (event: MessageEvent) => {
 		domain.set(requestedDomain);
 	}
 	if (requestedTheme === 'light' || requestedTheme === 'dark' || requestedTheme === 'system') {
-		// resolve 'system' ourselves instead of relying on mode.current
-		// updating synchronously after setMode
-		const resolved =
-			requestedTheme === 'system'
-				? window.matchMedia('(prefers-color-scheme: dark)').matches
-					? 'dark'
-					: 'light'
-				: requestedTheme;
+		// The page-level mode watcher reloads the basemap style whenever the
+		// resolved mode drifts from the applied one, and refreshes the button.
 		setMode(requestedTheme);
-		darkModeButton?.refresh();
-		// Compare against the style that is actually loaded, not
-		// mode.current: the embedder's color-scheme propagates into our
-		// prefers-color-scheme, so the UI mode may have flipped already
-		// while the basemap style never reloaded.
-		if (resolved !== getAppliedStyleMode()) {
-			reloadStyles();
-		}
 	}
 };
 
 // Mirrors the position hash to the parent window and starts listening for
 // om-maps:set messages. Call after the map has been created.
-export const startEmbedderBridge = (button: DarkModeButton) => {
+export const startEmbedderBridge = () => {
 	if (!isEmbedded()) return;
-	darkModeButton = button;
 
 	const postHashToParent = () => {
 		window.parent.postMessage({ type: 'om-maps:hash', hash: window.location.hash }, '*');

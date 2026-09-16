@@ -10,7 +10,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Switch } from '$lib/components/ui/switch';
 
-	import { updateSunLayer } from '$lib/layers';
+	import { changeOMfileURL } from '$lib/layers';
 	import { updateUrl } from '$lib/url';
 
 	const defaultColorHex = DEFAULT_SUN_SHADOW_COLOR.map((channel) =>
@@ -30,20 +30,20 @@
 		const opacity = percent / 100;
 		$sunShadow.opacity = opacity === DEFAULT_SUN_SHADOW_OPACITY ? undefined : opacity;
 		updateUrl('sun_opacity', String(opacity), String(DEFAULT_SUN_SHADOW_OPACITY));
-		updateSunLayer();
+		changeOMfileURL();
 	};
 
 	const setGradient = (degrees: number) => {
 		$sunShadow.gradient = degrees === DEFAULT_SUN_SHADOW_GRADIENT ? undefined : degrees;
 		updateUrl('sun_gradient', String(degrees), String(DEFAULT_SUN_SHADOW_GRADIENT));
-		updateSunLayer();
+		changeOMfileURL();
 	};
 
 	const setColor = (hexWithHash: string) => {
 		const hex = hexWithHash.replace('#', '').toLowerCase();
 		$sunShadow.color = hex === defaultColorHex ? undefined : hex;
 		updateUrl('sun_color', hex, defaultColorHex);
-		updateSunLayer();
+		changeOMfileURL();
 	};
 </script>
 
@@ -56,7 +56,7 @@
 			bind:checked={$sunShadow.shadow}
 			onCheckedChange={() => {
 				updateUrl('sun_shadow', String(shadow), 'false');
-				updateSunLayer();
+				changeOMfileURL();
 			}}
 		/>
 		<Label class="cursor-pointer" for="sun-shadow">Sun shadow {shadow ? 'on' : 'off'}</Label>

@@ -1,0 +1,7 @@
+{
+	"baseUrl": "https://static-assets.open-meteo.com",
+	"assets": [
+		{ "prefix": "shared/weather-icons", "dir": "static/images/weather-icons" },
+		{ "prefix": "maps/grid-geometry", "dir": "static/grid-geometry" }
+	]
+}

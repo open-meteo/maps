@@ -14,10 +14,6 @@ import {
 	DEFAULT_CACHE_MAX_BYTES_MB,
 	HTTP_OVERHEAD_BYTES
 } from '$lib/constants';
-import { getNextOmUrls } from '$lib/url';
-
-import { metaJson } from './time';
-import { selectedDomain } from './variables';
 
 import type {
 	Data,
@@ -57,15 +53,7 @@ export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
 	// dynamic (can be changed during runtime)
 	colorScales: { ...defaultOmProtocolSettings.colorScales, ...initialCustomColorScales },
 
-	postReadCallback: (omFileReader: WeatherMapLayerFileReader, data: Data, state: OmUrlState) => {
-		const nextOmUrls = getNextOmUrls(state.omFileUrl, get(selectedDomain), get(metaJson));
-		for (const nextOmUrl of nextOmUrls) {
-			if (nextOmUrl === undefined) continue;
-			omFileReader.setToOmFile(nextOmUrl);
-			// This will trigger a request to the tail of the file and cache it
-			// Not requesting a real variable ensures that we don't request any additional data.
-			omFileReader.prefetchVariable('not_a_real_variable');
-		}
+	postReadCallback: (_omFileReader: WeatherMapLayerFileReader, data: Data, state: OmUrlState) => {
 		if (
 			state.dataOptions.domain.value === 'ecmwf_ifs' &&
 			state.dataOptions.variable === 'pressure_msl'

@@ -7,6 +7,8 @@
 
 	import { changeOMfileURL } from '$lib/layers';
 
+	import SettingsSection from './settings-section.svelte';
+
 	const handleTileSizeChange = (tile: 64 | 128 | 256 | 512 | 1024 | 2048) => {
 		tS.set(tile);
 		changeOMfileURL();
@@ -18,8 +20,7 @@
 	});
 </script>
 
-<div>
-	<h2 class="text-lg font-bold">Tile Size settings</h2>
+<SettingsSection title="Tile Size settings">
 	<div class="mt-3 flex gap-3 flex-wrap">
 		<Button
 			class="min-w-16 cursor-pointer {tileSize === 64 ? 'bg-primary' : 'bg-primary/75'}"
@@ -46,4 +47,4 @@
 			onclick={() => handleTileSizeChange(2048)}>2048</Button
 		>
 	</div>
-</div>
+</SettingsSection>

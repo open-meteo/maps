@@ -1,13 +1,7 @@
 import { tick } from 'svelte';
 import { get } from 'svelte/store';
 
-import {
-	type Domain,
-	type DomainMetaDataJson,
-	closestModelRun,
-	defaultOmProtocolSettings,
-	domainStep
-} from '@openmeteo/weather-map-layer';
+import { defaultOmProtocolSettings } from '@openmeteo/weather-map-layer';
 import { mode } from 'mode-watcher';
 
 import { replaceState } from '$app/navigation';
@@ -31,7 +25,7 @@ import {
 	parseClipCountriesParam,
 	serializeClipCountriesParam
 } from './clipping';
-import { fmtModelRun, fmtSelectedTime, getBaseUri, hashValue } from './helpers';
+import { BASE_URI, fmtModelRun, fmtSelectedTime, hashValue } from './helpers';
 import { clippingCountryCodes } from './stores/clipping';
 import { omProtocolSettings } from './stores/om-protocol-settings';
 import { sunShadow as sS } from './stores/sun';
@@ -177,7 +171,7 @@ const memorisedHash = (json: string, cachedJson: string, cachedHash: string) => 
 
 export const getOMUrl = () => {
 	const domain = get(d);
-	const base = `${getBaseUri(domain)}/${domain}`;
+	const base = `${BASE_URI}/${domain}`;
 	const modelRun = get(mR);
 	if (!modelRun) return undefined;
 	const selectedTime = get(time);
@@ -240,43 +234,4 @@ export const getSunUrl = (timeOverride?: Date): string | undefined => {
 	if (sun.gradient !== undefined) result += `&gradient=${sun.gradient}`;
 	if (sun.color !== undefined) result += `&color=${sun.color}`;
 	return result;
-};
-
-export const getNextOmUrls = (
-	_omUrl: string,
-	domain: Domain,
-	metaJson: DomainMetaDataJson | undefined
-): [string | undefined, string | undefined] => {
-	const base = `${getBaseUri(domain.value)}/${domain.value}`;
-	const date = get(time);
-	const dateString = formatISOUTCWithZ(date);
-
-	let prevDate: Date;
-	let nextDate: Date;
-
-	if (metaJson) {
-		const idx = metaJson.valid_times.findIndex((s) => s === dateString);
-		prevDate = new Date(metaJson.valid_times[idx + 1]);
-		nextDate = new Date(metaJson.valid_times[idx - 1]);
-	} else {
-		prevDate = domainStep(date, domain.time_interval, 'backward');
-		nextDate = domainStep(date, domain.time_interval, 'forward');
-	}
-
-	const currentModelRun = metaJson ? new Date(metaJson.reference_time) : undefined;
-
-	const clampRun = (run: Date): Date =>
-		currentModelRun && run > currentModelRun ? currentModelRun : run;
-
-	const prevModelRun = clampRun(closestModelRun(prevDate, domain.model_interval));
-	const nextModelRun = clampRun(closestModelRun(nextDate, domain.model_interval));
-
-	const prevUrl = !isNaN(prevDate.getTime())
-		? `${base}/${fmtModelRun(prevModelRun)}/${fmtSelectedTime(prevDate)}.om`
-		: undefined;
-	const nextUrl = !isNaN(nextDate.getTime())
-		? `${base}/${fmtModelRun(nextModelRun)}/${fmtSelectedTime(nextDate)}.om`
-		: undefined;
-
-	return [prevUrl, nextUrl];
 };
