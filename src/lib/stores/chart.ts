@@ -1,14 +1,9 @@
 import { derived, get } from 'svelte/store';
 
+import { variableHasDirections } from '@openmeteo/weather-map-layer';
 import { persisted } from 'svelte-persisted-store';
 
-import {
-	cloneSources,
-	matchPreset,
-	sourceKey,
-	sourcesEqual,
-	variableSupportsArrows
-} from '$lib/chart-encoding';
+import { cloneSources, matchPreset, sourceKey, sourcesEqual } from '$lib/chart-encoding';
 import { getChartPreset } from '$lib/chart-presets';
 import { DEFAULT_VARIABLE } from '$lib/constants';
 
@@ -47,7 +42,7 @@ export const plainChartFor = (v: string, domain?: string): ChartState => {
 	}
 	// Arrows follow the settings toggle, wherever the variable can provide
 	// directions (ignoring vo.arrows here would make the toggle a no-op)
-	if (vo.arrows && variableSupportsArrows(v)) source.arrows = true;
+	if (vo.arrows && variableHasDirections(v)) source.arrows = true;
 	return chartFromSources([source]);
 };
 
@@ -136,7 +131,7 @@ export const setArrowsOnActiveChart = (enabled: boolean): void => {
 	const sources = cloneSources(chart.sources);
 	let changed = false;
 	for (const source of sources) {
-		const arrows = enabled && variableSupportsArrows(source.variable);
+		const arrows = enabled && variableHasDirections(source.variable);
 		if (!!source.arrows !== arrows) {
 			source.arrows = arrows || undefined;
 			changed = true;
@@ -192,7 +187,7 @@ export const addSource = (v: string): void => {
 	const chart = get(activeChart);
 	if (chart.sources.some((source) => source.variable === v)) return;
 	const sources = cloneSources(chart.sources);
-	const arrows = get(vectorOptions).arrows && variableSupportsArrows(v);
+	const arrows = get(vectorOptions).arrows && variableHasDirections(v);
 	// Second field defaults to contours when a raster fill is already shown,
 	// except for variables carrying directions: those default to arrows
 	const source: ChartSource = sources.some((s) => s.raster)
