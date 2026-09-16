@@ -277,7 +277,7 @@ export const popularVariables: PopularVariable[] = [
 	{ id: 'snowfall' },
 	// ── Domain-specific entries below: the availability filter hides them
 	// everywhere else, since only these domains serve the variables. ──────
-	// Ensemble domains (dwd_icon_*_eps, ncep_gefs*)
+	// Ensemble domains
 	{ id: 'precipitation_probability' },
 	// Air-quality domains (cams_*)
 	{ id: 'pm2_5' },
