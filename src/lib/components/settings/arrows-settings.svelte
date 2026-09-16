@@ -1,9 +1,13 @@
 <script lang="ts">
-	import { type ArrowStyle, DEFAULT_ARROW_STYLE } from '@openmeteo/weather-map-layer';
+	import {
+		type ArrowStyle,
+		DEFAULT_ARROW_STYLE,
+		variableSupportsBarbs
+	} from '@openmeteo/weather-map-layer';
 	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
-	import { setArrowsOnActiveChart } from '$lib/stores/chart';
+	import { activeChart, setArrowsOnActiveChart } from '$lib/stores/chart';
 	import { convertValue, getDisplayUnit, unitPreferences } from '$lib/stores/units';
 	import { defaultVectorOptions, vectorOptions } from '$lib/stores/vector';
 
@@ -77,6 +81,11 @@
 
 	let arrows = $derived($vectorOptions.arrows);
 	let arrowStyle = $derived($vectorOptions.arrowStyle);
+	// Barbs encode knots, so the option only applies while an arrow source
+	// carries a wind speed; other sources render arrows under either setting
+	let barbCapable = $derived(
+		$activeChart.sources.some((source) => source.arrows && variableSupportsBarbs(source.variable))
+	);
 	let uniformSize = $derived($vectorOptions.arrowRender === 'icon');
 	let iconSizePx = $derived(windIconSizePx(arrowStyle, $vectorOptions.arrowIconScale));
 	let iconSpacingPx = $derived(
@@ -152,13 +161,16 @@
 				type="button"
 				role="radio"
 				aria-checked={selected}
-				disabled={!arrows}
+				disabled={!arrows || (style.value === 'barb' && !barbCapable)}
 				class="bg-primary/5 hover:bg-primary/10 flex w-full cursor-pointer flex-col gap-1.5 rounded p-2.5 text-left duration-150 disabled:cursor-not-allowed disabled:opacity-40 {selected
 					? 'ring-primary/60 bg-primary/10 ring-2'
 					: ''}"
 				onclick={() => setArrowStyle(style.value)}
 			>
 				<span class="text-sm font-semibold">{style.label}</span>
+				{#if style.value === 'barb' && arrows && !barbCapable}
+					<span class="text-xs opacity-70">Only for wind speeds</span>
+				{/if}
 				<div class="flex w-full flex-wrap items-end gap-1">
 					{#each style.samples as sample (sample.label)}
 						<div class="flex w-9 flex-col items-center gap-0.5">
