@@ -3,8 +3,7 @@ import * as maplibregl from 'maplibre-gl';
 import type { CommitBarrier } from '$lib/commit-barrier';
 
 /**
- * FrameManager: cross-fading orchestrator for a stack of MapLibre weather
- * layers (adapted from the drizzli FrameAnimator).
+ * FrameManager: cross-fading orchestrator for a stack of MapLibre weather layers
  *
  * A **frame** is one complete visual state of the weather overlay, composed
  * of one or more **channels** (e.g. a temperature raster fill, a pressure
@@ -113,6 +112,21 @@ interface Frame {
 	 * only commit once a map move requested fresh tiles.
 	 */
 	committed?: boolean;
+	/** Waiting for the render pass that re-populates its sources (see `show`). */
+	awaitingRender?: boolean;
+	/** Layers are `visibility: none` (set after the fade-out, see `scheduleHide`). */
+	hidden?: boolean;
+}
+
+/** A running raster dissolve, see `dissolveRasters`. */
+interface Dissolve {
+	raf: number;
+	/** Frame being faded in; it is already the current frame. */
+	intoKey: string;
+	/** Frame being faded out; re-showing it reverses the dissolve. */
+	outOfKey: string;
+	/** Flip the direction, returning the ms the unwind still takes. */
+	reverse: () => number;
 }
 
 export class FrameManager {
@@ -127,7 +141,7 @@ export class FrameManager {
 	private pendingBarrier: { barrier: CommitBarrier; arrived: boolean } | undefined;
 	private frameOrdinal = 0;
 	private slowLoadTimer: ReturnType<typeof setTimeout> | undefined;
-	private dissolve?: { raf: number };
+	private dissolve?: Dissolve;
 	/** Other-path rasters to dissolve with the pending frame at its commit. */
 	private pendingExternal: ExternalRasterTransition | undefined;
 	/** Frame whose commit waits for the running dissolve to finish. */
@@ -143,12 +157,11 @@ export class FrameManager {
 		this.onMapError = (e) => {
 			// Only errors attributable to one of our own sources fail a frame.
 			// Source-less errors (basemap tiles, terrain, glyphs) must not
-			// cancel a pending weather switch; om data-load failures surface
-			// through getChannelDataState and om tile errors carry a sourceId.
+			// cancel a pending weather switch; a failed om data load rejects the
+			// tile request, and the source cache tags that error with a sourceId.
 			if (!e.sourceId) return;
-			const frame = [...this.frames.values()].find((f) =>
-				f.sourceIds.includes(e.sourceId as string)
-			);
+			const sourceId = e.sourceId;
+			const frame = [...this.frames.values()].find((f) => f.sourceIds.includes(sourceId));
 			if (!frame) return;
 			frame.errored = true;
 
@@ -224,29 +237,44 @@ export class FrameManager {
 			// A previously failed frame gets another chance
 			frame.errored = false;
 			this.setFrameVisibility(frame, true);
-			this.raiseFrame(frame);
+			// Raising the frame a running dissolve fades out would invert that
+			// dissolve's stacking order, and its compensation curve with it — the
+			// reversal in `commit` keeps the frame where it is.
+			if (this.dissolve?.outOfKey !== key) this.raiseFrame(frame);
 		}
 		this.touchLru(key);
 
-		if (this.isFrameLoaded(frame)) {
-			if (barrier) {
-				// Loaded, but held for the barrier: stays pending so a newer show()
-				// supersedes it cleanly.
-				this.pendingKey = key;
-				this.pendingBarrier = { barrier, arrived: false };
-				this.arrivePending(() => {
-					if (this.pendingKey === key) this.commit(frame);
-				});
-			} else {
-				this.commit(frame);
-			}
-		} else {
-			this.pendingKey = key;
-			this.pendingBarrier = barrier ? { barrier, arrived: false } : undefined;
-			this.setLoading(true);
-			this.watchFrame(frame);
-			this.startSlowLoadTimer();
-		}
+		// Always via the pending path, also for a fully cached frame: it commits
+		// in the very next render pass (see `awaitRender`), and a barrier is
+		// released from the same place either way.
+		this.pendingKey = key;
+		this.pendingBarrier = barrier ? { barrier, arrived: false } : undefined;
+		this.setLoading(true);
+		this.watchFrame(frame);
+		this.startSlowLoadTimer();
+		// Superseded frames stay resident, so the cap has to hold here too:
+		// commit (the other eviction point) may be many switches away.
+		this.evict();
+		this.awaitRender(frame);
+	}
+
+	/**
+	 * Hold the frame back until the map has rendered once. MapLibre only
+	 * re-populates a source's tiles in the render pass after its layers became
+	 * visible again, and reports a source that is not (yet) used by a visible
+	 * layer as loaded — so a frame just made visible would look ready while its
+	 * tiles are still missing.
+	 */
+	private awaitRender(frame: Frame): void {
+		frame.awaitingRender = true;
+		this.map.once('render', () => {
+			frame.awaitingRender = false;
+			// Re-check: the render itself fires no sourcedata event
+			frame.onData?.();
+		});
+		// Adding or unhiding layers already schedules one, but a frame whose
+		// layers all went missing (style reload) would wait forever otherwise
+		this.map.triggerRepaint();
 	}
 
 	/** Remove every frame (also used before/after a basemap style reload). */
@@ -335,17 +363,20 @@ export class FrameManager {
 	}
 
 	private isFrameLoaded(frame: Frame): boolean {
-		// Source.loaded() only covers the source metadata (TileJSON); the map
-		// must additionally have all requested tiles AND the protocol must
-		// hold actual data for every channel. Failed tiles count as
-		// "complete" in areTilesLoaded(), so without the data check an empty
-		// frame would commit and fade the previous data out. Errored frames
-		// never commit.
+		// Source.loaded() only covers the source metadata (TileJSON), which the om
+		// protocol answers before the data download finishes, so every requested
+		// tile has to be there too — `isSourceLoaded` covers both, per source.
+		// Map-wide (`areTilesLoaded`) it would also wait for the basemap and, worse,
+		// for the tiles of the frames the user just scrolled past, which keeps a
+		// frame from ever committing while someone scrubs the time slider. The
+		// protocol must additionally hold actual data for every channel: failed
+		// tiles count as complete, so without the data check an empty frame would
+		// commit and fade the previous data out. Errored frames never commit.
 		return (
 			!frame.errored &&
+			!frame.awaitingRender &&
 			(frame.committed || this.frameDataState(frame) === 'loaded') &&
-			frame.sourceIds.every((id) => this.map.getSource(id)?.loaded()) &&
-			this.map.areTilesLoaded()
+			frame.sourceIds.every((id) => this.map.getSource(id) && this.map.isSourceLoaded(id))
 		);
 	}
 
@@ -410,10 +441,15 @@ export class FrameManager {
 	private commit(frame: Frame): void {
 		// Never interrupt a running dissolve (snapping it mid-way is a visible
 		// jump). The commit waits for it — at most crossFadeMs — and chains.
-		// pendingKey must cover the wait: commits arriving via the
-		// already-loaded show() path have not set it, and runQueuedCommit
-		// discards a queued frame that is no longer the pending one.
+		// pendingKey keeps covering the wait, so that a show() arriving in the
+		// meantime abandons the queued frame like any other pending one.
 		if (this.dissolve) {
+			// …unless the frame to commit is the one that dissolve fades out, in
+			// which case it is unwound instead of finished (see `reverseDissolve`).
+			if (frame.key === this.dissolve.outOfKey && this.frames.has(this.dissolve.intoKey)) {
+				this.reverseDissolve(frame, this.dissolve);
+				return;
+			}
 			this.queuedCommit = frame;
 			this.pendingKey = frame.key;
 			return;
@@ -446,7 +482,7 @@ export class FrameManager {
 			// Lines cross-fade (holding both fully visible would double them)
 			this.setFrameOpacity(frame, 1, duration, isLineLayer);
 			this.setFrameOpacity(previous, 0, duration, isLineLayer);
-			this.dissolveRasters(frame, previous, duration);
+			this.dissolveRasters(frame, previous, duration, external);
 			this.scheduleHide(previous.key);
 		} else if (external) {
 			// A render-path switch: the fills changing places live in both paths,
@@ -512,24 +548,80 @@ export class FrameManager {
 		const newRasters = [...handles(newFrame), ...(external?.entering ?? [])];
 		const oldRasters = [...handles(oldFrame), ...(external?.retiring ?? [])];
 
-		const start = performance.now();
-		const step = (now: number): void => {
-			const t = Math.min((now - start) / duration, 1);
+		// Progress is integrated rather than derived from a start timestamp, so
+		// that the direction can flip mid-flight (`reverse`) without a jump.
+		let t = 0;
+		let direction = 1;
+		let last = performance.now();
+		const apply = (): void => {
 			const e = t * t * (3 - 2 * t); // smoothstep
 			for (const layer of newRasters) layer.set(layer.peak * e);
 			for (const layer of oldRasters) {
 				const denominator = 1 - layer.peak * e;
 				layer.set(t >= 1 || denominator <= 0.001 ? 0 : (layer.peak * (1 - e)) / denominator);
 			}
-			if (t < 1) {
-				this.dissolve = { raf: requestAnimationFrame(step) };
+		};
+		const dissolve: Dissolve = {
+			raf: 0,
+			intoKey: newFrame.key,
+			// Without an old frame (a pure render-path switch) nothing can reverse it
+			outOfKey: oldFrame?.key ?? '',
+			reverse: () => {
+				direction = -direction;
+				last = performance.now();
+				// Same rate in both directions: a flip-back right after the commit
+				// unwinds near-instantly, a late one takes almost a full fade.
+				return (direction < 0 ? t : 1 - t) * duration;
+			}
+		};
+		const step = (now: number): void => {
+			t = Math.min(Math.max(t + (direction * (now - last)) / duration, 0), 1);
+			last = now;
+			apply();
+			if (direction > 0 ? t < 1 : t > 0) {
+				dissolve.raf = requestAnimationFrame(step);
 			} else {
-				this.dissolve = undefined;
+				if (this.dissolve === dissolve) this.dissolve = undefined;
 				external?.finish();
 				this.runQueuedCommit();
 			}
 		};
-		this.dissolve = { raf: requestAnimationFrame(step) };
+		dissolve.raf = requestAnimationFrame(step);
+		this.dissolve = dissolve;
+	}
+
+	/**
+	 * Switching back to the frame a running dissolve fades out (scrubbing the
+	 * time slider A → B → A): unwind that dissolve instead of queueing a second
+	 * one behind it. Finishing first would show B completely before returning to
+	 * A and cost twice the fade duration; the compensation curve is symmetric in
+	 * `e`, so running it backwards keeps the coverage constant all the way.
+	 */
+	private reverseDissolve(frame: Frame, dissolve: Dissolve): void {
+		const outgoing = this.frames.get(dissolve.intoKey);
+		if (!outgoing) return;
+
+		this.queuedCommit = undefined;
+		this.pendingKey = null;
+		this.pendingBarrier = undefined;
+		this.pendingExternal?.finish();
+		this.pendingExternal = undefined;
+		this.clearSlowLoadTimer();
+
+		const remaining = dissolve.reverse();
+		dissolve.outOfKey = dissolve.intoKey;
+		dissolve.intoKey = frame.key;
+
+		this.currentKey = frame.key;
+		this.cancelHide(frame.key);
+		// The rAF only drives the fills; the lines cross-fade declaratively
+		this.setFrameOpacity(frame, 1, remaining, isLineLayer);
+		this.setFrameOpacity(outgoing, 0, remaining, isLineLayer);
+		this.scheduleHide(outgoing.key);
+
+		this.evict();
+		this.setLoading(false);
+		this.opts.onCommit?.();
 	}
 
 	private runQueuedCommit(): void {
@@ -547,13 +639,19 @@ export class FrameManager {
 		this.pendingExternal?.finish();
 		this.pendingExternal = undefined;
 		this.queuedCommit = undefined;
-		if (!this.pendingKey) return;
 		const pending = this.pendingFrame();
-		if (pending) this.unwatchFrame(pending);
-		// Keep the partially loaded frame resident; it may be shown later
-		this.scheduleHide(this.pendingKey);
+		if (pending) {
+			this.unwatchFrame(pending);
+			// Keep the partially loaded frame resident; it may be shown later. It
+			// never was visible though, so it needs no fade-out — and hiding it
+			// right away stops it from loading tiles nobody is waiting for.
+			this.cancelHide(pending.key);
+			this.setFrameVisibility(pending, false);
+		}
 		this.pendingKey = null;
 		this.clearSlowLoadTimer();
+		// Unconditionally, so that a loading state set from outside the manager
+		// (the model run switch) clears when the switch needs no new frame
 		this.setLoading(false);
 	}
 
@@ -582,12 +680,18 @@ export class FrameManager {
 	}
 
 	private setFrameVisibility(frame: Frame, visible: boolean): void {
+		const wasHidden = frame.hidden === true;
+		frame.hidden = !visible;
 		for (const { layerId } of frame.layers) {
 			if (this.map.getLayer(layerId)) {
 				this.map.setLayoutProperty(layerId, 'visibility', visible ? 'visible' : 'none');
 			}
 		}
-		if (visible) this.setFrameOpacity(frame, 0);
+		// Only a frame that really was off screen starts its fade-in from zero.
+		// Re-showing one that is still fading (switching back and forth within the
+		// cross-fade) must keep the opacity it currently contributes, or the
+		// basemap flashes through the half-faded incoming frame for one tick.
+		if (visible && wasHidden) this.setFrameOpacity(frame, 0);
 	}
 
 	/** After the fade-out, hide the frame's layers to stop background tile loads. */
@@ -601,6 +705,8 @@ export class FrameManager {
 				if (key === this.currentKey || key === this.pendingKey) return;
 				const frame = this.frames.get(key);
 				if (frame) this.setFrameVisibility(frame, false);
+				// It no longer counts as fading, so a deferred eviction can run
+				this.evict();
 			}, delay)
 		);
 	}
@@ -621,8 +727,14 @@ export class FrameManager {
 
 	private evict(): void {
 		const retainMax = this.opts.retainMax ?? 3;
-		// Current frame is always retained on top of the cap
-		const removable = this.lru.filter((key) => key !== this.currentKey && key !== this.pendingKey);
+		// Current frame is always retained on top of the cap, and so is every frame
+		// that is still fading out — removing its layers mid-fade pops, and during
+		// a dissolve the basemap would show through the half-faded new frame. Those
+		// are exactly the frames with a pending hide timer, which evicts again once
+		// it has taken them off screen.
+		const removable = this.lru.filter(
+			(key) => key !== this.currentKey && key !== this.pendingKey && !this.hideTimers.has(key)
+		);
 		while (removable.length > retainMax) {
 			const key = removable.shift();
 			if (key !== undefined) this.removeFrame(key);

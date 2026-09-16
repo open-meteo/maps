@@ -11,11 +11,8 @@ import {
 	DEFAULT_CACHE_MAX_BYTES_MB,
 	HTTP_OVERHEAD_BYTES
 } from '$lib/constants';
-import { getNextOmUrls } from '$lib/url';
 
 import { chartSources } from './chart';
-import { metaJson } from './time';
-import { selectedDomain } from './variables';
 
 import type {
 	Data,
@@ -62,18 +59,6 @@ function createBlockCache() {
 
 const blockCache = createBlockCache();
 
-// `warmedUrls` skips files already warmed this session (bounded to cap memory).
-const warmedUrls = new Set<string>();
-const warmOmUrl = (omFileReader: WeatherMapLayerFileReader, url: string): void => {
-	if (warmedUrls.has(url)) return;
-	if (warmedUrls.size > 1024) warmedUrls.clear();
-	warmedUrls.add(url);
-	// Caches the file header/trailer and root metadata without requesting any
-	// variable data. Best-effort: a sub-layer may have no file for this timestep
-	// (beyond its forecast horizon, or a run that has not published yet).
-	omFileReader.warmFile(url).catch(() => {});
-};
-
 export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
 	...defaultOmProtocolSettings,
 	// static
@@ -100,16 +85,7 @@ export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
 	// dynamic (can be changed during runtime)
 	colorScales: { ...defaultOmProtocolSettings.colorScales, ...initialCustomColorScales },
 
-	postReadCallback: (omFileReader: WeatherMapLayerFileReader, data: Data, state: OmUrlState) => {
-		// Fires once per real data load for both regular and seamless domains. For a
-		// seamless composite, getNextOmUrls(selectedDomain) expands to every concrete
-		// sub-layer URL — including off-screen ones the viewport gate skips — across the
-		// current/previous/next timesteps, so panning to a regional model and stepping
-		// through time stay instant. warmOmUrl dedupes, so multiple sub-layers firing
-		// this callback per composite is cheap.
-		for (const nextOmUrl of getNextOmUrls(get(selectedDomain), get(metaJson))) {
-			warmOmUrl(omFileReader, nextOmUrl);
-		}
+	postReadCallback: (_omFileReader: WeatherMapLayerFileReader, data: Data, state: OmUrlState) => {
 		if (
 			state.dataOptions.domain.value === 'ecmwf_ifs' &&
 			state.dataOptions.variable === 'pressure_msl'
