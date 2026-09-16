@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { gpuRenderOptions } from '$lib/stores/gpu-render';
+	import { renderer } from '$lib/stores/preferences';
 
 	import { Label } from '$lib/components/ui/label';
 	import { Switch } from '$lib/components/ui/switch';
@@ -9,7 +10,11 @@
 	import SettingsSection from './settings-section.svelte';
 </script>
 
-<SettingsSection title="GPU rendering">
+<SettingsSection
+	title="GPU rendering"
+	disabled={$renderer === 'cpu'}
+	note="Only with GPU rendering."
+>
 	<div class="mt-3 flex gap-3">
 		<Switch
 			id="temporal-blend"

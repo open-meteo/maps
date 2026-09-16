@@ -22,6 +22,7 @@ import { toast } from 'svelte-sonner';
 import { chartSources } from '$lib/stores/chart';
 import { gpuRenderOptions } from '$lib/stores/gpu-render';
 import { map as m } from '$lib/stores/map';
+import { renderer } from '$lib/stores/preferences';
 import { loading, opacity, preferences as p } from '$lib/stores/preferences';
 import { modelRun, time } from '$lib/stores/time';
 import { selectedDomain, variable as variableStore } from '$lib/stores/variables';
@@ -44,7 +45,7 @@ import {
 import { type FrameChannel, FrameManager } from '$lib/frame-manager';
 import { GpuRasterManager, type GpuRasterSlotSpec } from '$lib/gpu-raster-manager';
 import { fmtSelectedTime } from '$lib/helpers';
-import { vectorChannel } from '$lib/om-layer-defs';
+import { rasterChannel, vectorChannel } from '$lib/om-layer-defs';
 import { isPrefetched } from '$lib/prefetch';
 
 import { refreshPopup } from './popup';
@@ -89,6 +90,9 @@ const buildRenderState = (): RenderState | undefined => {
 	const vectorBefore = preferences.clipWater ? BEFORE_LAYER_VECTOR_WATER_CLIP : BEFORE_LAYER_VECTOR;
 
 	const gpuRender = get(gpuRenderOptions);
+	// CPU rendering: every channel goes through the tile pipeline, as before
+	// the GPU layers existed; no GPU slot is created at all.
+	const cpu = get(renderer) === 'cpu';
 	const rasters: GpuRasterSlotSpec[] = [];
 	const vectors: FrameChannel[] = [];
 	for (const source of sources) {
@@ -105,11 +109,20 @@ const buildRenderState = (): RenderState | undefined => {
 		// morph with the raster blend and follow the globe); the animated wind
 		// style renders as the GPU particle pass; barbs keep the CPU tile
 		// pipeline for their discrete glyph alphabet.
-		const gpuArrows = !!source.arrows && vectorOptions.arrowStyle === 'arrow';
-		const gpuParticles = !!source.arrows && vectorOptions.arrowStyle === 'particles';
+		const gpuArrows = !cpu && !!source.arrows && vectorOptions.arrowStyle === 'arrow';
+		const gpuParticles = !cpu && !!source.arrows && vectorOptions.arrowStyle === 'particles';
 		const cpuArrows = !!source.arrows && !gpuArrows && !gpuParticles;
 
-		if (source.raster) {
+		if (source.raster && cpu) {
+			vectors.push(
+				rasterChannel(
+					sourceKey(source),
+					url,
+					getRasterOpacity() * (source.opacity ?? 1),
+					rasterBefore
+				)
+			);
+		} else if (source.raster) {
 			rasters.push({
 				key: sourceKey(source),
 				url,
@@ -146,7 +159,7 @@ const buildRenderState = (): RenderState | undefined => {
 				particles: gpuParticleConfig(vectorOptions, dark, source.variable)
 			});
 		}
-		if (gpuRender.rainAnimation && source.raster && RAIN_VARIABLES.test(source.variable)) {
+		if (!cpu && gpuRender.rainAnimation && source.raster && RAIN_VARIABLES.test(source.variable)) {
 			rasters.push({
 				key: `${sourceKey(source)}:rain`,
 				url,
@@ -158,7 +171,7 @@ const buildRenderState = (): RenderState | undefined => {
 		}
 		// Contour lines render in-shader (they morph with the temporal blend and
 		// have no tile seams); the CPU channel below only contributes the labels.
-		if (source.contours) {
+		if (source.contours && !cpu) {
 			rasters.push({
 				key: `${sourceKey(source)}:contours`,
 				url,
@@ -172,7 +185,7 @@ const buildRenderState = (): RenderState | undefined => {
 			vectors.push(
 				vectorChannel(sourceKey(source), url, {
 					contours: !!source.contours,
-					contourLines: false,
+					contourLines: cpu,
 					arrows: cpuArrows,
 					// The particle style never reaches the CPU channel; keep its
 					// arrowStyle a valid icon alphabet.

@@ -3,6 +3,7 @@
 	import { toast } from 'svelte-sonner';
 
 	import { setArrowsOnActiveChart } from '$lib/stores/chart';
+	import { renderer } from '$lib/stores/preferences';
 	import { convertValue, getDisplayUnit, unitPreferences } from '$lib/stores/units';
 	import { type WindStyle, defaultVectorOptions, vectorOptions } from '$lib/stores/vector';
 
@@ -218,7 +219,7 @@
 				type="button"
 				role="radio"
 				aria-checked={selected}
-				disabled={!arrows}
+				disabled={!arrows || (style.value === 'particles' && $renderer === 'cpu')}
 				class="bg-primary/5 hover:bg-primary/10 flex w-full cursor-pointer flex-col gap-1.5 rounded p-2.5 text-left duration-150 disabled:cursor-not-allowed disabled:opacity-40 {selected
 					? 'ring-primary/60 bg-primary/10 ring-2'
 					: ''}"
@@ -349,12 +350,19 @@
 			</div>
 		{/if}
 	{:else}
-		<h3 class="mt-4 font-semibold">Animation</h3>
+		<!-- The animated flow is a GPU pass; with CPU rendering plain arrows draw instead. -->
+		<h3 class="mt-4 font-semibold {$renderer === 'cpu' ? 'opacity-50' : ''}">Animation</h3>
 		<p class="text-xs opacity-75">
-			The flow keeps the same screen speed at every zoom; density is per screen, not per area.
-			Density and size adapt to the screen size — the sliders scale that baseline.
+			{#if $renderer === 'cpu'}
+				Only with GPU rendering; CPU tiles draw plain arrows instead.
+			{:else}
+				The flow keeps the same screen speed at every zoom; density is per screen, not per area.
+				Density and size adapt to the screen size — the sliders scale that baseline.
+			{/if}
 		</p>
-		<div class="mt-2 flex flex-col gap-2">
+		<div
+			class="mt-2 flex flex-col gap-2 {$renderer === 'cpu' ? 'pointer-events-none opacity-50' : ''}"
+		>
 			<div class="flex items-center gap-3">
 				<Label class="w-16 shrink-0" for="particle-density">Density</Label>
 				<input

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { get } from 'svelte/store';
 
-	import { tileSize as tS } from '$lib/stores/preferences';
+	import { renderer, tileSize as tS } from '$lib/stores/preferences';
 
 	import Button from '$lib/components/ui/button/button.svelte';
 
@@ -21,6 +21,14 @@
 </script>
 
 <SettingsSection title="Tile Size settings">
+	<p class="mt-1 text-xs opacity-75">
+		{#if $renderer === 'gpu'}
+			Applies to the CPU tiles only: contour labels, wind barbs and grid points. The GPU layers
+			render the whole view at once.
+		{:else}
+			Size of every rendered tile.
+		{/if}
+	</p>
 	<div class="mt-3 flex gap-3 flex-wrap">
 		<Button
 			class="min-w-16 cursor-pointer {tileSize === 64 ? 'bg-primary' : 'bg-primary/75'}"

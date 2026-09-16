@@ -11,6 +11,7 @@
 		getBlockCacheStats,
 		gpuCacheMb
 	} from '$lib/stores/om-protocol-settings';
+	import { renderer } from '$lib/stores/preferences';
 
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { Input } from '$lib/components/ui/input';
@@ -99,13 +100,15 @@
 				bind:value={$cacheMaxBytesMb}
 			/>
 		</div>
-		<div class="flex items-center gap-3">
+		<!-- The VRAM texture cache only exists for the GPU layers. -->
+		<div class="flex items-center gap-3 {$renderer === 'cpu' ? 'opacity-50' : ''}">
 			<Label for="gpu-cache-mb" class="w-28 shrink-0">GPU Cache (MB)</Label>
 			<Input
 				id="gpu-cache-mb"
 				type="number"
 				min={64}
 				class="w-24 bg-background/60"
+				disabled={$renderer === 'cpu'}
 				bind:value={$gpuCacheMb}
 			/>
 		</div>
