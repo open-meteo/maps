@@ -77,8 +77,6 @@ const buildChannels = (): FrameChannel[] | undefined => {
 						vectorOptions.arrowStyle === 'barb' && !variableSupportsBarbs(source.variable)
 							? 'arrow'
 							: vectorOptions.arrowStyle,
-					arrowRender: vectorOptions.arrowRender,
-					arrowIconScale: vectorOptions.arrowIconScale,
 					grid: vectorOptions.grid,
 					dark,
 					// Inline vectors join the raster stack right above their own

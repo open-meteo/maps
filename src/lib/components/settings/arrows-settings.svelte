@@ -9,21 +9,13 @@
 
 	import { activeChart, setArrowsOnActiveChart } from '$lib/stores/chart';
 	import { convertValue, getDisplayUnit, unitPreferences } from '$lib/stores/units';
-	import { defaultVectorOptions, vectorOptions } from '$lib/stores/vector';
+	import { vectorOptions } from '$lib/stores/vector';
 
-	import Button from '$lib/components/ui/button/button.svelte';
 	import { Label } from '$lib/components/ui/label';
 	import { Switch } from '$lib/components/ui/switch';
 
+	import { shapeColor, shapeStrokeUnits } from '$lib/arrow-legend';
 	import { MS_TO_KNOTS, SHAPE_UNITS, arrowShape, barbShape, shapePath } from '$lib/arrow-shapes';
-	import {
-		ICON_PACKING_RANGE,
-		ICON_SCALE_RANGE,
-		shapeColor,
-		shapeStrokeUnits,
-		windIconSizePx,
-		windIconSpacing
-	} from '$lib/arrow-sprites';
 	import { changeOMfileURL } from '$lib/layers';
 	import { updateUrl } from '$lib/url';
 
@@ -86,11 +78,6 @@
 	let barbCapable = $derived(
 		$activeChart.sources.some((source) => source.arrows && variableSupportsBarbs(source.variable))
 	);
-	let uniformSize = $derived($vectorOptions.arrowRender === 'icon');
-	let iconSizePx = $derived(windIconSizePx(arrowStyle, $vectorOptions.arrowIconScale));
-	let iconSpacingPx = $derived(
-		windIconSpacing(arrowStyle, $vectorOptions.arrowIconScale, $vectorOptions.arrowPacking)
-	);
 
 	const styles = $derived([
 		{
@@ -116,23 +103,6 @@
 		// The store key is `arrowStyle`, so the default has to be passed in for
 		// the param to drop out of the URL again
 		updateUrl('arrow_style', style, DEFAULT_ARROW_STYLE);
-		changeOMfileURL();
-	};
-
-	const atDefaultSizing = $derived(
-		$vectorOptions.arrowIconScale === defaultVectorOptions.arrowIconScale &&
-			$vectorOptions.arrowPacking === defaultVectorOptions.arrowPacking
-	);
-
-	const resetSizing = () => {
-		$vectorOptions.arrowIconScale = defaultVectorOptions.arrowIconScale;
-		$vectorOptions.arrowPacking = defaultVectorOptions.arrowPacking;
-		changeOMfileURL();
-	};
-
-	const toggleUniformSize = (checked: boolean) => {
-		$vectorOptions.arrowRender = checked ? 'icon' : 'line';
-		updateUrl('arrow_render', $vectorOptions.arrowRender, 'line');
 		changeOMfileURL();
 	};
 </script>
@@ -207,68 +177,4 @@
 			</button>
 		{/each}
 	</div>
-
-	<h3 class="mt-4 font-semibold">Sizing</h3>
-	<p class="text-xs opacity-75">
-		Drawn into the map tiles, arrows grow while you zoom in and snap back when the next zoom level
-		loads. As symbols they keep one size on screen.
-	</p>
-	<div class="mt-2 flex gap-3">
-		<Switch
-			id="arrow-uniform"
-			class="cursor-pointer"
-			checked={uniformSize}
-			disabled={!arrows}
-			onCheckedChange={toggleUniformSize}
-		/>
-		<Label class="cursor-pointer" for="arrow-uniform">
-			Uniform size {uniformSize ? 'on' : 'off'}
-		</Label>
-	</div>
-
-	{#if uniformSize}
-		<div class="mt-3 flex flex-col gap-2">
-			<div class="flex items-center gap-3">
-				<Label class="w-16 shrink-0" for="arrow-size">Size</Label>
-				<input
-					id="arrow-size"
-					type="range"
-					class="w-28"
-					min={ICON_SCALE_RANGE.min}
-					max={ICON_SCALE_RANGE.max}
-					step={ICON_SCALE_RANGE.step}
-					bind:value={$vectorOptions.arrowIconScale}
-					onchange={changeOMfileURL}
-				/>
-				<span class="text-xs opacity-70">{iconSizePx.toFixed(1)} px</span>
-			</div>
-			<div class="flex items-center gap-3">
-				<Label class="w-16 shrink-0" for="arrow-packing">Spacing</Label>
-				<input
-					id="arrow-packing"
-					type="range"
-					class="w-28"
-					min={ICON_PACKING_RANGE.min}
-					max={ICON_PACKING_RANGE.max}
-					step={ICON_PACKING_RANGE.step}
-					bind:value={$vectorOptions.arrowPacking}
-					onchange={changeOMfileURL}
-				/>
-				<span class="text-xs opacity-70">{iconSpacingPx.toFixed(1)} px apart</span>
-			</div>
-			<Button
-				class="mt-1 h-7 w-fit cursor-pointer text-xs"
-				variant="secondary"
-				disabled={atDefaultSizing}
-				onclick={resetSizing}
-			>
-				Reset to default
-			</Button>
-			<p class="text-xs opacity-60">
-				Both snap to a whole number of cells across a tile, so the size shown is the size drawn.
-				Tile geometry is drawn between 0.7x and 1.4x its nominal size through a zoom level; the
-				default sits near the middle of that, so icons read like the geometry does.
-			</p>
-		</div>
-	{/if}
 </SettingsSection>
