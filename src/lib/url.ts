@@ -4,12 +4,8 @@ import { get } from 'svelte/store';
 import {
 	type ArrowStyle,
 	DEFAULT_ARROW_STYLE,
-	type Domain,
-	type DomainMetaDataJson,
 	VALID_ARROW_STYLES,
-	closestModelRun,
-	defaultOmProtocolSettings,
-	domainStep
+	defaultOmProtocolSettings
 } from '@openmeteo/weather-map-layer';
 import { mode } from 'mode-watcher';
 import { toast } from 'svelte-sonner';
@@ -49,7 +45,7 @@ import {
 import { BASE_URI, fmtModelRun, fmtSelectedTime, hashValue } from './helpers';
 import { clippingCountryCodes } from './stores/clipping';
 import { omProtocolSettings } from './stores/om-protocol-settings';
-import { formatISOUTCWithZ, parseISOWithoutTimezone } from './time-format';
+import { parseISOWithoutTimezone } from './time-format';
 import { findTimeStep } from './time-utils';
 
 import type { ChartSource, ChartState } from '$lib/chart-types';
@@ -323,43 +319,4 @@ export const syncChartToUrl = async (chart: ChartState): Promise<void> => {
 	}
 
 	await updateUrl();
-};
-
-export const getNextOmUrls = (
-	_omUrl: string,
-	domain: Domain,
-	metaJson: DomainMetaDataJson | undefined
-): [string | undefined, string | undefined] => {
-	const base = `${BASE_URI}/${domain.value}`;
-	const date = get(time);
-	const dateString = formatISOUTCWithZ(date);
-
-	let prevDate: Date;
-	let nextDate: Date;
-
-	if (metaJson) {
-		const idx = metaJson.valid_times.findIndex((s) => s === dateString);
-		prevDate = new Date(metaJson.valid_times[idx + 1]);
-		nextDate = new Date(metaJson.valid_times[idx - 1]);
-	} else {
-		prevDate = domainStep(date, domain.time_interval, 'backward');
-		nextDate = domainStep(date, domain.time_interval, 'forward');
-	}
-
-	const currentModelRun = metaJson ? new Date(metaJson.reference_time) : undefined;
-
-	const clampRun = (run: Date): Date =>
-		currentModelRun && run > currentModelRun ? currentModelRun : run;
-
-	const prevModelRun = clampRun(closestModelRun(prevDate, domain.model_interval));
-	const nextModelRun = clampRun(closestModelRun(nextDate, domain.model_interval));
-
-	const prevUrl = !isNaN(prevDate.getTime())
-		? `${base}/${fmtModelRun(prevModelRun)}/${fmtSelectedTime(prevDate)}.om`
-		: undefined;
-	const nextUrl = !isNaN(nextDate.getTime())
-		? `${base}/${fmtModelRun(nextModelRun)}/${fmtSelectedTime(nextDate)}.om`
-		: undefined;
-
-	return [prevUrl, nextUrl];
 };
