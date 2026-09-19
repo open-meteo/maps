@@ -59,7 +59,7 @@ export const startEmbedderBridge = () => {
 	const postHashToParent = () => {
 		window.parent.postMessage({ type: 'om-maps:hash', hash: window.location.hash }, '*');
 	};
-	// maplibre's own hash handler runs on moveend first, so location.hash is
+	// the map's own hash handler runs on moveend first, so location.hash is
 	// already up to date when this fires
 	get(m)?.on('moveend', postHashToParent);
 	postHashToParent();

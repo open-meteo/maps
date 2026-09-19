@@ -53,8 +53,9 @@ export const updateUrl = async (
 	await tick();
 	let fullUrl: string;
 	try {
-		const map = get(m);
-		if (map) {
+		// The hash handler is not part of the public API
+		const map = get(m) as unknown as { _hash?: { getHashString(): string } } | undefined;
+		if (map?._hash) {
 			fullUrl = String(url) + map._hash.getHashString();
 		} else {
 			fullUrl = String(url);

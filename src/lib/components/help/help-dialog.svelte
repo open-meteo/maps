@@ -3,6 +3,7 @@
 
 	import { helpOpen } from '$lib/stores/preferences';
 
+	import { globeSVG } from '$lib/components/buttons';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Kbd from '$lib/components/ui/kbd';
 
@@ -139,28 +140,28 @@
 			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 				<div class="flex flex-col gap-3">
 					<div class="flex items-center gap-2">
-						<div class="maplibregl-ctrl maplibregl-ctrl-group">
+						<div class="mapboxgl-ctrl mapboxgl-ctrl-group">
 							<button
-								class="maplibregl-ctrl-zoom-in"
+								class="mapboxgl-ctrl-zoom-in"
 								type="button"
 								title="Zoom in"
 								aria-label="Explanation Zoom in"
 								aria-disabled="false"
-								><span class="maplibregl-ctrl-icon" aria-hidden="true"></span></button
+								><span class="mapboxgl-ctrl-icon" aria-hidden="true"></span></button
 							><button
-								class="maplibregl-ctrl-zoom-out"
+								class="mapboxgl-ctrl-zoom-out"
 								type="button"
 								title="Zoom out"
 								aria-label="Explanation Zoom out"
 								aria-disabled="false"
-								><span class="maplibregl-ctrl-icon" aria-hidden="true"></span></button
+								><span class="mapboxgl-ctrl-icon" aria-hidden="true"></span></button
 							><button
-								class="maplibregl-ctrl-compass"
+								class="mapboxgl-ctrl-compass"
 								type="button"
 								title="Reset bearing to north"
 								aria-label="Explanation Reset bearing to north"
 								><span
-									class="maplibregl-ctrl-icon"
+									class="mapboxgl-ctrl-icon"
 									aria-hidden="true"
 									style="transform: scale(1) rotateZ(0deg) rotateX(0deg) rotateZ(0deg);"
 								></span></button
@@ -174,33 +175,35 @@
 					</div>
 
 					<div class="flex items-center gap-2">
-						<div class="maplibregl-ctrl maplibregl-ctrl-group">
+						<div class="mapboxgl-ctrl mapboxgl-ctrl-group">
 							<button
-								class="maplibregl-ctrl-geolocate"
+								class="mapboxgl-ctrl-geolocate"
 								type="button"
 								title="Find my location"
 								aria-label="Explanation Find my location"
 								aria-pressed="false"
-								><span class="maplibregl-ctrl-icon" aria-hidden="true"></span></button
+								><span class="mapboxgl-ctrl-icon" aria-hidden="true"></span></button
 							>
 						</div>
 						<div class="truncate">Locate User</div>
 					</div>
 
 					<div class="flex items-center gap-2">
-						<div class="maplibregl-ctrl maplibregl-ctrl-group">
+						<div class="mapboxgl-ctrl mapboxgl-ctrl-group">
 							<button
-								class="maplibregl-ctrl-globe"
 								aria-label="Explanation Globe Button"
 								type="button"
 								title="Enable globe"
-								><span class="maplibregl-ctrl-icon" aria-hidden="true"></span></button
+								style="display:flex;justify-content:center;align-items:center;"
 							>
+								<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+								{@html globeSVG}
+							</button>
 						</div>
 						<div class="truncate">Globe Projection</div>
 					</div>
 					<div class="flex items-center gap-2">
-						<div title="Darkmode" class="maplibregl-ctrl maplibregl-ctrl-group">
+						<div title="Darkmode" class="mapboxgl-ctrl mapboxgl-ctrl-group">
 							<button
 								aria-label="Explanation Darkmode Button"
 								style="display:flex;justify-content:center;align-items:center;"
@@ -226,7 +229,7 @@
 				</div>
 				<div class="flex flex-col gap-3">
 					<div class="flex items-center gap-2">
-						<div title="Settings" class="maplibregl-ctrl maplibregl-ctrl-group">
+						<div title="Settings" class="mapboxgl-ctrl mapboxgl-ctrl-group">
 							<button
 								style="display:flex;justify-content:center;align-items:center;"
 								aria-label="Explanation Settings Button"
@@ -252,7 +255,7 @@
 						<div class="truncate">Additional Settings</div>
 					</div>
 					<div class="flex items-center gap-2">
-						<div class="maplibregl-ctrl maplibregl-ctrl-group" title="Time selector">
+						<div class="mapboxgl-ctrl mapboxgl-ctrl-group" title="Time selector">
 							<button
 								style="display:flex;justify-content:center;align-items:center;"
 								aria-label="Explanation Time Selector Button"
@@ -283,7 +286,7 @@
 					</div>
 
 					<div class="flex items-center gap-2">
-						<div class="maplibregl-ctrl maplibregl-ctrl-group" title="Clipping">
+						<div class="mapboxgl-ctrl mapboxgl-ctrl-group" title="Clipping">
 							<button
 								style="display:flex;justify-content:center;align-items:center;"
 								aria-label="Explanation Clipping Button"
@@ -310,7 +313,7 @@
 					</div>
 
 					<div class="flex items-center gap-2">
-						<div class="maplibregl-ctrl maplibregl-ctrl-group" title="Hillshade">
+						<div class="mapboxgl-ctrl mapboxgl-ctrl-group" title="Hillshade">
 							<button
 								style="display:flex;justify-content:center;align-items:center;"
 								aria-label="Explanation Hillshade Button"
@@ -337,13 +340,13 @@
 					</div>
 
 					<div class="flex items-center gap-2">
-						<div class="maplibregl-ctrl maplibregl-ctrl-group">
+						<div class="mapboxgl-ctrl mapboxgl-ctrl-group">
 							<button
-								class="maplibregl-ctrl-terrain"
+								class="mapboxgl-ctrl-terrain"
 								aria-label="Explanation 3D Terrain Button"
 								type="button"
 								title="Enable terrain"
-								><span class="maplibregl-ctrl-icon opacity-75" aria-hidden="true"></span></button
+								><span class="mapboxgl-ctrl-icon opacity-75" aria-hidden="true"></span></button
 							>
 						</div>
 						<div class="truncate">3D Terrain</div>

@@ -2,6 +2,12 @@
  * Channel builders: pure functions turning one chart source into the
  * FrameManager channels that render it. All inputs (urls, styles, dark mode,
  * insertion points) are explicit parameters — no store reads at add time.
+ *
+ * Mapbox has no custom protocols, so the sources come from the adapter: a
+ * custom raster source per raster channel, and one GeoJSON source per vector
+ * channel that mirrors the protocol's vector tiles for the viewport. The
+ * vector layers select their features with a filter on the `layer` property
+ * (the MVT layer name) instead of `source-layer`.
  */
 import {
 	buildArrowColorExpr,
@@ -12,8 +18,10 @@ import {
 	defaultContourStyle
 } from '$lib/chart-styles';
 
+import { omAdapter } from './om-adapter';
+
 import type { ChannelLayerDef, FrameChannel } from '$lib/frame-manager';
-import type * as maplibregl from 'maplibre-gl';
+import type * as mapboxgl from 'mapbox-gl';
 
 /** Opacity fade duration; matches the FrameManager cross-fade. */
 const FADE_MS = 250;
@@ -29,7 +37,19 @@ export const rasterChannel = (
 	// keeps same-variable sources from different domains apart.
 	key: `${sourceKey}:raster:${opacity}`,
 	url,
-	sourceSpec: { type: 'raster', url, maxzoom: 14 },
+	addSource: (map, sourceId) => {
+		map.addSource(
+			sourceId,
+			omAdapter.createRasterSource(url, {
+				maxzoom: 14
+			}) as unknown as mapboxgl.CustomSourceInterface<ImageBitmap>
+		);
+		return {
+			remove: () => {
+				if (map.getSource(sourceId)) map.removeSource(sourceId);
+			}
+		};
+	},
 	layers: [
 		{
 			id: 'raster',
@@ -69,9 +89,16 @@ export interface VectorChannelOptions {
 
 /** Scale a numeric width expression by a factor. */
 const scaleWidth = (
-	expr: maplibregl.ExpressionSpecification,
+	expr: mapboxgl.ExpressionSpecification,
 	factor: number
-): maplibregl.ExpressionSpecification => (factor === 1 ? expr : ['*', factor, expr]);
+): mapboxgl.ExpressionSpecification => (factor === 1 ? expr : ['*', factor, expr]);
+
+/** Select the features of one MVT layer of the GeoJSON source. */
+const layerFilter = (layer: string): mapboxgl.FilterSpecification => [
+	'==',
+	['get', 'layer'],
+	layer
+];
 
 export const vectorChannel = (
 	sourceKey: string,
@@ -94,7 +121,7 @@ export const vectorChannel = (
 						id: layerId,
 						type: 'line',
 						source: sourceId,
-						'source-layer': 'wind-arrows',
+						filter: layerFilter('wind-arrows'),
 						paint: {
 							'line-opacity': 0,
 							'line-opacity-transition': { duration: FADE_MS, delay: 0 },
@@ -121,7 +148,7 @@ export const vectorChannel = (
 						id: layerId,
 						type: 'circle',
 						source: sourceId,
-						'source-layer': 'grid',
+						filter: layerFilter('grid'),
 						paint: {
 							'circle-opacity': 0,
 							'circle-opacity-transition': { duration: FADE_MS, delay: 0 },
@@ -147,7 +174,7 @@ export const vectorChannel = (
 						id: layerId,
 						type: 'line',
 						source: sourceId,
-						'source-layer': 'contours',
+						filter: layerFilter('contours'),
 						paint: {
 							'line-opacity': 0,
 							'line-opacity-transition': { duration: FADE_MS, delay: 0 },
@@ -170,7 +197,7 @@ export const vectorChannel = (
 						id: layerId,
 						type: 'symbol',
 						source: sourceId,
-						'source-layer': 'contours',
+						filter: layerFilter('contours'),
 						layout: {
 							// `line`, not `line-center`: the latter tries the middle of
 							// the line and nowhere else, so a contour whose middle
@@ -206,7 +233,18 @@ export const vectorChannel = (
 		// raster opacity
 		key: `${sourceKey}:vector:${lineWidth}${options.inline ? ':inline' : ''}`,
 		url,
-		sourceSpec: { type: 'vector', url },
+		addSource: (map, sourceId) => {
+			// The adapter's map interface is a structural subset that the typed
+			// `addSource` overloads do not satisfy
+			const handle = omAdapter.addVectorSource(
+				map as unknown as Parameters<typeof omAdapter.addVectorSource>[0],
+				sourceId,
+				url
+			);
+			// The adapter's own first refresh is not exposed; this one supersedes
+			// it and tells the frame when the viewport's features are in
+			return { remove: handle.remove, ready: handle.refresh() };
+		},
 		layers
 	};
 };

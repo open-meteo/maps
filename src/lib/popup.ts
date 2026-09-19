@@ -8,7 +8,7 @@ import {
 	getColorScale,
 	getValueFromLatLong
 } from '@openmeteo/weather-map-layer';
-import * as maplibregl from 'maplibre-gl';
+import mapboxgl from 'mapbox-gl';
 import { mode } from 'mode-watcher';
 
 import { map as m, popup as p, popupMode } from '$lib/stores/map';
@@ -215,13 +215,13 @@ const stepArrow = (): void => {
  * Only the orientation is taken; the glyph keeps its shape, since a
  * foreshortened arrow next to upright text reads as broken rather than tilted.
  */
-const screenAngle = (map: maplibregl.Map, lngLat: maplibregl.LngLat, heading: number): number => {
-	const from = maplibregl.MercatorCoordinate.fromLngLat(lngLat);
+const screenAngle = (map: mapboxgl.Map, lngLat: mapboxgl.LngLat, heading: number): number => {
+	const from = mapboxgl.MercatorCoordinate.fromLngLat(lngLat);
 	const radians = (heading * Math.PI) / 180;
 	// About one screen pixel at the current zoom, so perspective is sampled
 	// locally; Mercator y grows southward
 	const step = 2 ** -(map.getZoom() + 9);
-	const to = new maplibregl.MercatorCoordinate(
+	const to = new mapboxgl.MercatorCoordinate(
 		from.x + Math.sin(radians) * step,
 		from.y - Math.cos(radians) * step,
 		0
@@ -326,7 +326,7 @@ const initPopupDiv = (): void => {
 };
 
 /** Update the popup content for the given coordinates without moving the marker. */
-const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void> => {
+const updatePopupContent = async (coordinates: mapboxgl.LngLat): Promise<void> => {
 	if (!el || !contentDiv || !valueSpan || !unitSpan || !elevationSpan) return;
 
 	const map = get(m);
@@ -400,7 +400,7 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 };
 
 /** Ensure the marker exists, place it at `coordinates`, and update its content. */
-export const renderPopup = async (coordinates: maplibregl.LngLat): Promise<void> => {
+export const renderPopup = async (coordinates: mapboxgl.LngLat): Promise<void> => {
 	const map = get(m);
 	if (!get(popupMode) || !map) return;
 
@@ -409,7 +409,7 @@ export const renderPopup = async (coordinates: maplibregl.LngLat): Promise<void>
 
 	let popup = get(p);
 	if (!popup) {
-		popup = new maplibregl.Marker({ element: el, draggable: get(popupMode) === 'drag' })
+		popup = new mapboxgl.Marker({ element: el, draggable: get(popupMode) === 'drag' })
 			.setLngLat(coordinates)
 			.addTo(map);
 		p.set(popup);
@@ -431,7 +431,7 @@ export const refreshPopup = async (): Promise<void> => {
 	if (lngLat) await updatePopupContent(lngLat);
 };
 
-const updatePopup = async (e: maplibregl.MapMouseEvent): Promise<void> => {
+const updatePopup = async (e: mapboxgl.MapMouseEvent): Promise<void> => {
 	if (get(popupMode) === 'follow' && !get(terraDrawActive)) {
 		const popup = get(p);
 		if (popup) {
@@ -459,9 +459,9 @@ export const switchPopupMode = (): void => {
 
 // Double-tap-to-zoom and the tap-to-toggle-popup gesture overlap. On the first
 // tap we must NOT immediately create the popup marker: it is a draggable marker
-// that would swallow the second tap before MapLibre's double-tap zoom recognizes
+// that would swallow the second tap before Mapbox's double-tap zoom recognizes
 // it. Instead we defer the toggle past the double-tap window
-// (MapLibre's MAX_TAP_INTERVAL is 500ms) and skip it if a zoom started — a
+// (Mapbox's MAX_TAP_INTERVAL is 500ms) and skip it if a zoom started — a
 // double-tap fires `zoomstart`.
 const DOUBLE_TAP_WINDOW_MS = 400;
 
@@ -474,7 +474,7 @@ export const addPopup = (): void => {
 	// the apparent direction; `move` covers every one of them
 	map.on('move', realignArrow);
 
-	const togglePopupAt = async (lngLat: maplibregl.LngLat): Promise<void> => {
+	const togglePopupAt = async (lngLat: mapboxgl.LngLat): Promise<void> => {
 		if (!map || get(terraDrawActive)) return;
 
 		switchPopupMode();
@@ -509,7 +509,7 @@ export const addPopup = (): void => {
 	map.on('zoomstart', onZoomOrDoubleClick);
 	map.on('dblclick', onZoomOrDoubleClick);
 
-	map.on('click', (e: maplibregl.MapLayerMouseEvent) => {
+	map.on('click', (e: mapboxgl.MapMouseEvent) => {
 		if (!map || get(terraDrawActive)) return;
 
 		// When the popup is already active, toggle immediately.

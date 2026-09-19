@@ -2,11 +2,11 @@ import { type Writable, get, writable } from 'svelte/store';
 
 import { renderPopup } from '$lib/popup';
 
-import type * as maplibregl from 'maplibre-gl';
+import type * as mapboxgl from 'mapbox-gl';
 
-export const map: Writable<maplibregl.Map> = writable();
+export const map: Writable<mapboxgl.Map> = writable();
 
-export const popup: Writable<maplibregl.Marker | undefined> = writable(undefined);
+export const popup: Writable<mapboxgl.Marker | undefined> = writable(undefined);
 export const popupMode: Writable<null | 'follow' | 'drag'> = writable(null);
 
 popupMode.subscribe((pM) => {

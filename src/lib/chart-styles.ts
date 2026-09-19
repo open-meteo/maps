@@ -3,9 +3,9 @@
  *
  * Each style is an array of "levels" that map data values to visual
  * properties (line color, width). The defaults match the original
- * hardcoded MapLibre expressions.
+ * hardcoded Mapbox expressions.
  */
-import type * as maplibregl from 'maplibre-gl';
+import type * as mapboxgl from 'mapbox-gl';
 
 // ── Contour styles ──────────────────────────────────────────────────────
 
@@ -126,7 +126,7 @@ export const defaultArrowStyle: ArrowStyle = {
 	]
 };
 
-// ── MapLibre expression builders ────────────────────────────────────────
+// ── Mapbox expression builders ────────────────────────────────────────
 
 /**
  * Build a contour line-color expression from a ContourStyle.
@@ -135,12 +135,12 @@ export const defaultArrowStyle: ArrowStyle = {
 export function buildContourColorExpr(
 	style: ContourStyle,
 	dark: boolean
-): maplibregl.ExpressionSpecification {
+): mapboxgl.ExpressionSpecification {
 	const sorted = [...style.levels].sort((a, b) => b.modulo - a.modulo);
 	const fallback = sorted.find((l) => l.modulo === 0);
 	const conditions = sorted.filter((l) => l.modulo > 0);
 
-	let expr: maplibregl.ExpressionSpecification = [
+	let expr: mapboxgl.ExpressionSpecification = [
 		'literal',
 		dark ? (fallback?.darkColor ?? 'transparent') : (fallback?.lightColor ?? 'transparent')
 	];
@@ -158,12 +158,12 @@ export function buildContourColorExpr(
 }
 
 /** Build a contour line-width expression from a ContourStyle. */
-export function buildContourWidthExpr(style: ContourStyle): maplibregl.ExpressionSpecification {
+export function buildContourWidthExpr(style: ContourStyle): mapboxgl.ExpressionSpecification {
 	const sorted = [...style.levels].sort((a, b) => b.modulo - a.modulo);
 	const fallback = sorted.find((l) => l.modulo === 0);
 	const conditions = sorted.filter((l) => l.modulo > 0);
 
-	let expr: maplibregl.ExpressionSpecification = ['literal', fallback?.width ?? 1];
+	let expr: mapboxgl.ExpressionSpecification = ['literal', fallback?.width ?? 1];
 
 	for (const level of [...conditions].reverse()) {
 		expr = [
@@ -183,11 +183,11 @@ export function buildContourWidthExpr(style: ContourStyle): maplibregl.Expressio
 export function buildArrowColorExpr(
 	style: ArrowStyle,
 	dark: boolean
-): maplibregl.ExpressionSpecification {
+): mapboxgl.ExpressionSpecification {
 	const sorted = [...style.levels].sort((a, b) => a.minSpeed - b.minSpeed);
 	const fallback = sorted[0];
 
-	let expr: maplibregl.ExpressionSpecification = [
+	let expr: mapboxgl.ExpressionSpecification = [
 		'literal',
 		dark ? (fallback?.darkColor ?? 'transparent') : (fallback?.lightColor ?? 'transparent')
 	];
@@ -205,11 +205,11 @@ export function buildArrowColorExpr(
 }
 
 /** Build an arrow line-width expression from an ArrowStyle. */
-export function buildArrowWidthExpr(style: ArrowStyle): maplibregl.ExpressionSpecification {
+export function buildArrowWidthExpr(style: ArrowStyle): mapboxgl.ExpressionSpecification {
 	const sorted = [...style.levels].sort((a, b) => a.minSpeed - b.minSpeed);
 	const fallback = sorted[0];
 
-	let expr: maplibregl.ExpressionSpecification = ['literal', fallback?.width ?? 1.5];
+	let expr: mapboxgl.ExpressionSpecification = ['literal', fallback?.width ?? 1.5];
 
 	const conditions = sorted.filter((l) => l.minSpeed > 0);
 	for (const level of conditions) {
