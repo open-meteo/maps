@@ -199,12 +199,15 @@
 	isolation: isolate;
 }
 
-/* The zoom control and the app's buttons share one column on the right */
+/* The zoom control and the app's buttons share one column on the right.
+   OpenLayers' overlay container passes pointer events through, so the
+   column opts back in like OpenLayers' own controls do */
 .ol-control-column {
 	position: absolute;
 	top: 36px;
 	right: 10px;
 	z-index: 1;
+	pointer-events: auto;
 	display: flex;
 	flex-direction: column;
 	align-items: flex-end;

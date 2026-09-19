@@ -96,7 +96,7 @@ export const vectorChannel = (
 							// every cell; the default 45° would abort placement there
 							maxAngle: (110 * Math.PI) / 180,
 							repeat: 300,
-							font: '11px sans-serif',
+							font: '11px "Noto Sans", sans-serif',
 							fill: labelFill,
 							offsetY: -6
 						})

@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onDestroy, onMount, tick } from 'svelte';
 
+	// Map text is canvas text here: the same face as the MapLibre app's glyphs
+	import '@fontsource/noto-sans';
 	import { mode, userPrefersMode } from 'mode-watcher';
 	import 'ol/ol.css';
 	import { toast } from 'svelte-sonner';
