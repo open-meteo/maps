@@ -5,6 +5,8 @@
  * properties (line color, width). The defaults match the original
  * hardcoded MapLibre expressions.
  */
+import { alphaOfCssColor, rescaleInto } from '$lib/color';
+
 import type * as maplibregl from 'maplibre-gl';
 
 // ── Contour styles ──────────────────────────────────────────────────────
@@ -198,6 +200,50 @@ export function buildArrowColorExpr(
 			'case',
 			['boolean', ['>', ['to-number', ['get', 'value']], level.minSpeed], false],
 			dark ? level.darkColor : level.lightColor,
+			expr
+		];
+	}
+	return expr;
+}
+
+/**
+ * The level a speed falls in, matching how the expressions below cascade:
+ * the highest level whose threshold the speed is past.
+ */
+export function arrowLevelFor(style: ArrowStyle, speed: number): ArrowLevel {
+	const sorted = [...style.levels].sort((a, b) => a.minSpeed - b.minSpeed);
+	let level = sorted[0];
+	for (const candidate of sorted) if (speed > candidate.minSpeed) level = candidate;
+	return level;
+}
+
+/**
+ * Opacity range wind barbs are drawn over. They follow the arrow ramp's
+ * progression, but a barb already spells its speed out in pennants and barbs,
+ * so fading a slow one to the arrows' 0.2 only makes it unreadable.
+ */
+export const BARB_OPACITY_RANGE: [min: number, max: number] = [0.45, 0.85];
+
+/**
+ * Build a barb line-color expression: the arrow ramp's speed thresholds, in
+ * plain black or white at the shallower barb opacities.
+ */
+export function buildBarbColorExpr(
+	style: ArrowStyle,
+	dark: boolean
+): maplibregl.ExpressionSpecification {
+	const sorted = [...style.levels].sort((a, b) => a.minSpeed - b.minSpeed);
+	const alphas = sorted.map((level) => alphaOfCssColor(dark ? level.darkColor : level.lightColor));
+	const rgb = dark ? '255,255,255' : '0,0,0';
+	const color = (i: number): string =>
+		`rgba(${rgb},${rescaleInto(alphas[i], alphas, BARB_OPACITY_RANGE).toFixed(3)})`;
+
+	let expr: maplibregl.ExpressionSpecification = ['literal', color(0)];
+	for (let i = 1; i < sorted.length; i++) {
+		expr = [
+			'case',
+			['boolean', ['>', ['to-number', ['get', 'value']], sorted[i].minSpeed], false],
+			color(i),
 			expr
 		];
 	}
