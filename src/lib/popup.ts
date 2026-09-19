@@ -8,7 +8,7 @@ import {
 	getColorScale,
 	getValueFromLatLong
 } from '@openmeteo/weather-map-layer';
-import * as maplibregl from 'maplibre-gl';
+import L from 'leaflet';
 import { mode } from 'mode-watcher';
 
 import { map as m, popup as p, popupMode } from '$lib/stores/map';
@@ -143,10 +143,6 @@ let arrowPose: ArrowPose | undefined;
 let arrowTarget: ArrowPose | undefined;
 let arrowFrame = 0;
 
-/** Latest sample, so the arrow can be re-aimed when only the view changes. */
-let arrowDirection: number | undefined;
-let arrowSpeed = 0;
-
 /** Share of the remaining distance covered per frame. */
 const ARROW_EASE = 0.25;
 
@@ -207,31 +203,6 @@ const stepArrow = (): void => {
 };
 
 /**
- * On-screen angle, degrees clockwise from up, of a compass `heading` at
- * `lngLat`. The marker stays viewport-aligned so the text reads upright, so
- * bearing, pitch and perspective are all applied here instead: a short step
- * along the heading is pushed through the map's projection and the direction
- * of the resulting screen vector is what the arrows layer underneath shows.
- * Only the orientation is taken; the glyph keeps its shape, since a
- * foreshortened arrow next to upright text reads as broken rather than tilted.
- */
-const screenAngle = (map: maplibregl.Map, lngLat: maplibregl.LngLat, heading: number): number => {
-	const from = maplibregl.MercatorCoordinate.fromLngLat(lngLat);
-	const radians = (heading * Math.PI) / 180;
-	// About one screen pixel at the current zoom, so perspective is sampled
-	// locally; Mercator y grows southward
-	const step = 2 ** -(map.getZoom() + 9);
-	const to = new maplibregl.MercatorCoordinate(
-		from.x + Math.sin(radians) * step,
-		from.y - Math.cos(radians) * step,
-		0
-	);
-	const a = map.project(lngLat);
-	const b = map.project(to.toLngLat());
-	return (Math.atan2(b.x - a.x, a.y - b.y) * 180) / Math.PI;
-};
-
-/**
  * Point the popup arrow the way the flow goes and size it for `speed` (the
  * raw value, in the same unit the arrows layer thresholds use). `direction`
  * is the meteorological direction the flow comes *from*, matching the map
@@ -239,8 +210,6 @@ const screenAngle = (map: maplibregl.Map, lngLat: maplibregl.LngLat, heading: nu
  */
 const setArrow = (direction: number | undefined, speed: number): void => {
 	if (!arrowSpan || !arrowSvg || !arrowPath) return;
-	arrowDirection = direction;
-	arrowSpeed = speed;
 	if (direction === undefined || !isFinite(direction)) {
 		if (arrowFrame) cancelAnimationFrame(arrowFrame);
 		arrowFrame = 0;
@@ -251,9 +220,9 @@ const setArrow = (direction: number | undefined, speed: number): void => {
 		return;
 	}
 
-	const map = get(m);
-	const lngLat = get(p)?.getLngLat();
-	const target = map && lngLat ? screenAngle(map, lngLat, direction + 180) : direction + 180;
+	// The map is always north-up and flat, so the compass heading is the
+	// on-screen angle
+	const target = direction + 180;
 	// Shortest way round from the angle currently targeted
 	arrowAngle += ((((target - arrowAngle) % 360) + 540) % 360) - 180;
 
@@ -273,11 +242,6 @@ const setArrow = (direction: number | undefined, speed: number): void => {
 		return;
 	}
 	if (!arrowFrame) arrowFrame = requestAnimationFrame(stepArrow);
-};
-
-/** Re-aim the arrow at the last sample after the view changed under it. */
-const realignArrow = (): void => {
-	if (get(p)) setArrow(arrowDirection, arrowSpeed);
 };
 
 const initPopupDiv = (): void => {
@@ -326,13 +290,12 @@ const initPopupDiv = (): void => {
 };
 
 /** Update the popup content for the given coordinates without moving the marker. */
-const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void> => {
+const updatePopupContent = async (coordinates: L.LatLng): Promise<void> => {
 	if (!el || !contentDiv || !valueSpan || !unitSpan || !elevationSpan) return;
 
-	const map = get(m);
-
-	const elevation = map?.queryTerrainElevation(coordinates);
-	const hasElevation = typeof elevation === 'number' && isFinite(elevation);
+	// No terrain in Leaflet, so no elevation to show
+	const hasElevation = false;
+	const elevation = 0;
 
 	const activeUrl = getActiveOmUrl();
 	if (!activeUrl) return;
@@ -400,7 +363,7 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 };
 
 /** Ensure the marker exists, place it at `coordinates`, and update its content. */
-export const renderPopup = async (coordinates: maplibregl.LngLat): Promise<void> => {
+export const renderPopup = async (coordinates: L.LatLng): Promise<void> => {
 	const map = get(m);
 	if (!get(popupMode) || !map) return;
 
@@ -409,17 +372,27 @@ export const renderPopup = async (coordinates: maplibregl.LngLat): Promise<void>
 
 	let popup = get(p);
 	if (!popup) {
-		popup = new maplibregl.Marker({ element: el, draggable: get(popupMode) === 'drag' })
-			.setLngLat(coordinates)
-			.addTo(map);
+		// A zero-size icon puts the element's origin on the point; the marker
+		// css centres it there like a MapLibre marker
+		popup = L.marker(coordinates, {
+			icon: L.divIcon({
+				html: el,
+				className: 'popup-marker',
+				iconSize: [0, 0],
+				iconAnchor: [0, 0]
+			}),
+			draggable: get(popupMode) === 'drag',
+			// The popup must not swallow the taps that toggle it
+			bubblingMouseEvents: true
+		}).addTo(map);
 		p.set(popup);
 
 		popup.on('drag', async () => {
-			const lngLat = popup?.getLngLat();
-			if (lngLat) await updatePopupContent(lngLat);
+			const latLng = popup?.getLatLng();
+			if (latLng) await updatePopupContent(latLng);
 		});
 	} else {
-		popup.setLngLat(coordinates).addTo(map);
+		popup.setLatLng(coordinates).addTo(map);
 	}
 
 	await updatePopupContent(coordinates);
@@ -427,17 +400,17 @@ export const renderPopup = async (coordinates: maplibregl.LngLat): Promise<void>
 
 export const refreshPopup = async (): Promise<void> => {
 	const popup = get(p);
-	const lngLat = popup?.getLngLat();
-	if (lngLat) await updatePopupContent(lngLat);
+	const latLng = popup?.getLatLng();
+	if (latLng) await updatePopupContent(latLng);
 };
 
-const updatePopup = async (e: maplibregl.MapMouseEvent): Promise<void> => {
+const updatePopup = async (e: L.LeafletMouseEvent): Promise<void> => {
 	if (get(popupMode) === 'follow' && !get(terraDrawActive)) {
 		const popup = get(p);
 		if (popup) {
-			popup.setLngLat(e.lngLat);
+			popup.setLatLng(e.latlng);
 		}
-		await renderPopup(e.lngLat);
+		await renderPopup(e.latlng);
 	}
 };
 
@@ -459,9 +432,9 @@ export const switchPopupMode = (): void => {
 
 // Double-tap-to-zoom and the tap-to-toggle-popup gesture overlap. On the first
 // tap we must NOT immediately create the popup marker: it is a draggable marker
-// that would swallow the second tap before MapLibre's double-tap zoom recognizes
+// that would swallow the second tap before Leaflet's double-tap zoom recognizes
 // it. Instead we defer the toggle past the double-tap window
-// (MapLibre's MAX_TAP_INTERVAL is 500ms) and skip it if a zoom started — a
+// (Leaflet's double tap interval is 250ms) and skip it if a zoom started — a
 // double-tap fires `zoomstart`.
 const DOUBLE_TAP_WINDOW_MS = 400;
 
@@ -470,11 +443,8 @@ export const addPopup = (): void => {
 	if (!map) return;
 
 	map.on('mousemove', updatePopup);
-	// Bearing, pitch and, under pitch, the marker's screen position all change
-	// the apparent direction; `move` covers every one of them
-	map.on('move', realignArrow);
 
-	const togglePopupAt = async (lngLat: maplibregl.LngLat): Promise<void> => {
+	const togglePopupAt = async (latLng: L.LatLng): Promise<void> => {
 		if (!map || get(terraDrawActive)) return;
 
 		switchPopupMode();
@@ -488,7 +458,7 @@ export const addPopup = (): void => {
 		map.off('mousemove', updatePopup);
 		map.on('mousemove', updatePopup);
 
-		await renderPopup(lngLat);
+		await renderPopup(latLng);
 	};
 
 	let pendingTap: ReturnType<typeof setTimeout> | null = null;
@@ -509,22 +479,22 @@ export const addPopup = (): void => {
 	map.on('zoomstart', onZoomOrDoubleClick);
 	map.on('dblclick', onZoomOrDoubleClick);
 
-	map.on('click', (e: maplibregl.MapLayerMouseEvent) => {
+	map.on('click', (e: L.LeafletMouseEvent) => {
 		if (!map || get(terraDrawActive)) return;
 
 		// When the popup is already active, toggle immediately.
 		if (get(popupMode) !== null) {
-			void togglePopupAt(e.lngLat);
+			void togglePopupAt(e.latlng);
 			return;
 		}
 
 		if (Date.now() < suppressTapsUntil) return; // part of an in-progress zoom
 		cancelPendingTap();
-		const { lngLat } = e;
+		const { latlng } = e;
 		pendingTap = setTimeout(() => {
 			pendingTap = null;
 			if (Date.now() < suppressTapsUntil) return; // a zoom slipped in while waiting
-			void togglePopupAt(lngLat);
+			void togglePopupAt(latlng);
 		}, DOUBLE_TAP_WINDOW_MS);
 	});
 };

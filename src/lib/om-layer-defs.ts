@@ -1,56 +1,43 @@
 /**
  * Channel builders: pure functions turning one chart source into the
- * FrameManager channels that render it. All inputs (urls, styles, dark mode,
- * insertion points) are explicit parameters — no store reads at add time.
+ * FrameManager channels that render it. All inputs (urls, styles, dark mode)
+ * are explicit parameters — no store reads at add time.
+ *
+ * Leaflet has no style layers: a raster channel is one canvas GridLayer, a
+ * vector channel is one GridLayer that draws the MVT features itself, styled
+ * per feature by a callback. The insertion point of the MapLibre app is a
+ * pane here (see map-controls), so `beforeLayer` is accepted and ignored.
  */
 import {
-	buildArrowColorExpr,
-	buildArrowWidthExpr,
-	buildContourColorExpr,
-	buildContourWidthExpr,
+	arrowStyleFor,
+	contourStyleFor,
 	defaultArrowStyle,
 	defaultContourStyle
 } from '$lib/chart-styles';
 
-import type { ChannelLayerDef, FrameChannel } from '$lib/frame-manager';
-import type * as maplibregl from 'maplibre-gl';
+import { RASTER_PANE, VECTOR_PANE } from './map-controls';
+import { omAdapter } from './om-adapter';
 
-/** Opacity fade duration; matches the FrameManager cross-fade. */
-const FADE_MS = 250;
+import type { ChannelLayerDef, FrameChannel } from '$lib/frame-manager';
+import type L from 'leaflet';
 
 export const rasterChannel = (
 	sourceKey: string,
 	url: string,
 	opacity: number,
-	beforeLayer: string
+	_beforeLayer: string
 ): FrameChannel => ({
 	// Opacity is part of the identity: retained frames must not be reused
 	// with a different per-source opacity. The sourceKey (variable@domain)
 	// keeps same-variable sources from different domains apart.
 	key: `${sourceKey}:raster:${opacity}`,
 	url,
-	sourceSpec: { type: 'raster', url, maxzoom: 14 },
 	layers: [
 		{
 			id: 'raster',
-			opacityProp: 'raster-opacity',
 			peakOpacity: opacity,
-			beforeLayer,
-			add: (map, sourceId, layerId, before) => {
-				map.addLayer(
-					{
-						id: layerId,
-						type: 'raster',
-						source: sourceId,
-						paint: {
-							'raster-opacity': 0,
-							'raster-opacity-transition': { duration: FADE_MS, delay: 0 },
-							'raster-fade-duration': 0
-						}
-					},
-					before
-				);
-			}
+			create: () =>
+				omAdapter.createTileLayer(url, { pane: RASTER_PANE, opacity: 0 }) as unknown as L.GridLayer
 		}
 	]
 });
@@ -67,146 +54,62 @@ export interface VectorChannelOptions {
 	inline?: boolean;
 }
 
-/** Scale a numeric width expression by a factor. */
-const scaleWidth = (
-	expr: maplibregl.ExpressionSpecification,
-	factor: number
-): maplibregl.ExpressionSpecification => (factor === 1 ? expr : ['*', factor, expr]);
+/** What the adapter's canvas renderer takes per feature. */
+interface CanvasLineStyle {
+	strokeStyle: string;
+	lineWidth: number;
+	lineCap?: CanvasLineCap;
+}
 
 export const vectorChannel = (
 	sourceKey: string,
 	url: string,
 	options: VectorChannelOptions
 ): FrameChannel => {
-	const { contours, arrows, grid, dark, beforeLayer } = options;
+	const { contours, arrows, grid, dark } = options;
 	const lineWidth = options.lineWidth ?? 1;
-	const layers: ChannelLayerDef[] = [];
 
-	if (arrows) {
-		layers.push({
-			id: 'arrows',
-			opacityProp: 'line-opacity',
-			peakOpacity: 1,
-			beforeLayer,
-			add: (map, sourceId, layerId, before) => {
-				map.addLayer(
-					{
-						id: layerId,
-						type: 'line',
-						source: sourceId,
-						'source-layer': 'wind-arrows',
-						paint: {
-							'line-opacity': 0,
-							'line-opacity-transition': { duration: FADE_MS, delay: 0 },
-							'line-color': buildArrowColorExpr(defaultArrowStyle, dark),
-							'line-width': scaleWidth(buildArrowWidthExpr(defaultArrowStyle), lineWidth)
-						},
-						layout: { 'line-cap': 'round' }
-					},
-					before
-				);
+	// Contour labels have no canvas equivalent in the adapter; the lines,
+	// arrows and grid points render with the MapLibre app's colours and widths
+	const style = (
+		properties: Record<string, unknown>,
+		layerName: string
+	): CanvasLineStyle | null => {
+		const value = Number(properties['value']) || 0;
+		switch (layerName) {
+			case 'contours': {
+				if (!contours) return null;
+				const line = contourStyleFor(value, defaultContourStyle, dark);
+				return { strokeStyle: line.color, lineWidth: line.width * lineWidth };
 			}
-		});
-	}
+			case 'grid':
+				return grid ? { strokeStyle: 'orange', lineWidth: 2 } : null;
+			default: {
+				if (!arrows) return null;
+				const line = arrowStyleFor(value, defaultArrowStyle, dark);
+				return { strokeStyle: line.color, lineWidth: line.width * lineWidth, lineCap: 'round' };
+			}
+		}
+	};
 
-	if (grid) {
-		layers.push({
-			id: 'grid',
-			opacityProp: 'circle-opacity',
+	const layers: ChannelLayerDef[] = [
+		{
+			id: 'vector',
 			peakOpacity: 1,
-			beforeLayer,
-			add: (map, sourceId, layerId, before) => {
-				map.addLayer(
-					{
-						id: layerId,
-						type: 'circle',
-						source: sourceId,
-						'source-layer': 'grid',
-						paint: {
-							'circle-opacity': 0,
-							'circle-opacity-transition': { duration: FADE_MS, delay: 0 },
-							'circle-radius': ['interpolate', ['exponential', 1.5], ['zoom'], 0, 0.1, 12, 10],
-							'circle-color': 'orange'
-						}
-					},
-					before
-				);
-			}
-		});
-	}
-
-	if (contours) {
-		layers.push({
-			id: 'contours',
-			opacityProp: 'line-opacity',
-			peakOpacity: 1,
-			beforeLayer,
-			add: (map, sourceId, layerId, before) => {
-				map.addLayer(
-					{
-						id: layerId,
-						type: 'line',
-						source: sourceId,
-						'source-layer': 'contours',
-						paint: {
-							'line-opacity': 0,
-							'line-opacity-transition': { duration: FADE_MS, delay: 0 },
-							'line-color': buildContourColorExpr(defaultContourStyle, dark),
-							'line-width': scaleWidth(buildContourWidthExpr(defaultContourStyle), lineWidth)
-						}
-					},
-					before
-				);
-			}
-		});
-		layers.push({
-			id: 'contour-labels',
-			opacityProp: 'text-opacity',
-			peakOpacity: 1,
-			beforeLayer,
-			add: (map, sourceId, layerId, before) => {
-				map.addLayer(
-					{
-						id: layerId,
-						type: 'symbol',
-						source: sourceId,
-						'source-layer': 'contours',
-						layout: {
-							// `line`, not `line-center`: the latter tries the middle of
-							// the line and nowhere else, so a contour whose middle
-							// happens to wiggle gets no label at all. Repeating along
-							// the line gives every straight-enough stretch a chance.
-							'symbol-placement': 'line',
-							'symbol-spacing': 300,
-							// Contours from a quantized field change direction at
-							// almost every cell. The default 45° aborts placement
-							// there, which is why labels only appeared once a wiggle
-							// was longer than a glyph, i.e. zoomed far in.
-							'text-max-angle': 110,
-							'text-font': ['Noto Sans Regular'],
-							'text-field': ['to-string', ['get', 'value']],
-							'text-size': 11,
-							'text-padding': 2,
-							'text-offset': [0, -0.6]
-						},
-						paint: {
-							'text-opacity': 0,
-							'text-opacity-transition': { duration: FADE_MS, delay: 0 },
-							'text-color': dark ? 'rgba(255,255,255, 0.8)' : 'rgba(0,0,0, 0.7)'
-						}
-					},
-					before
-				);
-			}
-		});
-	}
+			create: () =>
+				omAdapter.createVectorTileLayer(url, {
+					pane: VECTOR_PANE,
+					opacity: 0,
+					style
+				}) as unknown as L.GridLayer
+		}
+	];
 
 	return {
 		// Line width and stack placement are part of the identity, like
 		// raster opacity
 		key: `${sourceKey}:vector:${lineWidth}${options.inline ? ':inline' : ''}`,
 		url,
-		sourceSpec: { type: 'vector', url },
 		layers
 	};
 };

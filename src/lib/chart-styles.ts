@@ -3,9 +3,9 @@
  *
  * Each style is an array of "levels" that map data values to visual
  * properties (line color, width). The defaults match the original
- * hardcoded MapLibre expressions.
+ * hardcoded MapLibre expressions; here they are evaluated per feature by
+ * the canvas renderer of the Leaflet vector tiles.
  */
-import type * as maplibregl from 'maplibre-gl';
 
 // ── Contour styles ──────────────────────────────────────────────────────
 
@@ -126,99 +126,36 @@ export const defaultArrowStyle: ArrowStyle = {
 	]
 };
 
-// ── MapLibre expression builders ────────────────────────────────────────
+// ── Per-feature evaluation ──────────────────────────────────────────────
 
-/**
- * Build a contour line-color expression from a ContourStyle.
- * Checks highest modulo first (outermost case), falls through to "other" (modulo 0).
- */
-export function buildContourColorExpr(
-	style: ContourStyle,
-	dark: boolean
-): maplibregl.ExpressionSpecification {
-	const sorted = [...style.levels].sort((a, b) => b.modulo - a.modulo);
-	const fallback = sorted.find((l) => l.modulo === 0);
-	const conditions = sorted.filter((l) => l.modulo > 0);
-
-	let expr: maplibregl.ExpressionSpecification = [
-		'literal',
-		dark ? (fallback?.darkColor ?? 'transparent') : (fallback?.lightColor ?? 'transparent')
-	];
-
-	// Build inside-out: lowest modulo is innermost, highest is outermost (first checked)
-	for (const level of [...conditions].reverse()) {
-		expr = [
-			'case',
-			['boolean', ['==', ['%', ['to-number', ['get', 'value']], level.modulo], 0], false],
-			dark ? level.darkColor : level.lightColor,
-			expr
-		];
-	}
-	return expr;
-}
-
-/** Build a contour line-width expression from a ContourStyle. */
-export function buildContourWidthExpr(style: ContourStyle): maplibregl.ExpressionSpecification {
-	const sorted = [...style.levels].sort((a, b) => b.modulo - a.modulo);
-	const fallback = sorted.find((l) => l.modulo === 0);
-	const conditions = sorted.filter((l) => l.modulo > 0);
-
-	let expr: maplibregl.ExpressionSpecification = ['literal', fallback?.width ?? 1];
-
-	for (const level of [...conditions].reverse()) {
-		expr = [
-			'case',
-			['boolean', ['==', ['%', ['to-number', ['get', 'value']], level.modulo], 0], false],
-			level.width,
-			expr
-		];
-	}
-	return expr;
+export interface LineStyle {
+	color: string;
+	width: number;
 }
 
 /**
- * Build an arrow line-color expression from an ArrowStyle.
- * Checks highest threshold first, falls through to the base (minSpeed 0).
+ * Contour line style for a value: the highest modulo that divides the value
+ * wins, falling through to "other" (modulo 0).
  */
-export function buildArrowColorExpr(
-	style: ArrowStyle,
-	dark: boolean
-): maplibregl.ExpressionSpecification {
-	const sorted = [...style.levels].sort((a, b) => a.minSpeed - b.minSpeed);
-	const fallback = sorted[0];
-
-	let expr: maplibregl.ExpressionSpecification = [
-		'literal',
-		dark ? (fallback?.darkColor ?? 'transparent') : (fallback?.lightColor ?? 'transparent')
-	];
-
-	const conditions = sorted.filter((l) => l.minSpeed > 0);
-	for (const level of conditions) {
-		expr = [
-			'case',
-			['boolean', ['>', ['to-number', ['get', 'value']], level.minSpeed], false],
-			dark ? level.darkColor : level.lightColor,
-			expr
-		];
-	}
-	return expr;
+export function contourStyleFor(value: number, style: ContourStyle, dark: boolean): LineStyle {
+	const sorted = [...style.levels].sort((a, b) => b.modulo - a.modulo);
+	const level =
+		sorted.find((l) => l.modulo > 0 && value % l.modulo === 0) ??
+		sorted.find((l) => l.modulo === 0);
+	if (!level) return { color: 'transparent', width: 1 };
+	return { color: dark ? level.darkColor : level.lightColor, width: level.width };
 }
 
-/** Build an arrow line-width expression from an ArrowStyle. */
-export function buildArrowWidthExpr(style: ArrowStyle): maplibregl.ExpressionSpecification {
+/**
+ * Arrow line style for a speed: the highest threshold the speed exceeds wins,
+ * falling through to the base level (minSpeed 0).
+ */
+export function arrowStyleFor(value: number, style: ArrowStyle, dark: boolean): LineStyle {
 	const sorted = [...style.levels].sort((a, b) => a.minSpeed - b.minSpeed);
-	const fallback = sorted[0];
-
-	let expr: maplibregl.ExpressionSpecification = ['literal', fallback?.width ?? 1.5];
-
-	const conditions = sorted.filter((l) => l.minSpeed > 0);
-	for (const level of conditions) {
-		expr = [
-			'case',
-			['boolean', ['>', ['to-number', ['get', 'value']], level.minSpeed], false],
-			level.width,
-			expr
-		];
+	let level = sorted[0];
+	for (const candidate of sorted) {
+		if (candidate.minSpeed > 0 && value > candidate.minSpeed) level = candidate;
 	}
-	return expr;
+	if (!level) return { color: 'transparent', width: 1.5 };
+	return { color: dark ? level.darkColor : level.lightColor, width: level.width };
 }
