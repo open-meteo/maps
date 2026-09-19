@@ -2,22 +2,24 @@ import { type Writable, get, writable } from 'svelte/store';
 
 import { renderPopup } from '$lib/popup';
 
-import type * as maplibregl from 'maplibre-gl';
+import type Map from 'ol/Map';
+import type Overlay from 'ol/Overlay';
 
-export const map: Writable<maplibregl.Map> = writable();
+export const map: Writable<Map> = writable();
 
-export const popup: Writable<maplibregl.Marker | undefined> = writable(undefined);
+export const popup: Writable<Overlay | undefined> = writable(undefined);
 export const popupMode: Writable<null | 'follow' | 'drag'> = writable(null);
 
 popupMode.subscribe((pM) => {
 	const p = get(popup);
-	let lastLngLat;
+	let lastPosition;
 	if (p) {
-		lastLngLat = p.getLngLat();
+		lastPosition = p.getPosition();
 	}
-	p?.remove();
+	p?.setMap(null);
 	popup.set(undefined);
 	if (pM) {
-		renderPopup(lastLngLat ?? get(map).getCenter());
+		const position = lastPosition ?? get(map).getView().getCenter();
+		if (position) renderPopup(position);
 	}
 });
