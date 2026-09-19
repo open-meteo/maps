@@ -6,10 +6,12 @@ import { get } from 'svelte/store';
 import { domainOptions } from '@openmeteo/weather-map-layer';
 import { setMode } from 'mode-watcher';
 
-import { browser, version } from '$app/environment';
+import { browser } from '$app/environment';
 
 import { map as m } from '$lib/stores/map';
 import { domain } from '$lib/stores/variables';
+
+import { version } from '../../package.json';
 
 // Domains this build can actually render. Seamless composites are excluded
 // until the app supports them; drop the filter once they work and embedders
