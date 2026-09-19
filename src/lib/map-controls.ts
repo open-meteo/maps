@@ -47,12 +47,23 @@ const PANE_Z_INDEX: Record<string, number> = {
 let basemapLower: L.MaplibreGL | undefined;
 let basemapUpper: L.MaplibreGL | undefined;
 
+/**
+ * Leaflet tiles the world into 256 px tiles where MapLibre uses 512 px, so
+ * the same view is one zoom level higher in Leaflet. Zooms from the domain
+ * table and the URL hash are MapLibre zooms and converted here, which keeps
+ * the hash interchangeable with the MapLibre app.
+ */
+const ZOOM_OFFSET = 1;
+
+/** Where a global domain opens without a hash: Europe, like the MapLibre app's users expect. */
+const EUROPE: { center: L.LatLngExpression; zoom: number } = { center: [50, 10], zoom: 3 };
+
 /** The MapLibre `#zoom/lat/lng` hash Leaflet does not maintain itself. */
 export const getHashString = (): string => {
 	const map = get(m);
 	if (!map) return '';
 	const center = map.getCenter();
-	const zoom = Math.round(map.getZoom() * 100) / 100;
+	const zoom = Math.round((map.getZoom() - ZOOM_OFFSET) * 100) / 100;
 	// Enough decimals for one pixel at this zoom (MapLibre's rule)
 	const precision = Math.max(
 		0,
@@ -89,17 +100,19 @@ export const createMap = async (container: HTMLElement) => {
 	}
 	const grid = GridFactory.create(domainObject.grid);
 	const { lng, lat } = grid.getCenter();
+	const bounds = grid.getBounds();
+	const global = bounds[2] - bounds[0] >= 359;
 	const hash = parseHash();
+	const start: { center: L.LatLngExpression; zoom: number } =
+		hash ?? (global ? EUROPE : { center: [lat, lng], zoom: domainObject.grid.zoom ?? 1 });
 
 	const map = L.map(container, {
-		center: hash?.center ?? [lat, lng],
-		zoom: hash?.zoom ?? domainObject.grid.zoom,
+		center: start.center,
+		zoom: start.zoom + ZOOM_OFFSET,
 		keyboard: false,
 		// Fractional zooms like the MapLibre app; the buttons still step by one
 		zoomSnap: 0,
 		zoomDelta: 1,
-		// About the MapLibre app's wheel zoom rate
-		wheelPxPerZoomLevel: 120,
 		worldCopyJump: false,
 		// Both re-added below: the zoom buttons on the right like the MapLibre
 		// app, the attribution without Leaflet's prefix
@@ -164,10 +177,13 @@ const splitStyle = (style: StyleSpecification): [StyleSpecification, StyleSpecif
 		(layer: LayerSpecification) => layer.id === BEFORE_LAYER_RASTER
 	);
 	const cut = at === -1 ? style.layers.length : at;
+	// Leaflet's flat tiles leave no room for a globe; the projection is pinned
+	// so a MapLibre default can never put the plugin's instances on one
+	const flat = { ...style, projection: { type: 'mercator' as const } };
 	return [
-		{ ...style, layers: style.layers.slice(0, cut) },
+		{ ...flat, layers: style.layers.slice(0, cut) },
 		// The upper instance must stay see-through
-		{ ...style, layers: style.layers.slice(cut).filter((layer) => layer.type !== 'background') }
+		{ ...flat, layers: style.layers.slice(cut).filter((layer) => layer.type !== 'background') }
 	];
 };
 
