@@ -139,6 +139,13 @@ export class FrameManager {
 		return this.currentFrame()?.channels ?? [];
 	}
 
+	/** Source id of the first channel of the visible frame matching `predicate`. */
+	getActiveSourceId(predicate: (channel: FrameChannel) => boolean): string | undefined {
+		const frame = this.currentFrame();
+		const index = frame?.channels.findIndex(predicate) ?? -1;
+		return index >= 0 ? frame?.sourceIds[index] : undefined;
+	}
+
 	/**
 	 * Re-point every resident layer anchored at `from` to `to`. Insertion
 	 * points are recorded at frame build time, so when the surrounding basemap
