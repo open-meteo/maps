@@ -1,6 +1,6 @@
 /**
- * Pure helpers for the chart model: URL (de)serialization of chart sources,
- * chart comparison/preset matching, and arrow-capability detection.
+ * Pure helpers for the chart model: URL (de)serialization of chart sources
+ * and chart comparison/preset matching.
  *
  * URL grammar for the `sources` parameter (comma separated, one token per
  * source): `variable[@domain][:flags]` where flags is a concatenation of `r`
@@ -21,16 +21,6 @@ import type { ChartPreset, ChartSource } from '$lib/chart-types';
  */
 export const sourceKey = (source: Pick<ChartSource, 'variable' | 'domain'>): string =>
 	source.domain ? `${source.variable}@${source.domain}` : source.variable;
-
-/**
- * Variables that can render arrows: the WML protocol only derives directions
- * for u/v components, speed/direction pairs and wave height/direction (see
- * DEFAULT_DERIVATION_RULES in weather-map-layer).
- */
-export const variableSupportsArrows = (variable: string): boolean =>
-	/_[uv]_(component|current)/.test(variable) ||
-	/_(?:speed|direction)_/.test(variable) ||
-	/wave_(?:height|direction)/.test(variable);
 
 const serializeSource = (source: ChartSource): string => {
 	const variable = source.domain ? `${source.variable}@${source.domain}` : source.variable;

@@ -1,6 +1,6 @@
+import { variableHasDirections } from '@openmeteo/weather-map-layer';
 import { describe, expect, it } from 'vitest';
 
-import { variableSupportsArrows } from '$lib/chart-encoding';
 import { chartPresets, popularVariables } from '$lib/chart-presets';
 
 describe('chartPresets', () => {
@@ -38,7 +38,7 @@ describe('chartPresets', () => {
 		for (const preset of chartPresets) {
 			for (const source of preset.sources) {
 				if (source.arrows) {
-					expect(variableSupportsArrows(source.variable), `${preset.id}: ${source.variable}`).toBe(
+					expect(variableHasDirections(source.variable), `${preset.id}: ${source.variable}`).toBe(
 						true
 					);
 				}
