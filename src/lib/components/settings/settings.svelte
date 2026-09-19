@@ -12,6 +12,7 @@
 	import OpacitySetting from './opacity-setting.svelte';
 	import PopupSettings from './popup-settings.svelte';
 	import StateSettings from './state-settings.svelte';
+	import SunSettings from './sun-settings.svelte';
 	import TileSizeSettings from './tile-size-settings.svelte';
 	import UnitSettings from './unit-settings.svelte';
 	import WaterClipSetting from './water-clip-setting.svelte';
@@ -31,6 +32,7 @@
 			<InterpolationSettings />
 			<PopupSettings />
 			<WaterClipSetting />
+			<SunSettings />
 			<OpacitySetting />
 			<CacheSettings />
 			<EndpointSettings />

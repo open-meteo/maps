@@ -20,10 +20,11 @@
 		DAY_NAMES,
 		MILLISECONDS_PER_DAY,
 		MILLISECONDS_PER_HOUR,
+		MILLISECONDS_PER_MINUTE,
 		MILLISECONDS_PER_WEEK
 	} from '$lib/constants';
 	import { throttle } from '$lib/helpers';
-	import { changeOMfileURL } from '$lib/layers';
+	import { changeOMfileURL, previewSunTime } from '$lib/layers';
 	import { getMetaData, tryGetMetaData } from '$lib/metadata';
 	import {
 		formatISOWithoutTimezone,
@@ -562,6 +563,17 @@
 
 	const timeValid = (date: Date) => isValidTimeStep(date, timeSteps);
 
+	// The hovered moment at minute resolution. Tick marks only go down to the
+	// domain's time interval, but the sun shadow preview can be continuous.
+	const hoveredMinute = (): Date | null => {
+		if (!hoverX || !daySteps.length || !dayContainerScrollWidth) return null;
+		const fraction = (hoverX + dayContainerScrollLeft) / dayContainerScrollWidth;
+		const ms = daySteps[0].getTime() + fraction * daySteps.length * MILLISECONDS_PER_DAY;
+		return new Date(Math.round(ms / MILLISECONDS_PER_MINUTE) * MILLISECONDS_PER_MINUTE);
+	};
+
+	const throttledSunPreview = throttle(() => previewSunTime(hoveredMinute()), 100);
+
 	let resizeTimeout: ReturnType<typeof setTimeout> | undefined;
 	const horizontalScrollSpeed = 1;
 
@@ -576,8 +588,10 @@
 			hoursHoverContainer.addEventListener(
 				'mousemove',
 				(e) => {
-					if (hoursHoverContainerWidth)
+					if (hoursHoverContainerWidth) {
 						hoverX = e.layerX + (isSafari ? hoursHoverContainerWidth / 2 : 0);
+						throttledSunPreview();
+					}
 				},
 				{ signal }
 			);
@@ -585,6 +599,7 @@
 				'mouseout',
 				() => {
 					hoverX = 0;
+					previewSunTime(null);
 				},
 				{ signal }
 			);

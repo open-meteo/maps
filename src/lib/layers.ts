@@ -1,7 +1,7 @@
 /**
  * Layer orchestration: turns the active om url into FrameManager channels (a
- * raster fill and, when contours/arrows/grid are on, a vector channel) and
- * shows them as one synchronized frame. Data is shared per variable inside
+ * raster fill, when contours/arrows/grid are on a vector channel, and when
+ * enabled the sun cycle shadow) and shows them as one synchronized frame. Data is shared per variable inside
  * the om protocol, so both channels of a source trigger a single fetch, and
  * toggling contours/arrows re-renders from cached data.
  */
@@ -24,12 +24,15 @@ import { type FrameChannel, FrameManager } from '$lib/frame-manager';
 import { rasterChannel, vectorChannel } from '$lib/om-layer-defs';
 
 import { refreshPopup } from './popup';
-import { getOMUrl } from './url';
+import { getOMUrl, getSunUrl } from './url';
+
+import type * as maplibregl from 'maplibre-gl';
 
 let frameManager: FrameManager | undefined;
 
 /** Single source for now; the key only has to be stable across frames. */
 const SOURCE_KEY = 'om';
+const SUN_SOURCE_KEY = 'sun';
 
 const getRasterOpacity = (): number => {
 	const opacityValue = get(opacity) / 100;
@@ -62,6 +65,11 @@ const buildChannels = (): FrameChannel[] | undefined => {
 			})
 		);
 	}
+
+	// Sun cycle shadow above the weather layers, below the place labels. The
+	// shadow opacity is baked into the tile alpha, so the layer stays at 1.
+	const sunUrl = getSunUrl();
+	if (sunUrl) channels.push(rasterChannel(SUN_SOURCE_KEY, sunUrl, 1, BEFORE_LAYER_VECTOR));
 
 	return channels;
 };
@@ -115,7 +123,33 @@ export const changeOMfileURL = (): void => {
 	const channels = buildChannels();
 	if (!channels) return;
 
+	lastSunPreviewUrl = undefined;
 	frameManager.show(channels);
+};
+
+let lastSunPreviewUrl: string | undefined;
+
+/**
+ * Retarget the visible sun source to another moment (minute resolution)
+ * without building a new frame — cheap enough to follow the time-selector
+ * hover. Passing null snaps back to the selected time. Uses setUrl, not
+ * setTiles: for url-based sources the tilejson refetch would restore the old
+ * template over setTiles.
+ */
+export const previewSunTime = (date: Date | null): void => {
+	const map = get(m);
+	if (!map || !frameManager) return;
+
+	const sunUrl = getSunUrl(date ?? undefined);
+	if (!sunUrl || sunUrl === lastSunPreviewUrl) return;
+
+	const sourceId = frameManager.getActiveSourceId((channel) => channel.url.startsWith('sun://'));
+	if (!sourceId) return;
+	const source = map.getSource(sourceId) as maplibregl.RasterTileSource | undefined;
+	if (!source) return;
+
+	lastSunPreviewUrl = sunUrl;
+	source.setUrl(sunUrl);
 };
 
 /** om:// source url of the currently visible frame (used by the popup). */
