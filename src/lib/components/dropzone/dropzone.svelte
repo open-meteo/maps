@@ -8,19 +8,23 @@
 
 	interface Props {
 		ondrop?: (features: GeoJsonFeature[]) => void;
+		onOmFile?: (file: File) => void;
 	}
 
-	let { ondrop }: Props = $props();
+	let { ondrop, onOmFile }: Props = $props();
 
 	let dragging = $state(false);
 	let dragCounter = 0;
 
-	const ACCEPTED_EXTENSIONS = ['.geojson', '.json'];
+	const GEOJSON_EXTENSIONS = ['.geojson', '.json'];
+	const OM_EXTENSION = '.om';
 
-	const isAcceptedFile = (file: File): boolean => {
-		const name = file.name.toLowerCase();
-		return ACCEPTED_EXTENSIONS.some((ext) => name.endsWith(ext));
-	};
+	const hasExtension = (file: File, ext: string): boolean => file.name.toLowerCase().endsWith(ext);
+
+	const isGeoJsonFile = (file: File): boolean =>
+		GEOJSON_EXTENSIONS.some((ext) => hasExtension(file, ext));
+
+	const isOmFile = (file: File): boolean => hasExtension(file, OM_EXTENSION);
 
 	// Only react to drags that actually carry files
 	const isFileDrag = (e: DragEvent): boolean => e.dataTransfer?.types?.includes('Files') ?? false;
@@ -143,7 +147,9 @@
 		if (!files || files.length === 0) return;
 
 		for (const file of Array.from(files)) {
-			if (isAcceptedFile(file)) {
+			if (isOmFile(file)) {
+				onOmFile?.(file);
+			} else if (isGeoJsonFile(file)) {
 				await processFile(file);
 			} else {
 				toast.warning(`Unsupported file type: ${file.name}`);
@@ -168,7 +174,9 @@
 		>
 			<UploadIcon class="h-10 w-10 text-primary" />
 			<p class="text-lg font-semibold text-foreground">Drop file to process</p>
-			<p class="text-sm text-muted-foreground">'.geojson' or '.json' files supported</p>
+			<p class="text-sm text-muted-foreground">
+				'.om' spatial weather files, or '.geojson' / '.json' clipping polygons
+			</p>
 		</div>
 	</div>
 {/if}

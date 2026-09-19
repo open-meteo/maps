@@ -32,6 +32,7 @@
 	import { unwatchAttributionOverlap, watchAttributionOverlap } from '$lib/attribution';
 	import { postEmbedderReady, startEmbedderBridge, stopEmbedderBridge } from '$lib/embed';
 	import { addOmFileLayers, changeOMfileURL } from '$lib/layers';
+	import { loadLocalOmFile } from '$lib/load-local-file';
 	import {
 		addTerrainSource,
 		createMap,
@@ -166,4 +167,5 @@
 	ondrop={(features) => {
 		clippingPanel?.addImportedFeatures(features);
 	}}
+	onOmFile={loadLocalOmFile}
 />

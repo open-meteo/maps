@@ -15,6 +15,8 @@ import {
 	HTTP_OVERHEAD_BYTES
 } from '$lib/constants';
 
+import { localOmBase } from './local-file';
+
 import type {
 	Data,
 	OmProtocolSettings,
@@ -54,8 +56,12 @@ export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
 	colorScales: { ...defaultOmProtocolSettings.colorScales, ...initialCustomColorScales },
 
 	postReadCallback: (_omFileReader: WeatherMapLayerFileReader, data: Data, state: OmUrlState) => {
+		// Locally dropped files are a single timestep with no domain/model run,
+		// so domain-specific fixups don't apply.
+		if (get(localOmBase)) return;
+
 		if (
-			state.dataOptions.domain.value === 'ecmwf_ifs' &&
+			state.dataOptions.domain?.value === 'ecmwf_ifs' &&
 			state.dataOptions.variable === 'pressure_msl'
 		) {
 			if (data.values) {
