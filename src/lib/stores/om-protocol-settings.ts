@@ -1,4 +1,4 @@
-import { get } from 'svelte/store';
+import { type Writable, get, writable } from 'svelte/store';
 
 import { BrowserBlockCache } from '@openmeteo/file-reader';
 import {
@@ -9,11 +9,11 @@ import { persisted } from 'svelte-persisted-store';
 
 import { browser } from '$app/environment';
 
-import { DEFAULT_COLOR_HASH } from '$lib/constants';
-import { getNextOmUrls } from '$lib/url';
-
-import { metaJson } from './time';
-import { selectedDomain } from './variables';
+import {
+	DEFAULT_CACHE_BLOCK_SIZE_KB,
+	DEFAULT_CACHE_MAX_BYTES_MB,
+	HTTP_OVERHEAD_BYTES
+} from '$lib/constants';
 
 import type {
 	Data,
@@ -22,44 +22,38 @@ import type {
 	RenderableColorScale
 } from '@openmeteo/weather-map-layer';
 
-export const defaultColorHash = DEFAULT_COLOR_HASH;
-
 export const customColorScales = persisted<Record<string, RenderableColorScale>>(
 	'custom-color-scales',
 	{}
 );
 
+export const cacheBlockSizeKb = persisted('cache-block-size-kb', DEFAULT_CACHE_BLOCK_SIZE_KB);
+export const cacheMaxBytesMb = persisted('cache-max-bytes-mb', DEFAULT_CACHE_MAX_BYTES_MB);
+
 const initialCustomColorScales = get(customColorScales);
-export const omProtocolSettings: OmProtocolSettings = {
+
+function createBlockCache() {
+	if (!browser) return undefined;
+	return new BrowserBlockCache({
+		blockSize: get(cacheBlockSizeKb) * 1024 - HTTP_OVERHEAD_BYTES,
+		cacheName: 'open-meteo-maps-cache-v1',
+		memCacheTtlMs: 1000,
+		maxBytes: get(cacheMaxBytesMb) * 1024 * 1024
+	});
+}
+
+export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
 	...defaultOmProtocolSettings,
 	// static
 	fileReaderConfig: {
 		useSAB: true,
-		cache: browser
-			? new BrowserBlockCache({
-					blockSize: 64 * 1024, // 64Kb blocks
-					cacheName: 'open-meteo-maps-cache-v1',
-					memCacheTtlMs: 1000, // 1 second in-memory cache TTL
-					maxBytes: 400 * 1024 * 1024 // 400Mb maximum storage
-				})
-			: undefined
+		cache: createBlockCache()
 	},
 
 	// dynamic (can be changed during runtime)
 	colorScales: { ...defaultOmProtocolSettings.colorScales, ...initialCustomColorScales },
 
-	postReadCallback: (omFileReader: WeatherMapLayerFileReader, data: Data, state: OmUrlState) => {
-		// dwd icon models are cached locally on server
-		if (!state.dataOptions.domain.value.startsWith('dwd_icon')) {
-			const nextOmUrls = getNextOmUrls(state.omFileUrl, get(selectedDomain), get(metaJson));
-			for (const nextOmUrl of nextOmUrls) {
-				if (nextOmUrl === undefined) continue;
-				// omFileReader.setToOmFile(nextOmUrl);
-				// // This will trigger a request to the tail of the file and cache it
-				// // Not requesting a real variable ensures that we don't request any additional data.
-				// omFileReader.prefetchVariable('not_a_real_variable');
-			}
-		}
+	postReadCallback: (_omFileReader: WeatherMapLayerFileReader, data: Data, state: OmUrlState) => {
 		if (
 			state.dataOptions.domain.value === 'ecmwf_ifs' &&
 			state.dataOptions.variable === 'pressure_msl'
@@ -69,4 +63,4 @@ export const omProtocolSettings: OmProtocolSettings = {
 			}
 		}
 	}
-};
+});

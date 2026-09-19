@@ -5,7 +5,7 @@ import { currentBounds, getProtocolInstance, getRanges } from '@openmeteo/weathe
 import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 
 import { MILLISECONDS_PER_DAY } from './constants';
-import { fmtModelRun, fmtSelectedTime, getBaseUri } from './helpers';
+import { BASE_URI, fmtModelRun, fmtSelectedTime } from './helpers';
 import { selectedDomain } from './stores/variables';
 
 import type { DomainMetaDataJson } from '@openmeteo/weather-map-layer';
@@ -120,12 +120,9 @@ export const prefetchData = async (
 	}
 
 	try {
-		const instance = getProtocolInstance(omProtocolSettings);
+		const instance = getProtocolInstance(get(omProtocolSettings));
 		const ranges = getRanges(get(selectedDomain).grid, currentBounds);
 		const omFileReader = instance.omFileReader;
-
-		// Build base URL
-		const uri = getBaseUri(domain);
 
 		let successCount = 0;
 		const totalCount = timeSteps.length;
@@ -134,13 +131,10 @@ export const prefetchData = async (
 		const prefetchSingle = async (timeStep: Date): Promise<boolean> => {
 			if (signal?.aborted) return false;
 
-			const url = `${uri}/data_spatial/${domain}/${fmtModelRun(modelRun)}/${fmtSelectedTime(
-				timeStep
-			)}.om`;
+			const url = `${BASE_URI}/${domain}/${fmtModelRun(modelRun)}/${fmtSelectedTime(timeStep)}.om`;
 
 			try {
-				await omFileReader.setToOmFile(url);
-				await omFileReader.prefetchVariable(variable, ranges, signal);
+				await omFileReader.prefetchVariable(url, variable, ranges, signal);
 				return true;
 			} catch {
 				// Silently continue on errors

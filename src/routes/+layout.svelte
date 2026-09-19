@@ -2,7 +2,10 @@
 	import { onDestroy, onMount } from 'svelte';
 
 	import { ModeWatcher } from 'mode-watcher';
+	import { toast } from 'svelte-sonner';
 	import { pwaInfo } from 'virtual:pwa-info';
+
+	import { updated } from '$app/state';
 
 	import { now } from '$lib/stores/time';
 
@@ -45,6 +48,17 @@
 
 	onDestroy(() => {
 		if (metaDataInterval) clearInterval(metaDataInterval);
+	});
+
+	// `updated` flips once the polled _app/version.json reports a newer build
+	// (see svelte.config.js); it never flips back, so this fires at most once.
+	$effect(() => {
+		if (!updated.current) return;
+		toast('Open-Meteo Maps has been updated', {
+			description: 'A newer version is available.',
+			duration: Infinity,
+			action: { label: 'Reload', onClick: () => location.reload() }
+		});
 	});
 </script>
 

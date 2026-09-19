@@ -1,12 +1,7 @@
 import { tick } from 'svelte';
 import { get } from 'svelte/store';
 
-import {
-	type Domain,
-	type DomainMetaDataJson,
-	closestModelRun,
-	domainStep
-} from '@openmeteo/weather-map-layer';
+import { defaultOmProtocolSettings } from '@openmeteo/weather-map-layer';
 import { mode } from 'mode-watcher';
 
 import { replaceState } from '$app/navigation';
@@ -14,7 +9,9 @@ import { replaceState } from '$app/navigation';
 import { map as m } from '$lib/stores/map';
 import {
 	type Preferences,
+	colorBlend as cB,
 	completeDefaultValues,
+	interpolation as iP,
 	preferences as p,
 	tileSize as tS,
 	url as u
@@ -23,8 +20,15 @@ import { modelRun as mR, modelRunLocked as mRL, time } from '$lib/stores/time';
 import { domain as d, variable as v } from '$lib/stores/variables';
 import { vectorOptions as vO } from '$lib/stores/vector';
 
-import { fmtModelRun, fmtSelectedTime, getBaseUri } from './helpers';
-import { formatISOUTCWithZ, parseISOWithoutTimezone } from './time-format';
+import {
+	CLIP_COUNTRIES_PARAM,
+	parseClipCountriesParam,
+	serializeClipCountriesParam
+} from './clipping';
+import { BASE_URI, fmtModelRun, fmtSelectedTime, hashValue } from './helpers';
+import { clippingCountryCodes } from './stores/clipping';
+import { omProtocolSettings } from './stores/om-protocol-settings';
+import { parseISOWithoutTimezone } from './time-format';
 
 export const updateUrl = async (
 	urlParam?: string,
@@ -47,7 +51,6 @@ export const updateUrl = async (
 	}
 
 	await tick();
-
 	let fullUrl: string;
 	try {
 		const map = get(m);
@@ -130,14 +133,36 @@ export const urlParamsToPreferences = () => {
 		url.searchParams.set('interval', String(vectorOptions.contourInterval));
 	}
 
+	const clipCountries = parseClipCountriesParam(params.get(CLIP_COUNTRIES_PARAM));
+	if (clipCountries.length > 0) {
+		clippingCountryCodes.set(clipCountries);
+	} else {
+		const currentCodes = get(clippingCountryCodes);
+		const serialized = serializeClipCountriesParam(currentCodes);
+		if (serialized) {
+			url.searchParams.set(CLIP_COUNTRIES_PARAM, serialized);
+		}
+	}
+
 	vO.set(vectorOptions);
 	p.set(preferences);
 };
 
+let cachedClippingJson = '';
+let cachedClippingHash = '';
+let cachedColorJson = '';
+let cachedColorHash = '';
+
+const memorisedHash = (json: string, cachedJson: string, cachedHash: string) => {
+	if (json === cachedJson) return { json, hash: cachedHash };
+	return { json, hash: hashValue(json) };
+};
+
 export const getOMUrl = () => {
 	const domain = get(d);
-	const base = `${getBaseUri(domain)}/data_spatial/${domain}`;
-	const modelRun = get(mR) as Date;
+	const base = `${BASE_URI}/${domain}`;
+	const modelRun = get(mR);
+	if (!modelRun) return undefined;
 	const selectedTime = get(time);
 
 	let result = `${base}/${fmtModelRun(modelRun)}/${fmtSelectedTime(selectedTime)}.om`;
@@ -154,44 +179,33 @@ export const getOMUrl = () => {
 	const tileSize = get(tS);
 	if (tileSize !== 256) result += `&tile_size=${tileSize}`;
 
-	return result;
-};
+	const interpolation = get(iP);
+	if (interpolation !== 'linear') result += `&interpolation=${interpolation}`;
 
-export const getNextOmUrls = (
-	_omUrl: string,
-	domain: Domain,
-	metaJson: DomainMetaDataJson | undefined
-): [string | undefined, string | undefined] => {
-	const base = `https://map-tiles.open-meteo.com/data_spatial/${domain.value}`;
-	const date = get(time);
-	const dateString = formatISOUTCWithZ(date);
+	if (get(cB)) result += `&color_blend=true`;
 
-	let prevDate: Date;
-	let nextDate: Date;
-
-	if (metaJson) {
-		const idx = metaJson.valid_times.findIndex((s) => s === dateString);
-		prevDate = new Date(metaJson.valid_times[idx + 1]);
-		nextDate = new Date(metaJson.valid_times[idx - 1]);
-	} else {
-		prevDate = domainStep(date, domain.time_interval, 'backward');
-		nextDate = domainStep(date, domain.time_interval, 'forward');
+	const omProtocolSettingsState = get(omProtocolSettings);
+	if (
+		omProtocolSettingsState.clippingOptions !== undefined &&
+		omProtocolSettingsState.clippingOptions !== defaultOmProtocolSettings.clippingOptions
+	) {
+		const clippingJson = JSON.stringify(omProtocolSettingsState.clippingOptions);
+		const cached = memorisedHash(clippingJson, cachedClippingJson, cachedClippingHash);
+		cachedClippingJson = cached.json;
+		cachedClippingHash = cached.hash;
+		result += `&clipping_options_hash=${cached.hash}`;
 	}
 
-	const currentModelRun = metaJson ? new Date(metaJson.reference_time) : undefined;
+	const colorJson = JSON.stringify(omProtocolSettingsState.colorScales);
+	if (
+		omProtocolSettingsState.colorScales !== undefined &&
+		colorJson !== JSON.stringify(defaultOmProtocolSettings.colorScales)
+	) {
+		const cached = memorisedHash(colorJson, cachedColorJson, cachedColorHash);
+		cachedColorJson = cached.json;
+		cachedColorHash = cached.hash;
+		result += `&color_hash=${cached.hash}`;
+	}
 
-	const clampRun = (run: Date): Date =>
-		currentModelRun && run > currentModelRun ? currentModelRun : run;
-
-	const prevModelRun = clampRun(closestModelRun(prevDate, domain.model_interval));
-	const nextModelRun = clampRun(closestModelRun(nextDate, domain.model_interval));
-
-	const prevUrl = !isNaN(prevDate.getTime())
-		? `${base}/${fmtModelRun(prevModelRun)}/${fmtSelectedTime(prevDate)}.om`
-		: undefined;
-	const nextUrl = !isNaN(nextDate.getTime())
-		? `${base}/${fmtModelRun(nextModelRun)}/${fmtSelectedTime(nextDate)}.om`
-		: undefined;
-
-	return [prevUrl, nextUrl];
+	return result;
 };

@@ -1,8 +1,10 @@
 import { get } from 'svelte/store';
 
 import * as maplibregl from 'maplibre-gl';
-import { mode, setMode } from 'mode-watcher';
+import { setMode, userPrefersMode } from 'mode-watcher';
 
+import { clippingPanelOpen } from '$lib/stores/clipping';
+import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 import {
 	defaultPreferences,
 	helpOpen as hO,
@@ -10,8 +12,8 @@ import {
 	sheet
 } from '$lib/stores/preferences';
 
-import { addHillshadeLayer, reloadStyles, terrainHandler } from '$lib/map-controls';
-import { takeSnapshot } from '$lib/snapshot';
+import { reanchorRasterLayers } from '$lib/layers';
+import { addHillshadeLayer, terrainHandler } from '$lib/map-controls';
 import { updateUrl } from '$lib/url';
 
 const preferences = get(p);
@@ -34,33 +36,59 @@ export class SettingsButton {
 	onRemove() {}
 }
 
-export class DarkModeButton {
-	onAdd() {
-		const div = document.createElement('div');
-		div.title = 'Darkmode';
-
-		div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
-
-		const darkSVG = `<button style="display:flex;justify-content:center;align-items:center;">
+const sunSVG = `<button style="display:flex;justify-content:center;align-items:center;">
 		<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" stroke-width="1.2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sun-icon lucide-sun"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
             </button>`;
 
-		const lightSVG = `<button style="display:flex;justify-content:center;align-items:center;">
+const moonSVG = `<button style="display:flex;justify-content:center;align-items:center;">
 		<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" stroke-width="1.2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-moon-icon lucide-moon"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
        </button>`;
-		div.innerHTML = mode.current !== 'dark' ? lightSVG : darkSVG;
+
+const eclipseSVG = `<button style="display:flex;justify-content:center;align-items:center;">
+		<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" stroke-width="1.2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-eclipse-icon lucide-eclipse"><circle cx="12" cy="12" r="10"/><path d="M12 2a7 7 0 1 0 10 10"/></svg>
+       </button>`;
+
+/** The theme cycle the button walks through; icons show the CURRENT choice. */
+const MODE_CYCLE = ['light', 'system', 'dark'] as const;
+const MODE_ICONS: Record<(typeof MODE_CYCLE)[number], string> = {
+	light: sunSVG,
+	system: eclipseSVG,
+	dark: moonSVG
+};
+
+export class DarkModeButton {
+	private div: HTMLDivElement | undefined;
+
+	onAdd() {
+		const div = document.createElement('div');
+		this.div = div;
+
+		div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+
+		this.refresh();
 		div.addEventListener('contextmenu', (e) => e.preventDefault());
 		div.addEventListener('click', () => {
-			if (mode.current === 'light') {
-				setMode('dark');
-			} else {
-				setMode('light');
-			}
-			div.innerHTML = mode.current !== 'dark' ? lightSVG : darkSVG;
-			reloadStyles();
+			// Cycle light → system → dark. The style reload is not triggered
+			// here: the page-level mode watcher reloads whenever the RESOLVED
+			// mode drifts from the applied basemap style, so choosing e.g.
+			// 'system' on a dark OS while already dark reloads nothing.
+			const index = MODE_CYCLE.indexOf(userPrefersMode.current as (typeof MODE_CYCLE)[number]);
+			setMode(MODE_CYCLE[(index + 1) % MODE_CYCLE.length]);
+			this.refresh();
 		});
 		return div;
 	}
+
+	/** Re-render the icon after a mode change that didn't come from this button. */
+	refresh() {
+		if (!this.div) return;
+		const preference = MODE_CYCLE.includes(userPrefersMode.current as (typeof MODE_CYCLE)[number])
+			? (userPrefersMode.current as (typeof MODE_CYCLE)[number])
+			: 'system';
+		this.div.title = `Theme: ${preference}`;
+		this.div.innerHTML = MODE_ICONS[preference];
+	}
+
 	onRemove() {}
 }
 
@@ -97,12 +125,14 @@ export class HillshadeButton {
 			if (preferences.hillshade) {
 				div.innerHTML = hillshadeSVG;
 				addHillshadeLayer();
+				reanchorRasterLayers();
 
 				map.once('styledata', () => {
 					setTimeout(() => this.addTerrainControl(), 50);
 				});
 			} else {
 				div.innerHTML = noHillshadeSVG;
+				reanchorRasterLayers();
 				if (map.getLayer('hillshadeLayer')) {
 					map.removeLayer('hillshadeLayer');
 				}
@@ -149,25 +179,6 @@ export class HillshadeButton {
 	}
 }
 
-export class SnapshotButton {
-	onAdd(map: maplibregl.Map) {
-		const div = document.createElement('div');
-		div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
-		div.title = 'Take Snapshot';
-
-		const cameraSVG = `<button style="display:flex;justify-content:center;align-items:center;">
-			<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-camera"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
-		</button>`;
-
-		div.innerHTML = cameraSVG;
-		div.addEventListener('contextmenu', (e) => e.preventDefault());
-		div.addEventListener('click', () => takeSnapshot(map));
-
-		return div;
-	}
-	onRemove() {}
-}
-
 export class HelpButton {
 	onAdd() {
 		const div = document.createElement('div');
@@ -187,4 +198,59 @@ export class HelpButton {
 		return div;
 	}
 	onRemove() {}
+}
+
+export class ClippingButton {
+	private clippingPanelOpenSubscription: () => void;
+	private omProtocolSettingsSubscription: () => void;
+
+	constructor() {
+		this.clippingPanelOpenSubscription = () => {};
+		this.omProtocolSettingsSubscription = () => {};
+	}
+
+	onAdd() {
+		const div = document.createElement('div');
+		div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+		div.title = 'Clipping';
+
+		const clippingSVG = `<button style="display:flex;justify-content:center;align-items:center;">
+			<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" stroke-width="1.2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-scissors-icon lucide-scissors"><circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/></svg>
+			</button>`;
+		const clippingActiveSVG = `<button style="display:flex;justify-content:center;align-items:center;color:rgb(51,181,229);">
+			<svg xmlns="http://www.w3.org/2000/svg" opacity="1" stroke-width="1.2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-scissors-icon lucide-scissors"><circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/></svg>
+			</button>`;
+		const clippingWarningClosedSVG = `<button style="display:flex;justify-content:center;align-items:center;color:rgb(239,68,68);">
+			<svg xmlns="http://www.w3.org/2000/svg" opacity="1" stroke-width="1.5" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-scissors-icon lucide-scissors"><circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/></svg>
+			</button>`;
+
+		div.innerHTML = clippingSVG;
+
+		const updateIcon = () => {
+			const open = get(clippingPanelOpen);
+			const hasClipping = get(omProtocolSettings).clippingOptions !== undefined;
+			if (open) {
+				div.innerHTML = clippingActiveSVG;
+			} else if (hasClipping) {
+				div.innerHTML = clippingWarningClosedSVG;
+			} else {
+				div.innerHTML = clippingSVG;
+			}
+		};
+
+		this.clippingPanelOpenSubscription = clippingPanelOpen.subscribe(updateIcon);
+		this.omProtocolSettingsSubscription = omProtocolSettings.subscribe(updateIcon);
+
+		div.addEventListener('contextmenu', (e) => e.preventDefault());
+		div.addEventListener('click', () => {
+			const open = get(clippingPanelOpen);
+			clippingPanelOpen.set(!open);
+		});
+		updateIcon();
+		return div;
+	}
+	onRemove() {
+		this.clippingPanelOpenSubscription?.();
+		this.omProtocolSettingsSubscription?.();
+	}
 }

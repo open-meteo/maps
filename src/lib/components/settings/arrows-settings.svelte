@@ -9,11 +9,12 @@
 	import { changeOMfileURL } from '$lib/layers';
 	import { updateUrl } from '$lib/url';
 
+	import SettingsSection from './settings-section.svelte';
+
 	let arrows = $derived($vectorOptions.arrows);
 </script>
 
-<div>
-	<h2 class="text-lg font-bold">Arrows settings</h2>
+<SettingsSection title="Arrows settings">
 	<div class="mt-3 flex gap-3">
 		<Switch
 			id="arrows"
@@ -27,4 +28,4 @@
 		/>
 		<Label class="cursor-pointer" for="arrows">Arrows {arrows ? 'on' : 'off'}</Label>
 	</div>
-</div>
+</SettingsSection>

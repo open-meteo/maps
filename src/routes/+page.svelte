@@ -1,41 +1,26 @@
 <script lang="ts">
 	import { onDestroy, onMount, tick } from 'svelte';
-	import { get } from 'svelte/store';
 
-	import {
-		GridFactory,
-		type RenderableColorScale,
-		domainOptions,
-		omProtocol,
-		updateCurrentBounds
-	} from '@openmeteo/weather-map-layer';
-	import { type RequestParameters } from 'maplibre-gl';
-	import * as maplibregl from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
+	import { mode, userPrefersMode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
-	import { browser, version } from '$app/environment';
-
 	import { map } from '$lib/stores/map';
-	import { defaultColorHash, omProtocolSettings } from '$lib/stores/om-protocol-settings';
-	import {
-		loading,
-		localStorageVersion,
-		resetStates,
-		tileSize,
-		tileSizeSet,
-		url
-	} from '$lib/stores/preferences';
-	import { metaJson, modelRun, time } from '$lib/stores/time';
+	import { initStoredState, loading, url } from '$lib/stores/preferences';
+	import { installRequestCounter } from '$lib/stores/request-counter';
+	import { modelRun } from '$lib/stores/time';
 	import { domain, selectedDomain, selectedVariable, variable } from '$lib/stores/variables';
 
 	import {
+		ClippingButton,
 		DarkModeButton,
 		HelpButton,
 		HillshadeButton,
-		SettingsButton,
-		SnapshotButton
+		SettingsButton
 	} from '$lib/components/buttons';
+	import ClippingPanel from '$lib/components/clipping/clipping-panel.svelte';
+	import Dropzone from '$lib/components/dropzone/dropzone.svelte';
+	import GithubCorner from '$lib/components/github/github-corner.svelte';
 	import HelpDialog from '$lib/components/help/help-dialog.svelte';
 	import KeyboardHandler from '$lib/components/keyboard/keyboard-handler.svelte';
 	import Spinner from '$lib/components/loading/spinner.svelte';
@@ -44,120 +29,97 @@
 	import Settings from '$lib/components/settings/settings.svelte';
 	import TimeSelector from '$lib/components/time/time-selector.svelte';
 
-	import { checkHighDefinition, hashValue } from '$lib/helpers';
+	import { unwatchAttributionOverlap, watchAttributionOverlap } from '$lib/attribution';
+	import { postEmbedderReady, startEmbedderBridge, stopEmbedderBridge } from '$lib/embed';
 	import { addOmFileLayers, changeOMfileURL } from '$lib/layers';
-	import { addTerrainSource, getStyle, setMapControlSettings } from '$lib/map-controls';
-	import { getInitialMetaData, getMetaData, matchVariableOrFirst } from '$lib/metadata';
+	import {
+		addTerrainSource,
+		createMap,
+		getAppliedStyleMode,
+		reloadStyles
+	} from '$lib/map-controls';
+	import { loadDomainMetaData } from '$lib/metadata';
 	import { addPopup } from '$lib/popup';
-	import { takeSnapshot } from '$lib/snapshot';
-	import { formatISOWithoutTimezone } from '$lib/time-format';
-	import { findTimeStep } from '$lib/time-utils';
 	import { updateUrl, urlParamsToPreferences } from '$lib/url';
 
 	import '../styles.css';
 
+	let clippingPanel: ReturnType<typeof ClippingPanel>;
+
 	let mapContainer: HTMLElement | null;
 
-	onMount(() => {
+	const darkModeButton = new DarkModeButton();
+
+	// Before any data access: every request to the data API counts against the
+	// daily limit, and the wrapper also reroutes them once it is exhausted.
+	installRequestCounter();
+
+	// The single place that keeps the basemap in sync with the RESOLVED theme:
+	// covers the button cycle, an OS light/dark switch while the theme is
+	// 'system', and an embedder propagating its colour scheme into ours. The
+	// style only reloads when the resolved mode actually drifts from what the
+	// map has applied, so redundant transitions (e.g. picking 'system' on a
+	// dark OS while already dark) reload nothing.
+	$effect(() => {
+		const resolved = mode.current === 'dark' ? 'dark' : 'light';
+		void userPrefersMode.current; // icon shows the preference, not the resolved mode
+		if (!$map) return;
+		darkModeButton.refresh();
+		if (resolved !== getAppliedStyleMode()) {
+			reloadStyles();
+		}
+	});
+
+	onMount(async () => {
 		$url = new URL(document.location.href);
 		urlParamsToPreferences();
+		await initStoredState();
 
-		// first time on load, check if monitor supports high definition, for increased tile size
-		if (!get(tileSizeSet)) {
-			if (checkHighDefinition()) {
-				tileSize.set(1024);
-			}
-			tileSizeSet.set(true);
-		}
-	});
-
-	onMount(async () => {
-		// resets all the states when a new version is set in 'package.json' and version already set before
-		if (version !== $localStorageVersion) {
-			if ($localStorageVersion) {
-				await resetStates();
-			}
-			$localStorageVersion = version;
-		}
-	});
-
-	onMount(async () => {
-		maplibregl.addProtocol('om', (params: RequestParameters, abortController: AbortController) =>
-			omProtocol(params, abortController, omProtocolSettings)
-		);
-
-		const style = await getStyle();
-
-		const domainObject = domainOptions.find(({ value }) => value === $domain);
-		if (!domainObject) {
-			throw new Error('Domain not found');
-		}
-		const grid = GridFactory.create(domainObject.grid);
-
-		$map = new maplibregl.Map({
-			container: mapContainer as HTMLElement,
-			style: style,
-			center: grid.getCenter(),
-			zoom: domainObject.grid.zoom,
-			keyboard: false,
-			hash: true,
-			maxPitch: 85,
-			canvasContextAttributes: { preserveDrawingBuffer: true }
-		});
-
-		setMapControlSettings();
-
-		$map.on('dataloading', () => {
-			const bounds = $map.getBounds();
-			const [minLng, minLat] = bounds.getSouthWest().toArray();
-			const [maxLng, maxLat] = bounds.getNorthEast().toArray();
-			updateCurrentBounds([minLng, minLat, maxLng, maxLat]);
-		});
+		await createMap(mapContainer as HTMLElement);
+		startEmbedderBridge();
 
 		$map.on('load', async () => {
-			$map.addControl(new DarkModeButton());
+			$map.addControl(darkModeButton);
 			$map.addControl(new SettingsButton());
 			$map.addControl(new HelpButton());
-			$map.addControl(new SnapshotButton());
+			$map.addControl(new ClippingButton());
 
 			if (getInitialMetaDataPromise) await getInitialMetaDataPromise;
+			// Initial URL-driven setup is finished; from now on domain changes are
+			// user-initiated and should reset the selected model run.
+			initialLoadComplete = true;
 
 			addTerrainSource($map);
 			addTerrainSource($map, 'terrainSource2');
 			$map.addControl(new HillshadeButton());
-			addOmFileLayers();
+			clippingPanel?.initTerraDraw();
 
+			addOmFileLayers();
 			addPopup();
 			changeOMfileURL();
+
+			watchAttributionOverlap();
+			postEmbedderReady();
 		});
 	});
 
 	let getInitialMetaDataPromise: Promise<void> | undefined;
+	// Guards the domain subscription so the very first domain change (driven by the
+	// URL on page load) does not discard a model_run/time that was just parsed from
+	// the URL. Only genuine, user-initiated domain switches should reset the run.
+	let initialLoadComplete = false;
 	const domainSubscription = domain.subscribe(async (newDomain) => {
 		if ($domain !== newDomain) {
 			await tick(); // await the selectedDomain to be set
 			updateUrl('domain', newDomain);
-			$modelRun = undefined;
-			toast('Domain set to: ' + $selectedDomain.label);
+			if (initialLoadComplete) {
+				$modelRun = undefined;
+				toast('Domain set to: ' + $selectedDomain.label);
+			}
 		}
 
-		getInitialMetaDataPromise = getInitialMetaData();
+		getInitialMetaDataPromise = loadDomainMetaData(newDomain);
 		await getInitialMetaDataPromise;
-		$metaJson = await getMetaData();
-
-		const timeSteps = $metaJson?.valid_times.map((validTime: string) => new Date(validTime));
-		const timeStep = findTimeStep($time, timeSteps);
-		// clamp time to valid times in meta data
-		if (timeStep) {
-			$time = timeStep;
-			updateUrl('time', formatISOWithoutTimezone($time));
-		} else {
-			// otherwise use first valid time
-			$time = timeSteps[0];
-			updateUrl('time', formatISOWithoutTimezone($time));
-		}
-
-		matchVariableOrFirst();
 		changeOMfileURL();
 	});
 
@@ -172,6 +134,8 @@
 	});
 
 	onDestroy(() => {
+		stopEmbedderBridge();
+		unwatchAttributionOverlap();
 		if ($map) {
 			$map.remove();
 		}
@@ -190,17 +154,16 @@
 
 <div class="map maplibregl-map" id="#map_container" bind:this={mapContainer}></div>
 
-<Scale
-	afterColorScaleChange={async (variable: string, colorScale: RenderableColorScale) => {
-		omProtocolSettings.colorScales[variable] = colorScale;
-		const colorHash = await hashValue(JSON.stringify(omProtocolSettings.colorScales));
-		updateUrl('color_hash', colorHash, defaultColorHash);
-		changeOMfileURL();
-		toast('Changed color scale');
-	}}
-/>
+<GithubCorner />
+<Scale />
 <VariableSelection />
+<ClippingPanel bind:this={clippingPanel} />
 <TimeSelector />
 <Settings />
 <HelpDialog />
 <KeyboardHandler />
+<Dropzone
+	ondrop={(features) => {
+		clippingPanel?.addImportedFeatures(features);
+	}}
+/>

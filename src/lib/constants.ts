@@ -20,9 +20,6 @@ export const DEFAULT_PREFERENCES = {
 	showScale: true
 };
 
-// Color hash default
-export const DEFAULT_COLOR_HASH = '';
-
 // Layer names for map rendering
 export const HILLSHADE_LAYER = 'hillshadeLayer';
 export const BEFORE_LAYER_RASTER = 'waterway-tunnel';
@@ -32,6 +29,21 @@ export const BEFORE_LAYER_VECTOR_WATER_CLIP = 'water-clip';
 // Default tile size and opacity
 export const DEFAULT_TILE_SIZE = 512;
 export const DEFAULT_OPACITY = 75;
+
+// Default raster interpolation method ('nearest' | 'linear' | 'cubic' | 'monotone')
+export const DEFAULT_INTERPOLATION = 'linear' as const;
+
+// Interpolate colours between colour-scale breakpoints instead of hard bands.
+export const DEFAULT_COLOR_BLEND = false;
+
+// Cache defaults (in KB and MB for UI display)
+export const DEFAULT_CACHE_BLOCK_SIZE_KB = 64;
+export const DEFAULT_CACHE_MAX_BYTES_MB = 400;
+
+// Measured HTTP/2 overhead per range request (~1342 bytes: HPACK headers + framing).
+// Rounded up to 1408 for safety margin (Range/Content-Range header lengths vary with file offset).
+// Subtracted from block size so total transfer fits within the nominal KiB boundary.
+export const HTTP_OVERHEAD_BYTES = 1408;
 
 // Complete default values for URL parameter checking
 export const COMPLETE_DEFAULT_VALUES: { [key: string]: boolean | string | number } = {

@@ -12,4 +12,14 @@ export interface VectorOptions {
 	contourInterval: number;
 }
 
-export const vectorOptions = persisted('vector-options', defaultVectorOptions);
+/**
+ * `beforeRead` fills in keys the stored object predates: a `vector-options`
+ * written before a key existed (e.g. `arrows`) otherwise reads back as
+ * `undefined` and silently disables the feature for anyone whose localStorage
+ * survived the change.
+ */
+export const vectorOptions = persisted<VectorOptions, Partial<VectorOptions>>(
+	'vector-options',
+	defaultVectorOptions,
+	{ beforeRead: (stored) => ({ ...defaultVectorOptions, ...stored }) }
+);

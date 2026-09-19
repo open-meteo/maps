@@ -4,8 +4,11 @@
 	import * as Sheet from '$lib/components/ui/sheet';
 
 	import ArrowsSettings from './arrows-settings.svelte';
+	import CacheSettings from './cache-settings.svelte';
 	import ContourSettings from './contour-settings.svelte';
+	import EndpointSettings from './endpoint-settings.svelte';
 	import GridSettings from './grid-settings.svelte';
+	import InterpolationSettings from './interpolation-settings.svelte';
 	import OpacitySetting from './opacity-setting.svelte';
 	import PopupSettings from './popup-settings.svelte';
 	import StateSettings from './state-settings.svelte';
@@ -15,16 +18,22 @@
 </script>
 
 <Sheet.Root bind:open={$sheet}>
-	<Sheet.Content class="z-100 bg-glass/80 backdrop-blur-sm max-h-screen w-96 border-none">
-		<div class="flex flex-col px-6 pt-12 pb-18 gap-6 min-h-full overflow-y-scroll">
+	<Sheet.Content
+		preventScroll={false}
+		class="z-100 bg-glass/80 backdrop-blur-sm max-h-screen w-96 border-none"
+	>
+		<div class="flex flex-col px-6 pt-12 pb-18 gap-2 min-h-full overflow-y-scroll">
 			<UnitSettings />
 			<GridSettings />
 			<ArrowsSettings />
 			<ContourSettings />
 			<TileSizeSettings />
+			<InterpolationSettings />
 			<PopupSettings />
 			<WaterClipSetting />
 			<OpacitySetting />
+			<CacheSettings />
+			<EndpointSettings />
 			<StateSettings />
 		</div>
 	</Sheet.Content>
