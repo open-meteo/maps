@@ -9,8 +9,6 @@ import {
 import { setMode } from 'mode-watcher';
 import { type Persisted, persisted } from 'svelte-persisted-store';
 
-import { version } from '$app/environment';
-
 import {
 	COMPLETE_DEFAULT_VALUES,
 	DEFAULT_CACHE_BLOCK_SIZE_KB,
@@ -24,6 +22,7 @@ import {
 import { checkHighDefinition } from '$lib/helpers';
 import { getInitialMetaData, tryGetMetaData } from '$lib/metadata';
 
+import { version } from '../../../package.json';
 import { activeChart, defaultChart } from './chart';
 import { cacheBlockSizeKb, cacheMaxBytesMb, customColorScales } from './om-protocol-settings';
 import { inProgress, latest, metaJson, modelRun, modelRunLocked, now, time } from './time';
