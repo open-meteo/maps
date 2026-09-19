@@ -12,7 +12,7 @@ A UI demo for the [Open-Meteo Weather Map Layer](https://github.com/open-meteo/w
 
 This is a client-side app that fetches OMfiles from `data-spatial.open-meteo.com` and renders them with Mapbox GL JS. Weather tiles are fully rendered in the browser at the native model resolution — no server-side tile rendering required.
 
-Mapbox GL JS needs an access token even though every resource here is self-hosted: put one in `.env` as `VITE_MAPBOX_ACCESS_TOKEN=pk.…` before running the app.
+Mapbox GL renders nothing without an access token, even though every resource here is self-hosted. Put yours in `.env` as `VITE_MAPBOX_ACCESS_TOKEN=pk.…`; without it the app falls back to a placeholder (like the weather-map-layer examples), which works but logs Mapbox telemetry errors to the console.
 
 > Looking for the Open-Meteo API? See [open-meteo/open-meteo](https://github.com/open-meteo/open-meteo).
 

@@ -22,14 +22,15 @@ import { registerOmProtocol } from './om-adapter';
 import { updateUrl } from './url';
 
 export const createMap = async (container: HTMLElement) => {
-	// Mapbox GL JS refuses to start without a token, even for a self-hosted
-	// style; the token is only used for Mapbox-hosted resources, which this
-	// app does not load.
+	// Mapbox GL renders nothing without a token, even for a self-hosted style.
+	// The placeholder (as in the weather-map-layer examples) keeps the branch
+	// runnable without configuration; it only breaks telemetry and
+	// mapbox:// resources, which this app does not use.
 	const accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN as string | undefined;
 	if (!accessToken) {
-		throw new Error('Mapbox GL needs an access token: set VITE_MAPBOX_ACCESS_TOKEN in .env');
+		console.warn('No VITE_MAPBOX_ACCESS_TOKEN in .env: running Mapbox GL with a placeholder token');
 	}
-	mapboxgl.accessToken = accessToken;
+	mapboxgl.accessToken = accessToken || 'XXX';
 
 	registerOmProtocol();
 
