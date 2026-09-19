@@ -61,7 +61,10 @@
 
 		if (canNavigateSelection && !event.ctrlKey) {
 			if (event.key === 'v') {
-				variableSelectionOpen.set(true);
+				// Focus the panel's search field (searches variables and charts)
+				event.preventDefault();
+				const searchInput = document.querySelector('[data-panel-search]') as HTMLElement | null;
+				searchInput?.focus();
 				return;
 			}
 			if (event.key === 'd') {
@@ -69,7 +72,11 @@
 				return;
 			}
 			if (event.key === 'l') {
-				pressureLevelsSelectionOpen.set(true);
+				// Only when a level selector is rendered, else the open flag
+				// would stay stuck and block the other shortcuts
+				if (document.querySelector('[data-level-select]')) {
+					pressureLevelsSelectionOpen.set(true);
+				}
 				return;
 			}
 		}
