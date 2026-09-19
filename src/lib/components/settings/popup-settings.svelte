@@ -27,7 +27,7 @@
 				const p = get(popup);
 				let lastLngLat;
 				if (p) {
-					lastLngLat = p.getLngLat();
+					lastLngLat = p.getPosition();
 				}
 
 				if (get(popupMode) === null) {
@@ -43,7 +43,7 @@
 				popupModeDrag = !!$popupMode && $popupMode === 'drag';
 				toast.info('Popup: ' + (popupOn ? 'On' : 'Off'));
 
-				renderPopup(lastLngLat ?? $map.getCenter());
+				renderPopup(lastLngLat ?? $map.getView().getCenter() ?? [0, 0]);
 			}}
 		/>
 		<Label class="cursor-pointer" for="popup_mode">Popup</Label>

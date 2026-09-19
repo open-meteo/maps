@@ -7,6 +7,13 @@
 	import SplineIcon from '@lucide/svelte/icons/spline';
 	import SquareIcon from '@lucide/svelte/icons/square';
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
+	import Feature from 'ol/Feature';
+	import GeoJSON from 'ol/format/GeoJSON';
+	import VectorLayer from 'ol/layer/Vector';
+	import { fromLonLat, getUserProjection, toLonLat } from 'ol/proj';
+	import Projection from 'ol/proj/Projection';
+	import VectorSource from 'ol/source/Vector';
+	import { Circle, Fill, Icon, Stroke, Style } from 'ol/style';
 	import {
 		TerraDraw,
 		TerraDrawFreehandMode,
@@ -15,7 +22,7 @@
 		TerraDrawRenderMode,
 		TerraDrawSelectMode
 	} from 'terra-draw';
-	import { TerraDrawMapLibreGLAdapter } from 'terra-draw-maplibre-gl-adapter';
+	import { TerraDrawOpenLayersAdapter } from 'terra-draw-openlayers-adapter';
 
 	import { browser } from '$app/environment';
 
@@ -112,7 +119,24 @@
 		}
 
 		draw = new TerraDraw({
-			adapter: new TerraDrawMapLibreGLAdapter({ map: $map }),
+			adapter: new TerraDrawOpenLayersAdapter({
+				map: $map,
+				lib: {
+					Icon,
+					Fill,
+					Feature,
+					GeoJSON,
+					Style,
+					Circle,
+					VectorLayer,
+					VectorSource,
+					Stroke,
+					Projection,
+					getUserProjection,
+					fromLonLat,
+					toLonLat
+				}
+			}),
 			modes: [
 				new TerraDrawPolygonMode({
 					styles: {
@@ -270,7 +294,7 @@
 
 		await tick();
 		await changeOMfileURL();
-		if ($map) $map.fire('dataloading');
+		if ($map) $map.dispatchEvent('dataloading');
 	};
 
 	/** Called by the parent when country selection produces new clipping. */
@@ -318,7 +342,7 @@
 		// Not initialised yet (a click can beat the map's load event, especially
 		// on mobile) or torn down by a style reload: initialise on demand instead
 		// of silently ignoring the click.
-		if (!draw && $map?.isStyleLoaded()) initTerraDraw();
+		if (!draw && $map) initTerraDraw();
 		if (!draw) return;
 		if (activeMode === mode) {
 			exitDrawingMode();
@@ -356,7 +380,7 @@
 		} else {
 			terraDrawActive.set(false);
 		}
-		$map?.getCanvas().style.removeProperty('cursor');
+		$map?.getTargetElement().style.removeProperty('cursor');
 	};
 
 	const toggleFillRule = () => {
@@ -383,22 +407,6 @@
 			exitDrawingMode();
 		}
 	};
-
-	// A basemap style reload (dark mode, water-clip or globe toggle) wipes
-	// terra-draw's adapter layers with every other runtime layer, leaving a
-	// draw instance that silently ignores interactions ("needs activating
-	// twice"). Re-create it on the fresh style.
-	$effect(() => {
-		const mapInstance = $map;
-		if (!mapInstance) return;
-		const reinit = () => {
-			if (draw) initTerraDraw();
-		};
-		mapInstance.on('style.load', reinit);
-		return () => {
-			mapInstance.off('style.load', reinit);
-		};
-	});
 
 	// Auto-open the panel when country codes appear from URL parsing
 	// (parent's onMount runs urlParamsToPreferences after this component mounts)

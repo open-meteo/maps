@@ -15,7 +15,7 @@ const updateOverlap = () => {
 	if (!browser) {
 		return;
 	}
-	const attribution = document.querySelector('.maplibregl-ctrl-bottom-right');
+	const attribution = document.querySelector('.ol-attribution');
 	const timeSelector = document.querySelector('.time-selector-container');
 	if (!attribution || !timeSelector) return;
 

@@ -46,7 +46,7 @@
 		if (event.key === 'Escape') {
 			popupMode.set(null);
 			const p = get(popup);
-			if (p) p.remove();
+			if (p) p.setMap(null);
 			popup.set(undefined);
 			toast.dismiss();
 			return;
