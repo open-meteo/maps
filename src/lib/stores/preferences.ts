@@ -50,6 +50,7 @@ export interface Preferences {
 	hillshade: boolean;
 	clipWater: boolean;
 	showScale: boolean;
+	showSeamlessBorders: boolean;
 }
 
 // Same default-merge as vectorOptions: keys added after a visitor's
