@@ -1,7 +1,12 @@
 import { tick } from 'svelte';
 import { get } from 'svelte/store';
 
-import { defaultOmProtocolSettings } from '@openmeteo/weather-map-layer';
+import {
+	type ArrowStyle,
+	DEFAULT_ARROW_STYLE,
+	VALID_ARROW_STYLES,
+	defaultOmProtocolSettings
+} from '@openmeteo/weather-map-layer';
 import { mode } from 'mode-watcher';
 import { toast } from 'svelte-sonner';
 
@@ -131,6 +136,15 @@ export const urlParamsToPreferences = () => {
 		url.searchParams.set('arrows', String(vectorOptions.arrows));
 	}
 
+	const arrowStyleRaw = params.get('arrow_style');
+	if (arrowStyleRaw !== null) {
+		if (VALID_ARROW_STYLES.includes(arrowStyleRaw as ArrowStyle)) {
+			vectorOptions.arrowStyle = arrowStyleRaw as ArrowStyle;
+		}
+	} else if (vectorOptions.arrowStyle !== DEFAULT_ARROW_STYLE) {
+		url.searchParams.set('arrow_style', vectorOptions.arrowStyle);
+	}
+
 	const contoursRaw = params.get('contours');
 	if (contoursRaw !== null) {
 		vectorOptions.contours = contoursRaw === 'true';
@@ -224,7 +238,10 @@ export const getOmUrlForSource = (source: ChartSource): string | undefined => {
 	if (mode.current === 'dark') result += '&dark=true';
 	const vectorOptions = get(vO);
 	if (vectorOptions.grid) result += '&grid=true';
-	if (source.arrows) result += '&arrows=true';
+	if (source.arrows) {
+		result += '&arrows=true';
+		if (vectorOptions.arrowStyle !== 'arrow') result += `&arrow_style=${vectorOptions.arrowStyle}`;
+	}
 	if (source.contours) result += '&contours=true';
 	if (source.contours && source.contourInterval !== undefined)
 		result += `&intervals=${source.contourInterval}`;
