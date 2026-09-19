@@ -15,7 +15,7 @@
 		TerraDrawRenderMode,
 		TerraDrawSelectMode
 	} from 'terra-draw';
-	import { TerraDrawMapLibreGLAdapter } from 'terra-draw-maplibre-gl-adapter';
+	import { TerraDrawMapboxGLAdapter } from 'terra-draw-mapbox-gl-adapter';
 
 	import { browser } from '$app/environment';
 
@@ -112,7 +112,7 @@
 		}
 
 		draw = new TerraDraw({
-			adapter: new TerraDrawMapLibreGLAdapter({ map: $map }),
+			adapter: new TerraDrawMapboxGLAdapter({ map: $map }),
 			modes: [
 				new TerraDrawPolygonMode({
 					styles: {

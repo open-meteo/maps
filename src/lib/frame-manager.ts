@@ -1,7 +1,7 @@
-import * as maplibregl from 'maplibre-gl';
+import type * as mapboxgl from 'mapbox-gl';
 
 /**
- * FrameManager: cross-fading orchestrator for a stack of MapLibre weather layers
+ * FrameManager: cross-fading orchestrator for a stack of Mapbox weather layers
  *
  * A **frame** is one complete visual state of the weather overlay, composed
  * of one or more **channels** (e.g. a temperature raster fill, a pressure
@@ -16,13 +16,16 @@ import * as maplibregl from 'maplibre-gl';
  * scrubbing to the previous step) is instant. After fading out, a retained
  * frame's layers are set to `visibility: none` — a zero-opacity layer would
  * still trigger tile loads on pan/zoom.
+ *
+ * Sources are added by the channel itself (see `FrameChannel.addSource`):
+ * Mapbox has no custom protocols, so the adapter builds custom raster sources
+ * and viewport-synced GeoJSON sources, and a GeoJSON source reports loaded as
+ * soon as it exists — a channel therefore also hands over a `ready` promise
+ * for the moment its features are actually in.
  */
 
-/** Paint properties MapLibre accepts, narrowed to the opacity ones a frame fades. */
-type OpacityPaintProperty = Extract<
-	Parameters<maplibregl.Map['setPaintProperty']>[1],
-	`${string}-opacity`
->;
+/** Paint properties a frame fades. */
+type OpacityPaintProperty = 'raster-opacity' | 'line-opacity' | 'circle-opacity' | 'text-opacity';
 
 export interface ChannelLayerDef {
 	/** Base layer id — suffixed per frame for uniqueness. */
@@ -34,7 +37,15 @@ export interface ChannelLayerDef {
 	/** Layer id in the basemap style to insert before. */
 	beforeLayer?: string;
 	/** Add the layer at opacity 0 (it is faded in on commit). */
-	add: (map: maplibregl.Map, sourceId: string, layerId: string, beforeLayer?: string) => void;
+	add: (map: mapboxgl.Map, sourceId: string, layerId: string, beforeLayer?: string) => void;
+}
+
+/** What a channel's `addSource` hands back. */
+export interface FrameSource {
+	/** Remove the source (its layers are already gone by then). */
+	remove: () => void;
+	/** Resolves once the source's data is in; absent when `isSourceLoaded` covers it. */
+	ready?: Promise<void>;
 }
 
 export interface FrameChannel {
@@ -42,7 +53,7 @@ export interface FrameChannel {
 	key: string;
 	/** om:// source URL (also the identity of the channel's data). */
 	url: string;
-	sourceSpec: maplibregl.SourceSpecification;
+	addSource: (map: mapboxgl.Map, sourceId: string) => FrameSource;
 	layers: ChannelLayerDef[];
 }
 
@@ -73,8 +84,10 @@ const isLineLayer = (layer: FrameLayer): boolean => layer.opacityProp !== 'raste
 interface Frame {
 	key: string;
 	channels: FrameChannel[];
-	sourceIds: string[];
+	sources: { id: string; handle: FrameSource }[];
 	layers: FrameLayer[];
+	/** Sources whose `ready` promise has not settled yet. */
+	pendingSources: number;
 	onData?: () => void;
 	/** A source of this frame failed; it must not commit (retried on re-show). */
 	errored?: boolean;
@@ -96,7 +109,7 @@ interface Dissolve {
 }
 
 export class FrameManager {
-	private map: maplibregl.Map;
+	private map: mapboxgl.Map;
 	private opts: FrameManagerOptions;
 
 	private frames = new Map<string, Frame>();
@@ -111,9 +124,9 @@ export class FrameManager {
 	private hideTimers = new Map<string, ReturnType<typeof setTimeout>>();
 	// Source errors arrive as ErrorEvents; the source cache forwarding them
 	// attaches the sourceId, which the event type does not declare.
-	private onMapError: (e: maplibregl.ErrorEvent & { sourceId?: string }) => void;
+	private onMapError: (e: mapboxgl.ErrorEvent & { sourceId?: string }) => void;
 
-	constructor(map: maplibregl.Map, opts: FrameManagerOptions = {}) {
+	constructor(map: mapboxgl.Map, opts: FrameManagerOptions = {}) {
 		this.map = map;
 		this.opts = opts;
 		this.onMapError = (e) => {
@@ -123,7 +136,9 @@ export class FrameManager {
 			// tile request, and the source cache tags that error with a sourceId.
 			if (!e.sourceId) return;
 			const sourceId = e.sourceId;
-			const frame = [...this.frames.values()].find((f) => f.sourceIds.includes(sourceId));
+			const frame = [...this.frames.values()].find((f) =>
+				f.sources.some((source) => source.id === sourceId)
+			);
 			if (!frame) return;
 			frame.errored = true;
 
@@ -201,7 +216,7 @@ export class FrameManager {
 	}
 
 	/**
-	 * Hold the frame back until the map has rendered once. MapLibre only
+	 * Hold the frame back until the map has rendered once. The map only
 	 * re-populates a source's tiles in the render pass after its layers became
 	 * visible again, and reports a source that is not (yet) used by a visible
 	 * layer as loaded — so a frame just made visible would look ready while its
@@ -253,19 +268,32 @@ export class FrameManager {
 
 	private buildFrame(key: string, channels: FrameChannel[]): Frame {
 		const ordinal = this.frameOrdinal++;
-		const sourceIds: string[] = [];
-		const layers: FrameLayer[] = [];
+		const frame: Frame = { key, channels, sources: [], layers: [], pendingSources: 0 };
 
 		for (const channel of channels) {
 			const sourceId = `omFrame${ordinal}_${channel.key}`;
-			this.map.addSource(sourceId, channel.sourceSpec);
-			sourceIds.push(sourceId);
+			const handle = channel.addSource(this.map, sourceId);
+			frame.sources.push({ id: sourceId, handle });
+			if (handle.ready) {
+				frame.pendingSources++;
+				handle.ready.then(
+					() => {
+						frame.pendingSources--;
+						frame.onData?.();
+					},
+					() => {
+						frame.pendingSources--;
+						frame.errored = true;
+						frame.onData?.();
+					}
+				);
+			}
 
 			for (const layerDef of channel.layers) {
 				const layerId = `${sourceId}_${layerDef.id}`;
 				layerDef.add(this.map, sourceId, layerId, layerDef.beforeLayer);
 				if (this.map.getLayer(layerId)) {
-					layers.push({
+					frame.layers.push({
 						layerId,
 						opacityProp: layerDef.opacityProp,
 						peak: layerDef.peakOpacity,
@@ -275,7 +303,6 @@ export class FrameManager {
 			}
 		}
 
-		const frame: Frame = { key, channels, sourceIds, layers };
 		this.frames.set(key, frame);
 		return frame;
 	}
@@ -302,7 +329,8 @@ export class FrameManager {
 		return (
 			!frame.errored &&
 			!frame.awaitingRender &&
-			frame.sourceIds.every((id) => this.map.getSource(id) && this.map.isSourceLoaded(id))
+			frame.pendingSources === 0 &&
+			frame.sources.every(({ id }) => this.map.getSource(id) && this.map.isSourceLoaded(id))
 		);
 	}
 
@@ -623,8 +651,8 @@ export class FrameManager {
 		for (const { layerId } of frame.layers) {
 			if (this.map.getLayer(layerId)) this.map.removeLayer(layerId);
 		}
-		for (const sourceId of frame.sourceIds) {
-			if (this.map.getSource(sourceId)) this.map.removeSource(sourceId);
+		for (const { handle } of frame.sources) {
+			handle.remove();
 		}
 		this.frames.delete(key);
 		const at = this.lru.indexOf(key);

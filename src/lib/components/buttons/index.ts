@@ -1,6 +1,5 @@
 import { get } from 'svelte/store';
 
-import * as maplibregl from 'maplibre-gl';
 import { setMode, userPrefersMode } from 'mode-watcher';
 
 import { clippingPanelOpen } from '$lib/stores/clipping';
@@ -13,8 +12,10 @@ import {
 } from '$lib/stores/preferences';
 
 import { reanchorRasterLayers } from '$lib/layers';
-import { addHillshadeLayer, terrainHandler } from '$lib/map-controls';
+import { addHillshadeLayer, globeHandler, terrainHandler } from '$lib/map-controls';
 import { updateUrl } from '$lib/url';
+
+import type * as mapboxgl from 'mapbox-gl';
 
 const preferences = get(p);
 
@@ -22,7 +23,7 @@ export class SettingsButton {
 	onAdd() {
 		const div = document.createElement('div');
 		div.title = 'Settings';
-		div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+		div.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
 		div.innerHTML = `<button style="display:flex;justify-content:center;align-items:center;">
 				<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings-icon lucide-settings"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
        </button>`;
@@ -63,7 +64,7 @@ export class DarkModeButton {
 		const div = document.createElement('div');
 		this.div = div;
 
-		div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+		div.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
 
 		this.refresh();
 		div.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -92,14 +93,85 @@ export class DarkModeButton {
 	onRemove() {}
 }
 
-export class HillshadeButton {
-	private map: maplibregl.Map | undefined;
-	private terrainControl: maplibregl.TerrainControl | undefined;
+/** The globe icon, shared with the help dialog's button legend. */
+export const globeSVG = `<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" stroke-width="1.2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-globe-icon lucide-globe"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>`;
 
-	onAdd(map: maplibregl.Map) {
+/** Mapbox has no globe control: toggles the projection and the preference. */
+export class GlobeButton {
+	private div: HTMLDivElement | undefined;
+
+	onAdd() {
+		const div = document.createElement('div');
+		this.div = div;
+		div.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
+		this.refresh();
+
+		div.addEventListener('contextmenu', (e) => e.preventDefault());
+		div.addEventListener('click', () => {
+			globeHandler();
+			this.refresh();
+		});
+		return div;
+	}
+
+	private refresh() {
+		if (!this.div) return;
+		const globe = get(p).globe;
+		this.div.title = globe ? 'Disable globe' : 'Enable globe';
+		this.div.innerHTML = `<button style="display:flex;justify-content:center;align-items:center;${globe ? 'color:rgb(51,181,229);' : ''}">${globeSVG}</button>`;
+	}
+
+	onRemove() {}
+}
+
+const terrainSVG = `<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" stroke-width="1.2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-layers-icon lucide-layers"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"/><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"/></svg>`;
+
+/** Mapbox has no terrain control: toggles 3D terrain on the hillshade DEM. */
+class TerrainButton {
+	private div: HTMLDivElement | undefined;
+	private map: mapboxgl.Map | undefined;
+
+	onAdd(map: mapboxgl.Map) {
 		this.map = map;
 		const div = document.createElement('div');
-		div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+		this.div = div;
+		div.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
+		this.refresh();
+
+		div.addEventListener('contextmenu', (e) => e.preventDefault());
+		div.addEventListener('click', () => {
+			terrainHandler();
+			this.apply();
+			this.refresh();
+		});
+		return div;
+	}
+
+	/** Put the map's terrain in the state the preference says. */
+	apply() {
+		this.map?.setTerrain(get(p).terrain ? { source: 'terrainSource2', exaggeration: 1 } : null);
+	}
+
+	private refresh() {
+		if (!this.div) return;
+		const terrain = get(p).terrain;
+		this.div.title = terrain ? 'Disable terrain' : 'Enable terrain';
+		this.div.innerHTML = `<button style="display:flex;justify-content:center;align-items:center;${terrain ? 'color:rgb(51,181,229);' : ''}">${terrainSVG}</button>`;
+	}
+
+	onRemove() {
+		this.map = undefined;
+	}
+}
+
+export class HillshadeButton {
+	private map: mapboxgl.Map | undefined;
+	private terrainControl: TerrainButton | undefined;
+
+	onAdd(map: mapboxgl.Map) {
+		this.map = map;
+		const div = document.createElement('div');
+		div.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
 		div.title = 'Hillshade';
 
 		const noHillshadeSVG = `<button style="display:flex;justify-content:center;align-items:center;">
@@ -154,18 +226,9 @@ export class HillshadeButton {
 	private addTerrainControl() {
 		if (!this.map || this.terrainControl) return;
 
-		this.terrainControl = new maplibregl.TerrainControl({
-			source: 'terrainSource2',
-			exaggeration: 1
-		});
-
+		this.terrainControl = new TerrainButton();
 		this.map.addControl(this.terrainControl);
-
-		this.terrainControl._terrainButton.addEventListener('click', () => terrainHandler());
-
-		if (preferences.terrain) {
-			this.map.setTerrain({ source: 'terrainSource2' });
-		}
+		this.terrainControl.apply();
 	}
 
 	private removeTerrainControl() {
@@ -182,7 +245,7 @@ export class HillshadeButton {
 export class HelpButton {
 	onAdd() {
 		const div = document.createElement('div');
-		div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+		div.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
 		div.title = 'Help';
 
 		const helpSVG = `<button style="display:flex;justify-content:center;align-items:center;">
@@ -211,7 +274,7 @@ export class ClippingButton {
 
 	onAdd() {
 		const div = document.createElement('div');
-		div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+		div.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
 		div.title = 'Clipping';
 
 		const clippingSVG = `<button style="display:flex;justify-content:center;align-items:center;">

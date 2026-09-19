@@ -15,7 +15,7 @@ const updateOverlap = () => {
 	if (!browser) {
 		return;
 	}
-	const attribution = document.querySelector('.maplibregl-ctrl-bottom-right');
+	const attribution = document.querySelector('.mapboxgl-ctrl-bottom-right');
 	const timeSelector = document.querySelector('.time-selector-container');
 	if (!attribution || !timeSelector) return;
 
@@ -33,7 +33,7 @@ export const watchAttributionOverlap = () => {
 	if (!browser) {
 		return;
 	}
-	const attribution = document.querySelector('.maplibregl-ctrl-bottom-right');
+	const attribution = document.querySelector('.mapboxgl-ctrl-bottom-right');
 	const timeSelector = document.querySelector('.time-selector-container');
 	if (!attribution || !timeSelector) return;
 

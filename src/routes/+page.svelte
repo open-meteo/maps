@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onDestroy, onMount, tick } from 'svelte';
 
-	import 'maplibre-gl/dist/maplibre-gl.css';
+	import 'mapbox-gl/dist/mapbox-gl.css';
 	import { mode, userPrefersMode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
@@ -152,7 +152,7 @@
 	<Spinner />
 {/if}
 
-<div class="map maplibregl-map" id="#map_container" bind:this={mapContainer}></div>
+<div class="map mapboxgl-map" id="#map_container" bind:this={mapContainer}></div>
 
 <GithubCorner />
 <Scale />
