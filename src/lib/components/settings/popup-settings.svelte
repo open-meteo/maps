@@ -27,7 +27,7 @@
 				const p = get(popup);
 				let lastLngLat;
 				if (p) {
-					lastLngLat = p.getLngLat();
+					lastLngLat = p.getLatLng();
 				}
 
 				if (get(popupMode) === null) {

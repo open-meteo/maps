@@ -3,6 +3,7 @@
 
 	import { helpOpen } from '$lib/stores/preferences';
 
+	import { locateSVG } from '$lib/components/buttons';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Kbd from '$lib/components/ui/kbd';
 
@@ -139,68 +140,44 @@
 			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 				<div class="flex flex-col gap-3">
 					<div class="flex items-center gap-2">
-						<div class="maplibregl-ctrl maplibregl-ctrl-group">
-							<button
-								class="maplibregl-ctrl-zoom-in"
-								type="button"
+						<div class="leaflet-bar leaflet-control">
+							<a
+								class="leaflet-control-zoom-in"
+								href="#zoom-in"
 								title="Zoom in"
-								aria-label="Explanation Zoom in"
-								aria-disabled="false"
-								><span class="maplibregl-ctrl-icon" aria-hidden="true"></span></button
-							><button
-								class="maplibregl-ctrl-zoom-out"
-								type="button"
+								role="button"
+								aria-label="Explanation Zoom in"><span aria-hidden="true">+</span></a
+							><a
+								class="leaflet-control-zoom-out"
+								href="#zoom-out"
 								title="Zoom out"
-								aria-label="Explanation Zoom out"
-								aria-disabled="false"
-								><span class="maplibregl-ctrl-icon" aria-hidden="true"></span></button
-							><button
-								class="maplibregl-ctrl-compass"
-								type="button"
-								title="Reset bearing to north"
-								aria-label="Explanation Reset bearing to north"
-								><span
-									class="maplibregl-ctrl-icon"
-									aria-hidden="true"
-									style="transform: scale(1) rotateZ(0deg) rotateX(0deg) rotateZ(0deg);"
-								></span></button
+								role="button"
+								aria-label="Explanation Zoom out"><span aria-hidden="true">&#x2212;</span></a
 							>
 						</div>
 						<div class="flex flex-col gap-1.75">
 							<div class="truncate">Zoom in</div>
 							<div class="truncate">Zoom out</div>
-							<div class="truncate">Reset tilt / rotation</div>
 						</div>
 					</div>
 
 					<div class="flex items-center gap-2">
-						<div class="maplibregl-ctrl maplibregl-ctrl-group">
+						<div class="leaflet-bar leaflet-control om-ctrl">
 							<button
-								class="maplibregl-ctrl-geolocate"
 								type="button"
 								title="Find my location"
 								aria-label="Explanation Find my location"
-								aria-pressed="false"
-								><span class="maplibregl-ctrl-icon" aria-hidden="true"></span></button
+								style="display:flex;justify-content:center;align-items:center;"
 							>
+								<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+								{@html locateSVG}
+							</button>
 						</div>
 						<div class="truncate">Locate User</div>
 					</div>
 
 					<div class="flex items-center gap-2">
-						<div class="maplibregl-ctrl maplibregl-ctrl-group">
-							<button
-								class="maplibregl-ctrl-globe"
-								aria-label="Explanation Globe Button"
-								type="button"
-								title="Enable globe"
-								><span class="maplibregl-ctrl-icon" aria-hidden="true"></span></button
-							>
-						</div>
-						<div class="truncate">Globe Projection</div>
-					</div>
-					<div class="flex items-center gap-2">
-						<div title="Darkmode" class="maplibregl-ctrl maplibregl-ctrl-group">
+						<div title="Darkmode" class="leaflet-bar leaflet-control om-ctrl">
 							<button
 								aria-label="Explanation Darkmode Button"
 								style="display:flex;justify-content:center;align-items:center;"
@@ -226,7 +203,7 @@
 				</div>
 				<div class="flex flex-col gap-3">
 					<div class="flex items-center gap-2">
-						<div title="Settings" class="maplibregl-ctrl maplibregl-ctrl-group">
+						<div title="Settings" class="leaflet-bar leaflet-control om-ctrl">
 							<button
 								style="display:flex;justify-content:center;align-items:center;"
 								aria-label="Explanation Settings Button"
@@ -252,7 +229,7 @@
 						<div class="truncate">Additional Settings</div>
 					</div>
 					<div class="flex items-center gap-2">
-						<div class="maplibregl-ctrl maplibregl-ctrl-group" title="Time selector">
+						<div class="leaflet-bar leaflet-control om-ctrl" title="Time selector">
 							<button
 								style="display:flex;justify-content:center;align-items:center;"
 								aria-label="Explanation Time Selector Button"
@@ -283,7 +260,7 @@
 					</div>
 
 					<div class="flex items-center gap-2">
-						<div class="maplibregl-ctrl maplibregl-ctrl-group" title="Clipping">
+						<div class="leaflet-bar leaflet-control om-ctrl" title="Clipping">
 							<button
 								style="display:flex;justify-content:center;align-items:center;"
 								aria-label="Explanation Clipping Button"
@@ -307,46 +284,6 @@
 							</button>
 						</div>
 						<div class="truncate">Clipping Panel</div>
-					</div>
-
-					<div class="flex items-center gap-2">
-						<div class="maplibregl-ctrl maplibregl-ctrl-group" title="Hillshade">
-							<button
-								style="display:flex;justify-content:center;align-items:center;"
-								aria-label="Explanation Hillshade Button"
-							>
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									opacity="0.75"
-									stroke-width="1.2"
-									width="24"
-									height="24"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									class="lucide lucide-mountain-snow-icon lucide-mountain-snow"
-									><path d="m8 3 4 8 5-5 5 15H2L8 3z"></path><path
-										d="M4.14 15.08c2.62-1.57 5.24-1.43 7.86.42 2.74 1.94 5.49 2 8.23.19"
-									></path></svg
-								>
-							</button>
-						</div>
-						<div class="truncate">Hillshade</div>
-					</div>
-
-					<div class="flex items-center gap-2">
-						<div class="maplibregl-ctrl maplibregl-ctrl-group">
-							<button
-								class="maplibregl-ctrl-terrain"
-								aria-label="Explanation 3D Terrain Button"
-								type="button"
-								title="Enable terrain"
-								><span class="maplibregl-ctrl-icon opacity-75" aria-hidden="true"></span></button
-							>
-						</div>
-						<div class="truncate">3D Terrain</div>
 					</div>
 
 					<div class="flex items-center gap-2">

@@ -26,6 +26,7 @@ import {
 	serializeClipCountriesParam
 } from './clipping';
 import { BASE_URI, fmtModelRun, fmtSelectedTime, hashValue } from './helpers';
+import { getHashString } from './map-controls';
 import { clippingCountryCodes } from './stores/clipping';
 import { omProtocolSettings } from './stores/om-protocol-settings';
 import { parseISOWithoutTimezone } from './time-format';
@@ -53,12 +54,8 @@ export const updateUrl = async (
 	await tick();
 	let fullUrl: string;
 	try {
-		const map = get(m);
-		if (map) {
-			fullUrl = String(url) + map._hash.getHashString();
-		} else {
-			fullUrl = String(url);
-		}
+		// Leaflet keeps no position hash; map-controls maintains the MapLibre one
+		fullUrl = get(m) ? String(url) + getHashString() : String(url);
 	} catch {
 		fullUrl = String(url);
 	}

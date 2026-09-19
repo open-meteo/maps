@@ -7,6 +7,7 @@
 	import SplineIcon from '@lucide/svelte/icons/spline';
 	import SquareIcon from '@lucide/svelte/icons/square';
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
+	import L from 'leaflet';
 	import {
 		TerraDraw,
 		TerraDrawFreehandMode,
@@ -15,7 +16,7 @@
 		TerraDrawRenderMode,
 		TerraDrawSelectMode
 	} from 'terra-draw';
-	import { TerraDrawMapLibreGLAdapter } from 'terra-draw-maplibre-gl-adapter';
+	import { TerraDrawLeafletAdapter } from 'terra-draw-leaflet-adapter';
 
 	import { browser } from '$app/environment';
 
@@ -112,7 +113,7 @@
 		}
 
 		draw = new TerraDraw({
-			adapter: new TerraDrawMapLibreGLAdapter({ map: $map }),
+			adapter: new TerraDrawLeafletAdapter({ lib: L, map: $map }),
 			modes: [
 				new TerraDrawPolygonMode({
 					styles: {
@@ -318,7 +319,7 @@
 		// Not initialised yet (a click can beat the map's load event, especially
 		// on mobile) or torn down by a style reload: initialise on demand instead
 		// of silently ignoring the click.
-		if (!draw && $map?.isStyleLoaded()) initTerraDraw();
+		if (!draw && $map) initTerraDraw();
 		if (!draw) return;
 		if (activeMode === mode) {
 			exitDrawingMode();
@@ -356,7 +357,7 @@
 		} else {
 			terraDrawActive.set(false);
 		}
-		$map?.getCanvas().style.removeProperty('cursor');
+		$map?.getContainer().style.removeProperty('cursor');
 	};
 
 	const toggleFillRule = () => {
@@ -383,22 +384,6 @@
 			exitDrawingMode();
 		}
 	};
-
-	// A basemap style reload (dark mode, water-clip or globe toggle) wipes
-	// terra-draw's adapter layers with every other runtime layer, leaving a
-	// draw instance that silently ignores interactions ("needs activating
-	// twice"). Re-create it on the fresh style.
-	$effect(() => {
-		const mapInstance = $map;
-		if (!mapInstance) return;
-		const reinit = () => {
-			if (draw) initTerraDraw();
-		};
-		mapInstance.on('style.load', reinit);
-		return () => {
-			mapInstance.off('style.load', reinit);
-		};
-	});
 
 	// Auto-open the panel when country codes appear from URL parsing
 	// (parent's onMount runs urlParamsToPreferences after this component mounts)

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onDestroy, onMount, tick } from 'svelte';
 
-	import 'maplibre-gl/dist/maplibre-gl.css';
+	import 'leaflet/dist/leaflet.css';
 	import { mode, userPrefersMode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
@@ -15,7 +15,6 @@
 		ClippingButton,
 		DarkModeButton,
 		HelpButton,
-		HillshadeButton,
 		SettingsButton
 	} from '$lib/components/buttons';
 	import ClippingPanel from '$lib/components/clipping/clipping-panel.svelte';
@@ -32,12 +31,7 @@
 	import { unwatchAttributionOverlap, watchAttributionOverlap } from '$lib/attribution';
 	import { postEmbedderReady, startEmbedderBridge, stopEmbedderBridge } from '$lib/embed';
 	import { addOmFileLayers, changeOMfileURL } from '$lib/layers';
-	import {
-		addTerrainSource,
-		createMap,
-		getAppliedStyleMode,
-		reloadStyles
-	} from '$lib/map-controls';
+	import { createMap, getAppliedStyleMode, reloadStyles, whenMapReady } from '$lib/map-controls';
 	import { loadDomainMetaData } from '$lib/metadata';
 	import { addPopup } from '$lib/popup';
 	import { updateUrl, urlParamsToPreferences } from '$lib/url';
@@ -78,7 +72,7 @@
 		await createMap(mapContainer as HTMLElement);
 		startEmbedderBridge();
 
-		$map.on('load', async () => {
+		whenMapReady($map, async () => {
 			$map.addControl(darkModeButton);
 			$map.addControl(new SettingsButton());
 			$map.addControl(new HelpButton());
@@ -89,9 +83,6 @@
 			// user-initiated and should reset the selected model run.
 			initialLoadComplete = true;
 
-			addTerrainSource($map);
-			addTerrainSource($map, 'terrainSource2');
-			$map.addControl(new HillshadeButton());
 			clippingPanel?.initTerraDraw();
 
 			addOmFileLayers();
@@ -152,7 +143,7 @@
 	<Spinner />
 {/if}
 
-<div class="map maplibregl-map" id="#map_container" bind:this={mapContainer}></div>
+<div class="map" id="#map_container" bind:this={mapContainer}></div>
 
 <GithubCorner />
 <Scale />

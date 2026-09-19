@@ -4,13 +4,13 @@
 [![Tests & Build](https://github.com/open-meteo/maps/actions/workflows/build.yml/badge.svg)](https://github.com/open-meteo/maps/actions/workflows/build.yml)
 [![GitHub license](https://img.shields.io/github/license/open-meteo/maps)](https://github.com/open-meteo/maps/blob/main/LICENSE)
 
-A UI demo for the [Open-Meteo Weather Map Layer](https://github.com/open-meteo/weather-map-layer) — a MapLibre/Mapbox GL JS weather layer powered by Open-Meteo OMfiles.
+A UI demo for the [Open-Meteo Weather Map Layer](https://github.com/open-meteo/weather-map-layer) — a MapLibre/Mapbox GL JS weather layer powered by Open-Meteo OMfiles. This branch renders the app with **Leaflet** through the weather-map-layer Leaflet adapter (basemap via maplibre-gl-leaflet), to exercise that adapter with the full app.
 
 ![Open-Meteo Maps UI example](https://static-assets.open-meteo.com/maps/media/example.png)
 
 ## About
 
-This is a client-side app that fetches OMfiles from `data-spatial.open-meteo.com` and renders them with MapLibre GL. Weather tiles are fully rendered in the browser at the native model resolution — no server-side tile rendering required.
+This is a client-side app that fetches OMfiles from `data-spatial.open-meteo.com` and renders them with Leaflet. Weather tiles are fully rendered in the browser at the native model resolution — no server-side tile rendering required.
 
 > Looking for the Open-Meteo API? See [open-meteo/open-meteo](https://github.com/open-meteo/open-meteo).
 
