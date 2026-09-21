@@ -26,15 +26,21 @@
 	import ColorPicker from './color-picker.svelte';
 
 	interface Props {
-		variable: string;
+		/** Variables sharing this legend's colour scale; the first one drives it. */
+		variables: string[];
 		editable?: boolean;
 		/** Smaller blocks/labels, used when several legends compete for space. */
 		compact?: boolean;
-		/** Variable name shown vertically beside the bar (multi-scale charts). */
-		label?: string;
+		/**
+		 * Variable names shown vertically beside the bar (multi-source charts),
+		 * one chip each, stacked bottom-up in the order given.
+		 */
+		labels?: string[];
 	}
 
-	let { variable, editable = true, compact = false, label = undefined }: Props = $props();
+	let { variables, editable = true, compact = false, labels = undefined }: Props = $props();
+
+	const variable = $derived(variables[0]);
 
 	const isDark = $derived(mode.current === 'dark');
 	const baseColorScale: RenderableColorScale = $derived(getColorScale(variable, isDark));
@@ -84,13 +90,13 @@
 			newScale.colors[editingIndex] = newColor;
 		}
 
-		customColorScales.update((scales) => ({
-			...scales,
-			[variable]: newScale
-		}));
+		// Every variable sharing the legend gets the edit, or the legend would
+		// split in two after the first click
+		const edited = Object.fromEntries(variables.map((v) => [v, newScale]));
+		customColorScales.update((scales) => ({ ...scales, ...edited }));
 		// Replace wholesale, never mutate: the om URL builder memoizes the
 		// color hash by object identity
-		$omProtocolSettings.colorScales = { ...$omProtocolSettings.colorScales, [variable]: newScale };
+		$omProtocolSettings.colorScales = { ...$omProtocolSettings.colorScales, ...edited };
 		await tick();
 		await changeOMfileURL();
 		toast('Changed color scale');
@@ -212,15 +218,19 @@
 			</div>
 		{/if}
 	</div>
-	{#if label}
-		<div
-			class="bg-glass/60 text-foreground/80 overflow-hidden rounded-sm px-1 py-px font-semibold backdrop-blur-sm {compact
-				? 'text-[9px]'
-				: 'text-[10px]'}"
-			style="writing-mode: vertical-rl; transform: rotate(180deg); max-height: {totalHeight}px;"
-			title={label}
-		>
-			{label}
+	{#if labels?.length}
+		<div class="flex flex-col-reverse gap-0.5" style="max-height: {totalHeight}px;">
+			{#each labels as label (label)}
+				<div
+					class="bg-glass/60 text-foreground/80 overflow-hidden rounded-sm px-1 py-px font-semibold backdrop-blur-sm {compact
+						? 'text-[9px]'
+						: 'text-[10px]'}"
+					style="writing-mode: vertical-rl; transform: rotate(180deg);"
+					title={label}
+				>
+					{label}
+				</div>
+			{/each}
 		</div>
 	{/if}
 </div>
