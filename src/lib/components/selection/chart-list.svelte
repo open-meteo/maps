@@ -19,7 +19,7 @@
 	import { sourcesEqual } from '$lib/chart-encoding';
 	import { chartPresets } from '$lib/chart-presets';
 
-	import type { ChartPreset } from '$lib/chart-types';
+	import type { ChartPreset, ChartSource, SavedChart } from '$lib/chart-types';
 
 	// Which chart groups are expanded, persisted across sessions
 	const openGroups = persisted<Record<string, boolean>>('chart-groups-open', {});
@@ -30,13 +30,20 @@
 		available: boolean;
 	}
 
+	/**
+	 * The active domain serves the source's variable; a cross-domain source
+	 * needs the loaded EPS sibling to be its domain and serve it.
+	 */
+	const sourceAvailable = (source: ChartSource): boolean =>
+		source.domain
+			? $epsMeta?.domain === source.domain && $epsMeta.variables.includes(source.variable)
+			: !!$metaJson?.variables.includes(source.variable);
+
 	const presetGroups = $derived.by(() => {
 		const groups: { name: string; presets: GroupedPreset[] }[] = [];
 		if (!$metaJson) return groups;
 		for (const preset of chartPresets) {
-			const available = preset.sources.every((source) =>
-				$metaJson.variables.includes(source.variable)
-			);
+			const available = preset.sources.every(sourceAvailable);
 			const name = preset.group ?? 'Other';
 			const group = groups.find((g) => g.name === name);
 			if (group) {
@@ -76,6 +83,14 @@
 			group.presets.sort((a, b) => Number(b.available) - Number(a.available));
 		}
 		return groups;
+	});
+
+	// Same treatment as the presets: unavailable saved charts sink to the bottom
+	const savedEntries = $derived.by(() => {
+		const entries: { chart: SavedChart; available: boolean }[] = $savedCharts.charts.map(
+			(chart) => ({ chart, available: chart.sources.every(sourceAvailable) })
+		);
+		return entries.sort((a, b) => Number(b.available) - Number(a.available));
 	});
 
 	const toggleGroup = (name: string, defaultOpen = false) => {
@@ -152,6 +167,7 @@
 		{@const myChartsActive = $savedCharts.charts.some((chart) =>
 			sourcesEqual($activeChart.sources, chart.sources)
 		)}
+		{@const availableCount = savedEntries.filter((entry) => entry.available).length}
 		<button
 			class="hover:bg-primary/10 text-foreground/85 flex h-7.5 w-full cursor-pointer items-center gap-1.5 px-2 text-[13px] font-medium"
 			onclick={() => toggleGroup('My charts', true)}
@@ -162,21 +178,24 @@
 				<CheckIcon class="ml-auto size-3.5 shrink-0" />
 			{/if}
 			<span class="{!myChartsOpen && myChartsActive ? '' : 'ml-auto'} pr-1 font-normal opacity-60">
-				{$savedCharts.charts.length}
+				{availableCount === savedEntries.length
+					? savedEntries.length
+					: `${availableCount}/${savedEntries.length}`}
 			</span>
 		</button>
 		{#if myChartsOpen}
 			<div class="pb-1" transition:slide={{ duration: 200 }}>
-				{#each $savedCharts.charts as chart (chart.id)}
+				{#each savedEntries as { chart, available } (chart.id)}
 					{@const active = sourcesEqual($activeChart.sources, chart.sources)}
 					<div
 						class="hover:bg-primary/10 group flex w-full items-center justify-between gap-1.5 py-1 pr-3 pl-5 {active
 							? 'bg-primary/10'
-							: ''}"
+							: ''} {available ? '' : 'opacity-40'}"
 					>
 						<button
-							class="min-w-0 flex-1 cursor-pointer text-left"
-							title={chart.name}
+							class="min-w-0 flex-1 text-left {available ? 'cursor-pointer' : 'cursor-not-allowed'}"
+							title={available ? chart.name : 'Not available in this domain'}
+							disabled={!available}
 							onclick={() => applySavedChart(chart.id)}
 						>
 							<div class="truncate text-sm leading-4.5">{chart.name}</div>
