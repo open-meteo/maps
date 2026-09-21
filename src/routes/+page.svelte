@@ -8,6 +8,7 @@
 
 	import { activeChart } from '$lib/stores/chart';
 	import { epsMeta } from '$lib/stores/eps';
+	import { loadLocalOmFile } from '$lib/stores/local-file';
 	import { map } from '$lib/stores/map';
 	import { initStoredState, loading, url } from '$lib/stores/preferences';
 	import { installRequestCounter } from '$lib/stores/request-counter';
@@ -199,4 +200,5 @@
 	ondrop={(features) => {
 		clippingPanel?.addImportedFeatures(features);
 	}}
+	onOmFile={loadLocalOmFile}
 />

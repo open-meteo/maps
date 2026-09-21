@@ -3,6 +3,7 @@
 	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down';
 	import { domainGroups, domainOptions } from '@openmeteo/weather-map-layer';
 
+	import { leaveLocalOmFile, localOmFile } from '$lib/stores/local-file';
 	import { domainSelectionOpen as dSO, domain, selectedDomain } from '$lib/stores/variables';
 
 	import * as Command from '$lib/components/ui/command';
@@ -22,9 +23,10 @@
 			: ''}"
 		role="combobox"
 		aria-expanded={$dSO}
+		title={$localOmFile?.name}
 	>
 		<div class="truncate">
-			{$selectedDomain?.label || 'Select a domain...'}
+			{$localOmFile?.name ?? ($selectedDomain?.label || 'Select a domain...')}
 		</div>
 		<ChevronsUpDownIcon class="size-4 shrink-0 opacity-50" />
 	</Popover.Trigger>
@@ -44,7 +46,9 @@
 										? 'bg-primary/10!'
 										: ''}"
 									onSelect={() => {
-										$domain = value;
+										// Same domain again: only a dropped file can be left that way
+										if ($localOmFile && value === $domain) leaveLocalOmFile();
+										else $domain = value;
 										dSO.set(false);
 									}}
 									aria-selected={$selectedDomain.value === value}

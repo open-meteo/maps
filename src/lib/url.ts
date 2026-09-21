@@ -39,6 +39,7 @@ import {
 } from './clipping';
 import { BASE_URI, fmtModelRun, fmtSelectedTime, hashValue } from './helpers';
 import { clippingCountryCodes } from './stores/clipping';
+import { localOmFile } from './stores/local-file';
 import { omProtocolSettings } from './stores/om-protocol-settings';
 import { parseISOWithoutTimezone } from './time-format';
 import { findTimeStep } from './time-utils';
@@ -210,6 +211,9 @@ export const getOmUrlForSource = (source: ChartSource): string | undefined => {
 	// the time to its own steps; unavailable until its metadata has loaded.
 	const eps = source.domain ? get(epsMeta) : undefined;
 	if (source.domain && eps?.domain !== source.domain) return undefined;
+	// A dropped file has no EPS sibling to serve a cross-domain source from
+	const local = get(localOmFile);
+	if (local && source.domain) return undefined;
 
 	const domain = eps?.domain ?? get(d);
 	const base = `${BASE_URI}/${domain}`;
@@ -218,7 +222,9 @@ export const getOmUrlForSource = (source: ChartSource): string | undefined => {
 	let selectedTime = get(time);
 	if (eps) selectedTime = (findTimeStep(selectedTime, eps.validTimes) as Date) ?? selectedTime;
 
-	let result = `${base}/${fmtModelRun(modelRun)}/${fmtSelectedTime(selectedTime)}.om`;
+	let result = local
+		? local.baseUrl
+		: `${base}/${fmtModelRun(modelRun)}/${fmtSelectedTime(selectedTime)}.om`;
 	result += `?variable=${source.variable}`;
 
 	if (mode.current === 'dark') result += '&dark=true';

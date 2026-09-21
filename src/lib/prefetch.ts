@@ -6,6 +6,7 @@ import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 
 import { MILLISECONDS_PER_DAY } from './constants';
 import { BASE_URI, fmtModelRun, fmtSelectedTime } from './helpers';
+import { localOmFile } from './stores/local-file';
 import { selectedDomain } from './stores/variables';
 
 import type { DomainMetaDataJson } from '@openmeteo/weather-map-layer';
@@ -107,8 +108,8 @@ export const prefetchData = async (
 ): Promise<PrefetchResult> => {
 	const { startDate, endDate, metaJson, modelRun, domain, variable, signal } = options;
 
-	// Get the time steps to prefetch
-	const timeSteps = getTimeStepsInRange(metaJson, startDate, endDate);
+	// Get the time steps to prefetch; a dropped file is already in memory
+	const timeSteps = get(localOmFile) ? [] : getTimeStepsInRange(metaJson, startDate, endDate);
 
 	if (timeSteps.length === 0) {
 		return {
