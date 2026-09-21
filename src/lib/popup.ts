@@ -14,7 +14,12 @@ import {
 import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
 
-import { activeChart, chartSources, pickPrimarySource } from '$lib/stores/chart';
+import {
+	activeChart,
+	chartSources,
+	pickPrimarySource,
+	sourceDrawsSomething
+} from '$lib/stores/chart';
 import { map as m, popup as p, popupMode } from '$lib/stores/map';
 import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 import { convertValue, getDisplayUnit, unitPreferences } from '$lib/stores/units';
@@ -499,7 +504,21 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 	const primary = pickPrimarySource(get(activeChart));
 	const primaryKey = sourceKey(primary);
 	const activeUrl = getActiveOmUrls().get(primaryKey);
-	if (!activeUrl) return;
+	if (!activeUrl) {
+		// A primary that draws something is merely still loading; the commit
+		// callback refreshes once its layer is up. One drawing nothing means the
+		// chart has no layers at all, so the value shown would be a stale one.
+		if (sourceDrawsSomething(primary)) return;
+		contentDiv.style.backgroundColor = '';
+		contentDiv.style.color = '';
+		setArrow(undefined, 0);
+		valueSpan.innerText = 'No layers';
+		unitSpan.innerText = '';
+		elevationSpan.innerText = hasElevation ? `${Math.round(elevation)}m` : '';
+		elevationSpan.style.color = '';
+		await updateExtraSources(coordinates, primaryKey, seq);
+		return;
+	}
 
 	// Primary value and extra lines resolve concurrently
 	const [{ value, direction }] = await Promise.all([

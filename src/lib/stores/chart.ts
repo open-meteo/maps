@@ -17,9 +17,18 @@ interface SavedChartsState {
 	charts: SavedChart[];
 }
 
-/** First raster source, else the first source: drives legend, popup, prefetch. */
+/** A source with every layer type toggled off draws nothing on the map. */
+export const sourceDrawsSomething = (source: ChartSource): boolean =>
+	!!(source.raster || source.contours || source.arrows);
+
+/**
+ * First raster source, else the first source drawing anything, else the first
+ * source: drives legend, popup, prefetch.
+ */
 export const pickPrimarySource = (chart: ChartState): ChartSource =>
-	chart.sources.find((source) => source.raster) ?? chart.sources[0];
+	chart.sources.find((source) => source.raster) ??
+	chart.sources.find(sourceDrawsSomething) ??
+	chart.sources[0];
 
 /**
  * Variable of the primary source. Note this drops the domain of a
