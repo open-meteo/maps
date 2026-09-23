@@ -6,6 +6,7 @@
 import {
 	buildArrowColorExpr,
 	buildArrowWidthExpr,
+	buildBarbColorExpr,
 	buildContourColorExpr,
 	buildContourWidthExpr,
 	defaultArrowStyle,
@@ -13,21 +14,21 @@ import {
 } from '$lib/chart-styles';
 
 import type { ChannelLayerDef, FrameChannel } from '$lib/frame-manager';
+import type { ArrowStyle } from '@openmeteo/weather-map-layer';
 import type * as maplibregl from 'maplibre-gl';
 
 /** Opacity fade duration; matches the FrameManager cross-fade. */
 const FADE_MS = 250;
 
 export const rasterChannel = (
-	sourceKey: string,
+	variable: string,
 	url: string,
 	opacity: number,
 	beforeLayer: string
 ): FrameChannel => ({
 	// Opacity is part of the identity: retained frames must not be reused
-	// with a different per-source opacity. The sourceKey (variable@domain)
-	// keeps same-variable sources from different domains apart.
-	key: `${sourceKey}:raster:${opacity}`,
+	// with a different per-source opacity.
+	key: `${variable}:raster:${opacity}`,
 	url,
 	sourceSpec: { type: 'raster', url, maxzoom: 14 },
 	layers: [
@@ -55,9 +56,19 @@ export const rasterChannel = (
 	]
 });
 
+/**
+ * Barbs are drawn at one thin, even weight instead of the arrows' width ramp:
+ * the shape already carries the speed, and it is the thin line that keeps the
+ * individual barbs apart at map scale. The colour still follows the speed, on
+ * the shallower ramp in `buildBarbColorExpr`.
+ */
+export const BARB_LINE_WIDTH = 1.3;
+
 export interface VectorChannelOptions {
 	contours: boolean;
 	arrows: boolean;
+	/** Shape of the arrows; barbs are styled differently to stay readable. */
+	arrowStyle: ArrowStyle;
 	grid: boolean;
 	dark: boolean;
 	beforeLayer: string;
@@ -74,15 +85,16 @@ const scaleWidth = (
 ): maplibregl.ExpressionSpecification => (factor === 1 ? expr : ['*', factor, expr]);
 
 export const vectorChannel = (
-	sourceKey: string,
+	variable: string,
 	url: string,
 	options: VectorChannelOptions
 ): FrameChannel => {
-	const { contours, arrows, grid, dark, beforeLayer } = options;
+	const { contours, arrows, arrowStyle, grid, dark, beforeLayer } = options;
 	const lineWidth = options.lineWidth ?? 1;
 	const layers: ChannelLayerDef[] = [];
 
 	if (arrows) {
+		const barbs = arrowStyle === 'barb';
 		layers.push({
 			id: 'arrows',
 			opacityProp: 'line-opacity',
@@ -98,8 +110,12 @@ export const vectorChannel = (
 						paint: {
 							'line-opacity': 0,
 							'line-opacity-transition': { duration: FADE_MS, delay: 0 },
-							'line-color': buildArrowColorExpr(defaultArrowStyle, dark),
-							'line-width': scaleWidth(buildArrowWidthExpr(defaultArrowStyle), lineWidth)
+							'line-color': barbs
+								? buildBarbColorExpr(defaultArrowStyle, dark)
+								: buildArrowColorExpr(defaultArrowStyle, dark),
+							'line-width': barbs
+								? BARB_LINE_WIDTH * lineWidth
+								: scaleWidth(buildArrowWidthExpr(defaultArrowStyle), lineWidth)
 						},
 						layout: { 'line-cap': 'round' }
 					},
@@ -107,6 +123,34 @@ export const vectorChannel = (
 				);
 			}
 		});
+
+		if (barbs) {
+			// Pennants are solid on a printed plot, so they arrive as polygons in
+			// their own source layer and are filled under their own outline
+			layers.push({
+				id: 'arrow-pennants',
+				opacityProp: 'fill-opacity',
+				peakOpacity: 1,
+				beforeLayer,
+				add: (map, sourceId, layerId, before) => {
+					map.addLayer(
+						{
+							id: layerId,
+							type: 'fill',
+							source: sourceId,
+							'source-layer': 'wind-barb-pennants',
+							paint: {
+								'fill-opacity': 0,
+								'fill-opacity-transition': { duration: FADE_MS, delay: 0 },
+								'fill-color': buildBarbColorExpr(defaultArrowStyle, dark),
+								'fill-antialias': true
+							}
+						},
+						before
+					);
+				}
+			});
+		}
 	}
 
 	if (grid) {
@@ -202,9 +246,9 @@ export const vectorChannel = (
 	}
 
 	return {
-		// Line width and stack placement are part of the identity, like
-		// raster opacity
-		key: `${sourceKey}:vector:${lineWidth}${options.inline ? ':inline' : ''}`,
+		// Line width, arrow shape and stack placement are part of the identity,
+		// like raster opacity
+		key: `${variable}:vector:${lineWidth}:${arrowStyle}${options.inline ? ':inline' : ''}`,
 		url,
 		sourceSpec: { type: 'vector', url },
 		layers

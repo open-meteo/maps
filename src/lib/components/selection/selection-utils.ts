@@ -119,7 +119,7 @@ export const levelGroups = derived(metaJson, ($metaJson) =>
 
 /**
  * Scroll the selected Command item to the very top of its list once the
- * popover content has mounted. Call from `onOpenAutoFocus`.
+ * popover content has mounted.
  */
 export const scrollSelectedToTop = (selectedValue: string | undefined): void => {
 	if (!selectedValue) return;

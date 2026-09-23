@@ -125,11 +125,14 @@
 						data-panel-search
 						bind:value={searchQuery}
 						onkeydown={(e) => {
-							if (e.key === 'Escape') {
-								searchQuery = '';
-								(e.currentTarget as HTMLInputElement).blur();
-								e.stopPropagation();
-							}
+							if (e.key !== 'Escape') return;
+							(e.currentTarget as HTMLInputElement).blur();
+							// Escape is only swallowed while there is a query to clear; with
+							// an empty field it belongs to the global handler, which closes
+							// the panel
+							if (!searchQuery) return;
+							searchQuery = '';
+							e.stopPropagation();
 						}}
 					/>
 					<ScrollArea

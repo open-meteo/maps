@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { levelGroupVariables } from '@openmeteo/weather-map-layer';
 
+	import { activeChart } from '$lib/stores/chart';
 	import { metaJson } from '$lib/stores/time';
 	import { variableSelectionOpen as vSO } from '$lib/stores/variables';
 
@@ -28,7 +29,12 @@
 	const selectEntry = (entry: string) => {
 		let target = entry;
 		if (levelGroupVariables.includes(entry) && $levelGroups[entry]) {
-			const level = pickDefaultLevel($levelGroups[entry]);
+			// Levels already in the chart are off the table: the group collapses to
+			// one row, so resolving to an existing source would close the dialog
+			// without adding anything (picking temperature while the chart holds
+			// its 2m default). The row's level select adjusts it afterwards.
+			const taken = new Set($activeChart.sources.map((source) => source.variable));
+			const level = pickDefaultLevel($levelGroups[entry].filter(({ value }) => !taken.has(value)));
 			if (!level) return;
 			target = level;
 		}

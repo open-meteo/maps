@@ -7,6 +7,7 @@
  */
 import { get } from 'svelte/store';
 
+import { variableSupportsBarbs } from '@openmeteo/weather-map-layer';
 import { mode } from 'mode-watcher';
 import { toast } from 'svelte-sonner';
 
@@ -70,6 +71,12 @@ const buildChannels = (): FrameChannel[] | undefined => {
 				vectorChannel(sourceKey(source), url, {
 					contours: !!source.contours,
 					arrows: !!source.arrows,
+					// Barbs encode knots, so sources whose directions come with another
+					// quantity (waves, currents) keep arrows under the barb setting
+					arrowStyle:
+						vectorOptions.arrowStyle === 'barb' && !variableSupportsBarbs(source.variable)
+							? 'arrow'
+							: vectorOptions.arrowStyle,
 					grid: vectorOptions.grid,
 					dark,
 					// Inline vectors join the raster stack right above their own

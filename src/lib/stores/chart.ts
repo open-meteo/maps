@@ -3,7 +3,7 @@ import { derived, get } from 'svelte/store';
 import { variableHasDirections } from '@openmeteo/weather-map-layer';
 import { persisted } from 'svelte-persisted-store';
 
-import { cloneSources, matchPreset, sourceKey, sourcesEqual } from '$lib/chart-encoding';
+import { cloneSources, matchPreset, sourcesEqual } from '$lib/chart-encoding';
 import { getChartPreset } from '$lib/chart-presets';
 import { DEFAULT_VARIABLE } from '$lib/constants';
 
@@ -30,21 +30,13 @@ export const pickPrimarySource = (chart: ChartState): ChartSource =>
 	chart.sources.find(sourceDrawsSomething) ??
 	chart.sources[0];
 
-/**
- * Variable of the primary source. Note this drops the domain of a
- * cross-domain (EPS) source: anything addressing data needs `pickPrimarySource`
- * and its `sourceKey` instead.
- */
+/** Variable of the primary source. */
 export const pickPrimaryVariable = (chart: ChartState): string => pickPrimarySource(chart).variable;
 
-/**
- * A single-source chart for `v`, applying the persisted vector defaults.
- * `domain` keeps a cross-domain (EPS) source addressing its own domain.
- */
-export const plainChartFor = (v: string, domain?: string): ChartState => {
+/** A single-source chart for `v`, applying the persisted vector defaults. */
+export const plainChartFor = (v: string): ChartState => {
 	const vo = get(vectorOptions);
 	const source: ChartSource = { variable: v, raster: true };
-	if (domain) source.domain = domain;
 	if (vo.contours) {
 		source.contours = true;
 		if (!vo.breakpoints) source.contourInterval = vo.contourInterval;
@@ -112,7 +104,7 @@ export const setSources = (sources: ChartSource[]): void => {
 export const applyVectorDefaultsToActiveChart = (): void => {
 	const chart = get(activeChart);
 	if (chart.sources.length !== 1 || chart.presetId || chart.name) return;
-	activeChart.set(plainChartFor(chart.sources[0].variable, chart.sources[0].domain));
+	activeChart.set(plainChartFor(chart.sources[0].variable));
 };
 
 /**
@@ -156,8 +148,7 @@ export const setArrowsOnActiveChart = (enabled: boolean): void => {
  * its highlight and its level selector; writing `variable=` to the URL needs
  * the stricter `isDefaultsPlainChart` below, since styling would be lost.
  */
-export const isSingleVariableChart = (chart: ChartState): boolean =>
-	chart.sources.length === 1 && !chart.sources[0].domain;
+export const isSingleVariableChart = (chart: ChartState): boolean => chart.sources.length === 1;
 
 /**
  * True when the chart is exactly what picking its primary variable from the
@@ -185,9 +176,9 @@ export const updateSource = (index: number, patch: Partial<ChartSource>): void =
 	const sources = cloneSources(chart.sources);
 	if (!sources[index]) return;
 	const next = { ...sources[index], ...patch };
-	// Source identities must stay unique (the editor keys rows by them): a
+	// Source variables must stay unique (the editor keys rows by them): a
 	// level change that collides with an existing source drops the edit
-	if (sources.some((source, i) => i !== index && sourceKey(source) === sourceKey(next))) return;
+	if (sources.some((source, i) => i !== index && source.variable === next.variable)) return;
 	sources[index] = next;
 	activeChart.set(chartFromSources(sources));
 };

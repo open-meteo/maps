@@ -8,3 +8,10 @@
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Embedder-Policy: require-corp
   Cross-Origin-Resource-Policy: cross-origin
+
+# SvelteKit content-hashes everything under _app/immutable, so a new build gets
+# new file names and these can be cached for a year without revalidation.
+# Without this rule Pages serves them with a short must-revalidate TTL, and
+# every visit re-validates each chunk and the 2 MB WASM binary.
+/_app/immutable/*
+  Cache-Control: public, max-age=31536000, immutable
