@@ -15,6 +15,8 @@ import {
 	HTTP_OVERHEAD_BYTES
 } from '$lib/constants';
 
+import { chartSources } from './chart';
+
 import type {
 	Data,
 	OmProtocolSettings,
@@ -63,4 +65,14 @@ export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
 			}
 		}
 	}
+});
+
+// The protocol keeps at most maxStatesWithData variable states loaded. A chart
+// needs one per source, times two while cross-fading between timesteps, plus
+// headroom for pan/zoom-created partial-bounds states.
+chartSources.subscribe((sources) => {
+	omProtocolSettings.update((settings) => ({
+		...settings,
+		maxStatesWithData: Math.max(4, sources.length * 2)
+	}));
 });
