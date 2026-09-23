@@ -10,6 +10,7 @@
 		"sourceMap": true,
 		"strict": true,
 		"moduleResolution": "bundler",
-		"lib": ["ESNext", "DOM"]
+		"lib": ["ESNext", "DOM"],
+		"types": ["vite-plugin-pwa/info", "vite-plugin-pwa/client"]
 	}
 }

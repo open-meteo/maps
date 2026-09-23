@@ -43,6 +43,7 @@
 		"@trivago/prettier-plugin-sort-imports": "^6.0.0",
 		"@turf/turf": "^7.4.0",
 		"@types/node": "^26.5.1",
+		"@vite-pwa/sveltekit": "^1.1.0",
 		"@vitest/coverage-v8": "^5.0.0",
 		"bits-ui": "^2.19.2",
 		"clsx": "^2.1.1",
