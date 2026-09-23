@@ -25,7 +25,13 @@ import type * as mapboxgl from 'mapbox-gl';
  */
 
 /** Paint properties a frame fades. */
-type OpacityPaintProperty = 'raster-opacity' | 'line-opacity' | 'circle-opacity' | 'text-opacity';
+type OpacityPaintProperty =
+	| 'raster-opacity'
+	| 'line-opacity'
+	| 'circle-opacity'
+	| 'text-opacity'
+	// Barb pennants arrive as polygons, so they fade on their fill
+	| 'fill-opacity';
 
 export interface ChannelLayerDef {
 	/** Base layer id — suffixed per frame for uniqueness. */
