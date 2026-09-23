@@ -27,6 +27,29 @@ export const variableLabel = (value: string): string =>
 	variableOptions.find((option) => option.value === value)?.label ?? value;
 
 /**
+ * Search ranking for the command lists, replacing the default fuzzy matcher:
+ * that one matches on scattered letters, so "temp" pulls in anything with a
+ * t, e, m and p in order. Here a result has to actually contain the query,
+ * and scores by where the hit sits — whole value, start, word start, buried —
+ * with the more complete match winning inside a tier.
+ */
+export const rankedFilter = (value: string, search: string, keywords?: string[]): number => {
+	const query = search.trim().toLowerCase();
+	if (!query) return 1;
+
+	let best = 0;
+	for (const haystack of [value, ...(keywords ?? [])]) {
+		const text = haystack.toLowerCase();
+		const at = text.indexOf(query);
+		if (at < 0) continue;
+		if (text === query) return 1;
+		const tier = at === 0 ? 0.8 : /[\s_\-/(]/.test(text[at - 1]) ? 0.6 : 0.4;
+		best = Math.max(best, tier + (0.1 * query.length) / text.length);
+	}
+	return best;
+};
+
+/**
  * The domain's variables with level variants collapsed into their group
  * prefix (e.g. all temperature_XXXhPa become one `temperature` entry).
  */
@@ -96,7 +119,7 @@ export const levelGroups = derived(metaJson, ($metaJson) =>
 
 /**
  * Scroll the selected Command item to the very top of its list once the
- * popover content has mounted. Call from `onOpenAutoFocus`.
+ * popover content has mounted.
  */
 export const scrollSelectedToTop = (selectedValue: string | undefined): void => {
 	if (!selectedValue) return;

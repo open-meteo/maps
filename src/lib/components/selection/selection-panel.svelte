@@ -28,6 +28,7 @@
 	import OtherVariables from './other-variables.svelte';
 	import PopularVariables from './popular-variables.svelte';
 	import SearchResults from './search-results.svelte';
+	import { rankedFilter } from './selection-utils';
 
 	const extended = $derived($vSE);
 
@@ -88,65 +89,81 @@
 	bind:this={panelEl}
 	class="absolute top-2.5 z-70 flex gap-2.5 duration-300 {extended ? 'left-2.5' : '-left-64.5'}"
 >
-	<div
-		class="bg-glass/75 dark:bg-glass/75 flex w-64 flex-col overflow-hidden rounded shadow-md backdrop-blur-sm"
-	>
-		{#if !$metaJson}
-			<div class="flex animate-pulse flex-col gap-2 p-2.5">
-				<div class="bg-primary/10 h-5 w-3/4 rounded"></div>
-				<div class="bg-primary/10 h-4 w-full rounded"></div>
-				<div class="bg-primary/10 h-4 w-full rounded"></div>
-				<div class="bg-primary/10 h-4 w-2/3 rounded"></div>
-			</div>
-		{:else}
-			<DomainSelect />
-			<Separator class="bg-primary/10" />
-			<!-- h-auto: the default h-full is circular in this auto-height column
-			     and over-constrains it, shrinking the domain trigger by a
-			     content-dependent ~1px (visible as a shift on expand/collapse).
-			     The scroll limit lives on the ScrollArea viewport instead. -->
-			<Command.Root class="h-auto bg-transparent!">
-				<Command.Input
-					class="h-8 border-none ring-0"
-					placeholder="Search variables & charts..."
-					data-panel-search
-					bind:value={searchQuery}
-					onkeydown={(e) => {
-						if (e.key === 'Escape') {
-							searchQuery = '';
+	<div class="flex w-64 flex-col gap-2.5">
+		<!-- The domain is a separate choice from what is drawn on it, and it is
+		     what every list below is filtered by, so it sits on its own card -->
+		<div
+			class="bg-glass/75 dark:bg-glass/75 shrink-0 overflow-hidden rounded shadow-md backdrop-blur-sm"
+		>
+			{#if !$metaJson}
+				<div class="flex h-8.5 items-center px-3">
+					<div class="bg-primary/10 h-4 w-2/5 animate-pulse rounded"></div>
+				</div>
+			{:else}
+				<DomainSelect />
+			{/if}
+		</div>
+
+		<div
+			class="bg-glass/75 dark:bg-glass/75 flex flex-col overflow-hidden rounded shadow-md backdrop-blur-sm"
+		>
+			{#if !$metaJson}
+				<div class="flex animate-pulse flex-col gap-2 p-2.5">
+					<div class="bg-primary/10 h-5 w-3/4 rounded"></div>
+					<div class="bg-primary/10 h-4 w-full rounded"></div>
+					<div class="bg-primary/10 h-4 w-full rounded"></div>
+					<div class="bg-primary/10 h-4 w-2/3 rounded"></div>
+				</div>
+			{:else}
+				<!-- h-auto: the default h-full is circular in this auto-height
+				     column and over-constrains it. The scroll limit lives on the
+				     ScrollArea viewport instead. -->
+				<Command.Root class="h-auto bg-transparent!" filter={rankedFilter}>
+					<Command.Input
+						class="h-8 border-none ring-0"
+						placeholder="Search variables & charts..."
+						data-panel-search
+						bind:value={searchQuery}
+						onkeydown={(e) => {
+							if (e.key !== 'Escape') return;
 							(e.currentTarget as HTMLInputElement).blur();
+							// Escape is only swallowed while there is a query to clear; with
+							// an empty field it belongs to the global handler, which closes
+							// the panel
+							if (!searchQuery) return;
+							searchQuery = '';
 							e.stopPropagation();
-						}
-					}}
-				/>
-				<ScrollArea
-					type="always"
-					class="min-h-0"
-					viewportClasses="max-h-[calc(100dvh-21rem)] md:max-h-[50vh]"
-					scrollbarYClasses="opacity-80"
-				>
-					{#if searching}
-						<SearchResults onDone={() => (searchQuery = '')} />
-					{:else}
-						<PopularVariables {levelHostId} />
-						<OtherVariables {levelHostId} />
-						<Separator class="bg-primary/10" />
-						<ChartList />
-						<Separator class="bg-primary/10" />
-						<div
-							class="text-muted-foreground flex h-7.5 items-center px-3 text-xs font-semibold tracking-wide uppercase"
-						>
-							Current chart
-						</div>
-						<ChartEditor onAddVariable={openAddVariable} />
-					{/if}
-				</ScrollArea>
-			</Command.Root>
-		{/if}
+						}}
+					/>
+					<ScrollArea
+						type="always"
+						class="min-h-0"
+						viewportClasses="max-h-[calc(100dvh-21rem)] md:max-h-[50vh]"
+						scrollbarYClasses="opacity-80"
+					>
+						{#if searching}
+							<SearchResults onDone={() => (searchQuery = '')} />
+						{:else}
+							<PopularVariables {levelHostId} />
+							<OtherVariables {levelHostId} />
+							<Separator class="bg-primary/10" />
+							<ChartList />
+							<Separator class="bg-primary/10" />
+							<div
+								class="text-muted-foreground flex h-7.5 items-center px-3 text-xs font-semibold tracking-wide uppercase"
+							>
+								Current chart
+							</div>
+							<ChartEditor onAddVariable={openAddVariable} />
+						{/if}
+					</ScrollArea>
+				</Command.Root>
+			{/if}
+		</div>
 	</div>
 
 	<button
-		class="bg-glass/75 backdrop-blur-sm shadow-md hover:bg-glass/95 duration-200 h-7.25 w-7.25 flex cursor-pointer items-center justify-center rounded p-0 z-20 self-start"
+		class="bg-glass/75 backdrop-blur-sm shadow-md hover:bg-glass/95 duration-200 h-8.5 w-8.5 flex cursor-pointer items-center justify-center rounded p-0 z-20 self-start"
 		onclick={() => {
 			vSE.set(!get(vSE));
 		}}

@@ -22,15 +22,14 @@ import type * as maplibregl from 'maplibre-gl';
 const FADE_MS = 250;
 
 export const rasterChannel = (
-	sourceKey: string,
+	variable: string,
 	url: string,
 	opacity: number,
 	beforeLayer: string
 ): FrameChannel => ({
 	// Opacity is part of the identity: retained frames must not be reused
-	// with a different per-source opacity. The sourceKey (variable@domain)
-	// keeps same-variable sources from different domains apart.
-	key: `${sourceKey}:raster:${opacity}`,
+	// with a different per-source opacity.
+	key: `${variable}:raster:${opacity}`,
 	url,
 	sourceSpec: { type: 'raster', url, maxzoom: 14 },
 	layers: [
@@ -64,7 +63,7 @@ export const rasterChannel = (
  * individual barbs apart at map scale. The colour still follows the speed, on
  * the shallower ramp in `buildBarbColorExpr`.
  */
-const BARB_LINE_WIDTH = 1.3;
+export const BARB_LINE_WIDTH = 1.3;
 
 export interface VectorChannelOptions {
 	contours: boolean;

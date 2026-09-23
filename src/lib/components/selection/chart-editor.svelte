@@ -7,13 +7,20 @@
 	import WavesIcon from '@lucide/svelte/icons/waves';
 	import WindIcon from '@lucide/svelte/icons/wind';
 	import XIcon from '@lucide/svelte/icons/x';
+	import { variableHasDirections } from '@openmeteo/weather-map-layer';
 
-	import { activeChart, removeSource, saveCurrentChart, updateSource } from '$lib/stores/chart';
+	import {
+		activeChart,
+		isSingleVariableChart,
+		removeSource,
+		saveCurrentChart,
+		updateSource
+	} from '$lib/stores/chart';
 	import { vectorOptions } from '$lib/stores/vector';
 
 	import { Input } from '$lib/components/ui/input';
 
-	import { sourceKey, variableSupportsArrows } from '$lib/chart-encoding';
+	import { getChartPreset } from '$lib/chart-presets';
 	import { updateUrl } from '$lib/url';
 
 	import { variableLabel } from './selection-utils';
@@ -45,6 +52,25 @@
 		if ($vectorOptions[key] === on) return;
 		$vectorOptions[key] = on;
 		updateUrl(key, String(on));
+	};
+
+	/**
+	 * A plain variable and a preset already carry a name everyone recognises,
+	 * so saving them asks for nothing; only a chart the visitor assembled needs
+	 * one typed in.
+	 */
+	const impliedName = $derived.by(() => {
+		if ($activeChart.presetId) return getChartPreset($activeChart.presetId)?.label ?? '';
+		if (isSingleVariableChart($activeChart)) return variableLabel($activeChart.sources[0].variable);
+		return '';
+	});
+
+	const save = () => {
+		if (impliedName) {
+			saveCurrentChart(impliedName);
+			return;
+		}
+		showSaveInput = !showSaveInput;
 	};
 
 	const submitSave = () => {
@@ -82,20 +108,12 @@
 </script>
 
 <div class="flex flex-col gap-1 py-1 pb-1.5">
-	{#each $activeChart.sources as source, i (sourceKey(source))}
-		{@const arrowsSupported = variableSupportsArrows(source.variable)}
+	{#each $activeChart.sources as source, i (source.variable)}
+		{@const arrowsSupported = variableHasDirections(source.variable)}
 		<div class="flex h-6 items-center gap-1 pr-1 pl-3 text-sm">
 			<div class="truncate" title={source.variable}>
 				{baseLabel(source.variable)}
 			</div>
-			{#if source.domain}
-				<span
-					class="text-muted-foreground shrink-0 text-[10px] font-semibold"
-					title={source.domain}
-				>
-					EPS
-				</span>
-			{/if}
 			<SourceLevelSelect
 				sourceVariable={source.variable}
 				onSelect={(newVariable) => updateSource(i, { variable: newVariable })}
@@ -170,18 +188,19 @@
 	<div class="flex items-center gap-1.5 px-3 pt-0.5">
 		<button
 			class="hover:bg-primary/10 bg-primary/5 flex h-6.5 flex-1 cursor-pointer items-center justify-center gap-1 rounded text-xs opacity-90"
+			data-add-variable
 			onclick={onAddVariable}
 		>
 			<PlusIcon class="size-3.5" /> Add variable
 		</button>
 		<button
 			class="hover:bg-primary/10 bg-primary/5 flex h-6.5 flex-1 cursor-pointer items-center justify-center gap-1 rounded text-xs opacity-90"
-			onclick={() => (showSaveInput = !showSaveInput)}
+			onclick={save}
 		>
 			<SaveIcon class="size-3.5" /> Save chart
 		</button>
 	</div>
-	{#if showSaveInput}
+	{#if showSaveInput && !impliedName}
 		<div class="flex items-center gap-1.5 px-3 pt-0.5">
 			<Input
 				class="h-6.5! bg-background/50 flex-1 rounded-sm border-none px-1.5 text-xs!"

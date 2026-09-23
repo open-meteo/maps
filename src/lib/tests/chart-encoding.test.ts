@@ -5,8 +5,7 @@ import {
 	parseSources,
 	serializeSources,
 	sourceKey,
-	sourcesEqual,
-	variableSupportsArrows
+	sourcesEqual
 } from '$lib/chart-encoding';
 import { chartPresets } from '$lib/chart-presets';
 
@@ -136,21 +135,5 @@ describe('sourceKey', () => {
 		const sources = parseSources('temperature_2m,temperature_2m@dwd_icon_eps');
 		expect(sources).toHaveLength(2);
 		expect(new Set(sources!.map(sourceKey)).size).toBe(2);
-	});
-});
-
-describe('variableSupportsArrows', () => {
-	it('matches derivable direction variables', () => {
-		expect(variableSupportsArrows('wind_u_component_10m')).toBe(true);
-		expect(variableSupportsArrows('wind_v_component_850hPa')).toBe(true);
-		expect(variableSupportsArrows('ocean_u_current_velocity')).toBe(true);
-		expect(variableSupportsArrows('wind_speed_10m')).toBe(true);
-		expect(variableSupportsArrows('wave_height')).toBe(true);
-	});
-
-	it('rejects scalar variables', () => {
-		expect(variableSupportsArrows('temperature_2m')).toBe(false);
-		expect(variableSupportsArrows('pressure_msl')).toBe(false);
-		expect(variableSupportsArrows('wind_gusts_10m')).toBe(false);
 	});
 });

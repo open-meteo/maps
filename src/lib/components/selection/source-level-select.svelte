@@ -6,7 +6,12 @@
 	import * as Command from '$lib/components/ui/command';
 	import * as Popover from '$lib/components/ui/popover';
 
-	import { isStandaloneVariable, levelGroups, scrollSelectedToTop } from './selection-utils';
+	import {
+		isStandaloneVariable,
+		levelGroups,
+		rankedFilter,
+		scrollSelectedToTop
+	} from './selection-utils';
 
 	interface Props {
 		/** Variable of the chart source this selector belongs to. */
@@ -46,7 +51,7 @@
 			<ChevronsUpDownIcon class="size-2.5 opacity-50" />
 		</Popover.Trigger>
 		<Popover.Content align="start" class="z-80 w-55 rounded border-none bg-transparent! p-0">
-			<Command.Root class="bg-glass/85! max-h-75 rounded backdrop-blur-sm">
+			<Command.Root class="bg-glass/85! max-h-75 rounded backdrop-blur-sm" filter={rankedFilter}>
 				<Command.Input class="border-none ring-0" placeholder="Search levels..." />
 				<Command.List>
 					<Command.Empty>No levels found.</Command.Empty>

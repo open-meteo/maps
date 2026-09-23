@@ -8,7 +8,7 @@
 	import * as Command from '$lib/components/ui/command';
 	import * as Popover from '$lib/components/ui/popover';
 
-	import { scrollSelectedToTop } from './selection-utils';
+	import { rankedFilter, scrollSelectedToTop } from './selection-utils';
 
 	$effect(() => {
 		if ($dSO) scrollSelectedToTop($selectedDomain.value);
@@ -17,7 +17,7 @@
 
 <Popover.Root bind:open={$dSO}>
 	<Popover.Trigger
-		class="hover:bg-primary/10 flex h-8.5 w-full shrink-0 cursor-pointer items-center justify-between gap-1 rounded-t px-3 text-sm font-semibold {$dSO
+		class="hover:bg-primary/10 flex h-8.5 w-full shrink-0 cursor-pointer items-center justify-between gap-1 rounded px-3 text-sm font-semibold {$dSO
 			? 'bg-primary/10'
 			: ''}"
 		role="combobox"
@@ -29,7 +29,7 @@
 		<ChevronsUpDownIcon class="size-4 shrink-0 opacity-50" />
 	</Popover.Trigger>
 	<Popover.Content align="start" class="bg-transparent! z-80 w-64 rounded border-none! p-0">
-		<Command.Root class="bg-glass/85! backdrop-blur-sm max-h-75 rounded">
+		<Command.Root class="bg-glass/85! backdrop-blur-sm max-h-75 rounded" filter={rankedFilter}>
 			<Command.Input class="border-none ring-0" placeholder="Search domains..." />
 			<Command.List>
 				<Command.Empty>No domains found.</Command.Empty>

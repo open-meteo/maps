@@ -13,7 +13,8 @@ import {
 	getDataState,
 	getDomainBoundary,
 	isSeamlessDomain,
-	resolveConcreteDomain
+	resolveConcreteDomain,
+	variableSupportsBarbs
 } from '@openmeteo/weather-map-layer';
 import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
@@ -190,8 +191,13 @@ const buildRenderState = (): RenderState | undefined => {
 					contourLines: cpu,
 					arrows: cpuArrows,
 					// The particle style never reaches the CPU channel; keep its
-					// arrowStyle a valid icon alphabet.
-					arrowStyle: vectorOptions.arrowStyle === 'barb' ? 'barb' : 'arrow',
+					// arrowStyle a valid icon alphabet. Barbs encode knots, so
+					// sources whose directions come with another quantity (waves,
+					// currents) stay on arrows under the barb setting.
+					arrowStyle:
+						vectorOptions.arrowStyle === 'barb' && variableSupportsBarbs(source.variable)
+							? 'barb'
+							: 'arrow',
 					arrowRender: vectorOptions.arrowRender,
 					arrowIconScale: vectorOptions.arrowIconScale,
 					grid: vectorOptions.grid,

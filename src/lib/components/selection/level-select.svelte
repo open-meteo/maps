@@ -15,7 +15,12 @@
 	import * as Command from '$lib/components/ui/command';
 	import * as Popover from '$lib/components/ui/popover';
 
-	import { isStandaloneVariable, levelGroups, scrollSelectedToTop } from './selection-utils';
+	import {
+		isStandaloneVariable,
+		levelGroups,
+		rankedFilter,
+		scrollSelectedToTop
+	} from './selection-utils';
 
 	interface Props {
 		/** Rendered inside the popular list, under its active row. */
@@ -51,7 +56,7 @@
 			<ChevronsUpDownIcon class="size-4 shrink-0 opacity-50" />
 		</Popover.Trigger>
 		<Popover.Content align="start" class="z-80 bg-transparent! w-64 rounded border-none p-0">
-			<Command.Root class="bg-glass/85! max-h-75 rounded backdrop-blur-sm">
+			<Command.Root class="bg-glass/85! max-h-75 rounded backdrop-blur-sm" filter={rankedFilter}>
 				<Command.Input class="border-none ring-0" placeholder="Search levels..." />
 				<Command.List>
 					<Command.Empty>No levels found.</Command.Empty>

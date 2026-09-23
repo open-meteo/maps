@@ -1,14 +1,9 @@
 import { derived, get } from 'svelte/store';
 
+import { variableHasDirections } from '@openmeteo/weather-map-layer';
 import { persisted } from 'svelte-persisted-store';
 
-import {
-	cloneSources,
-	matchPreset,
-	sourceKey,
-	sourcesEqual,
-	variableSupportsArrows
-} from '$lib/chart-encoding';
+import { cloneSources, matchPreset, sourcesEqual } from '$lib/chart-encoding';
 import { getChartPreset } from '$lib/chart-presets';
 import { DEFAULT_VARIABLE } from '$lib/constants';
 
@@ -22,15 +17,20 @@ interface SavedChartsState {
 	charts: SavedChart[];
 }
 
-/** First raster source, else the first source: drives legend, popup, prefetch. */
-export const pickPrimarySource = (chart: ChartState): ChartSource =>
-	chart.sources.find((source) => source.raster) ?? chart.sources[0];
+/** A source with every layer type toggled off draws nothing on the map. */
+export const sourceDrawsSomething = (source: ChartSource): boolean =>
+	!!(source.raster || source.contours || source.arrows);
 
 /**
- * Variable of the primary source. Note this drops the domain of a
- * cross-domain (EPS) source: anything addressing data needs `pickPrimarySource`
- * and its `sourceKey` instead.
+ * First raster source, else the first source drawing anything, else the first
+ * source: drives legend, popup, prefetch.
  */
+export const pickPrimarySource = (chart: ChartState): ChartSource =>
+	chart.sources.find((source) => source.raster) ??
+	chart.sources.find(sourceDrawsSomething) ??
+	chart.sources[0];
+
+/** Variable of the primary source. */
 export const pickPrimaryVariable = (chart: ChartState): string => pickPrimarySource(chart).variable;
 
 /** A single-source chart for `v`, applying the persisted vector defaults. */
@@ -43,20 +43,24 @@ export const plainChartFor = (v: string): ChartState => {
 	}
 	// Arrows follow the settings toggle, wherever the variable can provide
 	// directions (ignoring vo.arrows here would make the toggle a no-op)
-	if (vo.arrows && variableSupportsArrows(v)) source.arrows = true;
-	return withChartMeta({ sources: [source] });
+	if (vo.arrows && variableHasDirections(v)) source.arrows = true;
+	return chartFromSources([source]);
 };
 
 export const defaultChart = (): ChartState => plainChartFor(DEFAULT_VARIABLE);
 
-/** Re-derive presetId/name from the sources (cleared when they diverge). */
-const withChartMeta = (chart: ChartState): ChartState => {
-	const next: ChartState = { sources: chart.sources };
-	const preset = matchPreset(chart.sources);
-	if (preset) next.presetId = preset.id;
-	const saved = get(savedCharts).charts.find((c) => sourcesEqual(c.sources, chart.sources));
-	if (saved) next.name = saved.name;
-	return next;
+/**
+ * Build the chart state for `sources`, labelled with the preset or saved
+ * chart they match exactly. Labels are never carried over: a chart's identity
+ * is its source list, so any edit must re-derive presetId/name from scratch.
+ */
+const chartFromSources = (sources: ChartSource[]): ChartState => {
+	const chart: ChartState = { sources };
+	const preset = matchPreset(sources);
+	if (preset) chart.presetId = preset.id;
+	const saved = get(savedCharts).charts.find((c) => sourcesEqual(c.sources, sources));
+	if (saved) chart.name = saved.name;
+	return chart;
 };
 
 export const savedCharts = persisted<SavedChartsState>('saved-charts', {
@@ -89,7 +93,7 @@ export const setPlainVariable = (v: string): void => {
 
 /** Replace the chart sources wholesale (URL parsing, domain-switch pruning). */
 export const setSources = (sources: ChartSource[]): void => {
-	activeChart.set(withChartMeta({ sources: cloneSources(sources) }));
+	activeChart.set(chartFromSources(cloneSources(sources)));
 };
 
 /**
@@ -119,7 +123,7 @@ export const setContoursOnActiveChart = (enabled: boolean): void => {
 		source.contourInterval = enabled && !vo.breakpoints ? vo.contourInterval : undefined;
 		changed = true;
 	}
-	if (changed) activeChart.set(withChartMeta({ sources }));
+	if (changed) activeChart.set(chartFromSources(sources));
 };
 
 /** Settings sheet arrows switch: toggle arrows on every capable source. */
@@ -128,20 +132,15 @@ export const setArrowsOnActiveChart = (enabled: boolean): void => {
 	const sources = cloneSources(chart.sources);
 	let changed = false;
 	for (const source of sources) {
-		const arrows = enabled && variableSupportsArrows(source.variable);
+		const arrows = enabled && variableHasDirections(source.variable);
 		if (!!source.arrows !== arrows) {
 			source.arrows = arrows || undefined;
 			changed = true;
 		}
 	}
-	if (changed) activeChart.set(withChartMeta({ sources }));
+	if (changed) activeChart.set(chartFromSources(sources));
 };
 
-/**
- * True when the chart is exactly what picking its primary variable from the
- * variable list would produce, i.e. representable by the legacy `variable`
- * URL param plus the persisted vector defaults.
- */
 /**
  * True when the chart is one variable's own chart, whatever per-source styling
  * it carries: a preset's opacity, for instance, survives removing the other
@@ -152,6 +151,11 @@ export const setArrowsOnActiveChart = (enabled: boolean): void => {
 export const isSingleVariableChart = (chart: ChartState): boolean =>
 	chart.sources.length === 1 && !chart.sources[0].domain;
 
+/**
+ * True when the chart is exactly what picking its primary variable from the
+ * variable list would produce, i.e. representable by the legacy `variable`
+ * URL param plus the persisted vector defaults.
+ */
 export const isDefaultsPlainChart = (chart: ChartState): boolean =>
 	chart.sources.length === 1 &&
 	sourcesEqual(chart.sources, plainChartFor(chart.sources[0].variable).sources);
@@ -159,13 +163,13 @@ export const isDefaultsPlainChart = (chart: ChartState): boolean =>
 export const applyPreset = (id: string): void => {
 	const preset = getChartPreset(id);
 	if (!preset) return;
-	activeChart.set(withChartMeta({ sources: cloneSources(preset.sources) }));
+	activeChart.set(chartFromSources(cloneSources(preset.sources)));
 };
 
 export const applySavedChart = (id: string): void => {
 	const saved = get(savedCharts).charts.find((chart) => chart.id === id);
 	if (!saved) return;
-	activeChart.set(withChartMeta({ sources: cloneSources(saved.sources) }));
+	activeChart.set(chartFromSources(cloneSources(saved.sources)));
 };
 
 export const updateSource = (index: number, patch: Partial<ChartSource>): void => {
@@ -173,18 +177,18 @@ export const updateSource = (index: number, patch: Partial<ChartSource>): void =
 	const sources = cloneSources(chart.sources);
 	if (!sources[index]) return;
 	const next = { ...sources[index], ...patch };
-	// Source identities must stay unique (the editor keys rows by them): a
+	// Source variables must stay unique (the editor keys rows by them): a
 	// level change that collides with an existing source drops the edit
-	if (sources.some((source, i) => i !== index && sourceKey(source) === sourceKey(next))) return;
+	if (sources.some((source, i) => i !== index && source.variable === next.variable)) return;
 	sources[index] = next;
-	activeChart.set(withChartMeta({ sources }));
+	activeChart.set(chartFromSources(sources));
 };
 
 export const addSource = (v: string): void => {
 	const chart = get(activeChart);
 	if (chart.sources.some((source) => source.variable === v)) return;
 	const sources = cloneSources(chart.sources);
-	const arrows = get(vectorOptions).arrows && variableSupportsArrows(v);
+	const arrows = get(vectorOptions).arrows && variableHasDirections(v);
 	// Second field defaults to contours when a raster fill is already shown,
 	// except for variables carrying directions: those default to arrows
 	const source: ChartSource = sources.some((s) => s.raster)
@@ -194,7 +198,7 @@ export const addSource = (v: string): void => {
 		: { variable: v, raster: true };
 	if (arrows) source.arrows = true;
 	sources.push(source);
-	activeChart.set(withChartMeta({ sources }));
+	activeChart.set(chartFromSources(sources));
 };
 
 export const removeSource = (index: number): void => {
@@ -202,7 +206,7 @@ export const removeSource = (index: number): void => {
 	if (chart.sources.length <= 1 || !chart.sources[index]) return;
 	const sources = cloneSources(chart.sources);
 	sources.splice(index, 1);
-	activeChart.set(withChartMeta({ sources }));
+	activeChart.set(chartFromSources(sources));
 };
 
 export const saveCurrentChart = (name: string): void => {
@@ -216,7 +220,7 @@ export const saveCurrentChart = (name: string): void => {
 		createdAt: Date.now()
 	};
 	savedCharts.update((state) => ({ ...state, charts: [...state.charts, saved] }));
-	activeChart.set(withChartMeta({ sources: chart.sources }));
+	activeChart.set(chartFromSources(chart.sources));
 };
 
 export const deleteSavedChart = (id: string): void => {
@@ -225,5 +229,5 @@ export const deleteSavedChart = (id: string): void => {
 		charts: state.charts.filter((chart) => chart.id !== id)
 	}));
 	// Drop a now-dangling name label on the active chart
-	activeChart.set(withChartMeta({ sources: get(activeChart).sources }));
+	activeChart.set(chartFromSources(get(activeChart).sources));
 };

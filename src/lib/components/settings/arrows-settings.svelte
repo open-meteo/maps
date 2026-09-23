@@ -1,8 +1,9 @@
 <script lang="ts">
+	import { variableSupportsBarbs } from '@openmeteo/weather-map-layer';
 	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
-	import { setArrowsOnActiveChart } from '$lib/stores/chart';
+	import { activeChart, setArrowsOnActiveChart } from '$lib/stores/chart';
 	import { renderer } from '$lib/stores/preferences';
 	import { convertValue, getDisplayUnit, unitPreferences } from '$lib/stores/units';
 	import { type WindStyle, defaultVectorOptions, vectorOptions } from '$lib/stores/vector';
@@ -84,6 +85,11 @@
 	let iconSizePx = $derived(windIconSizePx(iconStyle, $vectorOptions.arrowIconScale));
 	let iconSpacingPx = $derived(
 		windIconSpacing(iconStyle, $vectorOptions.arrowIconScale, $vectorOptions.arrowPacking)
+	);
+	// Barbs encode knots, so the option only applies while an arrow source
+	// carries a wind speed; other sources render arrows under either setting
+	let barbCapable = $derived(
+		$activeChart.sources.some((source) => source.arrows && variableSupportsBarbs(source.variable))
 	);
 
 	const styles = $derived([
@@ -219,7 +225,9 @@
 				type="button"
 				role="radio"
 				aria-checked={selected}
-				disabled={!arrows || (style.value === 'particles' && $renderer === 'cpu')}
+				disabled={!arrows ||
+					(style.value === 'particles' && $renderer === 'cpu') ||
+					(style.value === 'barb' && !barbCapable)}
 				class="bg-primary/5 hover:bg-primary/10 flex w-full cursor-pointer flex-col gap-1.5 rounded p-2.5 text-left duration-150 disabled:cursor-not-allowed disabled:opacity-40 {selected
 					? 'ring-primary/60 bg-primary/10 ring-2'
 					: ''}"
@@ -244,6 +252,9 @@
 						<path d="M40 24 C 62 23, 80 18, 108 12" opacity="0.3" />
 						<circle cx="108" cy="12" r="1.6" fill="currentColor" stroke="none" opacity="0.9" />
 					</svg>
+				{/if}
+				{#if style.value === 'barb' && arrows && !barbCapable}
+					<span class="text-xs opacity-70">Only for wind speeds</span>
 				{/if}
 				<div
 					class="flex w-full flex-wrap items-end gap-1"

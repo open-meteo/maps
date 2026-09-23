@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	buildLevelGroups,
 	firstPopularTarget,
+	pickDefaultLevel,
 	resolvePopularTarget
 } from '$lib/components/selection/selection-utils';
 
@@ -33,6 +34,21 @@ const weatherVariables = [
 	'wind_u_component_10m',
 	'wind_v_component_10m'
 ];
+
+describe('pickDefaultLevel', () => {
+	const temperatureLevels = buildLevelGroups(weatherVariables)['temperature'];
+
+	it('prefers the near-surface level', () => {
+		expect(pickDefaultLevel(temperatureLevels)).toBe('temperature_2m');
+	});
+
+	it('picks another level once the preferred one is filtered out', () => {
+		// The add-variable dialog drops levels the chart already holds, so a
+		// second source from the same group resolves to a level it can add
+		const remaining = temperatureLevels.filter(({ value }) => value !== 'temperature_2m');
+		expect(pickDefaultLevel(remaining)).toBe('temperature_850hPa');
+	});
+});
 
 describe('resolvePopularTarget', () => {
 	it('does not resolve the wind level group from wind_wave_* variables', () => {

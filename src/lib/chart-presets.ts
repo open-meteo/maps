@@ -220,8 +220,6 @@ export const chartPresets: ChartPreset[] = [
 		description: 'Cloud and precipitation',
 		group: 'Precipitation',
 		sources: [
-			// inlineVectors: the arrows render directly on the wind raster, so
-			// the cloud and precipitation rasters above overlap them
 			{ variable: 'cloud_cover', raster: true },
 			{ variable: 'precipitation', raster: true }
 		]
@@ -276,12 +274,11 @@ export const popularVariables: PopularVariable[] = [
 	{ id: 'relative_humidity', label: 'Relative Humidity', levelGroup: true, defaultLevel: '2m' },
 	// { id: 'cape' },
 	{ id: 'precipitation' },
+	{ id: 'snowfall' },
 	// ── Domain-specific entries below: the availability filter hides them
 	// everywhere else, since only these domains serve the variables. ──────
-	// Ensemble domains (dwd_icon_*_eps, ncep_gefs*)
+	// Ensemble domains
 	{ id: 'precipitation_probability' },
-	{ id: 'snowfall' },
-
 	// Air-quality domains (cams_*)
 	{ id: 'pm2_5' },
 	{ id: 'pm10' },
