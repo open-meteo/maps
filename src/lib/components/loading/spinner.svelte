@@ -5,7 +5,7 @@
 <div
 	in:fade={{ delay: 400, duration: 400 }}
 	out:fade={{ duration: 150 }}
-	class="pointer-events-none absolute top-[50%] left-[50%] z-50 transform-[translate(-50%,-50%)]"
+	class="pointer-events-none absolute top-[50%] left-[50%] z-90 transform-[translate(-50%,-50%)]"
 >
 	<svg
 		xmlns="http://www.w3.org/2000/svg"
