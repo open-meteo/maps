@@ -75,6 +75,15 @@ export const tileSize: Persisted<64 | 128 | 256 | 512 | 1024 | 2048> = persisted
 // check for retina / hd on first load, afterwards the tile-size won't be set
 export const tileSizeSet = persisted('tile-size-set', false);
 
+/**
+ * Raster rasteriser: 'gpu' renders the raster tiles with the WebGL2 shader in
+ * the tile worker (weather-map-layer `gpu` protocol setting), 'cpu' with the
+ * pixel loop. Vector tiles and polygon clipping are CPU tiles either way.
+ */
+export type Renderer = 'gpu' | 'cpu';
+export const DEFAULT_RENDERER: Renderer = 'cpu';
+export const renderer: Persisted<Renderer> = persisted<Renderer>('renderer', DEFAULT_RENDERER);
+
 export const interpolation: Persisted<InterpolationMethod> = persisted<InterpolationMethod>(
 	'interpolation',
 	DEFAULT_INTERPOLATION
@@ -159,6 +168,7 @@ export const resetStates = async () => {
 	tileSize.set(DEFAULT_TILE_SIZE);
 	tileSizeSet.set(false);
 
+	renderer.set(DEFAULT_RENDERER);
 	interpolation.set(DEFAULT_INTERPOLATION);
 	colorBlend.set(DEFAULT_COLOR_BLEND);
 

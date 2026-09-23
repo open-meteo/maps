@@ -26,6 +26,7 @@ import {
 	completeDefaultValues,
 	interpolation as iP,
 	preferences as p,
+	renderer as rD,
 	tileSize as tS,
 	url as u
 } from '$lib/stores/preferences';
@@ -120,6 +121,13 @@ export const urlParamsToPreferences = () => {
 	syncBoolParam('hillshade', 'hillshade', false);
 	syncBoolParam('clip_water', 'clipWater', false);
 
+	const rendererRaw = params.get('renderer');
+	if (rendererRaw === 'gpu' || rendererRaw === 'cpu') {
+		rD.set(rendererRaw);
+	} else if (get(rD) !== 'cpu') {
+		url.searchParams.set('renderer', get(rD));
+	}
+
 	const domain = params.get('domain');
 	if (domain) {
 		d.set(domain);
@@ -170,6 +178,7 @@ export const urlParamsToPreferences = () => {
 
 	vO.set(vectorOptions);
 	p.set(preferences);
+	omProtocolSettings.update((settings) => ({ ...settings, gpu: get(rD) === 'gpu' }));
 
 	// Chart parsing precedence: explicit `sources` > `chart` preset id > legacy
 	// `variable` param. Runs after the vector params above are committed since a
@@ -244,6 +253,10 @@ export const getOmUrlForSource = (source: ChartSource): string | undefined => {
 	if (interpolation !== 'linear') result += `&interpolation=${interpolation}`;
 
 	if (get(cB)) result += `&color_blend=true`;
+
+	// Not a protocol parameter: it changes the source url so MapLibre drops the
+	// tiles rendered by the other rasteriser
+	if (get(rD) === 'gpu') result += '&gpu=true';
 
 	const omProtocolSettingsState = get(omProtocolSettings);
 	if (
