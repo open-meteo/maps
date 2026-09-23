@@ -188,6 +188,7 @@
 	<div class="flex items-center gap-1.5 px-3 pt-0.5">
 		<button
 			class="hover:bg-primary/10 bg-primary/5 flex h-6.5 flex-1 cursor-pointer items-center justify-center gap-1 rounded text-xs opacity-90"
+			data-add-variable
 			onclick={onAddVariable}
 		>
 			<PlusIcon class="size-3.5" /> Add variable

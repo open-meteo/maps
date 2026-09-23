@@ -100,10 +100,16 @@
 							<Kbd.Root>d</Kbd.Root> Domain Selection
 						</div>
 						<div class="flex items-center gap-2">
-							<Kbd.Root>v</Kbd.Root> All Variables Dialog
+							<Kbd.Root>v</Kbd.Root> Open Panel &amp; Search
+						</div>
+						<div class="flex items-center gap-2">
+							<Kbd.Root>a</Kbd.Root> Add Variable to Chart
 						</div>
 						<div class="flex items-center gap-2">
 							<Kbd.Root>l</Kbd.Root> Level Selection
+						</div>
+						<div class="flex items-center gap-2">
+							<Kbd.Root>esc</Kbd.Root> Close Panel
 						</div>
 					</div>
 
