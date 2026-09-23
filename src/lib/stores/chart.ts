@@ -148,7 +148,8 @@ export const setArrowsOnActiveChart = (enabled: boolean): void => {
  * its highlight and its level selector; writing `variable=` to the URL needs
  * the stricter `isDefaultsPlainChart` below, since styling would be lost.
  */
-export const isSingleVariableChart = (chart: ChartState): boolean => chart.sources.length === 1;
+export const isSingleVariableChart = (chart: ChartState): boolean =>
+	chart.sources.length === 1 && !chart.sources[0].domain;
 
 /**
  * True when the chart is exactly what picking its primary variable from the

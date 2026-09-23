@@ -51,6 +51,7 @@ export interface Preferences {
 	hillshade: boolean;
 	clipWater: boolean;
 	showScale: boolean;
+	showSeamlessBorders: boolean;
 }
 
 // Same default-merge as vectorOptions: keys added after a visitor's
@@ -74,6 +75,15 @@ export const tileSize: Persisted<64 | 128 | 256 | 512 | 1024 | 2048> = persisted
 
 // check for retina / hd on first load, afterwards the tile-size won't be set
 export const tileSizeSet = persisted('tile-size-set', false);
+
+/**
+ * Raster/vector rendering path: 'gpu' draws rasters, arrows, contour lines
+ * and the animated flow as GPU layers (CPU tiles keep contour labels, wind
+ * barbs and grid points); 'cpu' renders everything as tiles.
+ */
+export type Renderer = 'gpu' | 'cpu';
+export const DEFAULT_RENDERER: Renderer = 'gpu';
+export const renderer: Persisted<Renderer> = persisted<Renderer>('renderer', DEFAULT_RENDERER);
 
 export const interpolation: Persisted<InterpolationMethod> = persisted<InterpolationMethod>(
 	'interpolation',
@@ -158,6 +168,7 @@ export const resetStates = async () => {
 
 	tileSize.set(DEFAULT_TILE_SIZE);
 	tileSizeSet.set(false);
+	renderer.set(DEFAULT_RENDERER);
 
 	interpolation.set(DEFAULT_INTERPOLATION);
 	colorBlend.set(DEFAULT_COLOR_BLEND);

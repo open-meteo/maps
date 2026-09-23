@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { get } from 'svelte/store';
 
-	import { tileSize as tS } from '$lib/stores/preferences';
+	import { renderer, tileSize as tS } from '$lib/stores/preferences';
 
 	import Button from '$lib/components/ui/button/button.svelte';
 
@@ -20,7 +20,11 @@
 	});
 </script>
 
-<SettingsSection title="Tile Size settings">
+<SettingsSection
+	title="Tile Size settings"
+	disabled={$renderer === 'gpu'}
+	note="Only with CPU rendering; the GPU layers render the whole view at once."
+>
 	<div class="mt-3 flex gap-3 flex-wrap">
 		<Button
 			class="min-w-16 cursor-pointer {tileSize === 64 ? 'bg-primary' : 'bg-primary/75'}"

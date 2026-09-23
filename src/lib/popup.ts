@@ -8,7 +8,9 @@ import {
 	getCachedResolvedClipping,
 	getColor,
 	getColorScale,
+	getFallbackDomain,
 	getValueFromLatLong,
+	isSeamlessDomain,
 	variableOptions
 } from '@openmeteo/weather-map-layer';
 import * as maplibregl from 'maplibre-gl';
@@ -25,7 +27,9 @@ import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 import { convertValue, getDisplayUnit, unitPreferences } from '$lib/stores/units';
 import { selectedDomain } from '$lib/stores/variables';
 
+import { sourceKey } from './chart-encoding';
 import { defaultArrowStyle } from './chart-styles';
+import { alphaOfCssColor, rescaleInto } from './color';
 import { textWhite } from './helpers';
 import { getActiveOmUrls } from './layers';
 import { terraDrawActive } from './stores/clipping';
@@ -76,19 +80,13 @@ const ARROW_LENGTH_ANCHORS: [speed: number, length: number][] = [
 	[20, 0.85]
 ];
 
-/** Alpha of an `rgb()`/`rgba()` string; 1 when it carries no alpha. */
-const alphaOf = (color: string): number => {
-	const parts = color.slice(color.indexOf('(') + 1, color.lastIndexOf(')')).split(',');
-	return parts.length > 3 ? Number(parts[3]) : 1;
-};
-
 /** Opacity and line width per speed, from the arrows layer's own style. */
 const arrowStyleAnchors = (dark: boolean): [speed: number, alpha: number, width: number][] =>
 	[...defaultArrowStyle.levels]
 		.sort((a, b) => a.minSpeed - b.minSpeed)
 		.map((level) => [
 			level.minSpeed,
-			alphaOf(dark ? level.darkColor : level.lightColor),
+			alphaOfCssColor(dark ? level.darkColor : level.lightColor),
 			level.width
 		]);
 
@@ -127,15 +125,13 @@ const rescaledRamp = (
 	anchors: number[][],
 	speed: number,
 	column: number,
-	[min, max]: [number, number]
-): number => {
-	const values = anchors.map((anchor) => anchor[column]);
-	const weakest = Math.min(...values);
-	const strongest = Math.max(...values);
-	const t =
-		strongest === weakest ? 1 : (rampAt(anchors, speed, column) - weakest) / (strongest - weakest);
-	return min + t * (max - min);
-};
+	range: [number, number]
+): number =>
+	rescaleInto(
+		rampAt(anchors, speed, column),
+		anchors.map((anchor) => anchor[column]),
+		range
+	);
 
 interface ArrowPose {
 	/** Continuous (unwrapped) degrees: see `arrowAngle`. */
@@ -418,14 +414,16 @@ const adjustStemForExtras = (): void => {
  */
 const updateExtraSources = async (
 	coordinates: maplibregl.LngLat,
-	primaryVariable: string,
+	primaryKey: string,
 	seq: number
 ): Promise<void> => {
 	if (!extrasDiv) return;
 
+	// Keyed, not by variable: a same-variable source from another domain (EPS)
+	// is a source of its own and still counts as extra.
 	const activeUrls = getActiveOmUrls();
 	const extras = get(chartSources).filter(
-		(source) => source.variable !== primaryVariable && activeUrls.has(source.variable)
+		(source) => sourceKey(source) !== primaryKey && activeUrls.has(sourceKey(source))
 	);
 
 	if (!extras.length) {
@@ -443,7 +441,7 @@ const updateExtraSources = async (
 				const { value } = await getValueFromLatLong(
 					coordinates.lat,
 					coordinates.lng,
-					activeUrls.get(source.variable) as string
+					activeUrls.get(sourceKey(source)) as string
 				);
 				const colorScale = getColorScale(
 					source.variable,
@@ -482,6 +480,35 @@ const updateExtraSources = async (
 	adjustStemForExtras();
 };
 
+/**
+ * Value and direction at a point for the primary source. For a seamless
+ * composite the sub-layers are tried finest-first — states are stored under
+ * the concrete domain keys, not the seamless URL key — mirroring how the
+ * protocol composites pixels (first finite sub-layer wins).
+ */
+const getPrimaryValue = async (
+	coordinates: maplibregl.LngLat,
+	activeUrl: string
+): Promise<{ value: number; direction?: number }> => {
+	const domain = get(selectedDomain);
+	if (isSeamlessDomain(domain)) {
+		for (const layer of domain.layers) {
+			const subLayerUrl = activeUrl.replace(
+				`/data_spatial/${domain.value}/`,
+				`/data_spatial/${layer.domainValue}/`
+			);
+			try {
+				const result = await getValueFromLatLong(coordinates.lat, coordinates.lng, subLayerUrl);
+				if (isFinite(result.value)) return result;
+			} catch {
+				// Sub-layer state not found (tile not yet loaded), try next
+			}
+		}
+		return { value: NaN };
+	}
+	return await getValueFromLatLong(coordinates.lat, coordinates.lng, activeUrl);
+};
+
 // Monotonic token: only the latest updatePopupContent call may write the DOM,
 // so a slow earlier lookup cannot overwrite a newer position's values.
 let popupUpdateSeq = 0;
@@ -496,10 +523,11 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 	const elevation = map?.queryTerrainElevation(coordinates);
 	const hasElevation = typeof elevation === 'number' && isFinite(elevation);
 
-	// The primary source, not the `variable` store: the branch below needs its
-	// layer toggles, not just its variable name
+	// The primary source, not the `variable` store: an EPS source keeps its
+	// domain, and its data is keyed `variable@domain`
 	const primary = pickPrimarySource(get(activeChart));
-	const activeUrl = getActiveOmUrls().get(primary.variable);
+	const primaryKey = sourceKey(primary);
+	const activeUrl = getActiveOmUrls().get(primaryKey);
 	if (!activeUrl) {
 		// A primary that draws something is merely still loading; the commit
 		// callback refreshes once its layer is up. One drawing nothing means the
@@ -512,14 +540,14 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 		unitSpan.innerText = '';
 		elevationSpan.innerText = hasElevation ? `${Math.round(elevation)}m` : '';
 		elevationSpan.style.color = '';
-		await updateExtraSources(coordinates, primary.variable, seq);
+		await updateExtraSources(coordinates, primaryKey, seq);
 		return;
 	}
 
 	// Primary value and extra lines resolve concurrently
 	const [{ value, direction }] = await Promise.all([
-		getValueFromLatLong(coordinates.lat, coordinates.lng, activeUrl),
-		updateExtraSources(coordinates, primary.variable, seq)
+		getPrimaryValue(coordinates, activeUrl),
+		updateExtraSources(coordinates, primaryKey, seq)
 	]);
 	if (seq !== popupUpdateSeq) return;
 
@@ -564,13 +592,19 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 		contentDiv.style.color = '';
 		setArrow(undefined, 0);
 
-		const domainBounds = GridFactory.create(get(selectedDomain).grid).getBounds();
-		const [minLon, minLat, maxLon, maxLat] = domainBounds;
-		const insideDomain =
-			coordinates.lat >= minLat &&
-			coordinates.lat <= maxLat &&
-			coordinates.lng >= minLon &&
-			coordinates.lng <= maxLon;
+		const concreteDomain = getFallbackDomain(
+			get(selectedDomain),
+			get(omProtocolSettings).domainOptions
+		);
+		let insideDomain = false;
+		if (concreteDomain) {
+			const [minLon, minLat, maxLon, maxLat] = GridFactory.create(concreteDomain.grid).getBounds();
+			insideDomain =
+				coordinates.lat >= minLat &&
+				coordinates.lat <= maxLat &&
+				coordinates.lng >= minLon &&
+				coordinates.lng <= maxLon;
+		}
 
 		valueSpan.innerText = insideDomain ? 'No data' : 'Outside domain';
 		unitSpan.innerText = '';

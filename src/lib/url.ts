@@ -2,9 +2,9 @@ import { tick } from 'svelte';
 import { get } from 'svelte/store';
 
 import {
-	type ArrowStyle,
-	DEFAULT_ARROW_STYLE,
-	VALID_ARROW_STYLES,
+	type ArrowRender,
+	DEFAULT_ARROW_RENDER,
+	VALID_ARROW_RENDERS,
 	defaultOmProtocolSettings
 } from '@openmeteo/weather-map-layer';
 import { mode } from 'mode-watcher';
@@ -19,6 +19,7 @@ import {
 	setPlainVariable,
 	setSources
 } from '$lib/stores/chart';
+import { epsMeta } from '$lib/stores/eps';
 import { map as m } from '$lib/stores/map';
 import {
 	type Preferences,
@@ -26,13 +27,20 @@ import {
 	completeDefaultValues,
 	interpolation as iP,
 	preferences as p,
+	renderer as rD,
 	tileSize as tS,
 	url as u
 } from '$lib/stores/preferences';
 import { modelRun as mR, modelRunLocked as mRL, time } from '$lib/stores/time';
 import { domain as d, variable as v } from '$lib/stores/variables';
-import { vectorOptions as vO } from '$lib/stores/vector';
+import {
+	VALID_WIND_STYLES,
+	type WindStyle,
+	defaultVectorOptions,
+	vectorOptions as vO
+} from '$lib/stores/vector';
 
+import { windPointLattice } from '$lib/arrow-sprites';
 import { parseSources, serializeSources } from '$lib/chart-encoding';
 import { getChartPreset } from '$lib/chart-presets';
 
@@ -44,7 +52,9 @@ import {
 import { BASE_URI, fmtModelRun, fmtSelectedTime, hashValue } from './helpers';
 import { clippingCountryCodes } from './stores/clipping';
 import { omProtocolSettings } from './stores/om-protocol-settings';
-import { parseISOWithoutTimezone } from './time-format';
+import { sunShadow as sS } from './stores/sun';
+import { formatISOUTCWithZ, parseISOWithoutTimezone } from './time-format';
+import { findTimeStep } from './time-utils';
 
 import type { ChartSource, ChartState } from '$lib/chart-types';
 
@@ -73,6 +83,9 @@ export const updateUrl = async (
 	try {
 		const map = get(m);
 		if (map) {
+			// The stored URL keeps the hash the page was opened with; drop it so the
+			// map's current hash isn't appended after the stale one.
+			url.hash = '';
 			fullUrl = String(url) + map._hash.getHashString();
 		} else {
 			fullUrl = String(url);
@@ -120,6 +133,13 @@ export const urlParamsToPreferences = () => {
 	syncBoolParam('hillshade', 'hillshade', false);
 	syncBoolParam('clip_water', 'clipWater', false);
 
+	const rendererRaw = params.get('renderer');
+	if (rendererRaw === 'gpu' || rendererRaw === 'cpu') {
+		rD.set(rendererRaw);
+	} else if (get(rD) !== 'gpu') {
+		url.searchParams.set('renderer', get(rD));
+	}
+
 	const domain = params.get('domain');
 	if (domain) {
 		d.set(domain);
@@ -136,11 +156,25 @@ export const urlParamsToPreferences = () => {
 
 	const arrowStyleRaw = params.get('arrow_style');
 	if (arrowStyleRaw !== null) {
-		if (VALID_ARROW_STYLES.includes(arrowStyleRaw as ArrowStyle)) {
-			vectorOptions.arrowStyle = arrowStyleRaw as ArrowStyle;
+		if (VALID_WIND_STYLES.includes(arrowStyleRaw as WindStyle)) {
+			vectorOptions.arrowStyle = arrowStyleRaw as WindStyle;
 		}
-	} else if (vectorOptions.arrowStyle !== DEFAULT_ARROW_STYLE) {
+	} else if (vectorOptions.arrowStyle !== defaultVectorOptions.arrowStyle) {
 		url.searchParams.set('arrow_style', vectorOptions.arrowStyle);
+	}
+	// The animated flow only exists on the GPU path (see renderer-settings).
+	if (get(rD) === 'cpu' && vectorOptions.arrowStyle === 'particles') {
+		vectorOptions.arrowStyle = 'arrow';
+		url.searchParams.set('arrow_style', 'arrow');
+	}
+
+	const arrowRenderRaw = params.get('arrow_render');
+	if (arrowRenderRaw !== null) {
+		if (VALID_ARROW_RENDERS.includes(arrowRenderRaw as ArrowRender)) {
+			vectorOptions.arrowRender = arrowRenderRaw as ArrowRender;
+		}
+	} else if (vectorOptions.arrowRender !== DEFAULT_ARROW_RENDER) {
+		url.searchParams.set('arrow_render', vectorOptions.arrowRender);
 	}
 
 	const contoursRaw = params.get('contours');
@@ -156,6 +190,16 @@ export const urlParamsToPreferences = () => {
 	} else if (vectorOptions.contourInterval !== 2) {
 		url.searchParams.set('interval', String(vectorOptions.contourInterval));
 	}
+
+	const sun = get(sS);
+	sun.shadow = params.get('sun_shadow') === 'true';
+	const sunOpacityRaw = params.get('sun_opacity');
+	if (sunOpacityRaw !== null) sun.opacity = Number(sunOpacityRaw);
+	const sunGradientRaw = params.get('sun_gradient');
+	if (sunGradientRaw !== null) sun.gradient = Number(sunGradientRaw);
+	const sunColorRaw = params.get('sun_color');
+	if (sunColorRaw !== null) sun.color = sunColorRaw;
+	sS.set(sun);
 
 	const clipCountries = parseClipCountriesParam(params.get(CLIP_COUNTRIES_PARAM));
 	if (clipCountries.length > 0) {
@@ -218,10 +262,17 @@ let cachedColorIsDefault = true;
  * shared by all sources; variable and vector flags are per source.
  */
 export const getOmUrlForSource = (source: ChartSource): string | undefined => {
-	const base = `${BASE_URI}/${get(d)}`;
-	const modelRun = get(mR);
+	// A cross-domain (EPS) source uses the sibling's own model run and clamps
+	// the time to its own steps; unavailable until its metadata has loaded.
+	const eps = source.domain ? get(epsMeta) : undefined;
+	if (source.domain && eps?.domain !== source.domain) return undefined;
+
+	const domain = eps?.domain ?? get(d);
+	const base = `${BASE_URI}/${domain}`;
+	const modelRun = eps?.referenceTime ?? get(mR);
 	if (!modelRun) return undefined;
-	const selectedTime = get(time);
+	let selectedTime = get(time);
+	if (eps) selectedTime = (findTimeStep(selectedTime, eps.validTimes) as Date) ?? selectedTime;
 
 	let result = `${base}/${fmtModelRun(modelRun)}/${fmtSelectedTime(selectedTime)}.om`;
 	result += `?variable=${source.variable}`;
@@ -231,7 +282,19 @@ export const getOmUrlForSource = (source: ChartSource): string | undefined => {
 	if (vectorOptions.grid) result += '&grid=true';
 	if (source.arrows) {
 		result += '&arrows=true';
-		if (vectorOptions.arrowStyle !== 'arrow') result += `&arrow_style=${vectorOptions.arrowStyle}`;
+		// 'particles' is a maps-only style (the GPU particle pass); the om URL
+		// grammar only knows the icon alphabets, so it falls back to arrows.
+		const omArrowStyle = vectorOptions.arrowStyle === 'barb' ? 'barb' : 'arrow';
+		if (omArrowStyle !== 'arrow') result += `&arrow_style=${omArrowStyle}`;
+		if (vectorOptions.arrowRender !== 'line') {
+			result += `&arrow_render=${vectorOptions.arrowRender}`;
+			// The tile lattice is the one the renderer sized its icons against
+			result += `&arrow_points=${windPointLattice(
+				omArrowStyle,
+				vectorOptions.arrowIconScale,
+				vectorOptions.arrowPacking
+			)}`;
+		}
 	}
 	if (source.contours) result += '&contours=true';
 	if (source.contours && source.contourInterval !== undefined)
@@ -310,4 +373,19 @@ export const syncChartToUrl = async (chart: ChartState): Promise<void> => {
 	}
 
 	await updateUrl();
+};
+
+// Source URL for the sun cycle shadow overlay; undefined when disabled.
+// Options that are not set in the page URL fall back to the protocol defaults.
+// timeOverride renders the shadow for a different moment than the selected
+// time, used for the minute-resolution hover preview in the time selector.
+export const getSunUrl = (timeOverride?: Date): string | undefined => {
+	const sun = get(sS);
+	if (!sun.shadow) return undefined;
+
+	let result = `sun://shadow?time=${formatISOUTCWithZ(timeOverride ?? get(time))}`;
+	if (sun.opacity !== undefined) result += `&opacity=${sun.opacity}`;
+	if (sun.gradient !== undefined) result += `&gradient=${sun.gradient}`;
+	if (sun.color !== undefined) result += `&color=${sun.color}`;
+	return result;
 };

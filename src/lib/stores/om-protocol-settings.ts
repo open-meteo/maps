@@ -1,10 +1,7 @@
 import { type Writable, get, writable } from 'svelte/store';
 
 import { BrowserBlockCache } from '@openmeteo/file-reader';
-import {
-	type WeatherMapLayerFileReader,
-	defaultOmProtocolSettings
-} from '@openmeteo/weather-map-layer';
+import { WeatherMapLayerFileReader, defaultOmProtocolSettings } from '@openmeteo/weather-map-layer';
 import { persisted } from 'svelte-persisted-store';
 
 import { browser } from '$app/environment';
@@ -31,25 +28,58 @@ export const customColorScales = persisted<Record<string, RenderableColorScale>>
 
 export const cacheBlockSizeKb = persisted('cache-block-size-kb', DEFAULT_CACHE_BLOCK_SIZE_KB);
 export const cacheMaxBytesMb = persisted('cache-max-bytes-mb', DEFAULT_CACHE_MAX_BYTES_MB);
+// VRAM budget for the GPU layers' value-texture cache: more keeps more
+// timesteps resident on the GPU, so animation loops replay without re-uploads.
+export const gpuCacheMb = persisted('gpu-cache-mb', 256);
+
+/** Usage of the shared block cache (RAM/persistent), for the settings pane. */
+export const getBlockCacheStats = ():
+	| Promise<{
+			persistentBytes: number;
+			memoryBytes: number;
+			maxBytes: number;
+	  }>
+	| undefined => blockCache?.getStats();
 
 const initialCustomColorScales = get(customColorScales);
 
-function createBlockCache() {
-	if (!browser) return undefined;
-	return new BrowserBlockCache({
+function blockCacheOptions() {
+	return {
 		blockSize: get(cacheBlockSizeKb) * 1024 - HTTP_OVERHEAD_BYTES,
 		cacheName: 'open-meteo-maps-cache-v1',
 		memCacheTtlMs: 1000,
 		maxBytes: get(cacheMaxBytesMb) * 1024 * 1024
-	});
+	};
 }
+
+function createBlockCache() {
+	if (!browser) return undefined;
+	return new BrowserBlockCache(blockCacheOptions());
+}
+
+const blockCache = createBlockCache();
 
 export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
 	...defaultOmProtocolSettings,
 	// static
 	fileReaderConfig: {
 		useSAB: true,
-		cache: createBlockCache()
+		cache: blockCache,
+		// Opts the protocol into decoding om data in a worker (wasm decompress +
+		// derivation off the main thread — mobile froze ~1s per load inline).
+		// The worker builds its own cache from these options; the shared
+		// cacheName means both sides serve from one persistent Cache API store.
+		workerCacheOptions: browser ? blockCacheOptions() : undefined,
+		// The bundled worker cannot locate the wasm itself (blob-URL worker);
+		// resolve it through vite and hand it over absolute. The package's
+		// exports map hides the .wasm subpath, so `?url` cannot import it —
+		// the `new URL(relative, import.meta.url)` asset form bypasses that.
+		workerWasmUrl: browser
+			? new URL(
+					'../../../node_modules/@openmeteo/file-format-wasm/dist/om_reader_wasm.web.wasm',
+					import.meta.url
+				).href
+			: undefined
 	},
 
 	// dynamic (can be changed during runtime)
