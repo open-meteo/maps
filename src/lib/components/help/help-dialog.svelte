@@ -114,11 +114,17 @@
 					</div>
 
 					<div class="flex items-center mb-2 gap-1.25 mt-6">
-						<h2 class="text-lg font-bold">Popup</h2>
+						<h2 class="text-lg font-bold">General</h2>
 					</div>
 					<div class="flex flex-col gap-1">
 						<div class="flex items-center gap-2">
+							<Kbd.Root>h</Kbd.Root> Show / Hide this Help
+						</div>
+						<div class="flex items-center gap-2">
 							<Kbd.Root>p</Kbd.Root> Popup mode: Follows mouse / Draggable / Off
+						</div>
+						<div class="flex items-center gap-2">
+							<Kbd.Root>esc</Kbd.Root> Dismiss Popup &amp; Toasts
 						</div>
 					</div>
 				</div>
@@ -206,9 +212,9 @@
 						<div class="truncate">Globe Projection</div>
 					</div>
 					<div class="flex items-center gap-2">
-						<div title="Darkmode" class="maplibregl-ctrl maplibregl-ctrl-group">
+						<div title="Theme" class="maplibregl-ctrl maplibregl-ctrl-group">
 							<button
-								aria-label="Explanation Darkmode Button"
+								aria-label="Explanation Theme Button"
 								style="display:flex;justify-content:center;align-items:center;"
 							>
 								<svg
@@ -222,12 +228,13 @@
 									stroke="currentColor"
 									stroke-linecap="round"
 									stroke-linejoin="round"
-									class="lucide lucide-moon-icon lucide-moon"
-									><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg
+									class="lucide lucide-eclipse-icon lucide-eclipse"
+									><circle cx="12" cy="12" r="10"></circle><path d="M12 2a7 7 0 1 0 10 10"
+									></path></svg
 								>
 							</button>
 						</div>
-						<div class="truncate">Darkmode / Brightmode</div>
+						<div class="truncate">Theme: Light / System / Dark</div>
 					</div>
 				</div>
 				<div class="flex flex-col gap-3">
@@ -258,34 +265,31 @@
 						<div class="truncate">Additional Settings</div>
 					</div>
 					<div class="flex items-center gap-2">
-						<div class="maplibregl-ctrl maplibregl-ctrl-group" title="Time selector">
+						<div class="maplibregl-ctrl maplibregl-ctrl-group" title="Help">
 							<button
 								style="display:flex;justify-content:center;align-items:center;"
-								aria-label="Explanation Time Selector Button"
+								aria-label="Explanation Help Button"
 							>
 								<svg
 									xmlns="http://www.w3.org/2000/svg"
+									width="22"
+									height="22"
 									opacity="0.75"
-									stroke-width="1.2"
-									width="24"
-									height="24"
 									viewBox="0 0 24 24"
 									fill="none"
 									stroke="currentColor"
+									stroke-width="1.5"
 									stroke-linecap="round"
 									stroke-linejoin="round"
-									class="lucide lucide-calendar-off-icon lucide-calendar-off"
-									><path d="M16 14v2.2l1.6 1"></path><path d="M16 2v4"></path><path
-										d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5"
-									></path><path d="M3 10h5"></path><path d="M8 2v4"></path><circle
-										cx="16"
-										cy="16"
-										r="6"
-									></circle></svg
+									class="lucide lucide-message-circle-question-mark-icon lucide-message-circle-question-mark"
+									><path
+										d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"
+									></path><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><path d="M12 17h.01"
+									></path></svg
 								>
 							</button>
 						</div>
-						<div class="truncate">Enable / Disable Time Selector</div>
+						<div class="truncate">Help</div>
 					</div>
 
 					<div class="flex items-center gap-2">
@@ -431,12 +435,20 @@
 					</div>
 					<div><b>Contours</b> - Show contour lines between certain thresholds</div>
 					<div>
-						<b>Partial Requests</b> - Only request the data of the current viewport. Will update on zoom
-						/ pan
-					</div>
-					<div>
 						<b>Clip Water</b> - Overlay the oceans over the generated tiles. Makes sense for certain variables
 						like 'Soil Temperature' where values in the oceans don't represent anything
+					</div>
+					<div>
+						<b>Interpolation</b> - How raster pixels are sampled between grid points, from Nearest to
+						Monotone, each listed with its approximate render cost. Colour blending fades between the
+						colours of the scale instead of drawing hard bands.
+					</div>
+					<div>
+						<b>Raster Opacity</b> - How strongly the weather raster covers the basemap underneath it
+					</div>
+					<div>
+						<b>Popup</b> - Turn the value popup on or off, and on desktop choose whether it follows the
+						mouse or stays where you drag it
 					</div>
 				</div>
 				<div>
@@ -447,6 +459,18 @@
 						hand, increasing the tile size will increase the resolution of the data and can make it look
 						smoother, but it will also increase the number of pixels that need to be computed, which can
 						slow down rendering.
+					</div>
+					<div>
+						<b>Cache</b> - Block size and maximum size of the local data cache. Both take effect after
+						a reload.
+					</div>
+					<div>
+						<b>Data endpoint</b> - Which server the weather data is requested from, optionally a custom
+						one, together with the request limits and whether reaching them is announced.
+					</div>
+					<div>
+						<b>States</b> - Reset every stored setting and clear the URL parameters, putting the map back
+						to its defaults.
 					</div>
 				</div>
 			</div>
