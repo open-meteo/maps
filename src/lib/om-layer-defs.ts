@@ -19,15 +19,14 @@ import type * as maplibregl from 'maplibre-gl';
 const FADE_MS = 250;
 
 export const rasterChannel = (
-	sourceKey: string,
+	variable: string,
 	url: string,
 	opacity: number,
 	beforeLayer: string
 ): FrameChannel => ({
 	// Opacity is part of the identity: retained frames must not be reused
-	// with a different per-source opacity. The sourceKey (variable@domain)
-	// keeps same-variable sources from different domains apart.
-	key: `${sourceKey}:raster:${opacity}`,
+	// with a different per-source opacity.
+	key: `${variable}:raster:${opacity}`,
 	url,
 	sourceSpec: { type: 'raster', url, maxzoom: 14 },
 	layers: [
@@ -74,7 +73,7 @@ const scaleWidth = (
 ): maplibregl.ExpressionSpecification => (factor === 1 ? expr : ['*', factor, expr]);
 
 export const vectorChannel = (
-	sourceKey: string,
+	variable: string,
 	url: string,
 	options: VectorChannelOptions
 ): FrameChannel => {
@@ -204,7 +203,7 @@ export const vectorChannel = (
 	return {
 		// Line width and stack placement are part of the identity, like
 		// raster opacity
-		key: `${sourceKey}:vector:${lineWidth}${options.inline ? ':inline' : ''}`,
+		key: `${variable}:vector:${lineWidth}${options.inline ? ':inline' : ''}`,
 		url,
 		sourceSpec: { type: 'vector', url },
 		layers
