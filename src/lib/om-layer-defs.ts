@@ -19,18 +19,18 @@ import { RASTER_PANE, VECTOR_PANE } from './map-controls';
 import { omAdapter } from './om-adapter';
 
 import type { ChannelLayerDef, FrameChannel } from '$lib/frame-manager';
+import type { ArrowStyle } from '@openmeteo/weather-map-layer';
 import type L from 'leaflet';
 
 export const rasterChannel = (
-	sourceKey: string,
+	variable: string,
 	url: string,
 	opacity: number,
 	_beforeLayer: string
 ): FrameChannel => ({
 	// Opacity is part of the identity: retained frames must not be reused
-	// with a different per-source opacity. The sourceKey (variable@domain)
-	// keeps same-variable sources from different domains apart.
-	key: `${sourceKey}:raster:${opacity}`,
+	// with a different per-source opacity.
+	key: `${variable}:raster:${opacity}`,
 	url,
 	layers: [
 		{
@@ -42,9 +42,19 @@ export const rasterChannel = (
 	]
 });
 
+/**
+ * Barbs are drawn at one thin, even weight instead of the arrows' width ramp:
+ * the shape already carries the speed, and it is the thin line that keeps the
+ * individual barbs apart at map scale. The colour still follows the speed, on
+ * the shallower ramp in `buildBarbColorExpr`.
+ */
+export const BARB_LINE_WIDTH = 1.3;
+
 export interface VectorChannelOptions {
 	contours: boolean;
 	arrows: boolean;
+	/** Shape of the arrows; barbs are styled differently to stay readable. */
+	arrowStyle: ArrowStyle;
 	grid: boolean;
 	dark: boolean;
 	beforeLayer: string;
@@ -62,11 +72,11 @@ interface CanvasLineStyle {
 }
 
 export const vectorChannel = (
-	sourceKey: string,
+	variable: string,
 	url: string,
 	options: VectorChannelOptions
 ): FrameChannel => {
-	const { contours, arrows, grid, dark } = options;
+	const { contours, arrows, arrowStyle, grid, dark } = options;
 	const lineWidth = options.lineWidth ?? 1;
 
 	// Contour labels have no canvas equivalent in the adapter; the lines,
@@ -106,9 +116,9 @@ export const vectorChannel = (
 	];
 
 	return {
-		// Line width and stack placement are part of the identity, like
-		// raster opacity
-		key: `${sourceKey}:vector:${lineWidth}${options.inline ? ':inline' : ''}`,
+		// Line width, arrow shape and stack placement are part of the identity,
+		// like raster opacity
+		key: `${variable}:vector:${lineWidth}:${arrowStyle}${options.inline ? ':inline' : ''}`,
 		url,
 		layers
 	};
