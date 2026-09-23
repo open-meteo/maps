@@ -2,24 +2,33 @@ import { get } from 'svelte/store';
 
 import {
 	GridFactory,
+	LEVEL_PREFIX,
+	LEVEL_UNIT_REGEX,
 	createClippingTester,
 	getCachedResolvedClipping,
 	getColor,
 	getColorScale,
-	getValueFromLatLong
+	getValueFromLatLong,
+	variableOptions
 } from '@openmeteo/weather-map-layer';
 import { mode } from 'mode-watcher';
 import Overlay from 'ol/Overlay';
 import { toLonLat } from 'ol/proj';
 
+import {
+	activeChart,
+	chartSources,
+	pickPrimarySource,
+	sourceDrawsSomething
+} from '$lib/stores/chart';
 import { map as m, popup as p, popupMode } from '$lib/stores/map';
 import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 import { convertValue, getDisplayUnit, unitPreferences } from '$lib/stores/units';
-import { selectedDomain, variable as v } from '$lib/stores/variables';
+import { selectedDomain } from '$lib/stores/variables';
 
 import { defaultArrowStyle } from './chart-styles';
 import { textWhite } from './helpers';
-import { getActiveOmUrl } from './layers';
+import { getActiveOmUrls } from './layers';
 import { terraDrawActive } from './stores/clipping';
 import { desktop, opacity } from './stores/preferences';
 
@@ -35,6 +44,8 @@ let arrowPath: SVGPathElement | undefined;
 let valueSpan: HTMLSpanElement | undefined;
 let unitSpan: HTMLSpanElement | undefined;
 let elevationSpan: HTMLSpanElement | undefined;
+let extrasDiv: HTMLDivElement | undefined;
+let stemDiv: HTMLDivElement | undefined;
 
 // Cached clipping tester — recomputed only when clippingOptions reference changes.
 let cachedClippingOptionsRef: unknown = undefined;
@@ -252,7 +263,7 @@ const initPopupDiv = (): void => {
 	el = document.createElement('div');
 	el.classList.add('popup');
 
-	const stemDiv = document.createElement('div');
+	stemDiv = document.createElement('div');
 	stemDiv.classList.add('popup-stem');
 	const dotDiv = document.createElement('div');
 	dotDiv.classList.add('popup-dot');
@@ -289,9 +300,159 @@ const initPopupDiv = (): void => {
 	contentDiv.append(unitSpan);
 	contentDiv.append(elevationSpan);
 
+	extrasDiv = document.createElement('div');
+	extrasDiv.classList.add('popup-extras');
+
 	wrapperDiv.append(contentDiv);
+	wrapperDiv.append(extrasDiv);
 	el.append(wrapperDiv);
 };
+
+const STEM_BASE_HEIGHT = 24;
+
+/**
+ * Shorten a long variable label while keeping its level suffix, e.g.
+ * "Geopotential Height (500hPa)" -> "Geopotenti… (500hPa)".
+ */
+const truncateLabel = (label: string, max = 20): string => {
+	if (label.length <= max) return label;
+	const suffix = label.match(/\s*\(\d+\s*(?:m|cm|hPa)\)$/)?.[0] ?? '';
+	const base = suffix ? label.slice(0, label.length - suffix.length) : label;
+	const room = Math.max(max - suffix.length - 1, 4);
+	if (base.length <= room + 1) return label;
+	return base.slice(0, room).trimEnd() + '…' + suffix;
+};
+
+/**
+ * Very short names for the secondary popup lines, keyed by the variable's
+ * level-group prefix (or full id for level-less variables).
+ */
+const SHORT_LABELS: Record<string, string> = {
+	cape: 'CAPE',
+	cloud_cover: 'CC',
+	cloud_cover_low: 'CC low',
+	cloud_cover_mid: 'CC mid',
+	cloud_cover_high: 'CC high',
+	freezing_level_height: 'Frz lvl',
+	geopotential_height: 'Z',
+	precipitation: 'Precip',
+	precipitation_probability: 'Prob',
+	pressure_msl: 'MSLP',
+	relative_humidity: 'RH',
+	snowfall: 'Snow',
+	temperature: 'T',
+	total_column_integrated_water_vapour: 'TCWV',
+	vertical_velocity: 'VV',
+	wave_height: 'Waves',
+	wind: 'Wind',
+	wind_gusts_10m: 'Gusts'
+};
+
+/**
+ * Compact label for a secondary source line: known variables shrink to an
+ * abbreviation ("CC", "Precip"), pressure levels keep their number ("T 850",
+ * "Z 500"), unknown ones fall back to a truncated full label.
+ */
+const shortLabel = (variable: string): string => {
+	const level = variable.match(LEVEL_UNIT_REGEX)?.groups;
+	const base = level ? (variable.match(LEVEL_PREFIX)?.groups?.prefix ?? variable) : variable;
+	const short = SHORT_LABELS[base];
+	if (!short) {
+		const label = variableOptions.find((option) => option.value === variable)?.label ?? variable;
+		return truncateLabel(label, 14);
+	}
+	return level?.unit === 'hPa' ? `${short} ${level.level}` : short;
+};
+
+/** Pressure/height context lines render even smaller than the other extras. */
+const isPressureOrHeight = (variable: string): boolean =>
+	variable === 'pressure_msl' || variable.startsWith('geopotential_height');
+
+/**
+ * Lift the popup box and lengthen the stem by the height of the extra source
+ * lines, so the box never crowds the anchor dot.
+ */
+const adjustStemForExtras = (): void => {
+	if (!wrapperDiv || !stemDiv || !extrasDiv) return;
+	const extraHeight = extrasDiv.offsetHeight;
+	wrapperDiv.style.transform = extraHeight ? `translateY(-${extraHeight}px)` : '';
+	stemDiv.style.height = `${STEM_BASE_HEIGHT + extraHeight}px`;
+};
+
+/**
+ * Values of the chart's secondary sources (everything except the primary
+ * source shown in the coloured chip), one `label value unit` line each.
+ * `seq` drops the DOM write when a newer update superseded this one.
+ */
+const updateExtraSources = async (
+	coordinates: { lng: number; lat: number },
+	primaryVariable: string,
+	seq: number
+): Promise<void> => {
+	if (!extrasDiv) return;
+
+	const activeUrls = getActiveOmUrls();
+	const extras = get(chartSources).filter(
+		(source) => source.variable !== primaryVariable && activeUrls.has(source.variable)
+	);
+
+	if (!extras.length) {
+		extrasDiv.replaceChildren();
+		adjustStemForExtras();
+		return;
+	}
+
+	const omProtocolSettingsState = get(omProtocolSettings);
+	const units = get(unitPreferences);
+
+	const lines = await Promise.all(
+		extras.map(async (source) => {
+			try {
+				const { value } = await getValueFromLatLong(
+					coordinates.lat,
+					coordinates.lng,
+					activeUrls.get(source.variable) as string
+				);
+				const colorScale = getColorScale(
+					source.variable,
+					mode.current === 'dark',
+					omProtocolSettingsState.colorScales
+				);
+				const label = shortLabel(source.variable);
+				const unit = getDisplayUnit(colorScale.unit, units);
+				if (!isFinite(value)) return { text: `${label}: –`, small: false, muted: true };
+				const displayValue = convertValue(value, colorScale.unit, units);
+				return {
+					text: `${label}: ${displayValue.toFixed(1)} ${unit}`,
+					small: isPressureOrHeight(source.variable),
+					// A line whose value displays as zero is context, not signal
+					muted: Math.round(Math.abs(displayValue) * 10) === 0
+				};
+			} catch {
+				return undefined;
+			}
+		})
+	);
+
+	if (seq !== popupUpdateSeq) return;
+	extrasDiv.replaceChildren(
+		...lines
+			.filter((line) => line !== undefined)
+			.map((line) => {
+				const lineDiv = document.createElement('div');
+				lineDiv.classList.add('popup-extra-line');
+				if (line.small) lineDiv.classList.add('popup-extra-line-sm');
+				if (line.muted) lineDiv.classList.add('popup-extra-line-muted');
+				lineDiv.innerText = line.text;
+				return lineDiv;
+			})
+	);
+	adjustStemForExtras();
+};
+
+// Monotonic token: only the latest updatePopupContent call may write the DOM,
+// so a slow earlier lookup cannot overwrite a newer position's values.
+let popupUpdateSeq = 0;
 
 /** Update the popup content for the given map coordinate without moving the marker. */
 const updatePopupContent = async (coordinate: Coordinate): Promise<void> => {
@@ -300,18 +461,38 @@ const updatePopupContent = async (coordinate: Coordinate): Promise<void> => {
 	const [lng, lat] = toLonLat(coordinate);
 	const coordinates = { lng, lat };
 
+	const seq = ++popupUpdateSeq;
+
 	// No terrain in OpenLayers, so no elevation to show
 	const hasElevation = false;
 	const elevation = 0;
 
-	const activeUrl = getActiveOmUrl();
-	if (!activeUrl) return;
+	// The primary source, not the `variable` store: the branch below needs its
+	// layer toggles, not just its variable name
+	const primary = pickPrimarySource(get(activeChart));
+	const activeUrl = getActiveOmUrls().get(primary.variable);
+	if (!activeUrl) {
+		// A primary that draws something is merely still loading; the commit
+		// callback refreshes once its layer is up. One drawing nothing means the
+		// chart has no layers at all, so the value shown would be a stale one.
+		if (sourceDrawsSomething(primary)) return;
+		contentDiv.style.backgroundColor = '';
+		contentDiv.style.color = '';
+		setArrow(undefined, 0);
+		valueSpan.innerText = 'No layers';
+		unitSpan.innerText = '';
+		elevationSpan.innerText = hasElevation ? `${Math.round(elevation)}m` : '';
+		elevationSpan.style.color = '';
+		await updateExtraSources(coordinates, primary.variable, seq);
+		return;
+	}
 
-	const { value, direction } = await getValueFromLatLong(
-		coordinates.lat,
-		coordinates.lng,
-		activeUrl
-	);
+	// Primary value and extra lines resolve concurrently
+	const [{ value, direction }] = await Promise.all([
+		getValueFromLatLong(coordinates.lat, coordinates.lng, activeUrl),
+		updateExtraSources(coordinates, primary.variable, seq)
+	]);
+	if (seq !== popupUpdateSeq) return;
 
 	if (isFinite(value)) {
 		const omProtocolSettingsState = get(omProtocolSettings);
@@ -334,7 +515,7 @@ const updatePopupContent = async (coordinate: Coordinate): Promise<void> => {
 		}
 
 		const isDark = mode.current === 'dark';
-		const colorScale = getColorScale(get(v), isDark, omProtocolSettingsState.colorScales);
+		const colorScale = getColorScale(primary.variable, isDark, omProtocolSettingsState.colorScales);
 		const color = getColor(colorScale, value);
 
 		const popupOpacity =
@@ -461,6 +642,16 @@ export const switchPopupMode = (): void => {
 // double-tap fires `zoomstart`.
 const DOUBLE_TAP_WINDOW_MS = 400;
 
+// While set (just after a zoom/double-tap began, or after a tap that closed
+// the selection panel) taps are ignored, so such gestures never also toggle
+// the popup, regardless of event ordering.
+let suppressTapsUntil = 0;
+
+/** Ignore popup-toggling taps for a moment (e.g. the tap closing the panel). */
+export const suppressPopupTap = (ms: number = DOUBLE_TAP_WINDOW_MS): void => {
+	suppressTapsUntil = Date.now() + ms;
+};
+
 export const addPopup = (): void => {
 	const map = get(m);
 	if (!map) return;
@@ -485,9 +676,6 @@ export const addPopup = (): void => {
 	};
 
 	let pendingTap: ReturnType<typeof setTimeout> | null = null;
-	// While set (just after a zoom/double-tap began) taps are ignored, so a
-	// double-tap zoom never also toggles the popup, regardless of event ordering.
-	let suppressTapsUntil = 0;
 
 	const cancelPendingTap = (): void => {
 		if (pendingTap !== null) {
@@ -496,7 +684,7 @@ export const addPopup = (): void => {
 		}
 	};
 	const onZoomOrDoubleClick = (): void => {
-		suppressTapsUntil = Date.now() + DOUBLE_TAP_WINDOW_MS;
+		suppressPopupTap();
 		cancelPendingTap();
 	};
 	// A zoom shows as a resolution change of the view

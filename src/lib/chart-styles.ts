@@ -159,3 +159,21 @@ export function arrowStyleFor(value: number, style: ArrowStyle, dark: boolean): 
 	if (!level) return { color: 'transparent', width: 1.5 };
 	return { color: dark ? level.darkColor : level.lightColor, width: level.width };
 }
+
+/**
+ * The level a speed falls in, matching how the per-feature styles above
+ * cascade: the highest level whose threshold the speed is past.
+ */
+export function arrowLevelFor(style: ArrowStyle, speed: number): ArrowLevel {
+	const sorted = [...style.levels].sort((a, b) => a.minSpeed - b.minSpeed);
+	let level = sorted[0];
+	for (const candidate of sorted) if (speed > candidate.minSpeed) level = candidate;
+	return level;
+}
+
+/**
+ * Opacity range wind barbs are drawn over. They follow the arrow ramp's
+ * progression, but a barb already spells its speed out in pennants and barbs,
+ * so fading a slow one to the arrows' 0.2 only makes it unreadable.
+ */
+export const BARB_OPACITY_RANGE: [min: number, max: number] = [0.45, 0.85];
