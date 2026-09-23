@@ -25,7 +25,6 @@ import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 import { convertValue, getDisplayUnit, unitPreferences } from '$lib/stores/units';
 import { selectedDomain } from '$lib/stores/variables';
 
-import { sourceKey } from './chart-encoding';
 import { defaultArrowStyle } from './chart-styles';
 import { textWhite } from './helpers';
 import { getActiveOmUrls } from './layers';
@@ -419,16 +418,14 @@ const adjustStemForExtras = (): void => {
  */
 const updateExtraSources = async (
 	coordinates: maplibregl.LngLat,
-	primaryKey: string,
+	primaryVariable: string,
 	seq: number
 ): Promise<void> => {
 	if (!extrasDiv) return;
 
-	// Keyed, not by variable: a same-variable source from another domain (EPS)
-	// is a source of its own and still counts as extra.
 	const activeUrls = getActiveOmUrls();
 	const extras = get(chartSources).filter(
-		(source) => sourceKey(source) !== primaryKey && activeUrls.has(sourceKey(source))
+		(source) => source.variable !== primaryVariable && activeUrls.has(source.variable)
 	);
 
 	if (!extras.length) {
@@ -446,7 +443,7 @@ const updateExtraSources = async (
 				const { value } = await getValueFromLatLong(
 					coordinates.lat,
 					coordinates.lng,
-					activeUrls.get(sourceKey(source)) as string
+					activeUrls.get(source.variable) as string
 				);
 				const colorScale = getColorScale(
 					source.variable,
@@ -499,11 +496,10 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 	const elevation = map?.queryTerrainElevation(coordinates);
 	const hasElevation = typeof elevation === 'number' && isFinite(elevation);
 
-	// The primary source, not the `variable` store: an EPS source keeps its
-	// domain, and its data is keyed `variable@domain`
+	// The primary source, not the `variable` store: the branch below needs its
+	// layer toggles, not just its variable name
 	const primary = pickPrimarySource(get(activeChart));
-	const primaryKey = sourceKey(primary);
-	const activeUrl = getActiveOmUrls().get(primaryKey);
+	const activeUrl = getActiveOmUrls().get(primary.variable);
 	if (!activeUrl) {
 		// A primary that draws something is merely still loading; the commit
 		// callback refreshes once its layer is up. One drawing nothing means the
@@ -516,14 +512,14 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 		unitSpan.innerText = '';
 		elevationSpan.innerText = hasElevation ? `${Math.round(elevation)}m` : '';
 		elevationSpan.style.color = '';
-		await updateExtraSources(coordinates, primaryKey, seq);
+		await updateExtraSources(coordinates, primary.variable, seq);
 		return;
 	}
 
 	// Primary value and extra lines resolve concurrently
 	const [{ value, direction }] = await Promise.all([
 		getValueFromLatLong(coordinates.lat, coordinates.lng, activeUrl),
-		updateExtraSources(coordinates, primaryKey, seq)
+		updateExtraSources(coordinates, primary.variable, seq)
 	]);
 	if (seq !== popupUpdateSeq) return;
 

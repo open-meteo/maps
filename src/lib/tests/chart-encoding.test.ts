@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-	matchPreset,
-	parseSources,
-	serializeSources,
-	sourceKey,
-	sourcesEqual
-} from '$lib/chart-encoding';
+import { matchPreset, parseSources, serializeSources, sourcesEqual } from '$lib/chart-encoding';
 import { chartPresets } from '$lib/chart-presets';
 
 import type { ChartSource } from '$lib/chart-types';
@@ -30,23 +24,6 @@ describe('serializeSources / parseSources', () => {
 
 	it('parses a bare variable as raster-only', () => {
 		expect(parseSources('temperature_2m')).toEqual([{ variable: 'temperature_2m', raster: true }]);
-	});
-
-	it('round-trips a cross-domain (EPS) source', () => {
-		const sources: ChartSource[] = [
-			{ variable: 'precipitation_probability', raster: true, domain: 'dwd_icon_eps' }
-		];
-		const raw = serializeSources(sources);
-		expect(raw).toBe('precipitation_probability@dwd_icon_eps');
-		expect(parseSources(raw)).toEqual(sources);
-	});
-
-	it('distinguishes sources by domain', () => {
-		const main: ChartSource[] = [{ variable: 'precipitation_probability', raster: true }];
-		const eps: ChartSource[] = [
-			{ variable: 'precipitation_probability', raster: true, domain: 'dwd_icon_eps' }
-		];
-		expect(sourcesEqual(main, eps)).toBe(false);
 	});
 
 	it('parses contours without an interval (breakpoints mode)', () => {
@@ -120,20 +97,5 @@ describe('matchPreset', () => {
 		const modified = preset.sources.map((s) => ({ ...s }));
 		modified[1].contourInterval = 3;
 		expect(matchPreset(modified)).toBeUndefined();
-	});
-});
-
-describe('sourceKey', () => {
-	it('keys plain sources by variable and cross-domain sources by variable@domain', () => {
-		expect(sourceKey({ variable: 'temperature_2m' })).toBe('temperature_2m');
-		expect(sourceKey({ variable: 'temperature_2m', domain: 'dwd_icon_eps' })).toBe(
-			'temperature_2m@dwd_icon_eps'
-		);
-	});
-
-	it('keeps same-variable sources from different domains apart when parsing', () => {
-		const sources = parseSources('temperature_2m,temperature_2m@dwd_icon_eps');
-		expect(sources).toHaveLength(2);
-		expect(new Set(sources!.map(sourceKey)).size).toBe(2);
 	});
 });

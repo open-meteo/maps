@@ -20,7 +20,6 @@
 
 	import { Input } from '$lib/components/ui/input';
 
-	import { sourceKey } from '$lib/chart-encoding';
 	import { getChartPreset } from '$lib/chart-presets';
 	import { updateUrl } from '$lib/url';
 
@@ -109,20 +108,12 @@
 </script>
 
 <div class="flex flex-col gap-1 py-1 pb-1.5">
-	{#each $activeChart.sources as source, i (sourceKey(source))}
+	{#each $activeChart.sources as source, i (source.variable)}
 		{@const arrowsSupported = variableHasDirections(source.variable)}
 		<div class="flex h-6 items-center gap-1 pr-1 pl-3 text-sm">
 			<div class="truncate" title={source.variable}>
 				{baseLabel(source.variable)}
 			</div>
-			{#if source.domain}
-				<span
-					class="text-muted-foreground shrink-0 text-[10px] font-semibold"
-					title={source.domain}
-				>
-					EPS
-				</span>
-			{/if}
 			<SourceLevelSelect
 				sourceVariable={source.variable}
 				onSelect={(newVariable) => updateSource(i, { variable: newVariable })}

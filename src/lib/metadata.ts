@@ -10,7 +10,6 @@ import {
 	setPlainVariable,
 	setSources
 } from '$lib/stores/chart';
-import { EPS_SIBLINGS, loadEpsMeta } from '$lib/stores/eps';
 import { loading } from '$lib/stores/preferences';
 import {
 	inProgress as iP,
@@ -131,7 +130,6 @@ export const tryGetMetaData = async (): Promise<DomainMetaDataJson | undefined> 
 // metadata/time, and when a load failed (already surfaced as an error toast),
 // so the map keeps running on whatever state it has.
 export const loadDomainMetaData = async (newDomain: string) => {
-	void loadEpsMeta(newDomain);
 	if (!(await getInitialMetaData())) return;
 	if (get(d) !== newDomain) return;
 	const meta = await tryGetMetaData();
@@ -159,13 +157,7 @@ export const matchChartOrFallback = () => {
 	if (!metaJson) return;
 
 	const chart = get(activeChart);
-	// Cross-domain (EPS) sources survive when they still point at the new
-	// domain's sibling; their variables are never in the main meta.json.
-	const surviving = chart.sources.filter((source) =>
-		source.domain
-			? source.domain === EPS_SIBLINGS[get(d)]
-			: metaJson.variables.includes(source.variable)
-	);
+	const surviving = chart.sources.filter((source) => metaJson.variables.includes(source.variable));
 	if (surviving.length === chart.sources.length) return;
 
 	if (surviving.length > 0) {
