@@ -3,7 +3,6 @@ import { get } from 'svelte/store';
 import {
 	type Domain,
 	GridFactory,
-	domainOptions,
 	omProtocol,
 	updateCurrentBounds
 } from '@openmeteo/weather-map-layer';
@@ -16,7 +15,9 @@ import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 import { defaultPreferences, preferences as p } from '$lib/stores/preferences';
 import { domain as d } from '$lib/stores/variables';
 
+import { recordGeometry, recordRequest } from '$lib/bench';
 import { BEFORE_LAYER_RASTER, HILLSHADE_LAYER } from '$lib/constants';
+import { domainOptions } from '$lib/domains';
 
 import { addOmFileLayers } from './layers';
 import { updateUrl } from './url';
@@ -28,8 +29,14 @@ export const createMap = async (container: HTMLElement) => {
 	// bundled app cannot serve (404, blank map). Use the worker bundled by Vite.
 	maplibregl.setWorkerUrl(maplibreWorkerUrl);
 
-	maplibregl.addProtocol('om', (params: RequestParameters, abortController: AbortController) =>
-		omProtocol(params, abortController, get(omProtocolSettings))
+	maplibregl.addProtocol(
+		'om',
+		async (params: RequestParameters, abortController: AbortController) => {
+			const start = performance.now();
+			const response = await omProtocol(params, abortController, get(omProtocolSettings));
+			recordRequest(params.url, params.type, performance.now() - start, response.data === null);
+			return response;
+		}
 	);
 
 	const style = await getStyle();
@@ -38,6 +45,10 @@ export const createMap = async (container: HTMLElement) => {
 	if (!domainObject) {
 		throw new Error('Domain not found');
 	}
+	// native ICON grids fetch their warp table or cell index before they can be built
+	const geometryStart = performance.now();
+	await GridFactory.preload(domainObject.grid);
+	recordGeometry(domainObject.value, performance.now() - geometryStart);
 	const grid = GridFactory.create(domainObject.grid);
 
 	const map = new maplibregl.Map({

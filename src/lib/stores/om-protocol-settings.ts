@@ -9,11 +9,13 @@ import { persisted } from 'svelte-persisted-store';
 
 import { browser } from '$app/environment';
 
+import { recordRender } from '$lib/bench';
 import {
 	DEFAULT_CACHE_BLOCK_SIZE_KB,
 	DEFAULT_CACHE_MAX_BYTES_MB,
 	HTTP_OVERHEAD_BYTES
 } from '$lib/constants';
+import { domainOptions } from '$lib/domains';
 
 import { chartSources } from './chart';
 
@@ -47,6 +49,7 @@ function createBlockCache() {
 export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
 	...defaultOmProtocolSettings,
 	// static
+	domainOptions,
 	fileReaderConfig: {
 		useSAB: true,
 		cache: createBlockCache()
@@ -54,6 +57,8 @@ export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
 
 	// dynamic (can be changed during runtime)
 	colorScales: { ...defaultOmProtocolSettings.colorScales, ...initialCustomColorScales },
+
+	onTileRendered: recordRender,
 
 	postReadCallback: (_omFileReader: WeatherMapLayerFileReader, data: Data, state: OmUrlState) => {
 		if (

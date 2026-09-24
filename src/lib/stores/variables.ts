@@ -4,7 +4,6 @@ import {
 	LEVEL_PREFIX,
 	LEVEL_REGEX,
 	LEVEL_UNIT_REGEX,
-	domainOptions,
 	variableOptions
 } from '@openmeteo/weather-map-layer';
 import { type Persisted, persisted } from 'svelte-persisted-store';
@@ -12,6 +11,7 @@ import { type Persisted, persisted } from 'svelte-persisted-store';
 import { browser } from '$app/environment';
 
 import { DEFAULT_DOMAIN, DEFAULT_VARIABLE } from '$lib/constants';
+import { domainOptions } from '$lib/domains';
 
 export const defaultDomain = DEFAULT_DOMAIN;
 export const domain = persisted('domain', defaultDomain);
