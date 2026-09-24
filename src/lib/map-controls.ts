@@ -34,7 +34,7 @@ export const createMap = async (container: HTMLElement) => {
 		async (params: RequestParameters, abortController: AbortController) => {
 			const start = performance.now();
 			const response = await omProtocol(params, abortController, get(omProtocolSettings));
-			recordRequest(params.url, params.type, start, performance.now(), response.data === null);
+			recordRequest(params.url, params.type, performance.now() - start, response.data === null);
 			return response;
 		}
 	);

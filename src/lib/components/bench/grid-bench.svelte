@@ -36,11 +36,9 @@
 	>
 		<div>{$selectedDomain.label} · {grid.type}</div>
 		<div>geometry {geometry} · {ms(stats?.geometryMs)}</div>
+		<div>requests {stats?.requestCount ?? 0} · median {ms(median(stats?.requestMs ?? []))}</div>
 		<div>
-			tiles with data load {stats?.loadCount ?? 0} · median {ms(median(stats?.loadMs ?? []))}
-		</div>
-		<div>
-			tiles after load {stats?.renderCount ?? 0} · median {ms(median(stats?.renderMs ?? []))} · last {ms(
+			render {stats?.renderCount ?? 0} · median {ms(median(stats?.renderMs ?? []))} · last {ms(
 				stats?.renderMs.at(-1)
 			)}
 		</div>

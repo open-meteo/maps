@@ -1,6 +1,6 @@
-import { writable } from 'svelte/store';
+import { get, writable } from 'svelte/store';
 
-import { getValueFromLatLong } from '@openmeteo/weather-map-layer';
+import { type RenderedTile, getValueFromLatLong } from '@openmeteo/weather-map-layer';
 import { persisted } from 'svelte-persisted-store';
 
 /** Show the grid benchmark overlay (see components/bench/grid-bench.svelte). */
@@ -9,30 +9,29 @@ export const showGridBench = persisted('grid-bench', false);
 export interface GridBenchStats {
 	/** loading the grid's geometry (warp table or cell index) */
 	geometryMs?: number;
-	/** tiles requested before their data had arrived: download + render */
-	loadCount: number;
-	loadMs: number[];
-	/** tiles requested once the data was there: render, including the worker queue */
+	/** tile requests end to end: data download, worker queue and render */
+	requestCount: number;
+	requestMs: number[];
+	/** time the workers spent rendering tiles */
 	renderCount: number;
 	renderMs: number[];
 	popupMs?: number;
 }
 
 const HISTORY = 200;
+// tiles of one view arrive in a burst; a pause this long starts a new batch
+const BATCH_GAP_MS = 300;
+const LOGGED_PER_BATCH = 3;
 
 /** Timings per domain value, keyed as in the om:// URL path. */
 export const gridBench = writable<Record<string, GridBenchStats>>({});
-
-// when the first tile of a source (file + parameters) resolved, i.e. its data
-// was available from then on
-const dataReadyAt = new Map<string, number>();
 
 const domainOf = (url: string): string | undefined => url.match(/\/data_spatial\/([^/]+)\//)?.[1];
 
 const update = (domain: string | undefined, apply: (stats: GridBenchStats) => void) => {
 	if (!domain) return;
 	gridBench.update((all) => {
-		const stats = all[domain] ?? { loadCount: 0, loadMs: [], renderCount: 0, renderMs: [] };
+		const stats = all[domain] ?? { requestCount: 0, requestMs: [], renderCount: 0, renderMs: [] };
 		apply(stats);
 		return { ...all, [domain]: stats };
 	});
@@ -49,8 +48,7 @@ export const recordGeometry = (domain: string, ms: number): void =>
 export const recordRequest = (
 	url: string,
 	type: string | undefined,
-	start: number,
-	end: number,
+	ms: number,
 	cancelled: boolean
 ): void => {
 	if (cancelled) return;
@@ -58,24 +56,40 @@ export const recordRequest = (
 	if (type === 'json') {
 		// the TileJSON request loads the geometry of a domain selected at runtime
 		update(domain, (stats) => {
-			if (stats.geometryMs === undefined) stats.geometryMs = end - start;
+			if (stats.geometryMs === undefined) stats.geometryMs = ms;
 		});
-		return;
+	} else if (type === 'image') {
+		update(domain, (stats) => {
+			stats.requestCount++;
+			stats.requestMs = push(stats.requestMs, ms);
+		});
 	}
-	if (type !== 'image') return;
-	const source = url.replace(/\/\d+\/\d+\/\d+$/, '');
-	const ready = dataReadyAt.get(source);
-	if (ready === undefined) dataReadyAt.set(source, end);
-	const afterLoad = ready !== undefined && start >= ready;
-	update(domain, (stats) => {
-		if (afterLoad) {
+};
+
+let lastRender = 0;
+let loggedInBatch = 0;
+
+/**
+ * A tile the worker finished, with its own render time. The first few tiles of
+ * every batch are also logged to the console while the overlay is shown.
+ */
+export const recordRender = (tile: RenderedTile): void => {
+	const now = performance.now();
+	if (now - lastRender > BATCH_GAP_MS) loggedInBatch = 0;
+	lastRender = now;
+	if (tile.type === 'image') {
+		update(tile.domain, (stats) => {
 			stats.renderCount++;
-			stats.renderMs = push(stats.renderMs, end - start);
-		} else {
-			stats.loadCount++;
-			stats.loadMs = push(stats.loadMs, end - start);
-		}
-	});
+			stats.renderMs = push(stats.renderMs, tile.renderMs);
+		});
+	}
+	if (get(showGridBench) && loggedInBatch < LOGGED_PER_BATCH) {
+		loggedInBatch++;
+		const { z, x, y } = tile.tileIndex;
+		console.log(
+			`[render] ${tile.domain} ${z}/${x}/${y} ${tile.type} ${tile.interpolation} ${tile.tileSize}px: ${tile.renderMs.toFixed(1)} ms`
+		);
+	}
 };
 
 /** The popup's point lookup, timed. */
