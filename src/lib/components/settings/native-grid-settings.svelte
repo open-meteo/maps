@@ -1,6 +1,9 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
+	import { Label } from '$lib/components/ui/label';
+	import { Switch } from '$lib/components/ui/switch';
 
+	import { showGridBench } from '$lib/bench';
 	import { type NativeGridSource, nativeGridSource } from '$lib/domains';
 
 	import SettingsSection from './settings-section.svelte';
@@ -33,5 +36,18 @@
 				onclick={() => setSource(item.value)}>{item.label}</Button
 			>
 		{/each}
+	</div>
+
+	<h3 class="mt-4 font-semibold">Benchmark</h3>
+	<p class="text-xs opacity-75">
+		Geometry load, tile request and popup lookup times of the selected domain.
+	</p>
+	<div class="mt-2 flex cursor-pointer gap-3">
+		<Switch
+			id="grid-bench"
+			checked={$showGridBench}
+			onCheckedChange={(checked) => showGridBench.set(checked)}
+		/>
+		<Label for="grid-bench">Show overlay {$showGridBench ? 'on' : 'off'}</Label>
 	</div>
 </SettingsSection>

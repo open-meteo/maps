@@ -25,6 +25,8 @@ import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 import { convertValue, getDisplayUnit, unitPreferences } from '$lib/stores/units';
 import { selectedDomain } from '$lib/stores/variables';
 
+import { timedValueFromLatLong } from '$lib/bench';
+
 import { defaultArrowStyle } from './chart-styles';
 import { textWhite } from './helpers';
 import { getActiveOmUrls } from './layers';
@@ -518,7 +520,7 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 
 	// Primary value and extra lines resolve concurrently
 	const [{ value, direction }] = await Promise.all([
-		getValueFromLatLong(coordinates.lat, coordinates.lng, activeUrl),
+		timedValueFromLatLong(coordinates.lat, coordinates.lng, activeUrl),
 		updateExtraSources(coordinates, primary.variable, seq)
 	]);
 	if (seq !== popupUpdateSeq) return;
