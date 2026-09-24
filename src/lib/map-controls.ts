@@ -3,7 +3,6 @@ import { get } from 'svelte/store';
 import {
 	type Domain,
 	GridFactory,
-	domainOptions,
 	omProtocol,
 	updateCurrentBounds
 } from '@openmeteo/weather-map-layer';
@@ -17,6 +16,7 @@ import { defaultPreferences, preferences as p } from '$lib/stores/preferences';
 import { domain as d } from '$lib/stores/variables';
 
 import { BEFORE_LAYER_RASTER, HILLSHADE_LAYER } from '$lib/constants';
+import { domainOptions } from '$lib/domains';
 
 import { addOmFileLayers } from './layers';
 import { updateUrl } from './url';
