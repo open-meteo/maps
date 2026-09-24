@@ -38,6 +38,8 @@ export const createMap = async (container: HTMLElement) => {
 	if (!domainObject) {
 		throw new Error('Domain not found');
 	}
+	// the native ICON grid fetches its warp table before it can be built
+	await GridFactory.preload(domainObject.grid);
 	const grid = GridFactory.create(domainObject.grid);
 
 	const map = new maplibregl.Map({
