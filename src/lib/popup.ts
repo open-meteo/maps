@@ -8,7 +8,10 @@ import {
 	getCachedResolvedClipping,
 	getColor,
 	getColorScale,
+	getConcreteDomain,
 	getValueFromLatLong,
+	isSeamlessDomain,
+	replaceUrlDomain,
 	variableOptions
 } from '@openmeteo/weather-map-layer';
 import * as maplibregl from 'maplibre-gl';
@@ -516,9 +519,28 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 		return;
 	}
 
+	const domain = get(selectedDomain);
+	const resolvePrimaryValue = async (): Promise<{ value: number; direction?: number }> => {
+		if (!isSeamlessDomain(domain)) {
+			return getValueFromLatLong(coordinates.lat, coordinates.lng, activeUrl);
+		}
+		// The protocol keeps a composite's data under its concrete sub-domain
+		// URLs. Like the tile, the finest sub-domain with data at this point wins.
+		for (const layer of domain.layers) {
+			const layerUrl = replaceUrlDomain(activeUrl, domain.value, layer.domainValue);
+			try {
+				const result = await getValueFromLatLong(coordinates.lat, coordinates.lng, layerUrl);
+				if (isFinite(result.value)) return result;
+			} catch {
+				// No state for this sub-domain (nothing of it loaded yet); try the next
+			}
+		}
+		return { value: NaN };
+	};
+
 	// Primary value and extra lines resolve concurrently
 	const [{ value, direction }] = await Promise.all([
-		getValueFromLatLong(coordinates.lat, coordinates.lng, activeUrl),
+		resolvePrimaryValue(),
 		updateExtraSources(coordinates, primary.variable, seq)
 	]);
 	if (seq !== popupUpdateSeq) return;
@@ -564,13 +586,19 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 		contentDiv.style.color = '';
 		setArrow(undefined, 0);
 
-		const domainBounds = GridFactory.create(get(selectedDomain).grid).getBounds();
-		const [minLon, minLat, maxLon, maxLat] = domainBounds;
-		const insideDomain =
-			coordinates.lat >= minLat &&
-			coordinates.lat <= maxLat &&
-			coordinates.lng >= minLon &&
-			coordinates.lng <= maxLon;
+		const concreteDomain = getConcreteDomain(
+			get(selectedDomain),
+			get(omProtocolSettings).domainOptions
+		);
+		let insideDomain = false;
+		if (concreteDomain) {
+			const [minLon, minLat, maxLon, maxLat] = GridFactory.create(concreteDomain.grid).getBounds();
+			insideDomain =
+				coordinates.lat >= minLat &&
+				coordinates.lat <= maxLat &&
+				coordinates.lng >= minLon &&
+				coordinates.lng <= maxLon;
+		}
 
 		valueSpan.innerText = insideDomain ? 'No data' : 'Outside domain';
 		unitSpan.innerText = '';
