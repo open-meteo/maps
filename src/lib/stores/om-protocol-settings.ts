@@ -42,14 +42,12 @@ function createBlockCache() {
 	});
 }
 
-const blockCache = createBlockCache();
-
 export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
 	...defaultOmProtocolSettings,
 	// static
 	fileReaderConfig: {
 		useSAB: true,
-		cache: blockCache
+		cache: createBlockCache()
 	},
 
 	// dynamic (can be changed during runtime)

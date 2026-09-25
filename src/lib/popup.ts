@@ -8,9 +8,10 @@ import {
 	getCachedResolvedClipping,
 	getColor,
 	getColorScale,
-	getFallbackDomain,
+	getConcreteDomain,
 	getValueFromLatLong,
 	isSeamlessDomain,
+	replaceUrlDomain,
 	variableOptions
 } from '@openmeteo/weather-map-layer';
 import * as maplibregl from 'maplibre-gl';
@@ -519,27 +520,22 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 	}
 
 	const domain = get(selectedDomain);
-	const resolvePrimaryValue = (): Promise<{ value: number; direction?: number }> => {
+	const resolvePrimaryValue = async (): Promise<{ value: number; direction?: number }> => {
 		if (!isSeamlessDomain(domain)) {
 			return getValueFromLatLong(coordinates.lat, coordinates.lng, activeUrl);
 		}
-		// Seamless domain: try each sub-layer finest-first — states are stored
-		// under the concrete domain keys, not the seamless URL key.
-		return (async () => {
-			for (const layer of domain.layers) {
-				const subLayerUrl = activeUrl.replace(
-					`/data_spatial/${domain.value}/`,
-					`/data_spatial/${layer.domainValue}/`
-				);
-				try {
-					const result = await getValueFromLatLong(coordinates.lat, coordinates.lng, subLayerUrl);
-					if (isFinite(result.value)) return result;
-				} catch {
-					// Sub-layer state not found (tile not yet loaded), try next
-				}
+		// The protocol keeps a composite's data under its concrete sub-domain
+		// URLs. Like the tile, the finest sub-domain with data at this point wins.
+		for (const layer of domain.layers) {
+			const layerUrl = replaceUrlDomain(activeUrl, domain.value, layer.domainValue);
+			try {
+				const result = await getValueFromLatLong(coordinates.lat, coordinates.lng, layerUrl);
+				if (isFinite(result.value)) return result;
+			} catch {
+				// No state for this sub-domain (nothing of it loaded yet); try the next
 			}
-			return { value: NaN };
-		})();
+		}
+		return { value: NaN };
 	};
 
 	// Primary value and extra lines resolve concurrently
@@ -590,7 +586,7 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 		contentDiv.style.color = '';
 		setArrow(undefined, 0);
 
-		const concreteDomain = getFallbackDomain(
+		const concreteDomain = getConcreteDomain(
 			get(selectedDomain),
 			get(omProtocolSettings).domainOptions
 		);

@@ -9,8 +9,9 @@ import { get } from 'svelte/store';
 
 import {
 	getDomainBoundary,
+	getGlobalLayer,
 	isSeamlessDomain,
-	resolveConcreteDomain,
+	selectSeamlessLayers,
 	variableSupportsBarbs
 } from '@openmeteo/weather-map-layer';
 import * as maplibregl from 'maplibre-gl';
@@ -158,11 +159,11 @@ export const changeOMfileURL = (): void => {
 
 // =============================================================================
 // Seamless domain border overlay
-
-const isDark = (): boolean => mode.current === 'dark';
 // =============================================================================
 
 const SEAMLESS_BORDER_SOURCE_ID = 'seamlessBorderSource';
+
+const isDark = (): boolean => mode.current === 'dark';
 
 const removeSeamlessBorderLayer = (): void => {
 	const map = get(m);
@@ -195,124 +196,99 @@ export const updateSeamlessBorderLayer = (): void => {
 	const domain = get(selectedDomain);
 	const draw = preferences.showSeamlessBorders && isSeamlessDomain(domain);
 
-	// A regional sub-layer only has data up to its forecast horizon
-	// (maxForecastHours). Past it the seamless composite falls back to a coarser
-	// model, so the regional border must disappear too. Lead time is the gap
-	// between the selected valid time and the model run, matching the lead-time
-	// gate the seamless protocol applies when loading sub-layers.
+	// Only sub-domains the protocol would load at the selected time get a
+	// border: past its forecast horizon a regional model drops out of the
+	// composite, so its border must disappear too. The global layer covers the
+	// whole world and needs none.
 	const modelRunDate = get(modelRun);
 	const validTime = get(time);
 	const leadTimeHours =
 		modelRunDate && validTime
 			? (validTime.getTime() - modelRunDate.getTime()) / 3_600_000
 			: undefined;
-	const layerAvailable = (maxForecastHours: number | undefined): boolean =>
-		maxForecastHours === undefined ||
-		leadTimeHours === undefined ||
-		leadTimeHours <= maxForecastHours;
-
-	// Borders depend on the domain + theme (colours) + toggle, plus which sub-layers
-	// are available at the current lead time. Skip the flashing remove/re-add when
-	// none of those changed (most timestep changes keep the same availability).
-	const availabilityKey =
+	const regionalLayers =
 		draw && isSeamlessDomain(domain)
-			? domain.layers
-					.slice(0, -1)
-					.map((l) => (layerAvailable(l.maxForecastHours) ? '1' : '0'))
-					.join('')
-			: '';
-	const signature = draw ? `${domain.value}|${isDark()}|${availabilityKey}` : 'none';
+			? selectSeamlessLayers(domain, get(omProtocolSettings).domainOptions, {
+					leadTimeHours
+				}).filter(({ layer }) => layer !== getGlobalLayer(domain))
+			: [];
+
+	// Borders depend on the domain, the theme (colours), the toggle and which
+	// sub-domains are available. Skip the flashing remove/re-add when none of
+	// those changed (most timestep changes keep the same availability).
+	const signature = draw
+		? `${domain.value}|${isDark()}|${regionalLayers.map((l) => l.domain.value).join(',')}`
+		: 'none';
 	if (signature === lastBorderSignature) return;
 	lastBorderSignature = signature;
 
 	removeSeamlessBorderLayer();
-	if (!isSeamlessDomain(domain) || !preferences.showSeamlessBorders) return;
+	if (regionalLayers.length === 0) return;
 
-	const seamlessDomain = domain;
-	const settings = get(omProtocolSettings);
-
-	// Build a boundary outline for each sub-layer except the global fallback
-	// (last layer), which covers the whole world and needs no border.
-	const features: GeoJSON.Feature<GeoJSON.LineString>[] = [];
-	for (let i = 0; i < seamlessDomain.layers.length - 1; i++) {
-		const layer = seamlessDomain.layers[i];
-		// Hide the border for a sub-layer whose data isn't available at this lead time.
-		if (!layerAvailable(layer.maxForecastHours)) continue;
-		const concreteDomain = resolveConcreteDomain(layer.domainValue, settings.domainOptions);
-		if (!concreteDomain) continue;
-
-		// Follow the domain's true outline: a precomputed data-shape footprint for
-		// NULL-padded reprojected grids, otherwise a curved perimeter for projected
-		// grids / the bounds rectangle for plain regular grids.
-		//
-		// Drawn as a LineString rather than a Polygon: the ring already closes on
-		// itself, and a polygon's implicit ring-closing segment would jump ~360°
-		// across the map for boundaries that cross the antimeridian or encircle a
-		// pole (the perimeter's longitudes are continuous but may exceed ±180°).
-		// getDomainBoundary falls back to the grid's boundary polygon itself when
-		// a domain has no data-shape footprint.
-		const ring = getDomainBoundary(concreteDomain);
-		features.push({
+	// Follow each domain's true outline: a precomputed data-shape footprint for
+	// NULL-padded reprojected grids, otherwise a curved perimeter for projected
+	// grids / the bounds rectangle for plain regular grids.
+	//
+	// Drawn as a LineString rather than a Polygon: the ring already closes on
+	// itself, and a polygon's implicit ring-closing segment would jump ~360°
+	// across the map for boundaries that cross the antimeridian or encircle a
+	// pole (the perimeter's longitudes are continuous but may exceed ±180°).
+	const features: GeoJSON.Feature<GeoJSON.LineString>[] = regionalLayers.map(
+		({ layer, domain: concreteDomain }, i) => ({
 			type: 'Feature',
-			geometry: {
-				type: 'LineString',
-				coordinates: ring
-			},
+			geometry: { type: 'LineString', coordinates: getDomainBoundary(concreteDomain) },
 			properties: {
 				layerIndex: i,
 				minZoom: layer.minZoom,
 				label: concreteDomain.label ?? concreteDomain.value
 			}
-		});
-	}
-
-	if (features.length === 0) return;
+		})
+	);
 
 	map.addSource(SEAMLESS_BORDER_SOURCE_ID, {
 		type: 'geojson',
 		data: { type: 'FeatureCollection', features }
 	});
 
-	// Add one line + one symbol MapLibre layer per boundary so each can carry its
-	// own zoom-dependent opacity that fades in 2 zoom levels before the sub-domain
-	// becomes active (i.e. when its minZoom threshold is reached by the user).
+	// One line + one symbol MapLibre layer per boundary, each with its own
+	// zoom-dependent opacity and colour keyed to that sub-domain's minZoom.
 	const lineColor = isDark() ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)';
 	const textColor = isDark() ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.75)';
 	const textHalo = isDark() ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)';
-	// Highlight colour once the sub-domain becomes active (zoom >= its minZoom).
+	// Highlight colour once the sub-domain is active
 	const activeLineColor = 'rgba(30,120,255,0.8)';
 	const activeTextColor = 'rgba(30,120,255,1)';
 
 	for (const feature of features) {
 		const i = feature.properties!.layerIndex as number;
 		const minZoom = feature.properties!.minZoom as number;
-		// Start fading in 2 zoom levels before the layer becomes active
+		// Tiles of zoom `minZoom` are shown from map zoom minZoom - 0.5, so that
+		// is where the sub-domain takes over; the border fades in over the 2.5
+		// zoom levels before it, announcing the finer model ahead of the switch.
+		const activeZoom = minZoom - 0.5;
 		const fadeStart = Math.max(0, minZoom - 3);
 
-		// When fadeStart === minZoom (only theoretically possible at minZoom 0),
-		// skip the interpolation and show at full opacity immediately.
 		const opacityExpr: maplibregl.ExpressionSpecification | number =
-			fadeStart < minZoom
-				? (['interpolate', ['linear'], ['zoom'], fadeStart, 0, minZoom - 0.5, 1] as const)
+			fadeStart < activeZoom
+				? (['interpolate', ['linear'], ['zoom'], fadeStart, 0, activeZoom, 1] as const)
 				: 1;
 
-		// Turn the border/label blue at the zoom where this sub-domain takes over.
 		const lineColorExpr: maplibregl.ExpressionSpecification = [
 			'step',
 			['zoom'],
 			lineColor,
-			minZoom - 0.5,
+			activeZoom,
 			activeLineColor
 		];
 		const textColorExpr: maplibregl.ExpressionSpecification = [
 			'step',
 			['zoom'],
 			textColor,
-			minZoom - 0.5,
+			activeZoom,
 			activeTextColor
 		];
 
-		// Dashed bounding-box border
+		// Dashed boundary outline
 		map.addLayer(
 			{
 				id: `seamless-border-line-${i}`,
