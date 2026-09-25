@@ -24,7 +24,7 @@
 	} from '$lib/constants';
 	import { throttle } from '$lib/helpers';
 	import { changeOMfileURL } from '$lib/layers';
-	import { getMetaData, tryGetMetaData } from '$lib/metadata';
+	import { tryGetMetaData } from '$lib/metadata';
 	import {
 		formatISOWithoutTimezone,
 		formatLocalDate,
@@ -260,12 +260,11 @@
 
 		if (!$modelRunLocked && $modelRun && setToModelRun.getTime() !== $modelRun.getTime()) {
 			$modelRun = new Date(setToModelRun);
-			try {
-				$metaJson = await getMetaData();
-			} catch (e) {
-				const error = e as Error;
-				toast.warning(error.message);
-				// set to latest
+			const meta = await tryGetMetaData();
+			if (meta) {
+				$metaJson = meta;
+			} else {
+				// Failed load already toasted; fall back to the latest run
 				$time = new Date(latestReferenceTime);
 				$modelRun = new Date(latestReferenceTime);
 				$metaJson = $latest;
@@ -322,7 +321,7 @@
 		$metaJson = meta;
 
 		let closestTime = new SvelteDate($modelRun);
-		for (const vT of $metaJson.valid_times) {
+		for (const vT of meta.valid_times) {
 			const validTime = new Date(vT);
 			if (validTime.getTime() <= $time.getTime()) {
 				closestTime.setTime(validTime.getTime());
