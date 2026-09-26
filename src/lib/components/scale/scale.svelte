@@ -13,12 +13,6 @@
 
 	import ScaleLegend from './scale-legend.svelte';
 
-	interface Props {
-		editable?: boolean;
-	}
-
-	let { editable = true }: Props = $props();
-
 	const desktop = new MediaQuery('min-width: 768px');
 
 	// One legend per distinct colour scale among the raster sources (primary
@@ -52,12 +46,11 @@
 	<div
 		class="absolute z-60 {!desktop.current
 			? 'bottom-22.5'
-			: 'bottom-2.5'} duration-500 left-2.5 z-10 flex items-end gap-0.5"
+			: 'bottom-2.5'} left-2.5 flex items-end gap-0.5"
 	>
 		{#each legends as variables (variables[0])}
 			<ScaleLegend
 				{variables}
-				{editable}
 				{compact}
 				labels={showLabels ? variables.map(variableLabel) : undefined}
 			/>

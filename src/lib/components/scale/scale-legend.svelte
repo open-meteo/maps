@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
+	import { innerHeight } from 'svelte/reactivity/window';
 
 	import { type RenderableColorScale, getColor, getColorScale } from '@openmeteo/weather-map-layer';
 	import { mode } from 'mode-watcher';
@@ -28,7 +29,6 @@
 	interface Props {
 		/** Variables sharing this legend's colour scale; the first one drives it. */
 		variables: string[];
-		editable?: boolean;
 		/** Smaller blocks/labels, used when several legends compete for space. */
 		compact?: boolean;
 		/**
@@ -38,7 +38,7 @@
 		labels?: string[];
 	}
 
-	let { variables, editable = true, compact = false, labels = undefined }: Props = $props();
+	let { variables, compact = false, labels = undefined }: Props = $props();
 
 	const variable = $derived(variables[0]);
 
@@ -66,17 +66,16 @@
 		}));
 	};
 
-	const formatValue = (value: number, digits: number): string => {
+	const formatValue = (value: number): string => {
 		const converted = convertValue(value, colorScale.unit, $unitPreferences);
-		if (Math.abs(converted) >= 1) return converted.toFixed(0);
+		if (converted === 0 || Math.abs(converted) >= 1) return converted.toFixed(0);
 		if (Math.abs(converted) >= 0.1) return converted.toFixed(1);
-		return converted.toFixed(digits);
+		return converted.toFixed(2);
 	};
 
 	const handleColorClick = (index: number, e: MouseEvent) => {
-		if (!editable) return;
+		// The picker closes on any window click; this one must not count
 		e.stopPropagation();
-
 		editingIndex = index;
 	};
 
@@ -106,22 +105,42 @@
 		editingIndex = null;
 	};
 
-	const digits = 2;
 	const labeledColors = $derived(getLabeledColorsForLegend(colorScale));
 	const displayUnit = $derived(getDisplayUnit(colorScale.unit, $unitPreferences));
 	const unitOptions = $derived(getUnitOptions(colorScale.unit));
-	const valueLength = $derived(String(Math.round(labeledColors.at(-1)?.value ?? 1)).length);
+	// The column is as wide as its longest text: a formatted value (in the
+	// display unit, so a unit switch can widen it) or the unit itself
+	const valueLength = $derived(
+		Math.max(...labeledColors.map((lc) => formatValue(lc.value).length))
+	);
 	const labelWidth = $derived(
 		compact
-			? 6 + Math.max(valueLength, displayUnit.length, digits + 1) * 2.8
-			: 17 + Math.max(valueLength, displayUnit.length + 1, digits + 2) * 4
+			? 6 + Math.max(valueLength, displayUnit.length) * 2.8
+			: 17 + Math.max(valueLength, displayUnit.length + 1) * 4
 	);
 	const desktop = new MediaQuery('min-width: 768px');
 	const isMobile = $derived(!desktop.current);
-	const colorBlockHeight = $derived.by(() => {
+
+	/** Height of a value label; matches the `height` in its style below. */
+	const LABEL_HEIGHT = 12;
+	/** Height of the unit header; matches its `h-4` / `h-6` classes below. */
+	const unitHeaderHeight = $derived(compact ? 16 : 24);
+	const preferredBlockHeight = $derived.by(() => {
 		if (compact) return labeledColors.length >= 20 ? 7 : 12;
 		return isMobile && labeledColors.length >= 20 ? 10 : 20;
 	});
+	// The whole legend (header included) never takes more than half the viewport
+	// height: on a short screen or with many entries the blocks shrink to fit.
+	const colorBlockHeight = $derived.by(() => {
+		const available = (innerHeight.current ?? Infinity) / 2 - unitHeaderHeight;
+		return Math.max(
+			2,
+			Math.min(preferredBlockHeight, Math.floor(available / labeledColors.length))
+		);
+	});
+	// A label needs LABEL_HEIGHT of bar, so with shorter blocks only every n-th
+	// value is shown
+	const labelStep = $derived(Math.max(1, Math.ceil(LABEL_HEIGHT / colorBlockHeight)));
 	const totalHeight = $derived(colorBlockHeight * labeledColors.length);
 </script>
 
@@ -137,15 +156,13 @@
 				{@const alphaValue = getAlpha(lc.color)}
 				<button
 					type="button"
-					disabled={!editable && colorScale.type !== 'breakpoint'}
 					onclick={(e) => handleColorClick(i, e)}
 					style={`min-width: ${compact ? 16 : 28}px; width: ${labelWidth}px; height: ${colorBlockHeight}px;`}
-					class="relative border-none outline-none transition-all {editable
-						? 'cursor-pointer hover:brightness-110 hover:z-10 hover:ring-3 hover:ring-white/65'
-						: 'cursor-default'} {editingIndex === i ? 'ring-2 ring-white/40  z-20' : ''}"
-					title={editable
-						? `Click to change color (opacity: ${Math.round(alphaValue * 100)}%)`
-						: undefined}
+					class="relative border-none outline-none transition-all cursor-pointer hover:brightness-110 hover:z-10 hover:ring-3 hover:ring-white/65 {editingIndex ===
+					i
+						? 'ring-2 ring-white/40  z-20'
+						: ''}"
+					title={`Click to change color (opacity: ${Math.round(alphaValue * 100)}%)`}
 				>
 					<div
 						class="absolute inset-0 {i === 0 ? 'rounded-b' : ''}"
@@ -159,15 +176,15 @@
 		<!-- Labels column - positioned between buttons -->
 		<div class="flex flex-col-reverse" style="width: {labelWidth}px;">
 			{#each labeledColors as lc, i (lc.index)}
-				{#if i > 0 && !(labeledColors.length > 20 && i % 2 === 1 && !desktop.current)}
+				{#if i > 0 && i % labelStep === 0}
 					<div
 						class="absolute flex items-center justify-center {compact
 							? 'text-[9px]'
 							: 'text-xs'} z-20 pointer-events-none"
-						style={`bottom: ${i * colorBlockHeight - 6}px; height: 12px; width: ${labelWidth}px;
+						style={`bottom: ${i * colorBlockHeight - LABEL_HEIGHT / 2}px; height: ${LABEL_HEIGHT}px; width: ${labelWidth}px;
 						color: ${textWhite(lc.color, isDark, $opacity) ? 'white' : 'black'};`}
 					>
-						{formatValue(lc.value, digits)}
+						{formatValue(lc.value)}
 					</div>
 				{/if}
 			{/each}
