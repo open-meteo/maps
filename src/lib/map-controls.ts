@@ -1,8 +1,8 @@
 import { get } from 'svelte/store';
 
 import {
-	type Domain,
 	GridFactory,
+	getConcreteDomainValue,
 	omProtocol,
 	updateCurrentBounds
 } from '@openmeteo/weather-map-layer';
@@ -41,21 +41,27 @@ export const createMap = async (container: HTMLElement) => {
 
 	const style = await getStyle();
 
-	const domainObject = domainOptions.find(({ value }: Domain) => value === get(d));
+	const domainObject = domainOptions.find(({ value }) => value === get(d));
 	if (!domainObject) {
 		throw new Error('Domain not found');
 	}
+	// A seamless composite is positioned by its base domain's grid
+	const gridDomainValue = getConcreteDomainValue(domainObject);
+	const gridDomain = domainOptions.find(({ value }) => value === gridDomainValue);
+	if (!gridDomain) {
+		throw new Error('Base domain not found');
+	}
 	// native ICON grids fetch their warp table or cell index before they can be built
 	const geometryStart = performance.now();
-	await GridFactory.preload(domainObject.grid);
-	recordGeometry(domainObject.value, performance.now() - geometryStart);
-	const grid = GridFactory.create(domainObject.grid);
+	await GridFactory.preload(gridDomain.grid);
+	recordGeometry(gridDomain.value, performance.now() - geometryStart);
+	const grid = GridFactory.create(gridDomain.grid);
 
 	const map = new maplibregl.Map({
 		container,
 		style,
 		center: grid.getCenter(),
-		zoom: domainObject.grid.zoom,
+		zoom: gridDomain.grid.zoom,
 		keyboard: false,
 		hash: true,
 		maxPitch: 85

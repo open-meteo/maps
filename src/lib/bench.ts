@@ -96,10 +96,11 @@ export const recordRender = (tile: RenderedTile): void => {
 export const timedValueFromLatLong = async (
 	lat: number,
 	lng: number,
-	omUrl: string
+	omUrl: string,
+	zoom?: number
 ): ReturnType<typeof getValueFromLatLong> => {
 	const start = performance.now();
-	const result = await getValueFromLatLong(lat, lng, omUrl);
+	const result = await getValueFromLatLong(lat, lng, omUrl, zoom);
 	update(domainOf(omUrl), (stats) => {
 		stats.popupMs = performance.now() - start;
 	});
