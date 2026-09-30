@@ -9,7 +9,6 @@ import { get } from 'svelte/store';
 
 import {
 	getDomainBoundary,
-	getGlobalLayer,
 	isSeamlessDomain,
 	selectSeamlessLayers,
 	variableSupportsBarbs
@@ -198,8 +197,8 @@ export const updateSeamlessBorderLayer = (): void => {
 
 	// Only sub-domains the protocol would load at the selected time get a
 	// border: past its forecast horizon a regional model drops out of the
-	// composite, so its border must disappear too. The global layer covers the
-	// whole world and needs none.
+	// composite, so its border must disappear too. The base layer (the last
+	// one) covers the composite's whole extent and needs none.
 	const modelRunDate = get(modelRun);
 	const validTime = get(time);
 	const leadTimeHours =
@@ -210,7 +209,7 @@ export const updateSeamlessBorderLayer = (): void => {
 		draw && isSeamlessDomain(domain)
 			? selectSeamlessLayers(domain, get(omProtocolSettings).domainOptions, {
 					leadTimeHours
-				}).filter(({ layer }) => layer !== getGlobalLayer(domain))
+				}).filter(({ layer }) => layer !== domain.layers[domain.layers.length - 1])
 			: [];
 
 	// Borders depend on the domain, the theme (colours), the toggle and which

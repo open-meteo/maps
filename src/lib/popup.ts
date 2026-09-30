@@ -8,10 +8,8 @@ import {
 	getCachedResolvedClipping,
 	getColor,
 	getColorScale,
-	getConcreteDomain,
+	getConcreteDomainValue,
 	getValueFromLatLong,
-	isSeamlessDomain,
-	replaceUrlDomain,
 	variableOptions
 } from '@openmeteo/weather-map-layer';
 import * as maplibregl from 'maplibre-gl';
@@ -440,13 +438,17 @@ const updateExtraSources = async (
 	const omProtocolSettingsState = get(omProtocolSettings);
 	const units = get(unitPreferences);
 
+	// A composite is sampled from the sub-domains active at the map zoom, so
+	// the value matches the pixel under the cursor.
+	const zoom = get(m)?.getZoom();
 	const lines = await Promise.all(
 		extras.map(async (source) => {
 			try {
 				const { value } = await getValueFromLatLong(
 					coordinates.lat,
 					coordinates.lng,
-					activeUrls.get(source.variable) as string
+					activeUrls.get(source.variable) as string,
+					zoom
 				);
 				const colorScale = getColorScale(
 					source.variable,
@@ -519,28 +521,10 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 		return;
 	}
 
-	const domain = get(selectedDomain);
-	const resolvePrimaryValue = async (): Promise<{ value: number; direction?: number }> => {
-		if (!isSeamlessDomain(domain)) {
-			return getValueFromLatLong(coordinates.lat, coordinates.lng, activeUrl);
-		}
-		// The protocol keeps a composite's data under its concrete sub-domain
-		// URLs. Like the tile, the finest sub-domain with data at this point wins.
-		for (const layer of domain.layers) {
-			const layerUrl = replaceUrlDomain(activeUrl, domain.value, layer.domainValue);
-			try {
-				const result = await getValueFromLatLong(coordinates.lat, coordinates.lng, layerUrl);
-				if (isFinite(result.value)) return result;
-			} catch {
-				// No state for this sub-domain (nothing of it loaded yet); try the next
-			}
-		}
-		return { value: NaN };
-	};
-
-	// Primary value and extra lines resolve concurrently
+	// Primary value and extra lines resolve concurrently. A composite is
+	// sampled from the sub-domains active at the map zoom, like its tiles.
 	const [{ value, direction }] = await Promise.all([
-		resolvePrimaryValue(),
+		getValueFromLatLong(coordinates.lat, coordinates.lng, activeUrl, map?.getZoom()),
 		updateExtraSources(coordinates, primary.variable, seq)
 	]);
 	if (seq !== popupUpdateSeq) return;
@@ -586,9 +570,10 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 		contentDiv.style.color = '';
 		setArrow(undefined, 0);
 
-		const concreteDomain = getConcreteDomain(
-			get(selectedDomain),
-			get(omProtocolSettings).domainOptions
+		// A composite's extent is its base domain's.
+		const concreteDomainValue = getConcreteDomainValue(get(selectedDomain));
+		const concreteDomain = get(omProtocolSettings).domainOptions.find(
+			({ value }) => value === concreteDomainValue
 		);
 		let insideDomain = false;
 		if (concreteDomain) {

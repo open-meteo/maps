@@ -3,7 +3,7 @@ import { get } from 'svelte/store';
 import {
 	GridFactory,
 	domainOptions,
-	getConcreteDomain,
+	getConcreteDomainValue,
 	omProtocol,
 	updateCurrentBounds
 } from '@openmeteo/weather-map-layer';
@@ -38,10 +38,11 @@ export const createMap = async (container: HTMLElement) => {
 	if (!domainObject) {
 		throw new Error('Domain not found');
 	}
-	// A seamless composite is positioned by its global domain's grid
-	const gridDomain = getConcreteDomain(domainObject, domainOptions);
+	// A seamless composite is positioned by its base domain's grid
+	const gridDomainValue = getConcreteDomainValue(domainObject);
+	const gridDomain = domainOptions.find(({ value }) => value === gridDomainValue);
 	if (!gridDomain) {
-		throw new Error('Global domain not found');
+		throw new Error('Base domain not found');
 	}
 	const grid = GridFactory.create(gridDomain.grid);
 
