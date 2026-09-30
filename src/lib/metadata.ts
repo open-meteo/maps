@@ -1,6 +1,10 @@
 import { get } from 'svelte/store';
 
-import { type DomainMetaDataJson, VARIABLE_PREFIX } from '@openmeteo/weather-map-layer';
+import {
+	type DomainMetaDataJson,
+	VARIABLE_PREFIX,
+	getConcreteDomainValue
+} from '@openmeteo/weather-map-layer';
 import { toast } from 'svelte-sonner';
 
 import {
@@ -31,7 +35,8 @@ import { findTimeStep } from './time-utils';
 import { updateUrl } from './url';
 
 /**
- * Load the domain's latest/in-progress run info. Returns false when the load
+ * Load the domain's latest/in-progress run info (a seamless composite is
+ * described by its global domain's). Returns false when the load
  * failed (an error toast has been shown) or when the domain changed while the
  * requests were in flight; callers must not continue to meta.json then, and a
  * domain without available data can never block the UI.
@@ -40,9 +45,10 @@ export const getInitialMetaData = async (): Promise<boolean> => {
 	const domain = get(selectedDomain);
 
 	try {
+		const metaDomainValue = getConcreteDomainValue(domain);
 		const [latestRes, inProgressRes] = await Promise.all([
-			fetch(`${BASE_URI}/${domain.value}/latest.json`),
-			fetch(`${BASE_URI}/${domain.value}/in-progress.json`)
+			fetch(`${BASE_URI}/${metaDomainValue}/latest.json`),
+			fetch(`${BASE_URI}/${metaDomainValue}/in-progress.json`)
 		]);
 
 		// The domain may have changed while these requests were in flight (e.g. the
@@ -90,7 +96,7 @@ const fetchMetaData = async (domain: string, modelRun: Date): Promise<DomainMeta
  * a toast.
  */
 export const getMetaData = async (): Promise<DomainMetaDataJson> => {
-	const domain = get(d);
+	const metaDomain = getConcreteDomainValue(get(selectedDomain));
 
 	const latest = get(l);
 	const inProgress = get(iP);
@@ -109,7 +115,7 @@ export const getMetaData = async (): Promise<DomainMetaDataJson> => {
 		? (latest as DomainMetaDataJson)
 		: matchesModelRun(inProgressReferenceTime, modelRun)
 			? (inProgress as DomainMetaDataJson)
-			: await fetchMetaData(domain, modelRun);
+			: await fetchMetaData(metaDomain, modelRun);
 
 	result.valid_times.sort();
 	return result;
