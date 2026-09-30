@@ -1,14 +1,19 @@
 import { get } from 'svelte/store';
 
-import { currentBounds, getProtocolInstance, getRanges } from '@openmeteo/weather-map-layer';
+import {
+	currentBounds,
+	getProtocolInstance,
+	getRanges,
+	isSeamlessDomain,
+	selectSeamlessLayers
+} from '@openmeteo/weather-map-layer';
 
 import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 
 import { MILLISECONDS_PER_DAY } from './constants';
 import { BASE_URI, fmtModelRun, fmtSelectedTime } from './helpers';
-import { selectedDomain } from './stores/variables';
 
-import type { DomainMetaDataJson } from '@openmeteo/weather-map-layer';
+import type { Domain, DomainMetaDataJson } from '@openmeteo/weather-map-layer';
 
 export type PrefetchMode = 'today' | 'next24h' | 'prev24h' | 'completeModelRun';
 
@@ -95,7 +100,11 @@ const getTimeStepsInRange = (
 };
 
 /**
- * Prefetch data for the specified time range
+ * Prefetch data for the specified time range.
+ *
+ * Warms the protocol's block cache for the current viewport across the given
+ * timesteps. For a seamless composite the sub-domains the protocol would load
+ * are prefetched, so a timestep switch is never a cold start.
  *
  * @param options - The prefetch options with start and end dates
  * @param onProgress - Optional callback for progress updates
@@ -119,30 +128,54 @@ export const prefetchData = async (
 		};
 	}
 
-	try {
-		const instance = getProtocolInstance(get(omProtocolSettings));
-		const ranges = getRanges(get(selectedDomain).grid, currentBounds);
-		const omFileReader = instance.omFileReader;
+	const settings = get(omProtocolSettings);
+	const selected = settings.domainOptions.find((d) => d.value === domain);
+	if (!selected) {
+		return { success: false, successCount: 0, totalCount: 0, error: `Unknown domain ${domain}` };
+	}
 
-		let successCount = 0;
+	try {
+		const omFileReader = getProtocolInstance(settings).omFileReader;
+
+		// All sub-domains of a seamless composite share the same run path.
+		const runPath = fmtModelRun(modelRun);
 		const totalCount = timeSteps.length;
 
-		// Helper to prefetch a single time step
+		// The files a timestep needs: the domain's own, or for a seamless
+		// composite those of the sub-domains the protocol would load for the
+		// current viewport and lead time, so the cache holds what rendering reads.
+		const domainsFor = (timeStep: Date): Domain[] =>
+			isSeamlessDomain(selected)
+				? selectSeamlessLayers(selected, settings.domainOptions, {
+						viewportBounds: currentBounds,
+						leadTimeHours: (timeStep.getTime() - modelRun.getTime()) / 3_600_000
+					}).map(({ domain }) => domain)
+				: [selected];
+
+		// Prefetch every file of a single timestep. Reads are atomic per call, so
+		// all of them can safely share the protocol's reader.
 		const prefetchSingle = async (timeStep: Date): Promise<boolean> => {
-			if (signal?.aborted) return false;
-
-			const url = `${BASE_URI}/${domain}/${fmtModelRun(modelRun)}/${fmtSelectedTime(timeStep)}.om`;
-
-			try {
-				await omFileReader.prefetchVariable(url, variable, ranges, signal);
-				return true;
-			} catch {
-				// Silently continue on errors
-				return false;
+			const validPath = fmtSelectedTime(timeStep);
+			let succeeded = true;
+			for (const concrete of domainsFor(timeStep)) {
+				if (signal?.aborted) return false;
+				const url = `${BASE_URI}/${concrete.value}/${runPath}/${validPath}.om`;
+				try {
+					await omFileReader.prefetchVariable(
+						url,
+						variable,
+						getRanges(concrete.grid, currentBounds),
+						signal
+					);
+				} catch {
+					// Best-effort cache warming: keep going with the other files
+					succeeded = false;
+				}
 			}
+			return succeeded;
 		};
 
-		// Prefetch multiple time steps in parallel with a simple concurrency limit
+		// Prefetch multiple time steps in parallel with a simple concurrency limit.
 		const concurrency = 8;
 		let index = 0;
 
@@ -154,8 +187,7 @@ export const prefetchData = async (
 				const i = index++;
 				if (i >= timeSteps.length) break;
 
-				const succeeded = await prefetchSingle(timeSteps[i]);
-				if (succeeded) {
+				if (await prefetchSingle(timeSteps[i])) {
 					localSuccess++;
 				}
 
@@ -173,7 +205,7 @@ export const prefetchData = async (
 		}
 
 		const results = await Promise.all(workerPromises);
-		successCount = results.reduce((sum, v) => sum + v, 0);
+		const successCount = results.reduce((sum, v) => sum + v, 0);
 
 		if (signal?.aborted) {
 			return {
