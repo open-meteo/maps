@@ -8,6 +8,7 @@ import {
 	getCachedResolvedClipping,
 	getColor,
 	getColorScale,
+	getConcreteDomainValue,
 	getValueFromLatLong,
 	variableOptions
 } from '@openmeteo/weather-map-layer';
@@ -29,6 +30,7 @@ import { selectedDomain } from '$lib/stores/variables';
 import { defaultArrowStyle } from './chart-styles';
 import { textWhite } from './helpers';
 import { getActiveOmUrls } from './layers';
+import { ZOOM_OFFSET } from './map-controls';
 import { terraDrawActive } from './stores/clipping';
 import { desktop, opacity } from './stores/preferences';
 
@@ -380,6 +382,12 @@ const adjustStemForExtras = (): void => {
 };
 
 /**
+ * The map zoom in MapLibre terms, which is what the om protocol's tiles (and
+ * so a seamless composite's choice of sub-domains) are keyed by.
+ */
+const tileZoom = (): number => (get(m)?.getView().getZoom() ?? 0) - ZOOM_OFFSET;
+
+/**
  * Values of the chart's secondary sources (everything except the primary
  * source shown in the coloured chip), one `label value unit` line each.
  * `seq` drops the DOM write when a newer update superseded this one.
@@ -405,13 +413,17 @@ const updateExtraSources = async (
 	const omProtocolSettingsState = get(omProtocolSettings);
 	const units = get(unitPreferences);
 
+	// A composite is sampled from the sub-domains active at the map zoom, so
+	// the value matches the pixel under the cursor.
+	const zoom = tileZoom();
 	const lines = await Promise.all(
 		extras.map(async (source) => {
 			try {
 				const { value } = await getValueFromLatLong(
 					coordinates.lat,
 					coordinates.lng,
-					activeUrls.get(source.variable) as string
+					activeUrls.get(source.variable) as string,
+					zoom
 				);
 				const colorScale = getColorScale(
 					source.variable,
@@ -487,9 +499,10 @@ const updatePopupContent = async (coordinate: Coordinate): Promise<void> => {
 		return;
 	}
 
-	// Primary value and extra lines resolve concurrently
+	// Primary value and extra lines resolve concurrently. A composite is
+	// sampled from the sub-domains active at the map zoom, like its tiles.
 	const [{ value, direction }] = await Promise.all([
-		getValueFromLatLong(coordinates.lat, coordinates.lng, activeUrl),
+		getValueFromLatLong(coordinates.lat, coordinates.lng, activeUrl, tileZoom()),
 		updateExtraSources(coordinates, primary.variable, seq)
 	]);
 	if (seq !== popupUpdateSeq) return;
@@ -535,13 +548,20 @@ const updatePopupContent = async (coordinate: Coordinate): Promise<void> => {
 		contentDiv.style.color = '';
 		setArrow(undefined, 0);
 
-		const domainBounds = GridFactory.create(get(selectedDomain).grid).getBounds();
-		const [minLon, minLat, maxLon, maxLat] = domainBounds;
-		const insideDomain =
-			coordinates.lat >= minLat &&
-			coordinates.lat <= maxLat &&
-			coordinates.lng >= minLon &&
-			coordinates.lng <= maxLon;
+		// A composite's extent is its base domain's.
+		const concreteDomainValue = getConcreteDomainValue(get(selectedDomain));
+		const concreteDomain = get(omProtocolSettings).domainOptions.find(
+			({ value }) => value === concreteDomainValue
+		);
+		let insideDomain = false;
+		if (concreteDomain) {
+			const [minLon, minLat, maxLon, maxLat] = GridFactory.create(concreteDomain.grid).getBounds();
+			insideDomain =
+				coordinates.lat >= minLat &&
+				coordinates.lat <= maxLat &&
+				coordinates.lng >= minLon &&
+				coordinates.lng <= maxLon;
+		}
 
 		valueSpan.innerText = insideDomain ? 'No data' : 'Outside domain';
 		unitSpan.innerText = '';

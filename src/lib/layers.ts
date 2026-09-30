@@ -7,13 +7,26 @@
  */
 import { get } from 'svelte/store';
 
-import { variableSupportsBarbs } from '@openmeteo/weather-map-layer';
+import {
+	getDomainBoundary,
+	isSeamlessDomain,
+	selectSeamlessLayers,
+	variableSupportsBarbs
+} from '@openmeteo/weather-map-layer';
 import { mode } from 'mode-watcher';
+import Feature from 'ol/Feature';
+import LineString from 'ol/geom/LineString';
+import VectorLayer from 'ol/layer/Vector';
+import { fromLonLat } from 'ol/proj';
+import VectorSource from 'ol/source/Vector';
+import { Fill, Stroke, Style, Text } from 'ol/style';
 import { toast } from 'svelte-sonner';
 
 import { chartSources } from '$lib/stores/chart';
 import { map as m } from '$lib/stores/map';
 import { loading, opacity, preferences as p } from '$lib/stores/preferences';
+import { modelRun, time } from '$lib/stores/time';
+import { selectedDomain } from '$lib/stores/variables';
 import { vectorOptions as vO } from '$lib/stores/vector';
 
 import {
@@ -25,7 +38,9 @@ import {
 import { type FrameChannel, FrameManager } from '$lib/frame-manager';
 import { rasterChannel, vectorChannel } from '$lib/om-layer-defs';
 
+import { ZOOM_OFFSET, Z_INDEX } from './map-controls';
 import { refreshPopup } from './popup';
+import { omProtocolSettings } from './stores/om-protocol-settings';
 import { getOmUrlForSource } from './url';
 
 let frameManager: FrameManager | undefined;
@@ -108,6 +123,11 @@ export const addOmFileLayers = (): void => {
 			toast.warning('Loading data might be limited by bandwidth or upstream server speed.')
 	});
 	changeOMfileURL();
+
+	// (Re)creating the map layers (initial load or style reload) drops the
+	// border layers, so force them to be drawn again.
+	resetSeamlessBorderLayer();
+	updateSeamlessBorderLayer();
 };
 
 /**
@@ -139,6 +159,141 @@ export const changeOMfileURL = (): void => {
 	if (!channels) return;
 
 	frameManager.show(channels);
+	updateSeamlessBorderLayer();
+};
+
+// =============================================================================
+// Seamless domain border overlay
+// =============================================================================
+
+let seamlessBorderLayer: VectorLayer<VectorSource> | undefined;
+
+const isDark = (): boolean => mode.current === 'dark';
+
+const removeSeamlessBorderLayer = (): void => {
+	const map = get(m);
+	if (!map || !seamlessBorderLayer) return;
+	map.removeLayer(seamlessBorderLayer);
+	seamlessBorderLayer = undefined;
+};
+
+// Tracks what the borders were last drawn for, so repeated calls (e.g. on every
+// timestep change via changeOMfileURL) don't needlessly remove + re-add the
+// layers — which restarts their fade-in transition and makes them flash.
+let lastBorderSignature: string | null = null;
+
+/** Forces the next updateSeamlessBorderLayer() to redraw (e.g. after a style reload). */
+export const resetSeamlessBorderLayer = (): void => {
+	lastBorderSignature = null;
+};
+
+export const updateSeamlessBorderLayer = (): void => {
+	const map = get(m);
+	if (!map) return;
+
+	const preferences = get(p);
+	const domain = get(selectedDomain);
+	const draw = preferences.showSeamlessBorders && isSeamlessDomain(domain);
+
+	// Only sub-domains the protocol would load at the selected time get a
+	// border: past its forecast horizon a regional model drops out of the
+	// composite, so its border must disappear too. The base layer (the last
+	// one) covers the composite's whole extent and needs none.
+	const modelRunDate = get(modelRun);
+	const validTime = get(time);
+	const leadTimeHours =
+		modelRunDate && validTime
+			? (validTime.getTime() - modelRunDate.getTime()) / 3_600_000
+			: undefined;
+	const regionalLayers =
+		draw && isSeamlessDomain(domain)
+			? selectSeamlessLayers(domain, get(omProtocolSettings).domainOptions, {
+					leadTimeHours
+				}).filter(({ layer }) => layer !== domain.layers[domain.layers.length - 1])
+			: [];
+
+	// Borders depend on the domain, the theme (colours), the toggle and which
+	// sub-domains are available. Skip the flashing remove/re-add when none of
+	// those changed (most timestep changes keep the same availability).
+	const signature = draw
+		? `${domain.value}|${isDark()}|${regionalLayers.map((l) => l.domain.value).join(',')}`
+		: 'none';
+	if (signature === lastBorderSignature) return;
+	lastBorderSignature = signature;
+
+	removeSeamlessBorderLayer();
+	if (regionalLayers.length === 0) return;
+
+	// Follow each domain's true outline: a precomputed data-shape footprint for
+	// NULL-padded reprojected grids, otherwise a curved perimeter for projected
+	// grids / the bounds rectangle for plain regular grids.
+	//
+	// Drawn as a LineString rather than a Polygon: the ring already closes on
+	// itself, and a polygon's implicit ring-closing segment would jump ~360°
+	// across the map for boundaries that cross the antimeridian or encircle a
+	// pole (the perimeter's longitudes are continuous but may exceed ±180°).
+	const features = regionalLayers.map(({ layer, domain: concreteDomain }) => {
+		const feature = new Feature(
+			new LineString(getDomainBoundary(concreteDomain).map((lonLat) => fromLonLat(lonLat)))
+		);
+		feature.set('minZoom', layer.minZoom);
+		feature.set('label', concreteDomain.label ?? concreteDomain.value);
+		return feature;
+	});
+
+	// Colours as [r, g, b, a] so the fade-in can scale their alpha
+	const lineColor = isDark() ? [255, 255, 255, 0.7] : [0, 0, 0, 0.5];
+	const textColor = isDark() ? [255, 255, 255, 0.9] : [0, 0, 0, 0.75];
+	const textHalo = isDark() ? [0, 0, 0, 0.5] : [255, 255, 255, 0.5];
+	// Highlight colour once the sub-domain is active
+	const activeLineColor = [30, 120, 255, 0.8];
+	const activeTextColor = [30, 120, 255, 1];
+	const fade = (color: number[], t: number): number[] => [...color.slice(0, 3), color[3] * t];
+
+	// One dashed line plus a name label along it per boundary, with a
+	// zoom-dependent opacity and colour keyed to that sub-domain's minZoom.
+	// The style is evaluated per render, so the zoom comes from the resolution.
+	const view = map.getView();
+	seamlessBorderLayer = new VectorLayer({
+		source: new VectorSource({ features }),
+		zIndex: Z_INDEX.vector,
+		declutter: true,
+		style: (feature, resolution) => {
+			const minZoom = feature.get('minZoom') as number;
+			// Tiles of zoom `minZoom` are shown from map zoom minZoom - 0.5, so that
+			// is where the sub-domain takes over; the border fades in over the 2.5
+			// zoom levels before it, announcing the finer model ahead of the switch.
+			// minZoom is a MapLibre zoom, the view's zoom is one level higher.
+			const zoom = (view.getZoomForResolution(resolution) ?? 0) - ZOOM_OFFSET;
+			const activeZoom = minZoom - 0.5;
+			const fadeStart = Math.max(0, minZoom - 3);
+			if (zoom < fadeStart) return undefined;
+			const t =
+				fadeStart < activeZoom ? Math.min(1, (zoom - fadeStart) / (activeZoom - fadeStart)) : 1;
+			const active = zoom >= activeZoom;
+			return [
+				new Style({
+					stroke: new Stroke({
+						color: fade(active ? activeLineColor : lineColor, t),
+						width: 1.5,
+						lineDash: [4, 3]
+					})
+				}),
+				new Style({
+					text: new Text({
+						text: feature.get('label') as string,
+						placement: 'line',
+						repeat: 400,
+						font: '11px "Noto Sans", sans-serif',
+						fill: new Fill({ color: fade(active ? activeTextColor : textColor, t) }),
+						stroke: new Stroke({ color: fade(textHalo, t), width: 1.5 }),
+						offsetY: -8
+					})
+				})
+			];
+		}
+	});
+	map.addLayer(seamlessBorderLayer);
 };
 
 /**
