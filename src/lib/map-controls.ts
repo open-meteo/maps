@@ -2,9 +2,9 @@ import { get } from 'svelte/store';
 
 import '@maplibre/maplibre-gl-leaflet';
 import {
-	type Domain,
 	GridFactory,
 	domainOptions,
+	getConcreteDomainValue,
 	updateCurrentBounds
 } from '@openmeteo/weather-map-layer';
 import L from 'leaflet';
@@ -53,7 +53,7 @@ let basemapUpper: L.MaplibreGL | undefined;
  * table and the URL hash are MapLibre zooms and converted here, which keeps
  * the hash interchangeable with the MapLibre app.
  */
-const ZOOM_OFFSET = 1;
+export const ZOOM_OFFSET = 1;
 
 /** Where a global domain opens without a hash: Europe, like the MapLibre app's users expect. */
 const EUROPE: { center: L.LatLngExpression; zoom: number } = { center: [50, 10], zoom: 3 };
@@ -94,17 +94,23 @@ export const createMap = async (container: HTMLElement) => {
 
 	registerOmProtocol();
 
-	const domainObject = domainOptions.find(({ value }: Domain) => value === get(d));
+	const domainObject = domainOptions.find(({ value }) => value === get(d));
 	if (!domainObject) {
 		throw new Error('Domain not found');
 	}
-	const grid = GridFactory.create(domainObject.grid);
+	// A seamless composite is positioned by its base domain's grid
+	const gridDomainValue = getConcreteDomainValue(domainObject);
+	const gridDomain = domainOptions.find(({ value }) => value === gridDomainValue);
+	if (!gridDomain) {
+		throw new Error('Base domain not found');
+	}
+	const grid = GridFactory.create(gridDomain.grid);
 	const { lng, lat } = grid.getCenter();
 	const bounds = grid.getBounds();
 	const global = bounds[2] - bounds[0] >= 359;
 	const hash = parseHash();
 	const start: { center: L.LatLngExpression; zoom: number } =
-		hash ?? (global ? EUROPE : { center: [lat, lng], zoom: domainObject.grid.zoom ?? 1 });
+		hash ?? (global ? EUROPE : { center: [lat, lng], zoom: gridDomain.grid.zoom ?? 1 });
 
 	const map = L.map(container, {
 		center: start.center,

@@ -7,13 +7,21 @@
  */
 import { get } from 'svelte/store';
 
-import { variableSupportsBarbs } from '@openmeteo/weather-map-layer';
+import {
+	getDomainBoundary,
+	isSeamlessDomain,
+	selectSeamlessLayers,
+	variableSupportsBarbs
+} from '@openmeteo/weather-map-layer';
+import L from 'leaflet';
 import { mode } from 'mode-watcher';
 import { toast } from 'svelte-sonner';
 
 import { chartSources } from '$lib/stores/chart';
 import { map as m } from '$lib/stores/map';
 import { loading, opacity, preferences as p } from '$lib/stores/preferences';
+import { modelRun, time } from '$lib/stores/time';
+import { selectedDomain } from '$lib/stores/variables';
 import { vectorOptions as vO } from '$lib/stores/vector';
 
 import {
@@ -25,7 +33,9 @@ import {
 import { type FrameChannel, FrameManager } from '$lib/frame-manager';
 import { rasterChannel, vectorChannel } from '$lib/om-layer-defs';
 
+import { VECTOR_PANE, ZOOM_OFFSET } from './map-controls';
 import { refreshPopup } from './popup';
+import { omProtocolSettings } from './stores/om-protocol-settings';
 import { getOmUrlForSource } from './url';
 
 let frameManager: FrameManager | undefined;
@@ -108,6 +118,11 @@ export const addOmFileLayers = (): void => {
 			toast.warning('Loading data might be limited by bandwidth or upstream server speed.')
 	});
 	changeOMfileURL();
+
+	// (Re)creating the map layers (initial load or style reload) drops the
+	// border layers, so force them to be drawn again.
+	resetSeamlessBorderLayer();
+	updateSeamlessBorderLayer();
 };
 
 /**
@@ -139,6 +154,122 @@ export const changeOMfileURL = (): void => {
 	if (!channels) return;
 
 	frameManager.show(channels);
+	updateSeamlessBorderLayer();
+};
+
+// =============================================================================
+// Seamless domain border overlay
+// =============================================================================
+
+const isDark = (): boolean => mode.current === 'dark';
+
+/**
+ * Border polylines currently on the map, each with the zoom (MapLibre scale,
+ * like the domain table) at which its sub-domain takes over the composite
+ * and the zoom its border starts fading in.
+ */
+let borderLines: { line: L.Polyline; activeZoom: number; fadeStart: number }[] = [];
+let borderGroup: L.LayerGroup | undefined;
+
+/**
+ * Leaflet has no zoom-driven paint expressions, so the zoom-dependent look is
+ * applied by hand on every zoom: tiles of zoom `minZoom` are shown from map
+ * zoom minZoom - 0.5, so that is where the sub-domain takes over and its
+ * border switches to the highlight colour; before that it fades in over the
+ * 2.5 zoom levels leading up to it, announcing the finer model ahead of the
+ * switch.
+ */
+const restyleSeamlessBorders = (): void => {
+	const map = get(m);
+	if (!map) return;
+	const zoom = map.getZoom() - ZOOM_OFFSET;
+	const lineColor = isDark() ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)';
+	// Highlight colour once the sub-domain is active
+	const activeLineColor = 'rgba(30,120,255,0.8)';
+	for (const { line, activeZoom, fadeStart } of borderLines) {
+		const fade = (zoom - fadeStart) / (activeZoom - fadeStart);
+		line.setStyle({
+			color: zoom >= activeZoom ? activeLineColor : lineColor,
+			opacity: fadeStart < activeZoom ? Math.min(1, Math.max(0, fade)) : 1
+		});
+	}
+};
+
+const removeSeamlessBorderLayer = (): void => {
+	get(m)?.off('zoomend', restyleSeamlessBorders);
+	borderGroup?.remove();
+	borderGroup = undefined;
+	borderLines = [];
+};
+
+// Tracks what the borders were last drawn for, so repeated calls (e.g. on every
+// timestep change via changeOMfileURL) don't needlessly remove + re-add the
+// layers — which restarts their fade-in transition and makes them flash.
+let lastBorderSignature: string | null = null;
+
+/** Forces the next updateSeamlessBorderLayer() to redraw (e.g. after a style reload). */
+export const resetSeamlessBorderLayer = (): void => {
+	lastBorderSignature = null;
+};
+
+export const updateSeamlessBorderLayer = (): void => {
+	const map = get(m);
+	if (!map) return;
+
+	const preferences = get(p);
+	const domain = get(selectedDomain);
+	const draw = preferences.showSeamlessBorders && isSeamlessDomain(domain);
+
+	// Only sub-domains the protocol would load at the selected time get a
+	// border: past its forecast horizon a regional model drops out of the
+	// composite, so its border must disappear too. The base layer (the last
+	// one) covers the composite's whole extent and needs none.
+	const modelRunDate = get(modelRun);
+	const validTime = get(time);
+	const leadTimeHours =
+		modelRunDate && validTime
+			? (validTime.getTime() - modelRunDate.getTime()) / 3_600_000
+			: undefined;
+	const regionalLayers =
+		draw && isSeamlessDomain(domain)
+			? selectSeamlessLayers(domain, get(omProtocolSettings).domainOptions, {
+					leadTimeHours
+				}).filter(({ layer }) => layer !== domain.layers[domain.layers.length - 1])
+			: [];
+
+	// Borders depend on the domain, the theme (colours), the toggle and which
+	// sub-domains are available. Skip the flashing remove/re-add when none of
+	// those changed (most timestep changes keep the same availability).
+	const signature = draw
+		? `${domain.value}|${isDark()}|${regionalLayers.map((l) => l.domain.value).join(',')}`
+		: 'none';
+	if (signature === lastBorderSignature) return;
+	lastBorderSignature = signature;
+
+	removeSeamlessBorderLayer();
+	if (regionalLayers.length === 0) return;
+
+	// Follow each domain's true outline: a precomputed data-shape footprint for
+	// NULL-padded reprojected grids, otherwise a curved perimeter for projected
+	// grids / the bounds rectangle for plain regular grids.
+	//
+	// Drawn as an open polyline rather than a polygon: the ring already closes
+	// on itself, and a polygon's implicit ring-closing segment would jump ~360°
+	// across the map for boundaries that cross the antimeridian or encircle a
+	// pole (the perimeter's longitudes are continuous but may exceed ±180°).
+	// Only the dashed outline is drawn; the MapLibre app's domain-name labels
+	// running along the line have no Leaflet equivalent.
+	borderLines = regionalLayers.map(({ layer, domain: concreteDomain }) => ({
+		line: L.polyline(
+			getDomainBoundary(concreteDomain).map(([lng, lat]) => L.latLng(lat, lng)),
+			{ pane: VECTOR_PANE, weight: 1.5, dashArray: '4 3', interactive: false }
+		),
+		activeZoom: layer.minZoom - 0.5,
+		fadeStart: Math.max(0, layer.minZoom - 3)
+	}));
+	borderGroup = L.layerGroup(borderLines.map(({ line }) => line)).addTo(map);
+	restyleSeamlessBorders();
+	map.on('zoomend', restyleSeamlessBorders);
 };
 
 /**
