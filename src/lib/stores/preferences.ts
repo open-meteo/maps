@@ -76,6 +76,16 @@ export const tileSize: Persisted<64 | 128 | 256 | 512 | 1024 | 2048> = persisted
 // check for retina / hd on first load, afterwards the tile-size won't be set
 export const tileSizeSet = persisted('tile-size-set', false);
 
+/**
+ * Raster rendering path: 'gpu' draws each source's raster as a tile-free
+ * WeatherGpuLayer (contours, arrows and grid points stay CPU tiles); 'cpu'
+ * renders everything as tiles. Opt-in while the GPU layer is experimental
+ * and limited to regular lat/lon grids and scalar variables.
+ */
+export type Renderer = 'cpu' | 'gpu';
+export const DEFAULT_RENDERER: Renderer = 'cpu';
+export const renderer: Persisted<Renderer> = persisted<Renderer>('renderer', DEFAULT_RENDERER);
+
 export const interpolation: Persisted<InterpolationMethod> = persisted<InterpolationMethod>(
 	'interpolation',
 	DEFAULT_INTERPOLATION
@@ -159,6 +169,7 @@ export const resetStates = async () => {
 
 	tileSize.set(DEFAULT_TILE_SIZE);
 	tileSizeSet.set(false);
+	renderer.set(DEFAULT_RENDERER);
 
 	interpolation.set(DEFAULT_INTERPOLATION);
 	colorBlend.set(DEFAULT_COLOR_BLEND);

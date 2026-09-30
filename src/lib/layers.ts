@@ -1,16 +1,20 @@
 /**
- * Chart layer orchestration: turns the active chart's sources into
- * FrameManager channels (one raster and/or one vector channel per source) and
- * shows them as one synchronized frame. Data is shared per variable inside
- * the om protocol, so a raster and vector channel of the same source trigger
- * a single fetch, and toggling contours/arrows re-renders from cached data.
+ * Chart layer orchestration: turns the active chart's sources into a render
+ * state — FrameManager channels (one raster and/or one vector channel per
+ * source) and, with the GPU renderer, one tile-free `WeatherGpuLayer` slot
+ * per raster source instead of its raster channel — and shows it as one
+ * synchronized frame. Data is shared per variable inside the om protocol, so
+ * a raster and vector channel of the same source trigger a single fetch, and
+ * toggling contours/arrows re-renders from cached data.
  */
 import { get } from 'svelte/store';
 
 import {
 	getDomainBoundary,
+	isGpuSupported,
 	isSeamlessDomain,
 	selectSeamlessLayers,
+	variableHasDirections,
 	variableSupportsBarbs
 } from '@openmeteo/weather-map-layer';
 import * as maplibregl from 'maplibre-gl';
@@ -19,11 +23,12 @@ import { toast } from 'svelte-sonner';
 
 import { chartSources } from '$lib/stores/chart';
 import { map as m } from '$lib/stores/map';
-import { loading, opacity, preferences as p } from '$lib/stores/preferences';
+import { loading, opacity, preferences as p, renderer } from '$lib/stores/preferences';
 import { modelRun, time } from '$lib/stores/time';
 import { selectedDomain } from '$lib/stores/variables';
 import { vectorOptions as vO } from '$lib/stores/vector';
 
+import { createCommitBarrier } from '$lib/commit-barrier';
 import {
 	BEFORE_LAYER_RASTER,
 	BEFORE_LAYER_VECTOR,
@@ -31,21 +36,55 @@ import {
 	HILLSHADE_LAYER
 } from '$lib/constants';
 import { type FrameChannel, FrameManager } from '$lib/frame-manager';
+import { GpuRasterManager, type GpuRasterSlotSpec } from '$lib/gpu-raster-manager';
 import { rasterChannel, vectorChannel } from '$lib/om-layer-defs';
 
 import { refreshPopup } from './popup';
 import { omProtocolSettings } from './stores/om-protocol-settings';
 import { getOmUrlForSource } from './url';
 
+import type { Domain } from '@openmeteo/weather-map-layer';
+
 let frameManager: FrameManager | undefined;
+let gpuRasters: GpuRasterManager | undefined;
+
+// Combined loading indicator: GPU raster loads and vector tile frames finish
+// independently; the spinner shows while either is pending.
+let vectorLoading = false;
+let rasterLoading = false;
+const updateLoading = (): void => loading.set(vectorLoading || rasterLoading);
 
 const getRasterOpacity = (): number => {
 	const opacityValue = get(opacity) / 100;
 	return mode.current === 'dark' ? Math.max(0, (opacityValue * 100 - 10) / 100) : opacityValue;
 };
 
-/** Build the channels for the current chart, or undefined while not ready. */
-const buildChannels = (): FrameChannel[] | undefined => {
+/** Probed once per page: WebGL2 support does not change at runtime. */
+let gpuSupported: boolean | undefined;
+const useGpu = (): boolean => {
+	if (get(renderer) !== 'gpu') return false;
+	gpuSupported ??= isGpuSupported();
+	return gpuSupported;
+};
+
+/**
+ * Whether the GPU layer can draw this source's raster; otherwise it stays on
+ * the CPU tile path (the rest of the chart keeps the GPU). These are exactly
+ * the conditions under which `WeatherGpuLayer.prepareUrl` rejects a URL — a
+ * composite domain has one grid per layer, the shader samples one regular
+ * lat/lon grid and colour-maps one scalar per cell — checked up front so a
+ * rejected source never leaves a gap on the map.
+ */
+const gpuDrawsRaster = (domain: Domain, variable: string): boolean =>
+	!isSeamlessDomain(domain) && domain.grid.type === 'regular' && !variableHasDirections(variable);
+
+interface RenderState {
+	rasters: GpuRasterSlotSpec[];
+	vectors: FrameChannel[];
+}
+
+/** Build the render state for the current chart, or undefined while not ready. */
+const buildRenderState = (): RenderState | undefined => {
 	const sources = get(chartSources);
 	const preferences = get(p);
 	const vectorOptions = get(vO);
@@ -53,24 +92,32 @@ const buildChannels = (): FrameChannel[] | undefined => {
 	const rasterBefore = preferences.hillshade ? HILLSHADE_LAYER : BEFORE_LAYER_RASTER;
 	const vectorBefore = preferences.clipWater ? BEFORE_LAYER_VECTOR_WATER_CLIP : BEFORE_LAYER_VECTOR;
 
-	const channels: FrameChannel[] = [];
+	const gpu = useGpu();
+	const domain = get(selectedDomain);
+	const rasters: GpuRasterSlotSpec[] = [];
+	const vectors: FrameChannel[] = [];
 	for (const source of sources) {
 		const omUrl = getOmUrlForSource(source);
 		if (!omUrl) return undefined;
 		const url = 'om://' + omUrl;
 
 		if (source.raster) {
-			channels.push(
-				rasterChannel(
-					source.variable,
+			const rasterOpacity = getRasterOpacity() * (source.opacity ?? 1);
+			if (gpu && gpuDrawsRaster(domain, source.variable)) {
+				rasters.push({
+					key: source.variable,
 					url,
-					getRasterOpacity() * (source.opacity ?? 1),
-					rasterBefore
-				)
-			);
+					opacity: rasterOpacity,
+					beforeLayer: rasterBefore
+				});
+			} else {
+				vectors.push(rasterChannel(source.variable, url, rasterOpacity, rasterBefore));
+			}
 		}
+		// Contours, arrows and grid points are CPU tile layers on both paths;
+		// om-layer-defs.ts adds them the same way whichever renderer is active.
 		if (source.contours || source.arrows || vectorOptions.grid) {
-			channels.push(
+			vectors.push(
 				vectorChannel(source.variable, url, {
 					contours: !!source.contours,
 					arrows: !!source.arrows,
@@ -91,7 +138,7 @@ const buildChannels = (): FrameChannel[] | undefined => {
 			);
 		}
 	}
-	return channels;
+	return { rasters, vectors };
 };
 
 /**
@@ -106,7 +153,10 @@ export const addOmFileLayers = (): void => {
 	frameManager = new FrameManager(map, {
 		crossFadeMs: 250,
 		retainMax: 3,
-		onLoadingChange: (isLoading) => loading.set(isLoading),
+		onLoadingChange: (isLoading) => {
+			vectorLoading = isLoading;
+			updateLoading();
+		},
 		onCommit: () => refreshPopup(),
 		// Without this a failed frame is silent and just keeps the previous one
 		// — on a first load that is an empty map with no hint
@@ -115,6 +165,18 @@ export const addOmFileLayers = (): void => {
 		slowLoadWarningMs: 10000,
 		onSlowLoad: () =>
 			toast.warning('Loading data might be limited by bandwidth or upstream server speed.')
+	});
+
+	gpuRasters?.destroy();
+	gpuRasters = new GpuRasterManager(map, {
+		settings: get(omProtocolSettings),
+		onLoadingChange: (isLoading) => {
+			rasterLoading = isLoading;
+			updateLoading();
+		},
+		onShown: () => refreshPopup(),
+		onError: () =>
+			toast.error('Could not load the weather data for this view.', { id: 'om-data-error' })
 	});
 	changeOMfileURL();
 
@@ -135,24 +197,33 @@ export const reanchorRasterLayers = (): void => {
 	const [from, to] = hillshade
 		? [BEFORE_LAYER_RASTER, HILLSHADE_LAYER]
 		: [HILLSHADE_LAYER, BEFORE_LAYER_RASTER];
+	gpuRasters?.reanchor(from, to);
+	// Inline vector channels share the raster anchor
 	frameManager?.reanchor(from, to);
 };
 
 /**
- * Re-render the active chart. The frame manager deduplicates unchanged
- * render states, so this is safe to call on every store change.
+ * Re-render the active chart. Both managers deduplicate unchanged render
+ * states, so this is safe to call on every store change.
  */
 export const changeOMfileURL = (): void => {
 	const map = get(m);
-	if (!map || !frameManager) return;
+	if (!map || !frameManager || !gpuRasters) return;
 
-	// `undefined` means a source is not ready yet; an empty list means the chart
-	// deliberately draws nothing, which the frame manager commits as a blank
-	// frame and fades the previous one out
-	const channels = buildChannels();
-	if (!channels) return;
+	// `undefined` means a source is not ready yet; an empty state means the
+	// chart deliberately draws nothing, which fades the GPU layers out and
+	// commits a blank vector frame in place of the previous one
+	const renderState = buildRenderState();
+	if (!renderState) return;
 
-	frameManager.show(channels);
+	// The GPU layers parse URLs against the settings object, which the store
+	// replaces on changes (clipping, colour scales) — hand them the live one.
+	gpuRasters.updateSettings(get(omProtocolSettings));
+	// Both managers load independently but commit through one barrier, so every
+	// layer of the new render state starts animating in the same frame.
+	const barrier = createCommitBarrier(2);
+	gpuRasters.show(renderState.rasters, barrier);
+	frameManager.show(renderState.vectors, barrier);
 	updateSeamlessBorderLayer();
 };
 
@@ -336,11 +407,12 @@ export const updateSeamlessBorderLayer = (): void => {
 };
 
 /**
- * om:// source URL per source variable of the currently visible frame, in
- * chart source order (used by the popup).
+ * om:// source URL per source variable of the currently visible render state,
+ * in chart source order (used by the popup).
  */
 export const getActiveOmUrls = (): Map<string, string> => {
-	const urls = new Map<string, string>();
+	// GPU raster slots are keyed by the source variable directly
+	const urls = gpuRasters?.getActiveUrls() ?? new Map<string, string>();
 	for (const channel of frameManager?.getActiveChannels() ?? []) {
 		// Channel keys are `${variable}:kind:...`; variables contain no colon
 		const key = channel.key.slice(0, channel.key.indexOf(':'));

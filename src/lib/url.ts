@@ -21,11 +21,13 @@ import {
 } from '$lib/stores/chart';
 import { map as m } from '$lib/stores/map';
 import {
+	DEFAULT_RENDERER,
 	type Preferences,
 	colorBlend as cB,
 	completeDefaultValues,
 	interpolation as iP,
 	preferences as p,
+	renderer as rD,
 	tileSize as tS,
 	url as u
 } from '$lib/stores/preferences';
@@ -119,6 +121,13 @@ export const urlParamsToPreferences = () => {
 	syncBoolParam('terrain', 'terrain', false);
 	syncBoolParam('hillshade', 'hillshade', false);
 	syncBoolParam('clip_water', 'clipWater', false);
+
+	const rendererRaw = params.get('renderer');
+	if (rendererRaw === 'gpu' || rendererRaw === 'cpu') {
+		rD.set(rendererRaw);
+	} else if (get(rD) !== DEFAULT_RENDERER) {
+		url.searchParams.set('renderer', get(rD));
+	}
 
 	const domain = params.get('domain');
 	if (domain) {
