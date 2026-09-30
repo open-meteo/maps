@@ -13,6 +13,7 @@
 	import { modelRun } from '$lib/stores/time';
 	import { domain, selectedDomain } from '$lib/stores/variables';
 
+	import GridBench from '$lib/components/bench/grid-bench.svelte';
 	import {
 		ClippingButton,
 		DarkModeButton,
@@ -186,6 +187,7 @@
 <ClippingPanel bind:this={clippingPanel} />
 <TimeSelector />
 <Settings />
+<GridBench />
 <HelpDialog />
 <KeyboardHandler />
 <Dropzone

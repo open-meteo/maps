@@ -26,6 +26,8 @@ import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
 import { convertValue, getDisplayUnit, unitPreferences } from '$lib/stores/units';
 import { selectedDomain } from '$lib/stores/variables';
 
+import { timedValueFromLatLong } from '$lib/bench';
+
 import { defaultArrowStyle } from './chart-styles';
 import { textWhite } from './helpers';
 import { getActiveOmUrls } from './layers';
@@ -524,7 +526,7 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 	// Primary value and extra lines resolve concurrently. A composite is
 	// sampled from the sub-domains active at the map zoom, like its tiles.
 	const [{ value, direction }] = await Promise.all([
-		getValueFromLatLong(coordinates.lat, coordinates.lng, activeUrl, map?.getZoom()),
+		timedValueFromLatLong(coordinates.lat, coordinates.lng, activeUrl, map?.getZoom()),
 		updateExtraSources(coordinates, primary.variable, seq)
 	]);
 	if (seq !== popupUpdateSeq) return;
@@ -577,6 +579,8 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 		);
 		let insideDomain = false;
 		if (concreteDomain) {
+			// native ICON grids fetch their geometry before they can be built
+			await GridFactory.preload(concreteDomain.grid);
 			const [minLon, minLat, maxLon, maxLat] = GridFactory.create(concreteDomain.grid).getBounds();
 			insideDomain =
 				coordinates.lat >= minLat &&
