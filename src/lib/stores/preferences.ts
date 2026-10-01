@@ -14,6 +14,7 @@ import {
 	DEFAULT_CACHE_BLOCK_SIZE_KB,
 	DEFAULT_CACHE_MAX_BYTES_MB,
 	DEFAULT_COLOR_BLEND,
+	DEFAULT_GPU_CACHE_MB,
 	DEFAULT_INTERPOLATION,
 	DEFAULT_OPACITY,
 	DEFAULT_PREFERENCES,
@@ -24,7 +25,12 @@ import { getInitialMetaData, tryGetMetaData } from '$lib/metadata';
 
 import { version } from '../../../package.json';
 import { activeChart, defaultChart } from './chart';
-import { cacheBlockSizeKb, cacheMaxBytesMb, customColorScales } from './om-protocol-settings';
+import {
+	cacheBlockSizeKb,
+	cacheMaxBytesMb,
+	customColorScales,
+	gpuCacheMb
+} from './om-protocol-settings';
 import { inProgress, latest, metaJson, modelRun, modelRunLocked, now, time } from './time';
 import {
 	DEFAULT_PRECIPITATION_UNIT,
@@ -75,6 +81,15 @@ export const tileSize: Persisted<64 | 128 | 256 | 512 | 1024 | 2048> = persisted
 
 // check for retina / hd on first load, afterwards the tile-size won't be set
 export const tileSizeSet = persisted('tile-size-set', false);
+
+/**
+ * Raster/vector rendering path: 'gpu' draws rasters, arrows, contour lines
+ * and the animated flow as GPU layers (CPU tiles keep contour labels, wind
+ * barbs and grid points); 'cpu' renders everything as tiles.
+ */
+export type Renderer = 'gpu' | 'cpu';
+export const DEFAULT_RENDERER: Renderer = 'gpu';
+export const renderer: Persisted<Renderer> = persisted<Renderer>('renderer', DEFAULT_RENDERER);
 
 export const interpolation: Persisted<InterpolationMethod> = persisted<InterpolationMethod>(
 	'interpolation',
@@ -159,6 +174,7 @@ export const resetStates = async () => {
 
 	tileSize.set(DEFAULT_TILE_SIZE);
 	tileSizeSet.set(false);
+	renderer.set(DEFAULT_RENDERER);
 
 	interpolation.set(DEFAULT_INTERPOLATION);
 	colorBlend.set(DEFAULT_COLOR_BLEND);
@@ -167,6 +183,7 @@ export const resetStates = async () => {
 
 	cacheBlockSizeKb.set(DEFAULT_CACHE_BLOCK_SIZE_KB);
 	cacheMaxBytesMb.set(DEFAULT_CACHE_MAX_BYTES_MB);
+	gpuCacheMb.set(DEFAULT_GPU_CACHE_MB);
 
 	customColorScales.set({});
 

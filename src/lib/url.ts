@@ -3,10 +3,7 @@ import { get } from 'svelte/store';
 
 import {
 	type ArrowRender,
-	type ArrowStyle,
-	DEFAULT_ARROW_STYLE,
 	VALID_ARROW_RENDERS,
-	VALID_ARROW_STYLES,
 	defaultOmProtocolSettings
 } from '@openmeteo/weather-map-layer';
 import { mode } from 'mode-watcher';
@@ -24,17 +21,24 @@ import {
 import { epsMeta } from '$lib/stores/eps';
 import { map as m } from '$lib/stores/map';
 import {
+	DEFAULT_RENDERER,
 	type Preferences,
 	colorBlend as cB,
 	completeDefaultValues,
 	interpolation as iP,
 	preferences as p,
+	renderer as rD,
 	tileSize as tS,
 	url as u
 } from '$lib/stores/preferences';
 import { modelRun as mR, modelRunLocked as mRL, time } from '$lib/stores/time';
 import { domain as d, variable as v } from '$lib/stores/variables';
-import { defaultVectorOptions, vectorOptions as vO } from '$lib/stores/vector';
+import {
+	VALID_WIND_STYLES,
+	type WindStyle,
+	defaultVectorOptions,
+	vectorOptions as vO
+} from '$lib/stores/vector';
 
 import { windPointLattice } from '$lib/arrow-sprites';
 import { parseSources, serializeSources } from '$lib/chart-encoding';
@@ -128,6 +132,13 @@ export const urlParamsToPreferences = () => {
 	syncBoolParam('hillshade', 'hillshade', false);
 	syncBoolParam('clip_water', 'clipWater', false);
 
+	const rendererRaw = params.get('renderer');
+	if (rendererRaw === 'gpu' || rendererRaw === 'cpu') {
+		rD.set(rendererRaw);
+	} else if (get(rD) !== DEFAULT_RENDERER) {
+		url.searchParams.set('renderer', get(rD));
+	}
+
 	const domain = params.get('domain');
 	if (domain) {
 		d.set(domain);
@@ -144,11 +155,16 @@ export const urlParamsToPreferences = () => {
 
 	const arrowStyleRaw = params.get('arrow_style');
 	if (arrowStyleRaw !== null) {
-		if (VALID_ARROW_STYLES.includes(arrowStyleRaw as ArrowStyle)) {
-			vectorOptions.arrowStyle = arrowStyleRaw as ArrowStyle;
+		if (VALID_WIND_STYLES.includes(arrowStyleRaw as WindStyle)) {
+			vectorOptions.arrowStyle = arrowStyleRaw as WindStyle;
 		}
-	} else if (vectorOptions.arrowStyle !== DEFAULT_ARROW_STYLE) {
+	} else if (vectorOptions.arrowStyle !== defaultVectorOptions.arrowStyle) {
 		url.searchParams.set('arrow_style', vectorOptions.arrowStyle);
+	}
+	// The animated flow only exists on the GPU path (see renderer-settings).
+	if (get(rD) === 'cpu' && vectorOptions.arrowStyle === 'particles') {
+		vectorOptions.arrowStyle = 'arrow';
+		url.searchParams.set('arrow_style', 'arrow');
 	}
 
 	const arrowRenderRaw = params.get('arrow_render');
@@ -255,12 +271,15 @@ export const getOmUrlForSource = (source: ChartSource): string | undefined => {
 	if (vectorOptions.grid) result += '&grid=true';
 	if (source.arrows) {
 		result += '&arrows=true';
-		if (vectorOptions.arrowStyle !== 'arrow') result += `&arrow_style=${vectorOptions.arrowStyle}`;
+		// 'particles' is a maps-only style (the GPU particle pass); the om URL
+		// grammar only knows the icon alphabets, so it falls back to arrows.
+		const omArrowStyle = vectorOptions.arrowStyle === 'barb' ? 'barb' : 'arrow';
+		if (omArrowStyle !== 'arrow') result += `&arrow_style=${omArrowStyle}`;
 		if (vectorOptions.arrowRender !== defaultVectorOptions.arrowRender) {
 			result += `&arrow_render=${vectorOptions.arrowRender}`;
 			// The tile lattice is the one the renderer sized its icons against
 			result += `&arrow_points=${windPointLattice(
-				vectorOptions.arrowStyle,
+				omArrowStyle,
 				vectorOptions.arrowIconScale,
 				vectorOptions.arrowPacking
 			)}`;

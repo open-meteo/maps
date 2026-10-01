@@ -40,6 +40,21 @@ export interface PrefetchProgress {
 	total: number;
 }
 
+// Session registry of successfully prefetched timesteps: their blocks sit in
+// the cache (RAM/persistent), so they decode near-instantly — the "warm" tier
+// between not-loaded and GPU-resident shown in the time selector.
+const prefetchedSteps = new Set<string>();
+const prefetchedKey = (domain: string, variable: string, modelRun: Date, step: Date): string =>
+	`${domain}|${variable}|${modelRun.getTime()}|${step.getTime()}`;
+
+/** True when this timestep was prefetched into the block cache this session. */
+export const isPrefetched = (
+	domain: string,
+	variable: string,
+	modelRun: Date,
+	step: Date
+): boolean => prefetchedSteps.has(prefetchedKey(domain, variable, modelRun, step));
+
 /**
  * Calculate the start and end dates for a given prefetch mode
  *
@@ -171,6 +186,10 @@ export const prefetchData = async (
 					// Best-effort cache warming: keep going with the other files
 					succeeded = false;
 				}
+			}
+			if (succeeded) {
+				if (prefetchedSteps.size > 8192) prefetchedSteps.clear();
+				prefetchedSteps.add(prefetchedKey(domain, variable, modelRun, timeStep));
 			}
 			return succeeded;
 		};
