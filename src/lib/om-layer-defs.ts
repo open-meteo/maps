@@ -85,7 +85,7 @@ const scaleWidth = (
 ): maplibregl.ExpressionSpecification => (factor === 1 ? expr : ['*', factor, expr]);
 
 export const vectorChannel = (
-	variable: string,
+	sourceKey: string,
 	url: string,
 	options: VectorChannelOptions
 ): FrameChannel => {
@@ -248,7 +248,7 @@ export const vectorChannel = (
 	return {
 		// Line width, arrow shape and stack placement are part of the identity,
 		// like raster opacity
-		key: `${variable}:vector:${lineWidth}:${arrowStyle}${options.inline ? ':inline' : ''}`,
+		key: `${sourceKey}:vector:${lineWidth}:${arrowStyle}${options.inline ? ':inline' : ''}`,
 		url,
 		sourceSpec: { type: 'vector', url },
 		layers
