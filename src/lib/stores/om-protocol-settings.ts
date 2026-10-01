@@ -32,14 +32,18 @@ export const cacheMaxBytesMb = persisted('cache-max-bytes-mb', DEFAULT_CACHE_MAX
 
 const initialCustomColorScales = get(customColorScales);
 
-function createBlockCache() {
-	if (!browser) return undefined;
-	return new BrowserBlockCache({
+function blockCacheOptions() {
+	return {
 		blockSize: get(cacheBlockSizeKb) * 1024 - HTTP_OVERHEAD_BYTES,
 		cacheName: 'open-meteo-maps-cache-v1',
 		memCacheTtlMs: 1000,
 		maxBytes: get(cacheMaxBytesMb) * 1024 * 1024
-	});
+	};
+}
+
+function createBlockCache() {
+	if (!browser) return undefined;
+	return new BrowserBlockCache(blockCacheOptions());
 }
 
 export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
@@ -47,7 +51,22 @@ export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
 	// static
 	fileReaderConfig: {
 		useSAB: true,
-		cache: createBlockCache()
+		cache: createBlockCache(),
+		// Opts the protocol into decoding om data in a worker (wasm decompress +
+		// derivation off the main thread — mobile froze ~1s per load inline).
+		// The worker builds its own cache from these options; the shared
+		// cacheName means both sides serve from one persistent Cache API store.
+		workerCacheOptions: browser ? blockCacheOptions() : undefined,
+		// The bundled worker cannot locate the wasm itself (blob-URL worker);
+		// resolve it through vite and hand it over absolute. The package's
+		// exports map hides the .wasm subpath, so `?url` cannot import it —
+		// the `new URL(relative, import.meta.url)` asset form bypasses that.
+		workerWasmUrl: browser
+			? new URL(
+					'../../../node_modules/@openmeteo/file-format-wasm/dist/om_reader_wasm.web.wasm',
+					import.meta.url
+				).href
+			: undefined
 	},
 
 	// dynamic (can be changed during runtime)
