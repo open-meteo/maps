@@ -13,7 +13,9 @@ import {
 import { SHAPE_UNITS } from '$lib/arrow-shapes';
 import { BARB_OPACITY_RANGE, arrowLevelFor, defaultArrowStyle } from '$lib/chart-styles';
 import { alphaOfCssColor, rescaleInto } from '$lib/color';
-import { BARB_LINE_WIDTH } from '$lib/om-layer-defs';
+
+/** Barbs are drawn at one weight, arrows follow the style's width ramp. */
+export const BARB_LINE_WIDTH = 1.3;
 
 /**
  * On-screen size of one lattice cell at an integer zoom, which is the size a
@@ -26,19 +28,19 @@ const cellPx = (style: ArrowStyle): number =>
  * Stroke width in shape units, i.e. what a legend drawing the shape at
  * `SHAPE_UNITS` needs to match the line the map draws at `sizePx`.
  */
-const strokeUnits = (lineWidth: number, sizePx: number): number =>
+export const strokeUnits = (lineWidth: number, sizePx: number): number =>
 	(lineWidth * SHAPE_UNITS) / sizePx;
 
 const levels = () => [...defaultArrowStyle.levels].sort((a, b) => a.minSpeed - b.minSpeed);
 
-const levelFor = (speed: number) => arrowLevelFor(defaultArrowStyle, speed);
+export const levelFor = (speed: number) => arrowLevelFor(defaultArrowStyle, speed);
 
-const arrowColor = (speed: number, dark: boolean): string => {
+export const arrowColor = (speed: number, dark: boolean): string => {
 	const level = levelFor(speed);
 	return dark ? level.darkColor : level.lightColor;
 };
 
-const barbColor = (speed: number, dark: boolean): string => {
+export const barbColor = (speed: number, dark: boolean): string => {
 	const alphas = levels().map((level) =>
 		alphaOfCssColor(dark ? level.darkColor : level.lightColor)
 	);

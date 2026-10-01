@@ -28,7 +28,7 @@
 		buildCountryClippingOptions,
 		serializeClipCountriesParam
 	} from '$lib/clipping';
-	import { changeOMfileURL } from '$lib/layers';
+	import { changeOMfileURL, previewClippingOptions } from '$lib/layers';
 	import { updateUrl } from '$lib/url';
 
 	import CountrySelector from './country-selector.svelte';
@@ -193,6 +193,66 @@
 			}
 			mergeDrawnGeometry();
 		});
+
+		// Live preview: while a polygon is drawn or a vertex/feature dragged, the
+		// GPU layers restyle their clip mask directly (no data reload), so the
+		// data follows the boundary as it moves. The 'finish' handlers above then
+		// run the full rebuild, which also refreshes the data crop.
+		draw.on('change', (_ids, type) => {
+			if (type === 'styling') return;
+			scheduleLivePreview();
+		});
+	};
+
+	/**
+	 * Trailing throttle for the preview: each restyle re-rasterises + uploads
+	 * the clip mask and re-filters the arrow lattice, which at pointer-event
+	 * rate makes the drawing itself stutter. One update per interval keeps the
+	 * cursor smooth and lets the data trail the boundary by a beat.
+	 */
+	const PREVIEW_INTERVAL_MS = 150;
+	let livePreviewTimer: ReturnType<typeof setTimeout> | undefined;
+	const scheduleLivePreview = () => {
+		if (livePreviewTimer) return;
+		livePreviewTimer = setTimeout(() => {
+			livePreviewTimer = undefined;
+			applyLivePreview();
+		}, PREVIEW_INTERVAL_MS);
+	};
+	const cancelLivePreview = () => {
+		if (livePreviewTimer) {
+			clearTimeout(livePreviewTimer);
+			livePreviewTimer = undefined;
+		}
+	};
+
+	/** A ring is drawable once it holds three distinct positions (closed = 4). */
+	const hasArea = (geometry: Polygon): boolean => (geometry.coordinates[0]?.length ?? 0) >= 4;
+
+	const applyLivePreview = () => {
+		if (!draw || !$map) return;
+		const snapshot = draw
+			.getSnapshot()
+			.filter((f): f is GeoJSONStoreFeatures<Polygon> => f.geometry.type === 'Polygon');
+		// In select mode the snapshot already holds every drawn feature (they
+		// were loaded in for editing); in draw modes it holds only the shape in
+		// progress, on top of the accumulated ones.
+		const base = activeMode === 'select' ? [] : drawnFeatures;
+		const features: GeoJsonFeature[] = [
+			...countryFeatures(),
+			...[...base, ...snapshot]
+				.filter((feature) => hasArea(feature.geometry))
+				.map((feature) => ({
+					type: 'Feature' as const,
+					properties: {},
+					geometry: feature.geometry as GeoJsonGeometry
+				}))
+		];
+		previewClippingOptions(
+			features.length > 0
+				? { fillRule, geojson: { type: 'FeatureCollection', features } }
+				: undefined
+		);
 	};
 
 	/** Merge drawn polygons into the current clippingOptions and notify the parent. */
@@ -229,30 +289,26 @@
 		}
 	};
 
+	/** The country clipping's features, whatever GeoJSON form it holds. */
+	const countryFeatures = (): GeoJsonFeature[] => {
+		const cg = countryClipping?.geojson;
+		if (!cg) return [];
+		if ('features' in cg) return cg.features;
+		if (cg.type === 'Feature') return [cg];
+		return [{ type: 'Feature', properties: null, geometry: cg }];
+	};
+
 	/**
 	 * Rebuild clippingOptions from both country geojson and drawn features.
 	 * Called when either source changes.
 	 */
 	export const rebuildClippingOptions = async () => {
-		// Collect country features from the stored country clipping
-		let countryFeatures: GeoJsonFeature[] = [];
-		const cg = countryClipping?.geojson;
-		if (cg) {
-			if ('features' in cg) {
-				countryFeatures = cg.features;
-			} else if (cg.type === 'Feature') {
-				countryFeatures = [cg];
-			} else {
-				countryFeatures = [{ type: 'Feature', properties: null, geometry: cg }];
-			}
-		}
-
 		const drawnGeoJsonFeatures: GeoJsonFeature[] = drawnFeatures.map((feature) => ({
 			type: 'Feature' as const,
 			properties: {},
 			geometry: feature.geometry as GeoJsonGeometry
 		}));
-		const allFeatures = [...countryFeatures, ...drawnGeoJsonFeatures];
+		const allFeatures = [...countryFeatures(), ...drawnGeoJsonFeatures];
 		if (allFeatures.length === 0) {
 			omProtocolSettings.update((s) => ({ ...s, clippingOptions: undefined }));
 		} else {
@@ -351,6 +407,10 @@
 			draw.setMode('static');
 		}
 		activeMode = '';
+		// A cancelled draw (Escape) leaves the live preview showing the partial
+		// shape; snap it back to the canonical countries + drawn features.
+		cancelLivePreview();
+		applyLivePreview();
 		if (deferDeactivation) {
 			setTimeout(() => terraDrawActive.set(false), 50);
 		} else {
@@ -370,8 +430,8 @@
 		draw.clear();
 		drawnFeatures = [];
 		saveDrawnFeatures();
-		exitDrawingMode();
 		countryClipping = undefined;
+		exitDrawingMode();
 		countrySelectorRef?.clearAll();
 		fillRule = 'nonzero';
 		if (browser) localStorage.removeItem(FILL_RULE_KEY);
@@ -428,6 +488,7 @@
 		if (browser) {
 			window.removeEventListener('keydown', handleEscapeKeydown, true);
 		}
+		cancelLivePreview();
 		if (draw) {
 			draw.stop();
 			draw = undefined;

@@ -13,6 +13,7 @@
 		savedCharts,
 		setSources
 	} from '$lib/stores/chart';
+	import { EPS_VARIABLE, epsMeta } from '$lib/stores/eps';
 	import { metaJson } from '$lib/stores/time';
 
 	import { sourcesEqual } from '$lib/chart-encoding';
@@ -45,6 +46,33 @@
 			} else {
 				groups.push({ name, presets: [{ preset, available }] });
 			}
+		}
+		// Dynamic EPS chart: the sibling domain depends on the active domain,
+		// so this cannot be a static preset entry.
+		if (
+			$epsMeta?.variables.includes(EPS_VARIABLE) &&
+			$metaJson.variables.includes('precipitation')
+		) {
+			const epsGroup = 'Precipitation';
+			const epsChart: ChartPreset = {
+				id: 'eps_precip_probability',
+				label: 'Precipitation + Probability (EPS)',
+				description: 'Ensemble probability contours over precipitation',
+				group: epsGroup,
+				sources: [
+					{ variable: 'precipitation', raster: true },
+					{
+						variable: EPS_VARIABLE,
+						contours: true,
+						contourInterval: 20,
+						domain: $epsMeta.domain
+					}
+				]
+			};
+			const group = groups.find((g) => g.name === epsGroup);
+			const entry = { preset: epsChart, available: true };
+			if (group) group.presets.push(entry);
+			else groups.push({ name: epsGroup, presets: [entry] });
 		}
 		// Unavailable presets sink to the bottom of their group
 		for (const group of groups) {

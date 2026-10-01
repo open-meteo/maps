@@ -9,6 +9,7 @@ import { browser } from '$app/environment';
 import {
 	DEFAULT_CACHE_BLOCK_SIZE_KB,
 	DEFAULT_CACHE_MAX_BYTES_MB,
+	DEFAULT_GPU_CACHE_MB,
 	HTTP_OVERHEAD_BYTES
 } from '$lib/constants';
 
@@ -29,25 +30,43 @@ export const customColorScales = persisted<Record<string, RenderableColorScale>>
 
 export const cacheBlockSizeKb = persisted('cache-block-size-kb', DEFAULT_CACHE_BLOCK_SIZE_KB);
 export const cacheMaxBytesMb = persisted('cache-max-bytes-mb', DEFAULT_CACHE_MAX_BYTES_MB);
+// VRAM budget for the GPU layers' value-texture cache: more keeps more
+// timesteps resident on the GPU, so animation loops replay without re-uploads.
+export const gpuCacheMb = persisted('gpu-cache-mb', DEFAULT_GPU_CACHE_MB);
+
+/** Usage of the shared block cache (RAM/persistent), for the settings pane. */
+export const getBlockCacheStats = ():
+	| Promise<{
+			persistentBytes: number;
+			memoryBytes: number;
+			maxBytes: number;
+	  }>
+	| undefined => blockCache?.getStats();
 
 const initialCustomColorScales = get(customColorScales);
 
-function createBlockCache() {
-	if (!browser) return undefined;
-	return new BrowserBlockCache({
+function blockCacheOptions() {
+	return {
 		blockSize: get(cacheBlockSizeKb) * 1024 - HTTP_OVERHEAD_BYTES,
 		cacheName: 'open-meteo-maps-cache-v1',
 		memCacheTtlMs: 1000,
 		maxBytes: get(cacheMaxBytesMb) * 1024 * 1024
-	});
+	};
 }
+
+function createBlockCache() {
+	if (!browser) return undefined;
+	return new BrowserBlockCache(blockCacheOptions());
+}
+
+const blockCache = createBlockCache();
 
 export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
 	...defaultOmProtocolSettings,
 	// static
 	fileReaderConfig: {
 		useSAB: true,
-		cache: createBlockCache()
+		cache: blockCache
 	},
 
 	// dynamic (can be changed during runtime)
