@@ -1,6 +1,6 @@
 import { type Writable, get, writable } from 'svelte/store';
 
-import { renderPopup } from '$lib/popup';
+import { renderPopup } from '#lib/popup.js';
 
 import type * as maplibregl from 'maplibre-gl';
 

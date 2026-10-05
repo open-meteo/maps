@@ -3,18 +3,18 @@ import { get } from 'svelte/store';
 import * as maplibregl from 'maplibre-gl';
 import { setMode, userPrefersMode } from 'mode-watcher';
 
-import { clippingPanelOpen } from '$lib/stores/clipping';
-import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
+import { clippingPanelOpen } from '#lib/stores/clipping.js';
+import { omProtocolSettings } from '#lib/stores/om-protocol-settings.js';
 import {
 	defaultPreferences,
 	helpOpen as hO,
 	preferences as p,
 	sheet
-} from '$lib/stores/preferences';
+} from '#lib/stores/preferences.js';
 
-import { reanchorRasterLayers } from '$lib/layers';
-import { addHillshadeLayer, terrainHandler } from '$lib/map-controls';
-import { updateUrl } from '$lib/url';
+import { reanchorRasterLayers } from '#lib/layers.js';
+import { addHillshadeLayer, terrainHandler } from '#lib/map-controls.js';
+import { updateUrl } from '#lib/url.js';
 
 const preferences = get(p);
 

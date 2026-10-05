@@ -6,10 +6,10 @@ import { get } from 'svelte/store';
 import { domainOptions } from '@openmeteo/weather-map-layer';
 import { setMode } from 'mode-watcher';
 
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 
-import { map as m } from '$lib/stores/map';
-import { domain } from '$lib/stores/variables';
+import { map as m } from '#lib/stores/map.js';
+import { domain } from '#lib/stores/variables.js';
 
 import { version } from '../../package.json';
 

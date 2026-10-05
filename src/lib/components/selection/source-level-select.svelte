@@ -3,8 +3,8 @@
 	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down';
 	import { LEVEL_PREFIX, LEVEL_REGEX, LEVEL_UNIT_REGEX } from '@openmeteo/weather-map-layer';
 
-	import * as Command from '$lib/components/ui/command';
-	import * as Popover from '$lib/components/ui/popover';
+	import * as Command from '#lib/components/ui/command/index.js';
+	import * as Popover from '#lib/components/ui/popover/index.js';
 
 	import {
 		isStandaloneVariable,
