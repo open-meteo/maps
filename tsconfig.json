@@ -3,7 +3,8 @@
 	"compilerOptions": {
 		"sourceMap": true,
 		"strict": true,
-		"lib": ["ESNext", "DOM"]
+		"lib": ["ESNext", "DOM"],
+		"types": ["vite-plugin-pwa/info", "vite-plugin-pwa/client"]
 	},
 	"include": ["src", "vite.config.ts"]
 }
