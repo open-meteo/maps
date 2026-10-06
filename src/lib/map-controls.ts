@@ -29,15 +29,18 @@ export const createMap = async (container: HTMLElement) => {
 	// bundled app cannot serve (404, blank map). Use the worker bundled by Vite.
 	maplibregl.setWorkerUrl(maplibreWorkerUrl);
 
-	maplibregl.addProtocol(
-		'om',
-		async (params: RequestParameters, abortController: AbortController) => {
-			const start = performance.now();
-			const response = await omProtocol(params, abortController, get(omProtocolSettings));
-			recordRequest(params.url, params.type, performance.now() - start, response.data === null);
-			return response;
-		}
-	);
+	// The pinned layer build still answers an empty tile with `data: null`, which
+	// MapLibre 6.11 dropped from AddProtocolResponseData; the layer's 0.2.2 release
+	// returns an empty tile instead, so the cast goes with the next pin bump.
+	maplibregl.addProtocol('om', (async (
+		params: RequestParameters,
+		abortController: AbortController
+	) => {
+		const start = performance.now();
+		const response = await omProtocol(params, abortController, get(omProtocolSettings));
+		recordRequest(params.url, params.type, performance.now() - start, response.data === null);
+		return response;
+	}) as maplibregl.AddProtocolAction);
 
 	const style = await getStyle();
 
