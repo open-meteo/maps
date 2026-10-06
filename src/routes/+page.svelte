@@ -6,12 +6,12 @@
 	import { mode, userPrefersMode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
-	import { activeChart } from '$lib/stores/chart';
-	import { map } from '$lib/stores/map';
-	import { initStoredState, loading, url } from '$lib/stores/preferences';
-	import { installRequestCounter } from '$lib/stores/request-counter';
-	import { modelRun } from '$lib/stores/time';
-	import { domain, selectedDomain } from '$lib/stores/variables';
+	import { activeChart } from '#lib/stores/chart.js';
+	import { map } from '#lib/stores/map.js';
+	import { initStoredState, loading, url } from '#lib/stores/preferences.js';
+	import { installRequestCounter } from '#lib/stores/request-counter.js';
+	import { modelRun } from '#lib/stores/time.js';
+	import { domain, selectedDomain } from '#lib/stores/variables.js';
 
 	import {
 		ClippingButton,
@@ -19,35 +19,35 @@
 		HelpButton,
 		HillshadeButton,
 		SettingsButton
-	} from '$lib/components/buttons';
-	import ClippingPanel from '$lib/components/clipping/clipping-panel.svelte';
-	import Dropzone from '$lib/components/dropzone/dropzone.svelte';
-	import GithubCorner from '$lib/components/github/github-corner.svelte';
-	import HelpDialog from '$lib/components/help/help-dialog.svelte';
-	import KeyboardHandler from '$lib/components/keyboard/keyboard-handler.svelte';
-	import Spinner from '$lib/components/loading/spinner.svelte';
-	import Scale from '$lib/components/scale/scale.svelte';
-	import SelectionPanel from '$lib/components/selection/selection-panel.svelte';
-	import Settings from '$lib/components/settings/settings.svelte';
-	import TimeSelector from '$lib/components/time/time-selector.svelte';
+	} from '#lib/components/buttons/index.js';
+	import ClippingPanel from '#lib/components/clipping/clipping-panel.svelte';
+	import Dropzone from '#lib/components/dropzone/dropzone.svelte';
+	import GithubCorner from '#lib/components/github/github-corner.svelte';
+	import HelpDialog from '#lib/components/help/help-dialog.svelte';
+	import KeyboardHandler from '#lib/components/keyboard/keyboard-handler.svelte';
+	import Spinner from '#lib/components/loading/spinner.svelte';
+	import Scale from '#lib/components/scale/scale.svelte';
+	import SelectionPanel from '#lib/components/selection/selection-panel.svelte';
+	import Settings from '#lib/components/settings/settings.svelte';
+	import TimeSelector from '#lib/components/time/time-selector.svelte';
 
-	import { unwatchAttributionOverlap, watchAttributionOverlap } from '$lib/attribution';
-	import { getChartPreset } from '$lib/chart-presets';
-	import { postEmbedderReady, startEmbedderBridge, stopEmbedderBridge } from '$lib/embed';
-	import { addOmFileLayers, changeOMfileURL } from '$lib/layers';
+	import { unwatchAttributionOverlap, watchAttributionOverlap } from '#lib/attribution.js';
+	import { getChartPreset } from '#lib/chart-presets.js';
+	import { postEmbedderReady, startEmbedderBridge, stopEmbedderBridge } from '#lib/embed.js';
+	import { addOmFileLayers, changeOMfileURL } from '#lib/layers.js';
 	import {
 		addTerrainSource,
 		createMap,
 		getAppliedStyleMode,
 		reloadStyles
-	} from '$lib/map-controls';
-	import { loadDomainMetaData } from '$lib/metadata';
-	import { addPopup } from '$lib/popup';
-	import { syncChartToUrl, updateUrl, urlParamsToPreferences } from '$lib/url';
+	} from '#lib/map-controls.js';
+	import { loadDomainMetaData } from '#lib/metadata.js';
+	import { addPopup } from '#lib/popup.js';
+	import { syncChartToUrl, updateUrl, urlParamsToPreferences } from '#lib/url.js';
 
 	import '../styles.css';
 
-	import type { ChartState } from '$lib/chart-types';
+	import type { ChartState } from '#lib/chart-types.js';
 
 	let clippingPanel: ReturnType<typeof ClippingPanel>;
 

@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { isGpuSupported } from '@openmeteo/weather-map-layer';
 
-	import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
-	import { DEFAULT_RENDERER, type Renderer, renderer } from '$lib/stores/preferences';
+	import { omProtocolSettings } from '#lib/stores/om-protocol-settings.js';
+	import { DEFAULT_RENDERER, type Renderer, renderer } from '#lib/stores/preferences.js';
 
-	import Button from '$lib/components/ui/button/button.svelte';
+	import Button from '#lib/components/ui/button/button.svelte';
 
-	import { changeOMfileURL } from '$lib/layers';
-	import { updateUrl } from '$lib/url';
+	import { changeOMfileURL } from '#lib/layers.js';
+	import { updateUrl } from '#lib/url.js';
 
 	import SettingsSection from './settings-section.svelte';
 

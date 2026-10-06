@@ -14,14 +14,14 @@
 		utcDay,
 		utcHour,
 		utcMinute
-	} from '$lib/stores/request-counter';
+	} from '#lib/stores/request-counter.js';
 
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import * as Select from '$lib/components/ui/select';
-	import { Switch } from '$lib/components/ui/switch';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import { Label } from '#lib/components/ui/label/index.js';
+	import * as Select from '#lib/components/ui/select/index.js';
+	import { Switch } from '#lib/components/ui/switch/index.js';
 
-	import { BASE_URI, DATA_SPATIAL_BASE_URI, S3_BASE_URI } from '$lib/helpers';
+	import { BASE_URI, DATA_SPATIAL_BASE_URI, S3_BASE_URI } from '#lib/helpers.js';
 
 	import SettingsSection from './settings-section.svelte';
 

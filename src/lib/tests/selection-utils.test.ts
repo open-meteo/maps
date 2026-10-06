@@ -5,9 +5,9 @@ import {
 	firstPopularTarget,
 	pickDefaultLevel,
 	resolvePopularTarget
-} from '$lib/components/selection/selection-utils';
+} from '#lib/components/selection/selection-utils.js';
 
-import { popularVariables } from '$lib/chart-presets';
+import { popularVariables } from '#lib/chart-presets.js';
 
 // Real variable lists served by the domains' meta.json
 const ecmwfWamVariables = ['wave_direction', 'wave_height', 'wave_peak_period', 'wave_period'];

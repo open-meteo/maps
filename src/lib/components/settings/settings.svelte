@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { sheet } from '$lib/stores/preferences';
+	import { sheet } from '#lib/stores/preferences.js';
 
-	import * as Sheet from '$lib/components/ui/sheet';
+	import * as Sheet from '#lib/components/ui/sheet/index.js';
 
 	import ArrowsSettings from './arrows-settings.svelte';
 	import CacheSettings from './cache-settings.svelte';

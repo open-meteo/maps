@@ -4,12 +4,12 @@
 	import { getColorScale } from '@openmeteo/weather-map-layer';
 	import { mode } from 'mode-watcher';
 
-	import { chartSources } from '$lib/stores/chart';
-	import { customColorScales } from '$lib/stores/om-protocol-settings';
-	import { preferences } from '$lib/stores/preferences';
-	import { variable } from '$lib/stores/variables';
+	import { chartSources } from '#lib/stores/chart.js';
+	import { customColorScales } from '#lib/stores/om-protocol-settings.js';
+	import { preferences } from '#lib/stores/preferences.js';
+	import { variable } from '#lib/stores/variables.js';
 
-	import { variableLabel } from '$lib/components/selection/selection-utils';
+	import { variableLabel } from '#lib/components/selection/selection-utils.js';
 
 	import ScaleLegend from './scale-legend.svelte';
 
