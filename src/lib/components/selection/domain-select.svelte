@@ -3,11 +3,11 @@
 	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down';
 	import { domainGroups, domainOptions } from '@openmeteo/weather-map-layer';
 
-	import { leaveLocalOmFile, localOmFile } from '$lib/stores/local-file';
-	import { domainSelectionOpen as dSO, domain, selectedDomain } from '$lib/stores/variables';
+	import { leaveLocalOmFile, localOmFile } from '#lib/stores/local-file.js';
+	import { domainSelectionOpen as dSO, domain, selectedDomain } from '#lib/stores/variables.js';
 
-	import * as Command from '$lib/components/ui/command';
-	import * as Popover from '$lib/components/ui/popover';
+	import * as Command from '#lib/components/ui/command/index.js';
+	import * as Popover from '#lib/components/ui/popover/index.js';
 
 	import { rankedFilter, scrollSelectedToTop } from './selection-utils';
 

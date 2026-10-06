@@ -7,22 +7,22 @@
 	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
-	import { customColorScales, omProtocolSettings } from '$lib/stores/om-protocol-settings';
-	import { opacity } from '$lib/stores/preferences';
+	import { customColorScales, omProtocolSettings } from '#lib/stores/om-protocol-settings.js';
+	import { opacity } from '#lib/stores/preferences.js';
 	import {
 		convertValue,
 		getDisplayUnit,
 		getUnitOptions,
 		setUnitForCategory,
 		unitPreferences
-	} from '$lib/stores/units';
+	} from '#lib/stores/units.js';
 
-	import * as Select from '$lib/components/ui/select';
+	import * as Select from '#lib/components/ui/select/index.js';
 
-	import { getAlpha, hexToRgba, rgbaToHex } from '$lib/color';
-	import { textWhite } from '$lib/helpers';
-	import { changeOMfileURL } from '$lib/layers';
-	import { refreshPopup } from '$lib/popup';
+	import { getAlpha, hexToRgba, rgbaToHex } from '#lib/color.js';
+	import { textWhite } from '#lib/helpers.js';
+	import { changeOMfileURL } from '#lib/layers.js';
+	import { refreshPopup } from '#lib/popup.js';
 
 	import ColorPicker from './color-picker.svelte';
 

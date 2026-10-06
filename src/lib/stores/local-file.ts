@@ -7,10 +7,10 @@ import {
 } from '@openmeteo/weather-map-layer';
 import { toast } from 'svelte-sonner';
 
-import { changeOMfileURL } from '$lib/layers';
-import { loadDomainMetaData, matchChartOrFallback } from '$lib/metadata';
-import { formatISOWithoutTimezone, parseISOWithoutTimezone } from '$lib/time-format';
-import { updateUrl } from '$lib/url';
+import { changeOMfileURL } from '#lib/layers.js';
+import { loadDomainMetaData, matchChartOrFallback } from '#lib/metadata.js';
+import { formatISOWithoutTimezone, parseISOWithoutTimezone } from '#lib/time-format.js';
+import { updateUrl } from '#lib/url.js';
 
 import { metaJson, modelRun, modelRunLocked, time } from './time';
 import { domain } from './variables';

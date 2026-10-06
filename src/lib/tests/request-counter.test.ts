@@ -8,11 +8,11 @@ import {
 	installRequestCounter,
 	s3Fallback,
 	setEndpointMode
-} from '$lib/stores/request-counter';
+} from '#lib/stores/request-counter.js';
 
-import { BASE_URI, S3_BASE_URI } from '$lib/helpers';
+import { BASE_URI, S3_BASE_URI } from '#lib/helpers.js';
 
-vi.mock('$app/environment', () => ({ browser: true }));
+vi.mock('$app/env', () => ({ browser: true }));
 vi.mock('svelte-sonner', () => ({ toast: Object.assign(vi.fn(), { info: vi.fn() }) }));
 
 // The wrapper installs itself on `window.fetch`; the spy stands in for the original.

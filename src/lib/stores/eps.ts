@@ -6,7 +6,7 @@
  */
 import { get, writable } from 'svelte/store';
 
-import { BASE_URI } from '$lib/helpers';
+import { BASE_URI } from '#lib/helpers.js';
 
 import { domain } from './variables';
 

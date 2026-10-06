@@ -7,9 +7,9 @@ import {
 	variableOptions
 } from '@openmeteo/weather-map-layer';
 
-import { metaJson } from '$lib/stores/time';
+import { metaJson } from '#lib/stores/time.js';
 
-import { type PopularVariable, getChartPreset, popularVariables } from '$lib/chart-presets';
+import { type PopularVariable, getChartPreset, popularVariables } from '#lib/chart-presets.js';
 
 export interface VariableEntry {
 	value: string;
