@@ -3,7 +3,7 @@
 
 	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
 
-	import { collapsedSettings } from '$lib/stores/preferences';
+	import { collapsedSettings } from '#lib/stores/preferences.js';
 
 	import type { Snippet } from 'svelte';
 

@@ -10,14 +10,14 @@ import * as maplibregl from 'maplibre-gl';
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import { mode } from 'mode-watcher';
 
-import { map as m } from '$lib/stores/map';
-import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
-import { defaultPreferences, preferences as p } from '$lib/stores/preferences';
-import { domain as d } from '$lib/stores/variables';
+import { map as m } from '#lib/stores/map.js';
+import { omProtocolSettings } from '#lib/stores/om-protocol-settings.js';
+import { defaultPreferences, preferences as p } from '#lib/stores/preferences.js';
+import { domain as d } from '#lib/stores/variables.js';
 
-import { recordGeometry, recordRequest } from '$lib/bench';
-import { BEFORE_LAYER_RASTER, HILLSHADE_LAYER } from '$lib/constants';
-import { domainOptions } from '$lib/domains';
+import { recordGeometry, recordRequest } from '#lib/bench.js';
+import { BEFORE_LAYER_RASTER, HILLSHADE_LAYER } from '#lib/constants.js';
+import { domainOptions } from '#lib/domains.js';
 
 import { addOmFileLayers } from './layers';
 import { updateUrl } from './url';

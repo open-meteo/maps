@@ -8,10 +8,10 @@ import {
 } from '@openmeteo/weather-map-layer';
 import { type Persisted, persisted } from 'svelte-persisted-store';
 
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 
-import { DEFAULT_DOMAIN, DEFAULT_VARIABLE } from '$lib/constants';
-import { domainOptions } from '$lib/domains';
+import { DEFAULT_DOMAIN, DEFAULT_VARIABLE } from '#lib/constants.js';
+import { domainOptions } from '#lib/domains.js';
 
 export const defaultDomain = DEFAULT_DOMAIN;
 export const domain = persisted('domain', defaultDomain);
@@ -47,6 +47,7 @@ export const levelGroupSelected: Writable<{ value: string; label: string } | und
 			) ?? undefined)
 		: undefined
 );
+
 selectedVariable.subscribe((newVariable) => {
 	levelGroupSelected.set(
 		newVariable.value.match(LEVEL_REGEX)

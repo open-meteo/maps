@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { GridFactory } from '@openmeteo/weather-map-layer';
 
-	import { selectedDomain } from '$lib/stores/variables';
+	import { selectedDomain } from '#lib/stores/variables.js';
 
-	import { gridBench, median, showGridBench } from '$lib/bench';
+	import { gridBench, median, showGridBench } from '#lib/bench.js';
 
 	const stats = $derived($gridBench[$selectedDomain.value]);
 	const grid = $derived($selectedDomain.grid);

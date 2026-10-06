@@ -1,10 +1,10 @@
 <script lang="ts">
-	import Button from '$lib/components/ui/button/button.svelte';
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
+	import Button from '#lib/components/ui/button/button.svelte';
+	import { Label } from '#lib/components/ui/label/index.js';
+	import { Switch } from '#lib/components/ui/switch/index.js';
 
-	import { showGridBench } from '$lib/bench';
-	import { type NativeGridSource, nativeGridSource } from '$lib/domains';
+	import { showGridBench } from '#lib/bench.js';
+	import { type NativeGridSource, nativeGridSource } from '#lib/domains.js';
 
 	import SettingsSection from './settings-section.svelte';
 

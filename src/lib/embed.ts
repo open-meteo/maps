@@ -5,12 +5,12 @@ import { get } from 'svelte/store';
 
 import { setMode } from 'mode-watcher';
 
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 
-import { map as m } from '$lib/stores/map';
-import { domain } from '$lib/stores/variables';
+import { map as m } from '#lib/stores/map.js';
+import { domain } from '#lib/stores/variables.js';
 
-import { domainOptions } from '$lib/domains';
+import { domainOptions } from '#lib/domains.js';
 
 import { version } from '../../package.json';
 

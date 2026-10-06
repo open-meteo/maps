@@ -20,13 +20,13 @@ import {
 	chartSources,
 	pickPrimarySource,
 	sourceDrawsSomething
-} from '$lib/stores/chart';
-import { map as m, popup as p, popupMode } from '$lib/stores/map';
-import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
-import { convertValue, getDisplayUnit, unitPreferences } from '$lib/stores/units';
-import { selectedDomain } from '$lib/stores/variables';
+} from '#lib/stores/chart.js';
+import { map as m, popup as p, popupMode } from '#lib/stores/map.js';
+import { omProtocolSettings } from '#lib/stores/om-protocol-settings.js';
+import { convertValue, getDisplayUnit, unitPreferences } from '#lib/stores/units.js';
+import { selectedDomain } from '#lib/stores/variables.js';
 
-import { timedValueFromLatLong } from '$lib/bench';
+import { timedValueFromLatLong } from '#lib/bench.js';
 
 import { defaultArrowStyle } from './chart-styles';
 import { textWhite } from './helpers';

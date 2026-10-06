@@ -1,6 +1,6 @@
 import { simplify, union } from '@turf/turf';
 
-import type { Country } from '$lib/components/clipping/country-data';
+import type { Country } from '#lib/components/clipping/country-data.js';
 import type {
 	ClippingOptions,
 	GeoJson,

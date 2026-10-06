@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { opacity } from '$lib/stores/preferences';
+	import { opacity } from '#lib/stores/preferences.js';
 
-	import { Label } from '$lib/components/ui/label';
+	import { Label } from '#lib/components/ui/label/index.js';
 
 	// Opacity is part of the raster frame identity, so a re-render swaps in a
 	// frame with the new opacity — no full basemap style reload needed.
-	import { changeOMfileURL } from '$lib/layers';
+	import { changeOMfileURL } from '#lib/layers.js';
 
 	import SettingsSection from './settings-section.svelte';
 </script>

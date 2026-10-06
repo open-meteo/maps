@@ -6,11 +6,11 @@
 	import { levelGroupVariables } from '@openmeteo/weather-map-layer';
 	import { persisted } from 'svelte-persisted-store';
 
-	import { activeChart, isSingleVariableChart, setPlainVariable } from '$lib/stores/chart';
-	import { metaJson } from '$lib/stores/time';
-	import { domain, levelGroupSelected, variable } from '$lib/stores/variables';
+	import { activeChart, isSingleVariableChart, setPlainVariable } from '#lib/stores/chart.js';
+	import { metaJson } from '#lib/stores/time.js';
+	import { domain, levelGroupSelected, variable } from '#lib/stores/variables.js';
 
-	import { popularVariables } from '$lib/chart-presets';
+	import { popularVariables } from '#lib/chart-presets.js';
 
 	import LevelSelect from './level-select.svelte';
 	import {

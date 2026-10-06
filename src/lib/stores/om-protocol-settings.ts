@@ -4,15 +4,15 @@ import { BrowserBlockCache } from '@openmeteo/file-reader';
 import { defaultOmProtocolSettings } from '@openmeteo/weather-map-layer';
 import { persisted } from 'svelte-persisted-store';
 
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 
-import { recordRender } from '$lib/bench';
+import { recordRender } from '#lib/bench.js';
 import {
 	DEFAULT_CACHE_BLOCK_SIZE_KB,
 	DEFAULT_CACHE_MAX_BYTES_MB,
 	HTTP_OVERHEAD_BYTES
-} from '$lib/constants';
-import { domainOptions } from '$lib/domains';
+} from '#lib/constants.js';
+import { domainOptions } from '#lib/domains.js';
 
 import { chartSources } from './chart';
 
@@ -48,13 +48,12 @@ export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
 	...defaultOmProtocolSettings,
 	// static
 	domainOptions,
-	fileReaderConfig: {
-		useSAB: true,
-		cache: createBlockCache()
-	},
-
+	fileReaderConfig: { useSAB: true, cache: createBlockCache() },
 	// dynamic (can be changed during runtime)
-	colorScales: { ...defaultOmProtocolSettings.colorScales, ...initialCustomColorScales },
+	colorScales: {
+		...defaultOmProtocolSettings.colorScales,
+		...initialCustomColorScales
+	},
 
 	onTileRendered: recordRender,
 
