@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { matchPreset, parseSources, serializeSources, sourcesEqual } from '$lib/chart-encoding';
-import { chartPresets } from '$lib/chart-presets';
+import { matchPreset, parseSources, serializeSources, sourcesEqual } from '#lib/chart-encoding.js';
+import { chartPresets } from '#lib/chart-presets.js';
 
-import type { ChartSource } from '$lib/chart-types';
+import type { ChartSource } from '#lib/chart-types.js';
 
 describe('serializeSources / parseSources', () => {
 	it('round-trips a multi-source chart', () => {

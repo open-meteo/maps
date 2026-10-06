@@ -12,13 +12,13 @@
 		deleteSavedChart,
 		savedCharts,
 		setSources
-	} from '$lib/stores/chart';
-	import { metaJson } from '$lib/stores/time';
+	} from '#lib/stores/chart.js';
+	import { metaJson } from '#lib/stores/time.js';
 
-	import { sourcesEqual } from '$lib/chart-encoding';
-	import { chartPresets } from '$lib/chart-presets';
+	import { sourcesEqual } from '#lib/chart-encoding.js';
+	import { chartPresets } from '#lib/chart-presets.js';
 
-	import type { ChartPreset, ChartSource, SavedChart } from '$lib/chart-types';
+	import type { ChartPreset, ChartSource, SavedChart } from '#lib/chart-types.js';
 
 	// Which chart groups are expanded, persisted across sessions
 	const openGroups = persisted<Record<string, boolean>>('chart-groups-open', {});

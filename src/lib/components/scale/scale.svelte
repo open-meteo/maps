@@ -4,20 +4,14 @@
 	import { getColorScale } from '@openmeteo/weather-map-layer';
 	import { mode } from 'mode-watcher';
 
-	import { chartSources } from '$lib/stores/chart';
-	import { customColorScales } from '$lib/stores/om-protocol-settings';
-	import { preferences } from '$lib/stores/preferences';
-	import { variable } from '$lib/stores/variables';
+	import { chartSources } from '#lib/stores/chart.js';
+	import { customColorScales } from '#lib/stores/om-protocol-settings.js';
+	import { preferences } from '#lib/stores/preferences.js';
+	import { variable } from '#lib/stores/variables.js';
 
-	import { variableLabel } from '$lib/components/selection/selection-utils';
+	import { variableLabel } from '#lib/components/selection/selection-utils.js';
 
 	import ScaleLegend from './scale-legend.svelte';
-
-	interface Props {
-		editable?: boolean;
-	}
-
-	let { editable = true }: Props = $props();
 
 	const desktop = new MediaQuery('min-width: 768px');
 
@@ -52,12 +46,11 @@
 	<div
 		class="absolute z-60 {!desktop.current
 			? 'bottom-22.5'
-			: 'bottom-2.5'} duration-500 left-2.5 z-10 flex items-end gap-0.5"
+			: 'bottom-2.5'} left-2.5 flex items-end gap-0.5"
 	>
 		{#each legends as variables (variables[0])}
 			<ScaleLegend
 				{variables}
-				{editable}
 				{compact}
 				labels={showLabels ? variables.map(variableLabel) : undefined}
 			/>

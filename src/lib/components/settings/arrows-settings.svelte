@@ -7,17 +7,17 @@
 	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
-	import { activeChart, setArrowsOnActiveChart } from '$lib/stores/chart';
-	import { convertValue, getDisplayUnit, unitPreferences } from '$lib/stores/units';
-	import { vectorOptions } from '$lib/stores/vector';
+	import { activeChart, setArrowsOnActiveChart } from '#lib/stores/chart.js';
+	import { convertValue, getDisplayUnit, unitPreferences } from '#lib/stores/units.js';
+	import { vectorOptions } from '#lib/stores/vector.js';
 
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
+	import { Label } from '#lib/components/ui/label/index.js';
+	import { Switch } from '#lib/components/ui/switch/index.js';
 
-	import { shapeColor, shapeStrokeUnits } from '$lib/arrow-legend';
-	import { MS_TO_KNOTS, SHAPE_UNITS, arrowShape, barbShape, shapePath } from '$lib/arrow-shapes';
-	import { changeOMfileURL } from '$lib/layers';
-	import { updateUrl } from '$lib/url';
+	import { shapeColor, shapeStrokeUnits } from '#lib/arrow-legend.js';
+	import { MS_TO_KNOTS, SHAPE_UNITS, arrowShape, barbShape, shapePath } from '#lib/arrow-shapes.js';
+	import { changeOMfileURL } from '#lib/layers.js';
+	import { updateUrl } from '#lib/url.js';
 
 	import SettingsSection from './settings-section.svelte';
 	import WindRose from './wind-rose.svelte';

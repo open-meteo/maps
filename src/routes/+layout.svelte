@@ -6,12 +6,12 @@
 
 	import { updated } from '$app/state';
 
-	import { now } from '$lib/stores/time';
+	import { now } from '#lib/stores/time.js';
 
-	import { Toaster } from '$lib/components/ui/sonner';
+	import { Toaster } from '#lib/components/ui/sonner/index.js';
 
-	import { METADATA_REFRESH_INTERVAL, MILLISECONDS_PER_MINUTE } from '$lib/constants';
-	import { getInitialMetaData } from '$lib/metadata';
+	import { METADATA_REFRESH_INTERVAL, MILLISECONDS_PER_MINUTE } from '#lib/constants.js';
+	import { getInitialMetaData } from '#lib/metadata.js';
 
 	let { children } = $props();
 

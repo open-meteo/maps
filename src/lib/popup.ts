@@ -8,6 +8,7 @@ import {
 	getCachedResolvedClipping,
 	getColor,
 	getColorScale,
+	getConcreteDomainValue,
 	getValueFromLatLong,
 	variableOptions
 } from '@openmeteo/weather-map-layer';
@@ -19,11 +20,11 @@ import {
 	chartSources,
 	pickPrimarySource,
 	sourceDrawsSomething
-} from '$lib/stores/chart';
-import { map as m, popup as p, popupMode } from '$lib/stores/map';
-import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
-import { convertValue, getDisplayUnit, unitPreferences } from '$lib/stores/units';
-import { selectedDomain } from '$lib/stores/variables';
+} from '#lib/stores/chart.js';
+import { map as m, popup as p, popupMode } from '#lib/stores/map.js';
+import { omProtocolSettings } from '#lib/stores/om-protocol-settings.js';
+import { convertValue, getDisplayUnit, unitPreferences } from '#lib/stores/units.js';
+import { selectedDomain } from '#lib/stores/variables.js';
 
 import { defaultArrowStyle } from './chart-styles';
 import { textWhite } from './helpers';
@@ -437,13 +438,17 @@ const updateExtraSources = async (
 	const omProtocolSettingsState = get(omProtocolSettings);
 	const units = get(unitPreferences);
 
+	// A composite is sampled from the sub-domains active at the map zoom, so
+	// the value matches the pixel under the cursor.
+	const zoom = get(m)?.getZoom();
 	const lines = await Promise.all(
 		extras.map(async (source) => {
 			try {
 				const { value } = await getValueFromLatLong(
 					coordinates.lat,
 					coordinates.lng,
-					activeUrls.get(source.variable) as string
+					activeUrls.get(source.variable) as string,
+					zoom
 				);
 				const colorScale = getColorScale(
 					source.variable,
@@ -516,9 +521,10 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 		return;
 	}
 
-	// Primary value and extra lines resolve concurrently
+	// Primary value and extra lines resolve concurrently. A composite is
+	// sampled from the sub-domains active at the map zoom, like its tiles.
 	const [{ value, direction }] = await Promise.all([
-		getValueFromLatLong(coordinates.lat, coordinates.lng, activeUrl),
+		getValueFromLatLong(coordinates.lat, coordinates.lng, activeUrl, map?.getZoom()),
 		updateExtraSources(coordinates, primary.variable, seq)
 	]);
 	if (seq !== popupUpdateSeq) return;
@@ -564,14 +570,21 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 		contentDiv.style.color = '';
 		setArrow(undefined, 0);
 
-		await GridFactory.preload(get(selectedDomain).grid);
-		const domainBounds = GridFactory.create(get(selectedDomain).grid).getBounds();
-		const [minLon, minLat, maxLon, maxLat] = domainBounds;
-		const insideDomain =
-			coordinates.lat >= minLat &&
-			coordinates.lat <= maxLat &&
-			coordinates.lng >= minLon &&
-			coordinates.lng <= maxLon;
+		// A composite's extent is its base domain's.
+		const concreteDomainValue = getConcreteDomainValue(get(selectedDomain));
+		const concreteDomain = get(omProtocolSettings).domainOptions.find(
+			({ value }) => value === concreteDomainValue
+		);
+		let insideDomain = false;
+		if (concreteDomain) {
+			await GridFactory.preload(concreteDomain.grid);
+			const [minLon, minLat, maxLon, maxLat] = GridFactory.create(concreteDomain.grid).getBounds();
+			insideDomain =
+				coordinates.lat >= minLat &&
+				coordinates.lat <= maxLat &&
+				coordinates.lng >= minLon &&
+				coordinates.lng <= maxLon;
+		}
 
 		valueSpan.innerText = insideDomain ? 'No data' : 'Outside domain';
 		unitSpan.innerText = '';

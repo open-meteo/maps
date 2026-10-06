@@ -1,9 +1,9 @@
 import { get } from 'svelte/store';
 
 import {
-	type Domain,
 	GridFactory,
 	domainOptions,
+	getConcreteDomainValue,
 	omProtocol,
 	updateCurrentBounds
 } from '@openmeteo/weather-map-layer';
@@ -11,12 +11,12 @@ import * as maplibregl from 'maplibre-gl';
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import { mode } from 'mode-watcher';
 
-import { map as m } from '$lib/stores/map';
-import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
-import { defaultPreferences, preferences as p } from '$lib/stores/preferences';
-import { domain as d } from '$lib/stores/variables';
+import { map as m } from '#lib/stores/map.js';
+import { omProtocolSettings } from '#lib/stores/om-protocol-settings.js';
+import { defaultPreferences, preferences as p } from '#lib/stores/preferences.js';
+import { domain as d } from '#lib/stores/variables.js';
 
-import { BEFORE_LAYER_RASTER, HILLSHADE_LAYER } from '$lib/constants';
+import { BEFORE_LAYER_RASTER, HILLSHADE_LAYER } from '#lib/constants.js';
 
 import { addOmFileLayers } from './layers';
 import { updateUrl } from './url';
@@ -34,19 +34,25 @@ export const createMap = async (container: HTMLElement) => {
 
 	const style = await getStyle();
 
-	const domainObject = domainOptions.find(({ value }: Domain) => value === get(d));
+	const domainObject = domainOptions.find(({ value }) => value === get(d));
 	if (!domainObject) {
 		throw new Error('Domain not found');
 	}
+	// A seamless composite is positioned by its base domain's grid
+	const gridDomainValue = getConcreteDomainValue(domainObject);
+	const gridDomain = domainOptions.find(({ value }) => value === gridDomainValue);
+	if (!gridDomain) {
+		throw new Error('Base domain not found');
+	}
 	// the native ICON grid fetches its warp table before it can be built
-	await GridFactory.preload(domainObject.grid);
-	const grid = GridFactory.create(domainObject.grid);
+	await GridFactory.preload(gridDomain.grid);
+	const grid = GridFactory.create(gridDomain.grid);
 
 	const map = new maplibregl.Map({
 		container,
 		style,
 		center: grid.getCenter(),
-		zoom: domainObject.grid.zoom,
+		zoom: gridDomain.grid.zoom,
 		keyboard: false,
 		hash: true,
 		maxPitch: 85
