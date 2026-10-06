@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { levelGroupVariables } from '@openmeteo/weather-map-layer';
 
-	import { activeChart } from '$lib/stores/chart';
-	import { metaJson } from '$lib/stores/time';
-	import { variableSelectionOpen as vSO } from '$lib/stores/variables';
+	import { activeChart } from '#lib/stores/chart.js';
+	import { metaJson } from '#lib/stores/time.js';
+	import { variableSelectionOpen as vSO } from '#lib/stores/variables.js';
 
-	import * as Command from '$lib/components/ui/command';
-	import * as Dialog from '$lib/components/ui/dialog';
+	import * as Command from '#lib/components/ui/command/index.js';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
 
 	import {
 		buildVariableList,

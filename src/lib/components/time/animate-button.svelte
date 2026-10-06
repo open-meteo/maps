@@ -3,17 +3,17 @@
 
 	import { toast } from 'svelte-sonner';
 
-	import { loading } from '$lib/stores/preferences';
-	import { animating, metaJson, modelRun, time } from '$lib/stores/time';
-	import { domain as domainStore, variable as variableStore } from '$lib/stores/variables';
+	import { loading } from '#lib/stores/preferences.js';
+	import { animating, metaJson, modelRun, time } from '#lib/stores/time.js';
+	import { domain as domainStore, variable as variableStore } from '#lib/stores/variables.js';
 
-	import * as Select from '$lib/components/ui/select';
+	import * as Select from '#lib/components/ui/select/index.js';
 
-	import { MILLISECONDS_PER_DAY } from '$lib/constants';
-	import { changeOMfileURL, setRasterFadeMs } from '$lib/layers';
-	import { prefetchData } from '$lib/prefetch';
-	import { formatISOWithoutTimezone } from '$lib/time-format';
-	import { updateUrl } from '$lib/url';
+	import { MILLISECONDS_PER_DAY } from '#lib/constants.js';
+	import { changeOMfileURL, setRasterFadeMs } from '#lib/layers.js';
+	import { prefetchData } from '#lib/prefetch.js';
+	import { formatISOWithoutTimezone } from '#lib/time-format.js';
+	import { updateUrl } from '#lib/url.js';
 
 	type AnimateRange = '1d' | '2d' | '5d';
 

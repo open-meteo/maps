@@ -18,11 +18,11 @@
  */
 import { WeatherGpuLayer, getStateValues, updateCurrentBounds } from '@openmeteo/weather-map-layer';
 
-import { CROSS_FADE_MS } from '$lib/constants';
-import { fmtSelectedTime } from '$lib/helpers';
+import { CROSS_FADE_MS } from '#lib/constants.js';
+import { fmtSelectedTime } from '#lib/helpers.js';
 
-import type { CommitBarrier } from '$lib/commit-barrier';
-import type { ExternalRasterTransition } from '$lib/frame-manager';
+import type { CommitBarrier } from '#lib/commit-barrier.js';
+import type { ExternalRasterTransition } from '#lib/frame-manager.js';
 import type {
 	ClippingOptions,
 	GpuAdvectionSource,

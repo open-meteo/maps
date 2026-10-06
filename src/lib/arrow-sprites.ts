@@ -15,8 +15,14 @@ import {
 	TILE_PX
 } from '@openmeteo/weather-map-layer';
 
-import { BARB_LINE_WIDTH, arrowColor, barbColor, levelFor, strokeUnits } from '$lib/arrow-legend';
-import { MS_TO_KNOTS, SHAPE_UNITS, arrowShape, barbShape } from '$lib/arrow-shapes';
+import {
+	BARB_LINE_WIDTH,
+	arrowColor,
+	barbColor,
+	levelFor,
+	strokeUnits
+} from '#lib/arrow-legend.js';
+import { MS_TO_KNOTS, SHAPE_UNITS, arrowShape, barbShape } from '#lib/arrow-shapes.js';
 
 import type * as maplibregl from 'maplibre-gl';
 

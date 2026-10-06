@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 
-	import { getBlockCacheStats } from '$lib/stores/om-protocol-settings';
-	import { DAILY_REQUEST_LIMIT, apiRequestCounter, utcDay } from '$lib/stores/request-counter';
+	import { getBlockCacheStats } from '#lib/stores/om-protocol-settings.js';
+	import { DAILY_REQUEST_LIMIT, apiRequestCounter, utcDay } from '#lib/stores/request-counter.js';
 
-	import { getGpuMemoryUsage } from '$lib/layers';
+	import { getGpuMemoryUsage } from '#lib/layers.js';
 
 	let vram = $state({ bytes: 0, budgetBytes: 1 });
 	let ram = $state({ persistentBytes: 0, maxBytes: 1 });

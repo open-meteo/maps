@@ -1,6 +1,6 @@
 import * as maplibregl from 'maplibre-gl';
 
-import type { CommitBarrier } from '$lib/commit-barrier';
+import type { CommitBarrier } from '#lib/commit-barrier.js';
 
 /**
  * FrameManager: cross-fading orchestrator for a stack of MapLibre weather layers

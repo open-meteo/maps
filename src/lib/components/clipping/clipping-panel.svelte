@@ -17,19 +17,23 @@
 	} from 'terra-draw';
 	import { TerraDrawMapLibreGLAdapter } from 'terra-draw-maplibre-gl-adapter';
 
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 
-	import { clippingCountryCodes, clippingPanelOpen, terraDrawActive } from '$lib/stores/clipping';
-	import { map } from '$lib/stores/map';
-	import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
+	import {
+		clippingCountryCodes,
+		clippingPanelOpen,
+		terraDrawActive
+	} from '#lib/stores/clipping.js';
+	import { map } from '#lib/stores/map.js';
+	import { omProtocolSettings } from '#lib/stores/om-protocol-settings.js';
 
 	import {
 		CLIP_COUNTRIES_PARAM,
 		buildCountryClippingOptions,
 		serializeClipCountriesParam
-	} from '$lib/clipping';
-	import { changeOMfileURL, previewClippingOptions } from '$lib/layers';
-	import { updateUrl } from '$lib/url';
+	} from '#lib/clipping.js';
+	import { changeOMfileURL, previewClippingOptions } from '#lib/layers.js';
+	import { updateUrl } from '#lib/url.js';
 
 	import CountrySelector from './country-selector.svelte';
 

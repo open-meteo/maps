@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { DEFAULT_RENDERER, type Renderer, renderer } from '$lib/stores/preferences';
-	import { defaultVectorOptions, vectorOptions } from '$lib/stores/vector';
+	import { DEFAULT_RENDERER, type Renderer, renderer } from '#lib/stores/preferences.js';
+	import { defaultVectorOptions, vectorOptions } from '#lib/stores/vector.js';
 
-	import Button from '$lib/components/ui/button/button.svelte';
+	import Button from '#lib/components/ui/button/button.svelte';
 
-	import { changeOMfileURL } from '$lib/layers';
-	import { updateUrl } from '$lib/url';
+	import { changeOMfileURL } from '#lib/layers.js';
+	import { updateUrl } from '#lib/url.js';
 
 	import SettingsSection from './settings-section.svelte';
 

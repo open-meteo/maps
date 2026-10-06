@@ -9,7 +9,7 @@ import {
 import { mode } from 'mode-watcher';
 import { toast } from 'svelte-sonner';
 
-import { replaceState } from '$app/navigation';
+import { goto } from '$app/navigation';
 
 import {
 	activeChart,
@@ -17,9 +17,9 @@ import {
 	isDefaultsPlainChart,
 	setPlainVariable,
 	setSources
-} from '$lib/stores/chart';
-import { epsMeta } from '$lib/stores/eps';
-import { map as m } from '$lib/stores/map';
+} from '#lib/stores/chart.js';
+import { epsMeta } from '#lib/stores/eps.js';
+import { map as m } from '#lib/stores/map.js';
 import {
 	DEFAULT_RENDERER,
 	type Preferences,
@@ -30,19 +30,19 @@ import {
 	renderer as rD,
 	tileSize as tS,
 	url as u
-} from '$lib/stores/preferences';
-import { modelRun as mR, modelRunLocked as mRL, time } from '$lib/stores/time';
-import { domain as d, variable as v } from '$lib/stores/variables';
+} from '#lib/stores/preferences.js';
+import { modelRun as mR, modelRunLocked as mRL, time } from '#lib/stores/time.js';
+import { domain as d, variable as v } from '#lib/stores/variables.js';
 import {
 	VALID_WIND_STYLES,
 	type WindStyle,
 	defaultVectorOptions,
 	vectorOptions as vO
-} from '$lib/stores/vector';
+} from '#lib/stores/vector.js';
 
-import { windPointLattice } from '$lib/arrow-sprites';
-import { parseSources, serializeSources } from '$lib/chart-encoding';
-import { getChartPreset } from '$lib/chart-presets';
+import { windPointLattice } from '#lib/arrow-sprites.js';
+import { parseSources, serializeSources } from '#lib/chart-encoding.js';
+import { getChartPreset } from '#lib/chart-presets.js';
 
 import {
 	CLIP_COUNTRIES_PARAM,
@@ -55,7 +55,7 @@ import { omProtocolSettings } from './stores/om-protocol-settings';
 import { parseISOWithoutTimezone } from './time-format';
 import { findTimeStep } from './time-utils';
 
-import type { ChartSource, ChartState } from '$lib/chart-types';
+import type { ChartSource, ChartState } from '#lib/chart-types.js';
 
 export const updateUrl = async (
 	urlParam?: string,
@@ -97,7 +97,7 @@ export const updateUrl = async (
 	// (the `sources` chart encoding uses both).
 	fullUrl = fullUrl.replace(/%2C/gi, ',').replace(/%3A/gi, ':');
 
-	replaceState(fullUrl, {});
+	goto(fullUrl, { shallow: true, replace: true });
 };
 
 export const urlParamsToPreferences = () => {

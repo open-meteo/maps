@@ -3,25 +3,25 @@
 	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
-	import { activeChart, setArrowsOnActiveChart } from '$lib/stores/chart';
-	import { renderer } from '$lib/stores/preferences';
-	import { convertValue, getDisplayUnit, unitPreferences } from '$lib/stores/units';
-	import { type WindStyle, defaultVectorOptions, vectorOptions } from '$lib/stores/vector';
+	import { activeChart, setArrowsOnActiveChart } from '#lib/stores/chart.js';
+	import { renderer } from '#lib/stores/preferences.js';
+	import { convertValue, getDisplayUnit, unitPreferences } from '#lib/stores/units.js';
+	import { type WindStyle, defaultVectorOptions, vectorOptions } from '#lib/stores/vector.js';
 
-	import Button from '$lib/components/ui/button/button.svelte';
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
+	import Button from '#lib/components/ui/button/button.svelte';
+	import { Label } from '#lib/components/ui/label/index.js';
+	import { Switch } from '#lib/components/ui/switch/index.js';
 
-	import { shapeColor, shapeStrokeUnits } from '$lib/arrow-legend';
-	import { MS_TO_KNOTS, SHAPE_UNITS, arrowShape, barbShape, shapePath } from '$lib/arrow-shapes';
+	import { shapeColor, shapeStrokeUnits } from '#lib/arrow-legend.js';
+	import { MS_TO_KNOTS, SHAPE_UNITS, arrowShape, barbShape, shapePath } from '#lib/arrow-shapes.js';
 	import {
 		ICON_PACKING_RANGE,
 		ICON_SCALE_RANGE,
 		windIconSizePx,
 		windIconSpacing
-	} from '$lib/arrow-sprites';
-	import { changeOMfileURL, particleCountFor, particleWidthFor } from '$lib/layers';
-	import { updateUrl } from '$lib/url';
+	} from '#lib/arrow-sprites.js';
+	import { changeOMfileURL, particleCountFor, particleWidthFor } from '#lib/layers.js';
+	import { updateUrl } from '#lib/url.js';
 
 	import SettingsSection from './settings-section.svelte';
 	import WindRose from './wind-rose.svelte';

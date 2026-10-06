@@ -5,21 +5,21 @@
 	import ChevronLeftIcon from '@lucide/svelte/icons/chevron-left';
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 
-	import { activeChart, addSource, isSingleVariableChart } from '$lib/stores/chart';
-	import { desktop } from '$lib/stores/preferences';
-	import { metaJson } from '$lib/stores/time';
+	import { activeChart, addSource, isSingleVariableChart } from '#lib/stores/chart.js';
+	import { desktop } from '#lib/stores/preferences.js';
+	import { metaJson } from '#lib/stores/time.js';
 	import {
 		levelGroupSelected,
 		variableSelectionExtended as vSE,
 		variableSelectionOpen as vSO,
 		variable
-	} from '$lib/stores/variables';
+	} from '#lib/stores/variables.js';
 
-	import * as Command from '$lib/components/ui/command';
-	import { ScrollArea } from '$lib/components/ui/scroll-area';
-	import { Separator } from '$lib/components/ui/separator';
+	import * as Command from '#lib/components/ui/command/index.js';
+	import { ScrollArea } from '#lib/components/ui/scroll-area/index.js';
+	import { Separator } from '#lib/components/ui/separator/index.js';
 
-	import { suppressPopupTap } from '$lib/popup';
+	import { suppressPopupTap } from '#lib/popup.js';
 
 	import AllVariablesDialog from './all-variables-dialog.svelte';
 	import ChartEditor from './chart-editor.svelte';

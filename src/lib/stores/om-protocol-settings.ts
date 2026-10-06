@@ -4,14 +4,14 @@ import { BrowserBlockCache } from '@openmeteo/file-reader';
 import { defaultOmProtocolSettings } from '@openmeteo/weather-map-layer';
 import { persisted } from 'svelte-persisted-store';
 
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 
 import {
 	DEFAULT_CACHE_BLOCK_SIZE_KB,
 	DEFAULT_CACHE_MAX_BYTES_MB,
 	DEFAULT_GPU_CACHE_MB,
 	HTTP_OVERHEAD_BYTES
-} from '$lib/constants';
+} from '#lib/constants.js';
 
 import { chartSources } from './chart';
 
@@ -64,13 +64,12 @@ const blockCache = createBlockCache();
 export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
 	...defaultOmProtocolSettings,
 	// static
-	fileReaderConfig: {
-		useSAB: true,
-		cache: blockCache
-	},
-
+	fileReaderConfig: { useSAB: true, cache: blockCache },
 	// dynamic (can be changed during runtime)
-	colorScales: { ...defaultOmProtocolSettings.colorScales, ...initialCustomColorScales },
+	colorScales: {
+		...defaultOmProtocolSettings.colorScales,
+		...initialCustomColorScales
+	},
 
 	postReadCallback: (_omFileReader: WeatherMapLayerFileReader, data: Data, state: OmUrlState) => {
 		if (

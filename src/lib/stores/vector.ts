@@ -1,6 +1,6 @@
 import { persisted } from 'svelte-persisted-store';
 
-import { DEFAULT_VECTOR_OPTIONS } from '$lib/constants';
+import { DEFAULT_VECTOR_OPTIONS } from '#lib/constants.js';
 
 import type { ArrowRender, ArrowStyle } from '@openmeteo/weather-map-layer';
 

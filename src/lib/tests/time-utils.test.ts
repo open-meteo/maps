@@ -2,7 +2,7 @@ import { SvelteDate } from 'svelte/reactivity';
 
 import { describe, expect, it } from 'vitest';
 
-import { findTimeStep } from '$lib/time-utils';
+import { findTimeStep } from '#lib/time-utils.js';
 
 describe('findTimeStep', () => {
 	it('should return undefined when timeSteps is undefined', () => {

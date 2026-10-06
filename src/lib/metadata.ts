@@ -13,22 +13,22 @@ import {
 	pickPrimaryVariable,
 	setPlainVariable,
 	setSources
-} from '$lib/stores/chart';
-import { EPS_SIBLINGS, loadEpsMeta } from '$lib/stores/eps';
-import { loading } from '$lib/stores/preferences';
+} from '#lib/stores/chart.js';
+import { EPS_SIBLINGS, loadEpsMeta } from '#lib/stores/eps.js';
+import { loading } from '#lib/stores/preferences.js';
 import {
 	inProgress as iP,
 	latest as l,
 	metaJson as mJ,
 	modelRun as mR,
 	time as t
-} from '$lib/stores/time';
-import { domain as d, selectedDomain } from '$lib/stores/variables';
+} from '#lib/stores/time.js';
+import { domain as d, selectedDomain } from '#lib/stores/variables.js';
 
 import {
 	firstPopularTarget,
 	isStandaloneVariable
-} from '$lib/components/selection/selection-utils';
+} from '#lib/components/selection/selection-utils.js';
 
 import { BASE_URI, fmtModelRun } from './helpers';
 import { formatISOWithoutTimezone } from './time-format';

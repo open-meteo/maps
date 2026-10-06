@@ -3,8 +3,12 @@
  * FrameManager channels that render it. All inputs (urls, styles, dark mode,
  * insertion points) are explicit parameters — no store reads at add time.
  */
-import { BARB_LINE_WIDTH } from '$lib/arrow-legend';
-import { registerWindSprites, windIconExpression, windRotateExpression } from '$lib/arrow-sprites';
+import { BARB_LINE_WIDTH } from '#lib/arrow-legend.js';
+import {
+	registerWindSprites,
+	windIconExpression,
+	windRotateExpression
+} from '#lib/arrow-sprites.js';
 import {
 	buildArrowColorExpr,
 	buildArrowWidthExpr,
@@ -13,9 +17,9 @@ import {
 	buildContourWidthExpr,
 	defaultArrowStyle,
 	defaultContourStyle
-} from '$lib/chart-styles';
+} from '#lib/chart-styles.js';
 
-import type { ChannelLayerDef, FrameChannel } from '$lib/frame-manager';
+import type { ChannelLayerDef, FrameChannel } from '#lib/frame-manager.js';
 import type { ArrowRender, ArrowStyle } from '@openmeteo/weather-map-layer';
 import type * as maplibregl from 'maplibre-gl';
 

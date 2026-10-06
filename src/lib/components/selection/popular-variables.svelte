@@ -11,18 +11,18 @@
 		isSingleVariableChart,
 		setPlainVariable,
 		setSources
-	} from '$lib/stores/chart';
-	import { EPS_VARIABLE, epsMeta } from '$lib/stores/eps';
-	import { metaJson } from '$lib/stores/time';
-	import { levelGroupSelected, variable } from '$lib/stores/variables';
+	} from '#lib/stores/chart.js';
+	import { EPS_VARIABLE, epsMeta } from '#lib/stores/eps.js';
+	import { metaJson } from '#lib/stores/time.js';
+	import { levelGroupSelected, variable } from '#lib/stores/variables.js';
 
-	import { sourcesEqual } from '$lib/chart-encoding';
-	import { getChartPreset, popularVariables } from '$lib/chart-presets';
+	import { sourcesEqual } from '#lib/chart-encoding.js';
+	import { getChartPreset, popularVariables } from '#lib/chart-presets.js';
 
 	import LevelSelect from './level-select.svelte';
 	import { levelGroups, resolvePopularTarget, variableLabel } from './selection-utils';
 
-	import type { ChartSource } from '$lib/chart-types';
+	import type { ChartSource } from '#lib/chart-types.js';
 
 	interface Props {
 		/** Popular entry id whose row hosts the nested level selector. */

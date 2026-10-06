@@ -10,9 +10,9 @@ import {
 	TILE_PX
 } from '@openmeteo/weather-map-layer';
 
-import { SHAPE_UNITS } from '$lib/arrow-shapes';
-import { BARB_OPACITY_RANGE, arrowLevelFor, defaultArrowStyle } from '$lib/chart-styles';
-import { alphaOfCssColor, rescaleInto } from '$lib/color';
+import { SHAPE_UNITS } from '#lib/arrow-shapes.js';
+import { BARB_OPACITY_RANGE, arrowLevelFor, defaultArrowStyle } from '#lib/chart-styles.js';
+import { alphaOfCssColor, rescaleInto } from '#lib/color.js';
 
 /** Barbs are drawn at one weight, arrows follow the style's width ramp. */
 export const BARB_LINE_WIDTH = 1.3;

@@ -3,13 +3,13 @@
 
 	import { toast } from 'svelte-sonner';
 
-	import { map, popup, popupMode } from '$lib/stores/map';
-	import { desktop } from '$lib/stores/preferences';
+	import { map, popup, popupMode } from '#lib/stores/map.js';
+	import { desktop } from '#lib/stores/preferences.js';
 
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
+	import { Label } from '#lib/components/ui/label/index.js';
+	import { Switch } from '#lib/components/ui/switch/index.js';
 
-	import { renderPopup } from '$lib/popup';
+	import { renderPopup } from '#lib/popup.js';
 
 	import SettingsSection from './settings-section.svelte';
 

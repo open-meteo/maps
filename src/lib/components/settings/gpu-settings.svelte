@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { gpuRenderOptions } from '$lib/stores/gpu-render';
-	import { renderer } from '$lib/stores/preferences';
+	import { gpuRenderOptions } from '#lib/stores/gpu-render.js';
+	import { renderer } from '#lib/stores/preferences.js';
 
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
+	import { Label } from '#lib/components/ui/label/index.js';
+	import { Switch } from '#lib/components/ui/switch/index.js';
 
-	import { changeOMfileURL } from '$lib/layers';
+	import { changeOMfileURL } from '#lib/layers.js';
 
 	import SettingsSection from './settings-section.svelte';
 </script>

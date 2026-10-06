@@ -22,20 +22,24 @@ import * as maplibregl from 'maplibre-gl';
 import { mode } from 'mode-watcher';
 import { toast } from 'svelte-sonner';
 
-import { chartSources } from '$lib/stores/chart';
-import { gpuRenderOptions } from '$lib/stores/gpu-render';
-import { map as m } from '$lib/stores/map';
-import { type Renderer, renderer } from '$lib/stores/preferences';
-import { loading, opacity, preferences as p } from '$lib/stores/preferences';
-import { modelRun, time } from '$lib/stores/time';
-import { selectedDomain, variable as variableStore } from '$lib/stores/variables';
-import { type VectorOptions, defaultVectorOptions, vectorOptions as vO } from '$lib/stores/vector';
+import { chartSources } from '#lib/stores/chart.js';
+import { gpuRenderOptions } from '#lib/stores/gpu-render.js';
+import { map as m } from '#lib/stores/map.js';
+import { type Renderer, renderer } from '#lib/stores/preferences.js';
+import { loading, opacity, preferences as p } from '#lib/stores/preferences.js';
+import { modelRun, time } from '#lib/stores/time.js';
+import { selectedDomain, variable as variableStore } from '#lib/stores/variables.js';
+import {
+	type VectorOptions,
+	defaultVectorOptions,
+	vectorOptions as vO
+} from '#lib/stores/vector.js';
 
-import { windIconSizePx, windIconSpacing } from '$lib/arrow-sprites';
-import { sourceKey } from '$lib/chart-encoding';
-import { defaultArrowStyle, defaultContourStyle } from '$lib/chart-styles';
-import { alphaOfCssColor } from '$lib/color';
-import { createCommitBarrier } from '$lib/commit-barrier';
+import { windIconSizePx, windIconSpacing } from '#lib/arrow-sprites.js';
+import { sourceKey } from '#lib/chart-encoding.js';
+import { defaultArrowStyle, defaultContourStyle } from '#lib/chart-styles.js';
+import { alphaOfCssColor } from '#lib/color.js';
+import { createCommitBarrier } from '#lib/commit-barrier.js';
 import {
 	BEFORE_LAYER_RASTER,
 	BEFORE_LAYER_VECTOR,
@@ -45,11 +49,11 @@ import {
 	PARTICLE_BASE_COUNT,
 	PARTICLE_BASE_WIDTH_PX,
 	PARTICLE_REF_AREA
-} from '$lib/constants';
-import { type FrameChannel, FrameManager } from '$lib/frame-manager';
-import { GpuRasterManager, type GpuRasterSlotSpec } from '$lib/gpu-raster-manager';
-import { rasterChannel, vectorChannel } from '$lib/om-layer-defs';
-import { isPrefetched } from '$lib/prefetch';
+} from '#lib/constants.js';
+import { type FrameChannel, FrameManager } from '#lib/frame-manager.js';
+import { GpuRasterManager, type GpuRasterSlotSpec } from '#lib/gpu-raster-manager.js';
+import { rasterChannel, vectorChannel } from '#lib/om-layer-defs.js';
+import { isPrefetched } from '#lib/prefetch.js';
 
 import { refreshPopup } from './popup';
 import { gpuCacheMb, omProtocolSettings } from './stores/om-protocol-settings';

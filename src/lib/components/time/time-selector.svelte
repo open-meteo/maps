@@ -7,16 +7,16 @@
 	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
-	import { timeSelectorActions } from '$lib/stores/keyboard';
-	import { desktop, loading } from '$lib/stores/preferences';
-	import { animating, metaJson, modelRunLocked } from '$lib/stores/time';
-	import { inProgress, latest, modelRun, now, time } from '$lib/stores/time';
-	import { selectedDomain } from '$lib/stores/variables';
+	import { timeSelectorActions } from '#lib/stores/keyboard.js';
+	import { desktop, loading } from '#lib/stores/preferences.js';
+	import { animating, metaJson, modelRunLocked } from '#lib/stores/time.js';
+	import { inProgress, latest, modelRun, now, time } from '#lib/stores/time.js';
+	import { selectedDomain } from '#lib/stores/variables.js';
 
-	import AnimateButton from '$lib/components/time/animate-button.svelte';
-	import CacheMeter from '$lib/components/time/cache-meter.svelte';
-	import PrefetchButton from '$lib/components/time/prefetch-button.svelte';
-	import * as Select from '$lib/components/ui/select';
+	import AnimateButton from '#lib/components/time/animate-button.svelte';
+	import CacheMeter from '#lib/components/time/cache-meter.svelte';
+	import PrefetchButton from '#lib/components/time/prefetch-button.svelte';
+	import * as Select from '#lib/components/ui/select/index.js';
 
 	import {
 		DAY_NAMES,
@@ -24,10 +24,10 @@
 		MILLISECONDS_PER_HOUR,
 		MILLISECONDS_PER_WEEK,
 		SCRUB_FADE_MS
-	} from '$lib/constants';
-	import { throttle } from '$lib/helpers';
-	import { changeOMfileURL, getTimestepResidency, setRasterFadeMs } from '$lib/layers';
-	import { tryGetMetaData } from '$lib/metadata';
+	} from '#lib/constants.js';
+	import { throttle } from '#lib/helpers.js';
+	import { changeOMfileURL, getTimestepResidency, setRasterFadeMs } from '#lib/layers.js';
+	import { tryGetMetaData } from '#lib/metadata.js';
 	import {
 		formatISOWithoutTimezone,
 		formatLocalDate,
@@ -39,9 +39,9 @@
 		isValidTimeStep,
 		startOfLocalDay,
 		withLocalTime
-	} from '$lib/time-format';
-	import { findTimeStep } from '$lib/time-utils';
-	import { updateUrl } from '$lib/url';
+	} from '#lib/time-format.js';
+	import { findTimeStep } from '#lib/time-utils.js';
+	import { updateUrl } from '#lib/url.js';
 
 	// Disables time selection when loading new OM files
 	let disabled = $derived($modelRun === undefined);

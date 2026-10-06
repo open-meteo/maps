@@ -8,7 +8,7 @@ import {
 	selectSeamlessLayers
 } from '@openmeteo/weather-map-layer';
 
-import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
+import { omProtocolSettings } from '#lib/stores/om-protocol-settings.js';
 
 import { MILLISECONDS_PER_DAY } from './constants';
 import { BASE_URI, fmtModelRun, fmtSelectedTime } from './helpers';
