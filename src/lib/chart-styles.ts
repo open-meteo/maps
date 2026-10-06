@@ -5,7 +5,7 @@
  * properties (line color, width). The defaults match the original
  * hardcoded MapLibre expressions.
  */
-import { alphaOfCssColor, rescaleInto } from '$lib/color';
+import { alphaOfCssColor, rescaleInto } from '#lib/color.js';
 
 import type * as maplibregl from 'maplibre-gl';
 

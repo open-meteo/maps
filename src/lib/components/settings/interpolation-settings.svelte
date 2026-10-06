@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { get } from 'svelte/store';
 
-	import { colorBlend as cB, interpolation as iP } from '$lib/stores/preferences';
+	import { colorBlend as cB, interpolation as iP } from '#lib/stores/preferences.js';
 
-	import Button from '$lib/components/ui/button/button.svelte';
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
+	import Button from '#lib/components/ui/button/button.svelte';
+	import { Label } from '#lib/components/ui/label/index.js';
+	import { Switch } from '#lib/components/ui/switch/index.js';
 
-	import { changeOMfileURL } from '$lib/layers';
+	import { changeOMfileURL } from '#lib/layers.js';
 
 	import SettingsSection from './settings-section.svelte';
 

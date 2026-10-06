@@ -10,11 +10,11 @@
 		applyPreset,
 		isSingleVariableChart,
 		setPlainVariable
-	} from '$lib/stores/chart';
-	import { metaJson } from '$lib/stores/time';
-	import { levelGroupSelected, variable } from '$lib/stores/variables';
+	} from '#lib/stores/chart.js';
+	import { metaJson } from '#lib/stores/time.js';
+	import { levelGroupSelected, variable } from '#lib/stores/variables.js';
 
-	import { getChartPreset, popularVariables } from '$lib/chart-presets';
+	import { getChartPreset, popularVariables } from '#lib/chart-presets.js';
 
 	import LevelSelect from './level-select.svelte';
 	import { levelGroups, resolvePopularTarget, variableLabel } from './selection-utils';

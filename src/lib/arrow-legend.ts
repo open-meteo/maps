@@ -10,10 +10,10 @@ import {
 	TILE_PX
 } from '@openmeteo/weather-map-layer';
 
-import { SHAPE_UNITS } from '$lib/arrow-shapes';
-import { BARB_OPACITY_RANGE, arrowLevelFor, defaultArrowStyle } from '$lib/chart-styles';
-import { alphaOfCssColor, rescaleInto } from '$lib/color';
-import { BARB_LINE_WIDTH } from '$lib/om-layer-defs';
+import { SHAPE_UNITS } from '#lib/arrow-shapes.js';
+import { BARB_OPACITY_RANGE, arrowLevelFor, defaultArrowStyle } from '#lib/chart-styles.js';
+import { alphaOfCssColor, rescaleInto } from '#lib/color.js';
+import { BARB_LINE_WIDTH } from '#lib/om-layer-defs.js';
 
 /**
  * On-screen size of one lattice cell at an integer zoom, which is the size a

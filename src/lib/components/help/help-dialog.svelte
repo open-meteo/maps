@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { MediaQuery } from 'svelte/reactivity';
 
-	import { helpOpen } from '$lib/stores/preferences';
+	import { helpOpen } from '#lib/stores/preferences.js';
 
-	import * as Dialog from '$lib/components/ui/dialog';
-	import * as Kbd from '$lib/components/ui/kbd';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import * as Kbd from '#lib/components/ui/kbd/index.js';
 
 	const smallerDesktop = new MediaQuery('min-width: 640px');
 </script>
