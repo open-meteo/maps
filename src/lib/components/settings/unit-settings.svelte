@@ -10,12 +10,12 @@
 		precipitationUnit,
 		temperatureUnit,
 		windSpeedUnit
-	} from '$lib/stores/units';
+	} from '#lib/stores/units.js';
 
-	import { Label } from '$lib/components/ui/label';
-	import * as Select from '$lib/components/ui/select';
+	import { Label } from '#lib/components/ui/label/index.js';
+	import * as Select from '#lib/components/ui/select/index.js';
 
-	import { refreshPopup } from '$lib/popup';
+	import { refreshPopup } from '#lib/popup.js';
 
 	import SettingsSection from './settings-section.svelte';
 

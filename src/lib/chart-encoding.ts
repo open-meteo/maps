@@ -9,9 +9,9 @@
  * contour line width. A token without flags means raster only.
  * Example: `temperature_850hPa:rc2,geopotential_height_500hPa:c4w0.8`
  */
-import { chartPresets } from '$lib/chart-presets';
+import { chartPresets } from '#lib/chart-presets.js';
 
-import type { ChartPreset, ChartSource } from '$lib/chart-types';
+import type { ChartPreset, ChartSource } from '#lib/chart-types.js';
 
 const serializeSource = (source: ChartSource): string => {
 	let flags = '';

@@ -3,9 +3,9 @@ import { get } from 'svelte/store';
 import { persisted } from 'svelte-persisted-store';
 import { toast } from 'svelte-sonner';
 
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 
-import { BASE_URI, DATA_SPATIAL_BASE_URI, S3_BASE_URI } from '$lib/helpers';
+import { BASE_URI, DATA_SPATIAL_BASE_URI, S3_BASE_URI } from '#lib/helpers.js';
 
 /** Daily request allowance of the data API (server default, resets midnight UTC). */
 export const DAILY_REQUEST_LIMIT = 10_000;
@@ -157,6 +157,7 @@ const on429 = async (res: Response): Promise<void> => {
 	let label = 'hourly';
 	try {
 		const reason: string = (await res.clone().json())?.reason ?? '';
+
 		if (/daily/i.test(reason)) [period, label] = [DAY_MS, 'daily'];
 		else if (/minutely/i.test(reason)) [period, label] = [MINUTE_MS, 'minutely'];
 	} catch {

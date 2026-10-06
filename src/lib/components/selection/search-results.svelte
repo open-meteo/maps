@@ -8,14 +8,14 @@
 		applySavedChart,
 		savedCharts,
 		setPlainVariable
-	} from '$lib/stores/chart';
-	import { metaJson } from '$lib/stores/time';
-	import { levelGroupSelected, variable } from '$lib/stores/variables';
+	} from '#lib/stores/chart.js';
+	import { metaJson } from '#lib/stores/time.js';
+	import { levelGroupSelected, variable } from '#lib/stores/variables.js';
 
-	import * as Command from '$lib/components/ui/command';
+	import * as Command from '#lib/components/ui/command/index.js';
 
-	import { sourcesEqual } from '$lib/chart-encoding';
-	import { chartPresets } from '$lib/chart-presets';
+	import { sourcesEqual } from '#lib/chart-encoding.js';
+	import { chartPresets } from '#lib/chart-presets.js';
 
 	import {
 		buildVariableList,
