@@ -30,7 +30,11 @@ export const rasterChannel = (
 	// with a different per-source opacity.
 	key: `${variable}:raster:${opacity}`,
 	url,
-	sourceSpec: { type: 'raster', url, maxzoom: 14 },
+	// `maxzoom` comes from the protocol's TileJSON: the domain's grid decides
+	// where raster tiles stop changing (the finest layer's for a seamless
+	// composite) and MapLibre overzooms from there. A value here would
+	// override it, as explicit source options take precedence over TileJSON.
+	sourceSpec: { type: 'raster', url },
 	layers: [
 		{
 			id: 'raster',
