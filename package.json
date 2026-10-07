@@ -32,7 +32,7 @@
 	},
 	"devDependencies": {
 		"@internationalized/date": "^3.12.4",
-		"@lucide/svelte": "^1.48.0",
+		"@lucide/svelte": "^1.49.0",
 		"@openmeteo/file-reader": "^0.0.20",
 		"@openmeteo/weather-map-layer": "^0.2.2",
 		"@sveltejs/adapter-static": "^4.0.0",
@@ -44,7 +44,7 @@
 		"@trivago/prettier-plugin-sort-imports": "^6.0.0",
 		"@turf/turf": "^7.4.0",
 		"@types/node": "^26.6.3",
-		"@vitest/coverage-v8": "^5.0.2",
+		"@vitest/coverage-v8": "^5.0.3",
 		"bits-ui": "^2.19.3",
 		"clsx": "^2.1.1",
 		"eslint": "^10.11.0",
