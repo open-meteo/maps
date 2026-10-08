@@ -30,7 +30,7 @@ export const rasterChannel = (
 	// with a different per-source opacity.
 	key: `${variable}:raster:${opacity}`,
 	url,
-	sourceSpec: { type: 'raster', url, maxzoom: 14 },
+	sourceSpec: { type: 'raster', url },
 	layers: [
 		{
 			id: 'raster',
