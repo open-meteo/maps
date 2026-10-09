@@ -11,6 +11,9 @@ export const time = writable(new Date(currentTimeStep));
 export const modelRun: Writable<Date | undefined> = writable(undefined);
 export const modelRunLocked = writable(false);
 
+/** True while the animation loop is playing (calms per-frame UI reactions). */
+export const animating = writable(false);
+
 export const latest: Writable<DomainMetaDataJson | undefined> = writable(undefined);
 export const inProgress: Writable<DomainMetaDataJson | undefined> = writable(undefined);
 export const metaJson: Writable<DomainMetaDataJson | undefined> = writable(undefined);

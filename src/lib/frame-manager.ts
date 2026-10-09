@@ -1,5 +1,7 @@
 import * as maplibregl from 'maplibre-gl';
 
+import type { CommitBarrier } from '#lib/commit-barrier.js';
+
 /**
  * FrameManager: cross-fading orchestrator for a stack of MapLibre weather layers
  *
@@ -51,6 +53,12 @@ export interface FrameManagerOptions {
 	crossFadeMs?: number;
 	/** Retained non-visible frames beyond the current one. Default 3. */
 	retainMax?: number;
+	/**
+	 * Ground-truth data availability per channel url (from the om protocol).
+	 * MapLibre counts failed tiles as complete, so tile state alone cannot
+	 * distinguish "everything rendered" from "everything failed".
+	 */
+	getChannelDataState?: (url: string) => 'loaded' | 'loading' | 'error' | 'missing';
 	onLoadingChange?: (loading: boolean) => void;
 	/** Fired when a frame becomes visible. */
 	onCommit?: () => void;
@@ -70,6 +78,23 @@ interface FrameLayer {
 /** Contour/arrow/label/grid layers, as opposed to raster fills. */
 const isLineLayer = (layer: FrameLayer): boolean => layer.opacityProp !== 'raster-opacity';
 
+/** A raster fill's opacity control, for dissolving layers of another render path. */
+export interface OpacityHandle {
+	peak: number;
+	set(opacity: number): void;
+}
+
+/**
+ * Raster fills of another render path (the GPU layers) changing places with
+ * this frame's: the dissolve drives them together with the frame's own
+ * fills, on one compensation curve, and calls `finish` once done.
+ */
+export interface ExternalRasterTransition {
+	entering: OpacityHandle[];
+	retiring: OpacityHandle[];
+	finish(): void;
+}
+
 interface Frame {
 	key: string;
 	channels: FrameChannel[];
@@ -78,6 +103,14 @@ interface Frame {
 	onData?: () => void;
 	/** A source of this frame failed; it must not commit (retried on re-show). */
 	errored?: boolean;
+	/**
+	 * Shown before: its tiles were rendered from real data. A retained frame
+	 * re-shown from the map's tile cache requests nothing, so the protocol
+	 * may hold no data for it any more (the GPU path keeps decoded data only
+	 * briefly) — the data check would then never pass and the frame would
+	 * only commit once a map move requested fresh tiles.
+	 */
+	committed?: boolean;
 	/** Waiting for the render pass that re-populates its sources (see `show`). */
 	awaitingRender?: boolean;
 	/** Layers are `visibility: none` (set after the fade-out, see `scheduleHide`). */
@@ -100,12 +133,17 @@ export class FrameManager {
 	private opts: FrameManagerOptions;
 
 	private frames = new Map<string, Frame>();
+	private dissolveMs: number | undefined;
 	private lru: string[] = [];
 	private currentKey: string | null = null;
 	private pendingKey: string | null = null;
+	/** Barrier of the pending (or barrier-held) frame; arrives exactly once. */
+	private pendingBarrier: { barrier: CommitBarrier; arrived: boolean } | undefined;
 	private frameOrdinal = 0;
 	private slowLoadTimer: ReturnType<typeof setTimeout> | undefined;
 	private dissolve?: Dissolve;
+	/** Other-path rasters to dissolve with the pending frame at its commit. */
+	private pendingExternal: ExternalRasterTransition | undefined;
 	/** Frame whose commit waits for the running dissolve to finish. */
 	private queuedCommit?: Frame;
 	private hideTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -140,6 +178,16 @@ export class FrameManager {
 	}
 
 	/**
+	 * Duration of same-layout (timestep) dissolves in ms; 0 snaps. Layout and
+	 * render-path switches keep `crossFadeMs`: that mirrors the GPU rasters,
+	 * whose timestep morph follows the temporal blend clock while entering and
+	 * retiring slots always dissolve over the fixed cross-fade.
+	 */
+	setDissolveMs(ms: number): void {
+		this.dissolveMs = ms;
+	}
+
+	/**
 	 * Re-point every resident layer anchored at `from` to `to`. Insertion
 	 * points are recorded at frame build time, so when the surrounding basemap
 	 * stack changes without a style reload (the hillshade toggle), existing
@@ -161,18 +209,35 @@ export class FrameManager {
 	/**
 	 * Show the frame described by `channels`, building it when needed. The
 	 * previous frame stays visible until every channel of the new frame has
-	 * loaded, then both cross-fade.
+	 * loaded, then both cross-fade. With a `barrier` the commit additionally
+	 * waits for the other render paths of the same render state (GPU raster
+	 * slots), so all layers start animating together.
 	 */
-	show(channels: FrameChannel[]): void {
+	show(
+		channels: FrameChannel[],
+		barrier?: CommitBarrier,
+		external?: ExternalRasterTransition
+	): void {
 		const key = channels.map((channel) => `${channel.key}@${channel.url}`).join(';');
 
 		if (this.currentKey === key) {
 			this.abandonPending();
+			external?.finish();
+			barrier?.arrive();
 			return;
 		}
-		if (this.pendingKey === key) return;
+		if (this.pendingKey === key) {
+			// The same frame is already loading for a superseded render state;
+			// release that state's barrier and adopt the new one.
+			this.arrivePending();
+			this.pendingBarrier = barrier ? { barrier, arrived: false } : undefined;
+			this.pendingExternal?.finish();
+			this.pendingExternal = external;
+			return;
+		}
 
 		this.abandonPending();
+		this.pendingExternal = external;
 
 		let frame = this.frames.get(key);
 		if (!frame) {
@@ -189,14 +254,17 @@ export class FrameManager {
 		}
 		this.touchLru(key);
 
+		// Always via the pending path, also for a fully cached frame: it commits
+		// in the very next render pass (see `awaitRender`), and a barrier is
+		// released from the same place either way.
 		this.pendingKey = key;
+		this.pendingBarrier = barrier ? { barrier, arrived: false } : undefined;
 		this.setLoading(true);
 		this.watchFrame(frame);
 		this.startSlowLoadTimer();
 		// Superseded frames stay resident, so the cap has to hold here too:
 		// commit (the other eviction point) may be many switches away.
 		this.evict();
-		// A fully cached frame commits in the very next render pass
 		this.awaitRender(frame);
 	}
 
@@ -291,23 +359,51 @@ export class FrameManager {
 		}
 	}
 
+	/** The underlying variable data of every channel has loaded. */
+	private frameDataState(frame: Frame): 'loaded' | 'loading' | 'error' {
+		const getState = this.opts.getChannelDataState;
+		if (!getState) return 'loaded';
+		let result: 'loaded' | 'loading' = 'loaded';
+		for (const channel of frame.channels) {
+			const state = getState(channel.url);
+			if (state === 'error') return 'error';
+			if (state !== 'loaded') result = 'loading';
+		}
+		return result;
+	}
+
 	private isFrameLoaded(frame: Frame): boolean {
 		// Source.loaded() only covers the source metadata (TileJSON), which the om
 		// protocol answers before the data download finishes, so every requested
 		// tile has to be there too — `isSourceLoaded` covers both, per source.
 		// Map-wide (`areTilesLoaded`) it would also wait for the basemap and, worse,
 		// for the tiles of the frames the user just scrolled past, which keeps a
-		// frame from ever committing while someone scrubs the time slider.
-		// Errored frames never commit.
+		// frame from ever committing while someone scrubs the time slider. The
+		// protocol must additionally hold actual data for every channel: failed
+		// tiles count as complete, so without the data check an empty frame would
+		// commit and fade the previous data out. Errored frames never commit.
 		return (
 			!frame.errored &&
 			!frame.awaitingRender &&
+			(frame.committed || this.frameDataState(frame) === 'loaded') &&
 			frame.sourceIds.every((id) => this.map.getSource(id) && this.map.isSourceLoaded(id))
 		);
 	}
 
+	/** Release the pending frame's barrier (once); without a commit on failure. */
+	private arrivePending(commit?: () => void): void {
+		const held = this.pendingBarrier;
+		if (!held || held.arrived) return;
+		held.arrived = true;
+		held.barrier.arrive(commit);
+	}
+
 	/** Fail the pending switch: keep showing the previous frame. */
 	private failPending(frame: Frame): void {
+		this.arrivePending();
+		this.pendingBarrier = undefined;
+		this.pendingExternal?.finish();
+		this.pendingExternal = undefined;
 		this.unwatchFrame(frame);
 		this.removeFrame(frame.key);
 		this.pendingKey = null;
@@ -325,13 +421,19 @@ export class FrameManager {
 				this.unwatchFrame(frame);
 				return;
 			}
-			if (frame.errored) {
+			if (frame.errored || this.frameDataState(frame) === 'error') {
 				this.failPending(frame);
 				return;
 			}
 			if (this.isFrameLoaded(frame)) {
 				this.unwatchFrame(frame);
-				this.commit(frame);
+				if (this.pendingBarrier) {
+					this.arrivePending(() => {
+						if (this.pendingKey === frame.key) this.commit(frame);
+					});
+				} else {
+					this.commit(frame);
+				}
 			}
 		};
 		frame.onData = check;
@@ -364,13 +466,16 @@ export class FrameManager {
 		}
 		this.queuedCommit = undefined;
 		this.pendingKey = null;
+		this.pendingBarrier = undefined;
+		const external = this.pendingExternal;
+		this.pendingExternal = undefined;
 		this.clearSlowLoadTimer();
 
 		const previous = this.currentFrame();
 		this.currentKey = frame.key;
+		frame.committed = true;
 		this.cancelHide(frame.key);
 
-		const duration = this.opts.crossFadeMs ?? 250;
 		// Timestep switches reuse the same layer layout with new data. A plain
 		// simultaneous cross-fade of two translucent rasters dips their
 		// combined alpha mid-fade (the basemap flashes through between
@@ -381,13 +486,25 @@ export class FrameManager {
 			previous !== undefined &&
 			previous.key !== frame.key &&
 			this.channelSignature(previous) === this.channelSignature(frame);
+		const crossFadeMs = this.opts.crossFadeMs ?? 250;
+		const duration = sameLayout ? (this.dissolveMs ?? crossFadeMs) : crossFadeMs;
 
 		if (sameLayout && previous) {
 			// Lines cross-fade (holding both fully visible would double them)
 			this.setFrameOpacity(frame, 1, duration, isLineLayer);
 			this.setFrameOpacity(previous, 0, duration, isLineLayer);
-			this.dissolveRasters(frame, previous, duration);
+			this.dissolveRasters(frame, previous, duration, external);
 			this.scheduleHide(previous.key);
+		} else if (external) {
+			// A render-path switch: the fills changing places live in both paths,
+			// so they get the same compensated dissolve as a timestep switch.
+			this.setFrameOpacity(frame, 1, duration, isLineLayer);
+			const old = previous && previous.key !== frame.key ? previous : undefined;
+			if (old) {
+				this.setFrameOpacity(old, 0, duration, isLineLayer);
+				this.scheduleHide(old.key);
+			}
+			this.dissolveRasters(frame, old, duration, external);
 		} else {
 			this.setFrameOpacity(frame, 1, duration);
 			if (previous && previous.key !== frame.key) {
@@ -408,12 +525,28 @@ export class FrameManager {
 	 * the basemap never shines through and the fills never over-darken.
 	 * Needs rAF driving — paint transitions cannot express the curve.
 	 */
-	private dissolveRasters(newFrame: Frame, oldFrame: Frame, duration: number): void {
-		const newRasters = newFrame.layers.filter((layer) => !isLineLayer(layer));
-		const oldRasters = oldFrame.layers.filter((layer) => !isLineLayer(layer));
-
+	private dissolveRasters(
+		newFrame: Frame,
+		oldFrame: Frame | undefined,
+		duration: number,
+		external?: ExternalRasterTransition
+	): void {
+		const handles = (frame: Frame | undefined): OpacityHandle[] =>
+			(frame?.layers ?? [])
+				.filter((layer) => !isLineLayer(layer))
+				.map((layer) => ({
+					peak: layer.peak,
+					set: (value: number): void => {
+						if (this.map.getLayer(layer.layerId)) {
+							this.map.setPaintProperty(layer.layerId, layer.opacityProp, value);
+						}
+					}
+				}));
+		const frameRasters = [...(newFrame.layers ?? []), ...(oldFrame?.layers ?? [])].filter(
+			(layer) => !isLineLayer(layer)
+		);
 		// Direct per-frame updates; the declarative transition must not smooth them
-		for (const layer of [...newRasters, ...oldRasters]) {
+		for (const layer of frameRasters) {
 			if (this.map.getLayer(layer.layerId)) {
 				this.map.setPaintProperty(layer.layerId, `${layer.opacityProp}-transition`, {
 					duration: 0,
@@ -421,12 +554,10 @@ export class FrameManager {
 				});
 			}
 		}
-
-		const setOpacity = (layer: FrameLayer, value: number): void => {
-			if (this.map.getLayer(layer.layerId)) {
-				this.map.setPaintProperty(layer.layerId, layer.opacityProp, value);
-			}
-		};
+		// The entering fills sit on top (a new frame is raised, a new GPU layer
+		// is added above the older ones), so they take the plain curve.
+		const newRasters = [...handles(newFrame), ...(external?.entering ?? [])];
+		const oldRasters = [...handles(oldFrame), ...(external?.retiring ?? [])];
 
 		// Progress is integrated rather than derived from a start timestamp, so
 		// that the direction can flip mid-flight (`reverse`) without a jump.
@@ -435,19 +566,17 @@ export class FrameManager {
 		let last = performance.now();
 		const apply = (): void => {
 			const e = t * t * (3 - 2 * t); // smoothstep
-			for (const layer of newRasters) setOpacity(layer, layer.peak * e);
+			for (const layer of newRasters) layer.set(layer.peak * e);
 			for (const layer of oldRasters) {
 				const denominator = 1 - layer.peak * e;
-				setOpacity(
-					layer,
-					t >= 1 || denominator <= 0.001 ? 0 : (layer.peak * (1 - e)) / denominator
-				);
+				layer.set(t >= 1 || denominator <= 0.001 ? 0 : (layer.peak * (1 - e)) / denominator);
 			}
 		};
 		const dissolve: Dissolve = {
 			raf: 0,
 			intoKey: newFrame.key,
-			outOfKey: oldFrame.key,
+			// Without an old frame (a pure render-path switch) nothing can reverse it
+			outOfKey: oldFrame?.key ?? '',
 			reverse: () => {
 				direction = -direction;
 				last = performance.now();
@@ -457,13 +586,17 @@ export class FrameManager {
 			}
 		};
 		const step = (now: number): void => {
-			t = Math.min(Math.max(t + (direction * (now - last)) / duration, 0), 1);
+			// A zero duration snaps to the end state in its first frame; dividing
+			// by it would leave t NaN when the rAF timestamp equals the start.
+			const advance = duration > 0 ? (direction * (now - last)) / duration : direction;
+			t = Math.min(Math.max(t + advance, 0), 1);
 			last = now;
 			apply();
 			if (direction > 0 ? t < 1 : t > 0) {
 				dissolve.raf = requestAnimationFrame(step);
 			} else {
 				if (this.dissolve === dissolve) this.dissolve = undefined;
+				external?.finish();
 				this.runQueuedCommit();
 			}
 		};
@@ -484,6 +617,9 @@ export class FrameManager {
 
 		this.queuedCommit = undefined;
 		this.pendingKey = null;
+		this.pendingBarrier = undefined;
+		this.pendingExternal?.finish();
+		this.pendingExternal = undefined;
 		this.clearSlowLoadTimer();
 
 		const remaining = dissolve.reverse();
@@ -512,6 +648,10 @@ export class FrameManager {
 	}
 
 	private abandonPending(): void {
+		this.arrivePending();
+		this.pendingBarrier = undefined;
+		this.pendingExternal?.finish();
+		this.pendingExternal = undefined;
 		this.queuedCommit = undefined;
 		const pending = this.pendingFrame();
 		if (pending) {
