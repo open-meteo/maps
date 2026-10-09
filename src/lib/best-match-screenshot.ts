@@ -1,4 +1,4 @@
-import { GridFactory, domainOptions, getDomainFootprint } from '@openmeteo/weather-map-layer';
+import { domainOptions, getDomainBoundary, isSeamlessDomain } from '@openmeteo/weather-map-layer';
 import {
 	difference,
 	featureCollection,
@@ -8,7 +8,7 @@ import {
 } from '@turf/turf';
 import { mode } from 'mode-watcher';
 
-import { BEFORE_LAYER_VECTOR } from '$lib/constants';
+import { BEFORE_LAYER_VECTOR } from '#lib/constants.js';
 
 import type { Feature, MultiPolygon, Polygon, Position } from 'geojson';
 import type * as maplibregl from 'maplibre-gl';
@@ -227,18 +227,12 @@ const closeRing = (ring: Position[]): Position[] => {
 
 /** Boundary ring for a domain: its precomputed data footprint, else the grid's own box. */
 const domainRing = (domainValue: string): Position[] | undefined => {
-	const footprint = getDomainFootprint(domainValue);
-	if (footprint) return closeRing(footprint.map(([lng, lat]) => [lng, lat] as Position));
-	// Every region here names a concrete grid-bearing domain; the seamless composites in
-	// `domainOptions` carry no grid of their own and are not usable as a footprint.
+	// Every region here names a concrete grid-bearing domain; a seamless composite
+	// has no single footprint of its own.
 	const domain = domainOptions.find((d) => d.value === domainValue);
-	if (!domain || !('grid' in domain)) return undefined;
+	if (!domain || isSeamlessDomain(domain)) return undefined;
 	try {
-		return closeRing(
-			GridFactory.create(domain.grid, null)
-				.getBoundaryPolygon()
-				.map(([lng, lat]) => [lng, lat] as Position)
-		);
+		return closeRing(getDomainBoundary(domain).map(([lng, lat]) => [lng, lat] as Position));
 	} catch {
 		return undefined;
 	}

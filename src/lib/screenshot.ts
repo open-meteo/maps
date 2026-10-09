@@ -4,15 +4,16 @@ import {
 	type Domain,
 	GridFactory,
 	domainOptions,
-	getDomainFootprint,
-	getFallbackDomain
+	getConcreteDomainValue,
+	getDomainBoundary,
+	isSeamlessDomain
 } from '@openmeteo/weather-map-layer';
 import { mode } from 'mode-watcher';
 
-import { loading } from '$lib/stores/preferences';
-import { selectedDomain } from '$lib/stores/variables';
+import { loading } from '#lib/stores/preferences.js';
+import { selectedDomain } from '#lib/stores/variables.js';
 
-import { BEFORE_LAYER_VECTOR } from '$lib/constants';
+import { BEFORE_LAYER_VECTOR } from '#lib/constants.js';
 
 import type { LineString, MultiLineString } from 'geojson';
 import type * as maplibregl from 'maplibre-gl';
@@ -26,10 +27,10 @@ import type * as maplibregl from 'maplibre-gl';
  * `scripts/domain-screenshots.mjs`) can enumerate the domains and know when a
  * frame is fully rendered and safe to capture.
  *
- * The domain outline reuses the weather-map-layer boundary primitives introduced
- * with the seamless-domain work (`getDomainFootprint` for NULL-padded reprojected
- * grids, otherwise the grid's own boundary polygon), so the border hugs each
- * domain's true footprint instead of a plain lat/lon rectangle.
+ * The domain outline reuses the weather-map-layer boundary primitive
+ * (`getDomainBoundary`: the precomputed data-shape footprint for NULL-padded
+ * reprojected grids, otherwise the grid's own boundary polygon), so the border
+ * hugs each domain's true footprint instead of a plain lat/lon rectangle.
  */
 
 const SCREENSHOT_SOURCE_ID = 'domainBorderSource';
@@ -92,14 +93,20 @@ const VALID_DATA_EXTENT: Record<string, { latMin: number; latMax: number }> = {
 	ncep_gfswave016: { latMin: -15 + 14.5 / 6, latMax: -15 + 403.5 / 6 }
 };
 
+/**
+ * The grid-bearing domain behind `domain`: itself for a regular domain, the base
+ * layer for a seamless composite (which has no single footprint of its own).
+ */
+const concreteDomain = (domain: Domain): Domain =>
+	domainOptions.find(({ value }) => value === getConcreteDomainValue(domain)) ?? domain;
+
 /** Boundary ring ([lng, lat] pairs) for the currently selected domain. */
 const domainBoundaryRing = (): Array<[number, number]> | undefined => {
-	const domain = get(selectedDomain);
-	const footprintKey = BOUNDARY_ALIASES[domain.value] ?? domain.value;
+	const domain = concreteDomain(get(selectedDomain));
+	const alias = BOUNDARY_ALIASES[domain.value];
+	const footprintDomain = alias ? domainOptions.find(({ value }) => value === alias) : undefined;
 	try {
-		const ring =
-			getDomainFootprint(footprintKey) ??
-			GridFactory.create(domain.grid, null).getBoundaryPolygon();
+		const ring = getDomainBoundary(footprintDomain ?? domain);
 		const extent = VALID_DATA_EXTENT[domain.value];
 		if (ring && extent) {
 			return ring.map(([lng, lat]) => [lng, Math.min(extent.latMax, Math.max(extent.latMin, lat))]);
@@ -140,7 +147,7 @@ const sphericalCentroid = (ring: Array<[number, number]>): { lng: number; lat: n
 
 /** Frame the map on the selected domain's footprint. */
 export const fitToDomain = (map: maplibregl.Map): void => {
-	const domain = get(selectedDomain);
+	const domain = concreteDomain(get(selectedDomain));
 
 	const ring = domainBoundaryRing();
 	if (ring && ring.length > 0) {
@@ -212,7 +219,7 @@ export const fitToDomain = (map: maplibregl.Map): void => {
  * outline.
  */
 const domainBorderGeometry = (ring: Array<[number, number]>): LineString | MultiLineString => {
-	const domain = get(selectedDomain);
+	const domain = concreteDomain(get(selectedDomain));
 	const isProjected = 'projection' in domain.grid && domain.grid.projection != null;
 	let minLng = Infinity,
 		maxLng = -Infinity;
@@ -299,16 +306,13 @@ const isGlobalDomain = (grid: Domain['grid']): boolean => {
 /** Expose the full domain list so the driver can enumerate what to capture. */
 export const exposeDomainList = (): void => {
 	if (typeof window === 'undefined') return;
-	window.__omDomains = domainOptions.map((d) => {
-		// Resolve to the concrete backing domain for the grid; seamless composites
-		// have no single footprint, so treat them as global (the driver skips them).
-		const concrete = getFallbackDomain(d, domainOptions);
-		return {
-			value: d.value,
-			label: d.label ?? d.value,
-			global: concrete ? isGlobalDomain(concrete.grid) : true
-		};
-	});
+	window.__omDomains = domainOptions.map((d) => ({
+		value: d.value,
+		label: d.label ?? d.value,
+		// Seamless composites have no single footprint, so treat them as global (the
+		// driver skips them).
+		global: isSeamlessDomain(d) || isGlobalDomain(concreteDomain(d).grid)
+	}));
 };
 
 /**

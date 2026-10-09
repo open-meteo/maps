@@ -106,12 +106,29 @@ export function getAlpha(rgba: number[]): number {
 	return rgba[3] ?? 1;
 }
 
+/** Alpha of an `rgb()`/`rgba()` string; 1 when it carries none. */
+export function alphaOfCssColor(color: string): number {
+	const parts = color.slice(color.indexOf('(') + 1, color.lastIndexOf(')')).split(',');
+	return parts.length > 3 ? Number(parts[3]) : 1;
+}
+
+/**
+ * Rescale `value` from the span of `values` into `range`, keeping its relative
+ * position. Used to reuse a colour ramp's progression at another intensity.
+ */
+export function rescaleInto(value: number, values: number[], [min, max]: [number, number]): number {
+	const weakest = Math.min(...values);
+	const strongest = Math.max(...values);
+	const t = strongest === weakest ? 1 : (value - weakest) / (strongest - weakest);
+	return min + t * (max - min);
+}
+
 export function alphaToPercent(alpha: number): number {
 	return Math.round(alpha * 100);
 }
 
 export function percentToAlpha(percent: number): number {
-	return Math.round(percent / 100);
+	return Math.round(percent) / 100;
 }
 
 export function isValidHex(hex: string): boolean {

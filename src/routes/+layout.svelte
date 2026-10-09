@@ -2,14 +2,17 @@
 	import { onDestroy, onMount } from 'svelte';
 
 	import { ModeWatcher } from 'mode-watcher';
+	import { toast } from 'svelte-sonner';
 
-	import { now } from '$lib/stores/time';
+	import { updated } from '$app/state';
 
-	import { Toaster } from '$lib/components/ui/sonner';
+	import { now } from '#lib/stores/time.js';
 
-	import { METADATA_REFRESH_INTERVAL, MILLISECONDS_PER_MINUTE } from '$lib/constants';
-	import { getInitialMetaData } from '$lib/metadata';
-	import { isScreenshotMode } from '$lib/screenshot';
+	import { Toaster } from '#lib/components/ui/sonner/index.js';
+
+	import { METADATA_REFRESH_INTERVAL, MILLISECONDS_PER_MINUTE } from '#lib/constants.js';
+	import { getInitialMetaData } from '#lib/metadata.js';
+	import { isScreenshotMode } from '#lib/screenshot.js';
 
 	// In screenshot mode, don't mount the toaster so toasts never appear in captures.
 	const showToaster = !isScreenshotMode();
@@ -32,6 +35,17 @@
 
 	onDestroy(() => {
 		if (metaDataInterval) clearInterval(metaDataInterval);
+	});
+
+	// `updated` flips once the polled _app/version.json reports a newer build
+	// (see svelte.config.js); it never flips back, so this fires at most once.
+	$effect(() => {
+		if (!updated.current) return;
+		toast('Open-Meteo Maps has been updated', {
+			description: 'A newer version is available.',
+			duration: Infinity,
+			action: { label: 'Reload', onClick: () => location.reload() }
+		});
 	});
 </script>
 

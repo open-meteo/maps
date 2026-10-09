@@ -1,6 +1,6 @@
 import { mode } from 'mode-watcher';
 
-import { BEFORE_LAYER_VECTOR } from '$lib/constants';
+import { BEFORE_LAYER_VECTOR } from '#lib/constants.js';
 
 import type * as maplibregl from 'maplibre-gl';
 

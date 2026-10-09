@@ -3,20 +3,21 @@
 
 	import { toast } from 'svelte-sonner';
 
-	import { map, popup, popupMode } from '$lib/stores/map';
-	import { desktop } from '$lib/stores/preferences';
+	import { map, popup, popupMode } from '#lib/stores/map.js';
+	import { desktop } from '#lib/stores/preferences.js';
 
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
+	import { Label } from '#lib/components/ui/label/index.js';
+	import { Switch } from '#lib/components/ui/switch/index.js';
 
-	import { renderPopup } from '$lib/popup';
+	import { renderPopup } from '#lib/popup.js';
+
+	import SettingsSection from './settings-section.svelte';
 
 	let popupOn = $state(!!$popupMode);
 	let popupModeDrag = $state(!!$popupMode && $popupMode === 'drag');
 </script>
 
-<div>
-	<h2 class="text-lg font-bold">Popup settings</h2>
+<SettingsSection title="Popup settings">
 	<div class="mt-3 flex gap-3">
 		<Switch
 			id="popup_on"
@@ -74,4 +75,4 @@
 				: 'Off'}</Label
 		>
 	</div>
-</div>
+</SettingsSection>

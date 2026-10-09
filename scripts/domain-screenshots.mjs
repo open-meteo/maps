@@ -4,8 +4,10 @@
  *
  * Drives the maps app in screenshot mode (`?screenshot=1`) with Playwright, framing
  * each domain, drawing a clean outline around its footprint (via the seamless-domain
- * boundary primitives in weather-map-layer) and exporting the map canvas to a `.webp`
- * that lands in the website's `static/images/models/` folder, named by domain value.
+ * boundary primitives in weather-map-layer) and exporting the map canvas as a source
+ * set of `.webp` files that lands in the website's `static/images/models/` folder,
+ * named by domain value: `<domain>.webp` at 1x plus `<domain>-<width>w.webp` for
+ * every larger scale, so the website can serve a crisp image at any screen size.
  *
  * Usage:
  *   node scripts/domain-screenshots.mjs                 # all domains
@@ -30,8 +32,10 @@
  *                      (domains listed in DUPLICATE_AREA_DOMAINS — variants covering the
  *                      same area as another domain — are also skipped by default and only
  *                      captured when explicitly requested via --only)
- *   --width / --height viewport size in CSS px (default 820x720)
- *   --scale            device pixel ratio (default 1)
+ *   --width / --height viewport size in CSS px (default 1025x900)
+ *   --scales           device pixel ratios of the source set, comma-separated (default
+ *                      1,2,3,4). The frame is captured once at the largest ratio and
+ *                      downscaled to the others, so every size shows the same frame.
  *   --quality          webp quality 0..1 (default 0.8)
  *   --padding          margin in CSS px around the domain footprint (default 90)
  *   --time             fixed valid time (UTC, YYYY-MM-DDTHHMM) shared by all captures so
@@ -119,12 +123,22 @@ const ONLY = opt('only', null)
 const SKIP_EXISTING = args.has('skip-existing');
 // Capture the dark-themed map and write `<domain>_dark.webp` instead of `<domain>.webp`.
 const DARK = args.has('dark');
-// Defaults chosen to roughly match the size of the previous model-area images
-// (~50–100 KB). Bump --scale / --quality / --width for higher-resolution captures.
+// The 1x size roughly matches the previous model-area images (~50–100 KB).
 const WIDTH = Number(opt('width', 1025));
 const HEIGHT = Number(opt('height', 900));
-const SCALE = Number(opt('scale', 1));
 const QUALITY = Number(opt('quality', 0.85));
+// Device pixel ratios of the source set, ascending. The capture happens at the
+// largest one; the smaller sizes are downscaled from it.
+const SCALES = String(opt('scales', '1,2,3,4'))
+	.split(',')
+	.map(Number)
+	.filter((s) => Number.isFinite(s) && s > 0)
+	.sort((a, b) => a - b);
+if (!SCALES.length) {
+	console.error(`Invalid --scales "${opt('scales', '')}": expected e.g. 1,2,3,4`);
+	process.exit(1);
+}
+const CAPTURE_SCALE = SCALES[SCALES.length - 1];
 // Margin (CSS px) kept around the domain footprint when framing it.
 const PADDING = Number(opt('padding', 90));
 // Default to 5173: the maps tile/style hosts allow-list localhost:5173 for CORS,
@@ -238,7 +252,7 @@ const run = async () => {
 	const browser = await chromium.launch({ headless: true, proxy, env: browserEnv });
 	const context = await browser.newContext({
 		viewport: { width: WIDTH, height: HEIGHT },
-		deviceScaleFactor: SCALE,
+		deviceScaleFactor: CAPTURE_SCALE,
 		// mode-watcher follows the OS preference, so this selects the map's light/dark theme.
 		colorScheme: DARK ? 'dark' : 'light'
 	});
@@ -246,6 +260,26 @@ const run = async () => {
 	page.setDefaultTimeout(READY_TIMEOUT_MS);
 	page.setDefaultNavigationTimeout(READY_TIMEOUT_MS);
 	page.on('console', (msg) => process.env.DEBUG && console.log(`[page] ${msg.text()}`));
+
+	// Write the source set for one capture: scale 1 as `<name>.webp`, every other
+	// scale as `<name>-<width>w.webp` (the website derives these from the base name).
+	// The captured frame is downscaled with sharp rather than re-captured per scale,
+	// so all sizes show exactly the same map.
+	const writeSourceSet = async (png, name) => {
+		const cssWidth = page.viewportSize().width;
+		const files = [];
+		for (const scale of SCALES) {
+			const width = Math.round(cssWidth * scale);
+			const file = scale === 1 ? `${name}.webp` : `${name}-${width}w.webp`;
+			const image = sharp(png);
+			if (scale !== CAPTURE_SCALE) image.resize({ width });
+			await image.webp({ quality: Math.round(QUALITY * 100) }).toFile(resolve(OUT_DIR, file));
+			files.push(file);
+		}
+		return files;
+	};
+	const describe = (files) =>
+		files.length > 1 ? `${files[0]} (+${files.length - 1} sizes)` : files[0];
 
 	// Navigate to a domain and wait until its frame is fully rendered. Returns true if
 	// the app signalled readiness, false if we timed out (caller captures anyway).
@@ -284,11 +318,9 @@ const run = async () => {
 				if (!ready) ready = await loadDomain(url);
 				await page.waitForTimeout(ready ? 600 : 1500);
 				const png = await page.screenshot({ type: 'png' });
-				await sharp(png)
-					.webp({ quality: Math.round(QUALITY * 100) })
-					.toFile(resolve(OUT_DIR, `${name}.webp`));
+				const files = await writeSourceSet(png, name);
 				console.log(
-					`Best match (${view}) → ${name}.webp${ready ? '' : ' (captured without ready signal)'}`
+					`Best match (${view}) → ${describe(files)}${ready ? '' : ' (captured without ready signal)'}`
 				);
 			}
 			return;
@@ -296,7 +328,7 @@ const run = async () => {
 
 		// Satellite-coverage view: a single wide-world capture, not the domain loop.
 		if (args.has('satellites')) {
-			const file = resolve(OUT_DIR, `geostationary_satellites${DARK ? '_dark' : ''}.webp`);
+			const name = `geostationary_satellites${DARK ? '_dark' : ''}`;
 			// The world map wants a wide (roughly 2:1) frame; use satellite-specific defaults
 			// unless the caller overrode --width/--height explicitly.
 			await page.setViewportSize({
@@ -310,11 +342,9 @@ const run = async () => {
 			if (!ready) ready = await loadDomain(url);
 			await page.waitForTimeout(ready ? 600 : 1500);
 			const png = await page.screenshot({ type: 'png' });
-			await sharp(png)
-				.webp({ quality: Math.round(QUALITY * 100) })
-				.toFile(file);
+			const files = await writeSourceSet(png, name);
 			console.log(
-				`Satellites → geostationary_satellites${DARK ? '_dark' : ''}.webp${ready ? '' : ' (captured without ready signal)'}`
+				`Satellites → ${describe(files)}${ready ? '' : ' (captured without ready signal)'}`
 			);
 			return;
 		}
@@ -359,8 +389,8 @@ const run = async () => {
 		console.log(`Capturing ${domains.length} domain(s) into ${OUT_DIR}`);
 		const failed = [];
 		for (const [i, d] of domains.entries()) {
-			const file = resolve(OUT_DIR, `${d.value}${DARK ? '_dark' : ''}.webp`);
-			if (SKIP_EXISTING && existsSync(file)) {
+			const name = `${d.value}${DARK ? '_dark' : ''}`;
+			if (SKIP_EXISTING && existsSync(resolve(OUT_DIR, `${name}.webp`))) {
 				console.log(`  [${i + 1}/${domains.length}] ${d.value} — skipped (exists)`);
 				continue;
 			}
@@ -382,13 +412,11 @@ const run = async () => {
 				// Capture via the compositor (reliable in headless, unlike WebGL canvas
 				// read-back) and encode to webp.
 				const png = await page.screenshot({ type: 'png' });
-				await sharp(png)
-					.webp({ quality: Math.round(QUALITY * 100) })
-					.toFile(file);
+				const files = await writeSourceSet(png, name);
 				const note = ready ? '' : ' (captured without ready signal)';
 				if (!ready) failed.push(d.value);
 				console.log(
-					`  [${i + 1}/${domains.length}] ${d.value} (${variable}) → ${d.value}${DARK ? '_dark' : ''}.webp${note}`
+					`  [${i + 1}/${domains.length}] ${d.value} (${variable}) → ${describe(files)}${note}`
 				);
 			} catch (err) {
 				failed.push(d.value);

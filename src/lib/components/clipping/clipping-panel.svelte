@@ -17,19 +17,23 @@
 	} from 'terra-draw';
 	import { TerraDrawMapLibreGLAdapter } from 'terra-draw-maplibre-gl-adapter';
 
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 
-	import { clippingCountryCodes, clippingPanelOpen, terraDrawActive } from '$lib/stores/clipping';
-	import { map } from '$lib/stores/map';
-	import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
+	import {
+		clippingCountryCodes,
+		clippingPanelOpen,
+		terraDrawActive
+	} from '#lib/stores/clipping.js';
+	import { map } from '#lib/stores/map.js';
+	import { omProtocolSettings } from '#lib/stores/om-protocol-settings.js';
 
 	import {
 		CLIP_COUNTRIES_PARAM,
 		buildCountryClippingOptions,
 		serializeClipCountriesParam
-	} from '$lib/clipping';
-	import { changeOMfileURL } from '$lib/layers';
-	import { updateUrl } from '$lib/url';
+	} from '#lib/clipping.js';
+	import { changeOMfileURL } from '#lib/layers.js';
+	import { updateUrl } from '#lib/url.js';
 
 	import CountrySelector from './country-selector.svelte';
 
@@ -94,10 +98,21 @@
 	export const initTerraDraw = () => {
 		if (!$map) return;
 
-		// Clean up any existing draw instance (helps with HMR)
+		// Clean up any existing draw instance (helps with HMR). stop() throws
+		// when a style reload already wiped the adapter's layers — ignore.
 		if (draw) {
-			draw.stop();
+			try {
+				draw.stop();
+			} catch {
+				// already torn down with the old style
+			}
 			draw = undefined;
+		}
+		// A re-init lands in terra-draw's default mode: reset the mode buttons
+		// so they cannot claim a drawing state the map no longer has.
+		if (activeMode !== '') {
+			activeMode = '';
+			terraDrawActive.set(false);
 		}
 
 		draw = new TerraDraw({
@@ -304,6 +319,10 @@
 	};
 
 	const setMode = (mode: string) => {
+		// Not initialised yet (a click can beat the map's load event, especially
+		// on mobile) or torn down by a style reload: initialise on demand instead
+		// of silently ignoring the click.
+		if (!draw && $map?.isStyleLoaded()) initTerraDraw();
 		if (!draw) return;
 		if (activeMode === mode) {
 			exitDrawingMode();
@@ -368,6 +387,22 @@
 			exitDrawingMode();
 		}
 	};
+
+	// A basemap style reload (dark mode, water-clip or globe toggle) wipes
+	// terra-draw's adapter layers with every other runtime layer, leaving a
+	// draw instance that silently ignores interactions ("needs activating
+	// twice"). Re-create it on the fresh style.
+	$effect(() => {
+		const mapInstance = $map;
+		if (!mapInstance) return;
+		const reinit = () => {
+			if (draw) initTerraDraw();
+		};
+		mapInstance.on('style.load', reinit);
+		return () => {
+			mapInstance.off('style.load', reinit);
+		};
+	});
 
 	// Auto-open the panel when country codes appear from URL parsing
 	// (parent's onMount runs urlParamsToPreferences after this component mounts)

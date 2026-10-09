@@ -1,15 +1,87 @@
 import { get } from 'svelte/store';
 
+import {
+	GridFactory,
+	domainOptions,
+	getConcreteDomainValue,
+	omProtocol,
+	updateCurrentBounds
+} from '@openmeteo/weather-map-layer';
 import * as maplibregl from 'maplibre-gl';
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import { mode } from 'mode-watcher';
 
-import { map as m } from '$lib/stores/map';
-import { defaultPreferences, preferences as p } from '$lib/stores/preferences';
+import { map as m } from '#lib/stores/map.js';
+import { omProtocolSettings } from '#lib/stores/om-protocol-settings.js';
+import { defaultPreferences, preferences as p } from '#lib/stores/preferences.js';
+import { domain as d } from '#lib/stores/variables.js';
 
-import { BEFORE_LAYER_RASTER, HILLSHADE_LAYER } from '$lib/constants';
+import { BEFORE_LAYER_RASTER, HILLSHADE_LAYER } from '#lib/constants.js';
 
 import { addOmFileLayers } from './layers';
 import { updateUrl } from './url';
+
+import type { RequestParameters } from 'maplibre-gl';
+
+export interface CreateMapOptions {
+	/**
+	 * Screenshot mode (see screenshot.ts): no controls, no URL hash (the domain is
+	 * framed explicitly) and the attribution expanded so captures credit the
+	 * base-map sources.
+	 */
+	screenshot?: boolean;
+}
+
+export const createMap = async (
+	container: HTMLElement,
+	{ screenshot = false }: CreateMapOptions = {}
+) => {
+	// MapLibre 6 loads its worker from a URL relative to its own module, which a
+	// bundled app cannot serve (404, blank map). Use the worker bundled by Vite.
+	maplibregl.setWorkerUrl(maplibreWorkerUrl);
+
+	maplibregl.addProtocol('om', (params: RequestParameters, abortController: AbortController) =>
+		omProtocol(params, abortController, get(omProtocolSettings))
+	);
+
+	const style = await getStyle();
+
+	const domainObject = domainOptions.find(({ value }) => value === get(d));
+	if (!domainObject) {
+		throw new Error('Domain not found');
+	}
+	// A seamless composite is positioned by its base domain's grid
+	const gridDomainValue = getConcreteDomainValue(domainObject);
+	const gridDomain = domainOptions.find(({ value }) => value === gridDomainValue);
+	if (!gridDomain) {
+		throw new Error('Base domain not found');
+	}
+	const grid = GridFactory.create(gridDomain.grid);
+
+	const map = new maplibregl.Map({
+		container,
+		style,
+		center: grid.getCenter(),
+		zoom: gridDomain.grid.zoom,
+		keyboard: false,
+		hash: !screenshot,
+		attributionControl: screenshot ? { compact: false } : undefined,
+		maxPitch: 85
+	});
+	m.set(map);
+
+	setMapControlSettings(!screenshot);
+
+	// update bounds when new tiles are requested, to trigger new data ranges loading if necessary
+	map.on('dataloading', () => {
+		const bounds = map.getBounds();
+		const [minLng, minLat] = bounds.getSouthWest().toArray();
+		const [maxLng, maxLat] = bounds.getNorthEast().toArray();
+		updateCurrentBounds([minLng, minLat, maxLng, maxLat]);
+	});
+
+	return map;
+};
 
 export const setMapControlSettings = (addControls = true) => {
 	const map = get(m);
@@ -74,10 +146,19 @@ export const addHillshadeLayer = () => {
 	);
 };
 
+// Mode the currently applied basemap style was fetched for. Can drift from
+// mode.current: when an embedding page's color-scheme propagates into our
+// prefers-color-scheme, mode-watcher flips the UI mode without any style
+// reload happening.
+let appliedStyleMode: 'light' | 'dark' = 'light';
+
+export const getAppliedStyleMode = () => appliedStyleMode;
+
 export const getStyle = async () => {
 	const preferences = get(p);
+	appliedStyleMode = mode.current === 'dark' ? 'dark' : 'light';
 	const style = await fetch(
-		`https://map-assets.open-meteo.com/styles/minimal-planet-maps${mode.current === 'dark' ? '-dark' : ''}${preferences.clipWater ? '-water-clip' : ''}.json`
+		`https://static-assets.open-meteo.com/map-assets/styles/minimal-planet-maps${appliedStyleMode === 'dark' ? '-dark' : ''}${preferences.clipWater ? '-water-clip' : ''}.json`
 	).then((r) => r.json());
 
 	return preferences.globe ? { ...style, projection: { type: 'globe' } } : style;

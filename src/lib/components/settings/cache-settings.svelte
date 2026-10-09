@@ -5,12 +5,14 @@
 
 	import { clearBlockCache } from '@openmeteo/weather-map-layer';
 
-	import { cacheBlockSizeKb, cacheMaxBytesMb } from '$lib/stores/om-protocol-settings';
+	import { cacheBlockSizeKb, cacheMaxBytesMb } from '#lib/stores/om-protocol-settings.js';
 
-	import Button from '$lib/components/ui/button/button.svelte';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import * as Select from '$lib/components/ui/select';
+	import Button from '#lib/components/ui/button/button.svelte';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import { Label } from '#lib/components/ui/label/index.js';
+	import * as Select from '#lib/components/ui/select/index.js';
+
+	import SettingsSection from './settings-section.svelte';
 
 	const blockSizeOptions = [
 		{ value: '16', label: '16 KiB' },
@@ -40,8 +42,7 @@
 	});
 </script>
 
-<div>
-	<h2 class="text-lg font-bold">Cache</h2>
+<SettingsSection title="Cache">
 	<div class="mt-3 flex flex-col gap-3">
 		<div class="flex items-center gap-3">
 			<Label class="w-28 shrink-0">Block Size</Label>
@@ -79,4 +80,4 @@
 			</div>
 		{/if}
 	</div>
-</div>
+</SettingsSection>

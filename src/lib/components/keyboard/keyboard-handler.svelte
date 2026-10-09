@@ -4,19 +4,19 @@
 
 	import { toast } from 'svelte-sonner';
 
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 
-	import { timeSelectorActions } from '$lib/stores/keyboard';
-	import { popup, popupMode } from '$lib/stores/map';
-	import { helpOpen } from '$lib/stores/preferences';
+	import { timeSelectorActions } from '#lib/stores/keyboard.js';
+	import { popup, popupMode } from '#lib/stores/map.js';
+	import { helpOpen } from '#lib/stores/preferences.js';
 	import {
 		domainSelectionOpen,
 		pressureLevelsSelectionOpen,
 		variableSelectionExtended,
 		variableSelectionOpen
-	} from '$lib/stores/variables';
+	} from '#lib/stores/variables.js';
 
-	import { switchPopupMode } from '$lib/popup';
+	import { switchPopupMode } from '#lib/popup.js';
 
 	const keyDownEvent = (event: KeyboardEvent) => {
 		// Ignore shortcuts when focus is inside an editable element, except for Escape
@@ -49,19 +49,39 @@
 			if (p) p.remove();
 			popup.set(undefined);
 			toast.dismiss();
+			// The panel's search field takes Escape first and stops it there, so a
+			// query is cleared before a second press collapses the panel
+			variableSelectionExtended.set(false);
 			return;
 		}
 
 		// Variable Selection Navigation
-		const canNavigateSelection =
-			get(variableSelectionExtended) &&
-			!get(variableSelectionOpen) &&
-			!get(domainSelectionOpen) &&
-			!get(pressureLevelsSelectionOpen);
+		const selectionOverlayOpen =
+			get(variableSelectionOpen) || get(domainSelectionOpen) || get(pressureLevelsSelectionOpen);
+
+		// Unlike its neighbours below, `v` opens the panel, so it cannot require
+		// the panel to be open already
+		if (event.key === 'v' && !selectionOverlayOpen && !event.ctrlKey) {
+			event.preventDefault();
+			variableSelectionExtended.set(true);
+			// The panel stays rendered while collapsed (it slides off-screen), so
+			// the field is there to focus; preventScroll keeps that offset from
+			// dragging the viewport along
+			const searchInput = document.querySelector('[data-panel-search]') as HTMLElement | null;
+			searchInput?.focus({ preventScroll: true });
+			return;
+		}
+
+		const canNavigateSelection = get(variableSelectionExtended) && !selectionOverlayOpen;
 
 		if (canNavigateSelection && !event.ctrlKey) {
-			if (event.key === 'v') {
-				variableSelectionOpen.set(true);
+			if (event.key === 'a') {
+				// Routed through the panel's button rather than the dialog's open
+				// flag: the flag alone opens a dialog whose picks go nowhere, since
+				// the panel owns the add-to-chart handler
+				event.preventDefault();
+				const addButton = document.querySelector('[data-add-variable]') as HTMLElement | null;
+				addButton?.click();
 				return;
 			}
 			if (event.key === 'd') {
@@ -69,7 +89,11 @@
 				return;
 			}
 			if (event.key === 'l') {
-				pressureLevelsSelectionOpen.set(true);
+				// Only when a level selector is rendered, else the open flag
+				// would stay stuck and block the other shortcuts
+				if (document.querySelector('[data-level-select]')) {
+					pressureLevelsSelectionOpen.set(true);
+				}
 				return;
 			}
 		}

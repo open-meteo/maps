@@ -5,14 +5,13 @@ import {
 	LEVEL_REGEX,
 	LEVEL_UNIT_REGEX,
 	domainOptions,
-	getFallbackDomain,
 	variableOptions
 } from '@openmeteo/weather-map-layer';
 import { type Persisted, persisted } from 'svelte-persisted-store';
 
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 
-import { DEFAULT_DOMAIN, DEFAULT_VARIABLE } from '$lib/constants';
+import { DEFAULT_DOMAIN, DEFAULT_VARIABLE } from '#lib/constants.js';
 
 export const defaultDomain = DEFAULT_DOMAIN;
 export const domain = persisted('domain', defaultDomain);
@@ -22,18 +21,11 @@ export const variable = persisted('variable', defaultVariable);
 
 export const selectedDomain = derived(domain, ($domain) => {
 	const object = domainOptions.find(({ value }) => value === $domain);
-	if (!object) {
+	if (object) {
+		return object;
+	} else {
 		throw new Error('Domain not found');
 	}
-	// Resolve to the concrete backing domain: identity for a regular domain, or the
-	// global-fallback layer for a seamless composite. This guarantees consumers a
-	// grid and time/model intervals to work with (seamless composites carry neither
-	// directly and aren't separately loaded on this branch).
-	const concrete = getFallbackDomain(object, domainOptions);
-	if (!concrete) {
-		throw new Error('Concrete domain not found for ' + $domain);
-	}
-	return concrete;
 });
 
 export const selectedVariable = derived(variable, ($variable) => {
@@ -55,6 +47,7 @@ export const levelGroupSelected: Writable<{ value: string; label: string } | und
 			) ?? undefined)
 		: undefined
 );
+
 selectedVariable.subscribe((newVariable) => {
 	levelGroupSelected.set(
 		newVariable.value.match(LEVEL_REGEX)

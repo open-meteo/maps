@@ -1,13 +1,15 @@
 <script lang="ts">
 	import { get } from 'svelte/store';
 
-	import { colorBlend as cB, interpolation as iP } from '$lib/stores/preferences';
+	import { colorBlend as cB, interpolation as iP } from '#lib/stores/preferences.js';
 
-	import Button from '$lib/components/ui/button/button.svelte';
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
+	import Button from '#lib/components/ui/button/button.svelte';
+	import { Label } from '#lib/components/ui/label/index.js';
+	import { Switch } from '#lib/components/ui/switch/index.js';
 
-	import { changeOMfileURL } from '$lib/layers';
+	import { changeOMfileURL } from '#lib/layers.js';
+
+	import SettingsSection from './settings-section.svelte';
 
 	import type { InterpolationMethod } from '@openmeteo/weather-map-layer';
 
@@ -33,8 +35,7 @@
 	};
 </script>
 
-<div>
-	<h2 class="text-lg font-bold">Interpolation</h2>
+<SettingsSection title="Interpolation">
 	<p class="mt-1 text-sm opacity-75">
 		How raster pixels are sampled between grid points. Cubic removes bilinear faceting; Monotone is
 		shape-preserving cubic (smooth but never overshoots).
@@ -60,4 +61,4 @@
 		<Switch id="color-blend" checked={colorBlend} onCheckedChange={toggleColorBlend} />
 		<Label for="color-blend">Blend between bands {colorBlend ? 'on' : 'off'}</Label>
 	</div>
-</div>
+</SettingsSection>

@@ -7,24 +7,24 @@
 	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
-	import { timeSelectorActions } from '$lib/stores/keyboard';
-	import { desktop, loading } from '$lib/stores/preferences';
-	import { metaJson, modelRunLocked } from '$lib/stores/time';
-	import { inProgress, latest, modelRun, now, time } from '$lib/stores/time';
-	import { selectedDomain } from '$lib/stores/variables';
+	import { timeSelectorActions } from '#lib/stores/keyboard.js';
+	import { desktop, loading } from '#lib/stores/preferences.js';
+	import { metaJson, modelRunLocked } from '#lib/stores/time.js';
+	import { inProgress, latest, modelRun, now, time } from '#lib/stores/time.js';
+	import { selectedDomain } from '#lib/stores/variables.js';
 
-	import PrefetchButton from '$lib/components/time/prefetch-button.svelte';
-	import * as Select from '$lib/components/ui/select';
+	import PrefetchButton from '#lib/components/time/prefetch-button.svelte';
+	import * as Select from '#lib/components/ui/select/index.js';
 
 	import {
 		DAY_NAMES,
 		MILLISECONDS_PER_DAY,
 		MILLISECONDS_PER_HOUR,
 		MILLISECONDS_PER_WEEK
-	} from '$lib/constants';
-	import { throttle } from '$lib/helpers';
-	import { changeOMfileURL } from '$lib/layers';
-	import { getMetaData } from '$lib/metadata';
+	} from '#lib/constants.js';
+	import { throttle } from '#lib/helpers.js';
+	import { changeOMfileURL } from '#lib/layers.js';
+	import { tryGetMetaData } from '#lib/metadata.js';
 	import {
 		formatISOWithoutTimezone,
 		formatLocalDate,
@@ -36,9 +36,9 @@
 		isValidTimeStep,
 		startOfLocalDay,
 		withLocalTime
-	} from '$lib/time-format';
-	import { findTimeStep } from '$lib/time-utils';
-	import { updateUrl } from '$lib/url';
+	} from '#lib/time-format.js';
+	import { findTimeStep } from '#lib/time-utils.js';
+	import { updateUrl } from '#lib/url.js';
 
 	// Disables time selection when loading new OM files
 	let disabled = $derived($modelRun === undefined);
@@ -260,12 +260,11 @@
 
 		if (!$modelRunLocked && $modelRun && setToModelRun.getTime() !== $modelRun.getTime()) {
 			$modelRun = new Date(setToModelRun);
-			try {
-				$metaJson = await getMetaData();
-			} catch (e) {
-				const error = e as Error;
-				toast.warning(error.message);
-				// set to latest
+			const meta = await tryGetMetaData();
+			if (meta) {
+				$metaJson = meta;
+			} else {
+				// Failed load already toasted; fall back to the latest run
 				$time = new Date(latestReferenceTime);
 				$modelRun = new Date(latestReferenceTime);
 				$metaJson = $latest;
@@ -306,13 +305,23 @@
 
 	// changes the selected model run and updates available time steps
 	const onModelRunChange = async (step: Date) => {
+		const previousModelRun = $modelRun;
+		const previousLocked = $modelRunLocked;
 		$loading = true;
 		$modelRunLocked = true;
 		$modelRun = step;
-		$metaJson = await getMetaData();
+		const meta = await tryGetMetaData();
+		if (!meta) {
+			// Failed load already toasted; put the selection back where it was
+			$modelRun = previousModelRun;
+			$modelRunLocked = previousLocked;
+			$loading = false;
+			return;
+		}
+		$metaJson = meta;
 
 		let closestTime = new SvelteDate($modelRun);
-		for (const vT of $metaJson.valid_times) {
+		for (const vT of meta.valid_times) {
 			const validTime = new Date(vT);
 			if (validTime.getTime() <= $time.getTime()) {
 				closestTime.setTime(validTime.getTime());
@@ -780,7 +789,7 @@
 </script>
 
 <div
-	class="fixed bottom-0 w-full md:w-[unset] md:max-w-[75vw] -translate-x-1/2 left-1/2 z-40 {disabled
+	class="time-selector-container fixed bottom-0 w-full md:w-[unset] md:max-w-[75vw] -translate-x-1/2 left-1/2 z-40 {disabled
 		? 'text-foreground/50 cursor-not-allowed'
 		: ''}"
 >
