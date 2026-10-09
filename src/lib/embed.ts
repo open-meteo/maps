@@ -3,13 +3,14 @@
 // position hash is mirrored back so the embedder can reflect it in its own URL.
 import { get } from 'svelte/store';
 
-import { domainOptions } from '@openmeteo/weather-map-layer';
 import { setMode } from 'mode-watcher';
 
 import { browser } from '$app/env';
 
 import { map as m } from '#lib/stores/map.js';
 import { domain } from '#lib/stores/variables.js';
+
+import { domainOptions } from '#lib/domains.js';
 
 import { version } from '../../package.json';
 
