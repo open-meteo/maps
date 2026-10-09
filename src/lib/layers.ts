@@ -24,6 +24,7 @@ import { modelRun, time } from '#lib/stores/time.js';
 import { selectedDomain } from '#lib/stores/variables.js';
 import { vectorOptions as vO } from '#lib/stores/vector.js';
 
+import { sourceKey } from '#lib/chart-encoding.js';
 import {
 	BEFORE_LAYER_RASTER,
 	BEFORE_LAYER_VECTOR,
@@ -56,13 +57,18 @@ const buildChannels = (): FrameChannel[] | undefined => {
 	const channels: FrameChannel[] = [];
 	for (const source of sources) {
 		const omUrl = getOmUrlForSource(source);
-		if (!omUrl) return undefined;
+		// A cross-domain (EPS) source is skipped rather than fatal while its
+		// sibling metadata loads; the epsMeta subscription re-renders then.
+		if (!omUrl) {
+			if (source.domain) continue;
+			return undefined;
+		}
 		const url = 'om://' + omUrl;
 
 		if (source.raster) {
 			channels.push(
 				rasterChannel(
-					source.variable,
+					sourceKey(source),
 					url,
 					getRasterOpacity() * (source.opacity ?? 1),
 					rasterBefore
@@ -71,7 +77,7 @@ const buildChannels = (): FrameChannel[] | undefined => {
 		}
 		if (source.contours || source.arrows || vectorOptions.grid) {
 			channels.push(
-				vectorChannel(source.variable, url, {
+				vectorChannel(sourceKey(source), url, {
 					contours: !!source.contours,
 					arrows: !!source.arrows,
 					// Barbs encode knots, so sources whose directions come with another
@@ -336,13 +342,13 @@ export const updateSeamlessBorderLayer = (): void => {
 };
 
 /**
- * om:// source URL per source variable of the currently visible frame, in
- * chart source order (used by the popup).
+ * om:// source URL per source key (`variable` or `variable@domain`) of the
+ * currently visible frame, in chart source order (used by the popup).
  */
 export const getActiveOmUrls = (): Map<string, string> => {
 	const urls = new Map<string, string>();
 	for (const channel of frameManager?.getActiveChannels() ?? []) {
-		// Channel keys are `${variable}:kind:...`; variables contain no colon
+		// Channel keys are `${sourceKey}:kind:...`; source keys contain no colon
 		const key = channel.key.slice(0, channel.key.indexOf(':'));
 		if (!urls.has(key)) urls.set(key, channel.url);
 	}
