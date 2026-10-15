@@ -5,7 +5,9 @@ import {
 	type ArrowStyle,
 	DEFAULT_ARROW_STYLE,
 	VALID_ARROW_STYLES,
-	defaultOmProtocolSettings
+	defaultOmProtocolSettings,
+	timeStepHoursAt,
+	variableUsesTimeStep
 } from '@openmeteo/weather-map-layer';
 import { mode } from 'mode-watcher';
 import { toast } from 'svelte-sonner';
@@ -29,7 +31,7 @@ import {
 	tileSize as tS,
 	url as u
 } from '#lib/stores/preferences.js';
-import { modelRun as mR, modelRunLocked as mRL, time } from '#lib/stores/time.js';
+import { modelRun as mR, modelRunLocked as mRL, metaJson, time } from '#lib/stores/time.js';
 import { domain as d, variable as v } from '#lib/stores/variables.js';
 import { vectorOptions as vO } from '#lib/stores/vector.js';
 
@@ -225,6 +227,12 @@ export const getOmUrlForSource = (source: ChartSource): string | undefined => {
 
 	let result = `${base}/${fmtModelRun(modelRun)}/${fmtSelectedTime(selectedTime)}.om`;
 	result += `?variable=${source.variable}`;
+	// A rate is the stored sum over the file's time step: the layer's rule
+	// needs the step length, which only the run's valid times give
+	if (variableUsesTimeStep(source.variable)) {
+		const step = timeStepHoursAt(selectedTime, get(metaJson)?.valid_times);
+		if (step) result += `&time_step_hours=${step}`;
+	}
 
 	if (mode.current === 'dark') result += '&dark=true';
 	const vectorOptions = get(vO);
