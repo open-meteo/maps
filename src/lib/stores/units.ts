@@ -30,9 +30,23 @@ export function convertTemperature(value: number, unit: TemperatureUnit): number
 	return value;
 }
 
-export function convertPrecipitation(value: number, unit: PrecipitationUnit): number {
-	if (unit === 'inch') return value / 25.4;
+/**
+ * Precipitation-like amounts come in mm (sums), mm/h (rates) and cm (fresh
+ * snow); the inch preference converts each from its own base.
+ */
+export function convertPrecipitation(
+	value: number,
+	unit: PrecipitationUnit,
+	baseUnit: string = 'mm'
+): number {
+	if (unit === 'inch') return value / (baseUnit === 'cm' ? 2.54 : 25.4);
 	return value;
+}
+
+/** The unit shown for a precipitation-like base unit under the preference. */
+export function precipitationDisplayUnit(baseUnit: string, unit: PrecipitationUnit): string {
+	if (unit !== 'inch') return baseUnit;
+	return baseUnit === 'mm/h' ? 'inch/h' : 'inch';
 }
 
 export function convertWindSpeed(value: number, unit: WindSpeedUnit): number {
@@ -62,6 +76,8 @@ export function getUnitCategory(baseUnit: string): UnitCategory | undefined {
 		case 'K':
 			return 'temperature';
 		case 'mm':
+		case 'mm/h':
+		case 'cm':
 			return 'precipitation';
 		case 'm/s':
 			return 'wind_speed';
@@ -88,7 +104,7 @@ export function convertValue(
 		case 'temperature':
 			return convertTemperature(value, units.temperature);
 		case 'precipitation':
-			return convertPrecipitation(value, units.precipitation);
+			return convertPrecipitation(value, units.precipitation, baseUnit);
 		case 'wind_speed':
 			return convertWindSpeed(value, units.windSpeed);
 		case 'distance':
@@ -113,7 +129,7 @@ export function getDisplayUnit(
 		case 'temperature':
 			return units.temperature;
 		case 'precipitation':
-			return units.precipitation;
+			return precipitationDisplayUnit(baseUnit, units.precipitation);
 		case 'wind_speed':
 			return units.windSpeed;
 		case 'distance':
