@@ -9,6 +9,7 @@
 		savedCharts,
 		setPlainVariable
 	} from '#lib/stores/chart.js';
+	import { epsMeta, sourceAvailable } from '#lib/stores/eps.js';
 	import { metaJson } from '#lib/stores/time.js';
 	import { levelGroupSelected, variable } from '#lib/stores/variables.js';
 
@@ -37,14 +38,14 @@
 	const availablePresets = $derived(
 		$metaJson
 			? chartPresets.filter((preset) =>
-					preset.sources.every((source) => $metaJson.variables.includes(source.variable))
+					preset.sources.every((source) => sourceAvailable(source, $metaJson, $epsMeta))
 				)
 			: []
 	);
 	const availableSavedCharts = $derived(
 		$metaJson
 			? $savedCharts.charts.filter((chart) =>
-					chart.sources.every((source) => $metaJson.variables.includes(source.variable))
+					chart.sources.every((source) => sourceAvailable(source, $metaJson, $epsMeta))
 				)
 			: []
 	);

@@ -8,6 +8,8 @@
 	import * as Command from '#lib/components/ui/command/index.js';
 	import * as Dialog from '#lib/components/ui/dialog/index.js';
 
+	import { sourceKey } from '#lib/chart-encoding.js';
+
 	import {
 		buildVariableList,
 		isStandaloneVariable,
@@ -33,7 +35,7 @@
 			// one row, so resolving to an existing source would close the dialog
 			// without adding anything (picking temperature while the chart holds
 			// its 2m default). The row's level select adjusts it afterwards.
-			const taken = new Set($activeChart.sources.map((source) => source.variable));
+			const taken = new Set($activeChart.sources.map((source) => sourceKey(source)));
 			const level = pickDefaultLevel($levelGroups[entry].filter(({ value }) => !taken.has(value)));
 			if (!level) return;
 			target = level;
