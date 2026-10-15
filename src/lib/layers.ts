@@ -29,11 +29,7 @@ import { type Renderer, renderer } from '#lib/stores/preferences.js';
 import { loading, opacity, preferences as p } from '#lib/stores/preferences.js';
 import { modelRun, time } from '#lib/stores/time.js';
 import { selectedDomain, variable as variableStore } from '#lib/stores/variables.js';
-import {
-	type VectorOptions,
-	defaultVectorOptions,
-	vectorOptions as vO
-} from '#lib/stores/vector.js';
+import { type VectorOptions, vectorOptions as vO } from '#lib/stores/vector.js';
 
 import { windIconSizePx, windIconSpacing } from '#lib/arrow-sprites.js';
 import { sourceKey } from '#lib/chart-encoding.js';
@@ -154,7 +150,7 @@ const buildRenderState = (): RenderState | undefined => {
 				// unless the source inlines its vectors into the raster stack
 				beforeLayer: source.inlineVectors ? rasterBefore : vectorBefore,
 				raster: false,
-				arrows: gpuArrowConfig(vectorOptions.arrowIconScale, dark)
+				arrows: gpuArrowConfig(vectorOptions.arrowIconScale, vectorOptions.arrowPacking, dark)
 			});
 		}
 		if (gpuParticles) {
@@ -224,7 +220,7 @@ const buildRenderState = (): RenderState | undefined => {
  * wider spacing and lighter strokes — the per-pixel raster already carries the
  * magnitude, the arrows only need to show flow.
  */
-const GPU_ARROW_SPACING = 1.5;
+export const GPU_ARROW_SPACING = 1.5;
 const GPU_ARROW_WEIGHT = 0.7;
 
 /** The GPU isoline pass styled like the CPU contour line layer would be. */
@@ -269,15 +265,26 @@ const RAIN_VARIABLES = /^(precipitation|rain|showers)/;
  * so extreme viewports (video walls, tiny embeds) stay sane.
  */
 export const particleViewportScale = (viewport?: { width: number; height: number }): number => {
-	const width = viewport?.width ?? (typeof window === 'undefined' ? 0 : window.innerWidth);
-	const height = viewport?.height ?? (typeof window === 'undefined' ? 0 : window.innerHeight);
-	if (!width || !height) return 1;
-	return Math.min(1.25, Math.max(0.3, Math.cbrt((width * height) / PARTICLE_REF_AREA)));
+	const size = viewport ?? mapViewport();
+	if (!size?.width || !size.height) return 1;
+	return Math.min(1.25, Math.max(0.3, Math.cbrt((size.width * size.height) / PARTICLE_REF_AREA)));
+};
+
+/**
+ * The map's own size in CSS px: the particle presentation is per map, and an
+ * embedded map is smaller than the window. The window stands in before the
+ * map exists (the settings pane's labels during hydration).
+ */
+export const mapViewport = (): { width: number; height: number } | undefined => {
+	const canvas = get(m)?.getCanvas();
+	if (canvas) return { width: canvas.clientWidth, height: canvas.clientHeight };
+	if (typeof window === 'undefined') return undefined;
+	return { width: window.innerWidth, height: window.innerHeight };
 };
 
 /**
  * Particle count at the current viewport for a density factor. The settings
- * pane passes its reactively bound window size so its labels follow a resize.
+ * pane passes the map size it re-reads on resizes so its labels follow them.
  */
 export const particleCountFor = (
 	density: number,
@@ -366,8 +373,8 @@ const rainParticleConfig = (dark: boolean): GpuParticleConfig => ({
 	opacity: 0.7
 });
 
-const gpuArrowConfig = (scale: number, dark: boolean): GpuArrowConfig => ({
-	spacingPx: windIconSpacing('arrow', scale, defaultVectorOptions.arrowPacking) * GPU_ARROW_SPACING,
+const gpuArrowConfig = (scale: number, packing: number, dark: boolean): GpuArrowConfig => ({
+	spacingPx: windIconSpacing('arrow', scale, packing) * GPU_ARROW_SPACING,
 	sizePx: windIconSizePx('arrow', scale),
 	// No zoom gate: the lattice spacing follows the fractional zoom, so the
 	// arrow count per screen is the same at every zoom level and world views

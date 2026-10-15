@@ -43,7 +43,8 @@
 			{#if disabled && note}
 				<p class="mt-1 text-xs opacity-75">{note}</p>
 			{/if}
-			<div class={disabled ? 'pointer-events-none opacity-50' : ''} aria-disabled={disabled}>
+			<!-- inert also takes the controls out of the tab order and the accessibility tree -->
+			<div class={disabled ? 'opacity-50' : ''} inert={disabled}>
 				{@render children()}
 			</div>
 		</div>

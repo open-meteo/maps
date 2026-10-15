@@ -20,7 +20,13 @@
 		windIconSizePx,
 		windIconSpacing
 	} from '#lib/arrow-sprites.js';
-	import { changeOMfileURL, particleCountFor, particleWidthFor } from '#lib/layers.js';
+	import {
+		GPU_ARROW_SPACING,
+		changeOMfileURL,
+		mapViewport,
+		particleCountFor,
+		particleWidthFor
+	} from '#lib/layers.js';
 	import { updateUrl } from '#lib/url.js';
 
 	import SettingsSection from './settings-section.svelte';
@@ -81,9 +87,13 @@
 	// hidden for the particle style, so the fallback value is never shown.
 	let iconStyle = $derived(arrowStyle === 'particles' ? ('arrow' as const) : arrowStyle);
 	let uniformSize = $derived($vectorOptions.arrowRender === 'icon');
+	// Plain arrows on the GPU path are screen-spaced instanced overlays: always
+	// one size, laid out wider than the tile lattice (GPU_ARROW_SPACING).
+	let gpuArrows = $derived($renderer === 'gpu' && arrowStyle === 'arrow');
 	let iconSizePx = $derived(windIconSizePx(iconStyle, $vectorOptions.arrowIconScale));
 	let iconSpacingPx = $derived(
-		windIconSpacing(iconStyle, $vectorOptions.arrowIconScale, $vectorOptions.arrowPacking)
+		windIconSpacing(iconStyle, $vectorOptions.arrowIconScale, $vectorOptions.arrowPacking) *
+			(gpuArrows ? GPU_ARROW_SPACING : 1)
 	);
 	// Barbs encode knots, so the option only applies while an arrow source
 	// carries a wind speed; other sources render arrows under either setting
@@ -149,13 +159,11 @@
 	const PARTICLE_TRAIL_RANGE = { min: 0.915, max: 0.995, step: 0.005 };
 	const PARTICLE_OPACITY_RANGE = { min: 0.4, max: 1, step: 0.05 };
 
-	// Bound reactively so the computed labels follow a window resize/rotation
-	// while the pane is open (the helpers read the live window otherwise).
+	// The window size is bound only as a resize/rotation trigger: the labels
+	// re-read the map's own size (an embed is smaller than the window) then.
 	let viewportWidth = $state(0);
 	let viewportHeight = $state(0);
-	const labelViewport = $derived(
-		viewportWidth > 0 ? { width: viewportWidth, height: viewportHeight } : undefined
-	);
+	const labelViewport = $derived(viewportWidth + viewportHeight > 0 ? mapViewport() : undefined);
 
 	/** The factor plus what it works out to on this screen. */
 	const densityLabel = $derived.by(() => {
@@ -297,24 +305,30 @@
 
 	{#if arrowStyle !== 'particles'}
 		<h3 class="mt-4 font-semibold">Sizing</h3>
-		<p class="text-xs opacity-75">
-			Drawn into the map tiles, arrows grow while you zoom in and snap back when the next zoom level
-			loads. As symbols they keep one size on screen.
-		</p>
-		<div class="mt-2 flex gap-3">
-			<Switch
-				id="arrow-uniform"
-				class="cursor-pointer"
-				checked={uniformSize}
-				disabled={!arrows}
-				onCheckedChange={toggleUniformSize}
-			/>
-			<Label class="cursor-pointer" for="arrow-uniform">
-				Uniform size {uniformSize ? 'on' : 'off'}
-			</Label>
-		</div>
+		{#if gpuArrows}
+			<p class="text-xs opacity-75">
+				GPU arrows keep one size on screen at every zoom; size and spacing set their lattice.
+			</p>
+		{:else}
+			<p class="text-xs opacity-75">
+				Drawn into the map tiles, arrows grow while you zoom in and snap back when the next zoom
+				level loads. As symbols they keep one size on screen.
+			</p>
+			<div class="mt-2 flex gap-3">
+				<Switch
+					id="arrow-uniform"
+					class="cursor-pointer"
+					checked={uniformSize}
+					disabled={!arrows}
+					onCheckedChange={toggleUniformSize}
+				/>
+				<Label class="cursor-pointer" for="arrow-uniform">
+					Uniform size {uniformSize ? 'on' : 'off'}
+				</Label>
+			</div>
+		{/if}
 
-		{#if uniformSize}
+		{#if uniformSize || gpuArrows}
 			<div class="mt-3 flex flex-col gap-2">
 				<div class="flex items-center gap-3">
 					<Label class="w-16 shrink-0" for="arrow-size">Size</Label>
@@ -352,11 +366,13 @@
 				>
 					Reset to default
 				</Button>
-				<p class="text-xs opacity-60">
-					Both snap to a whole number of cells across a tile, so the size shown is the size drawn.
-					Tile geometry is drawn between 0.7x and 1.4x its nominal size through a zoom level; the
-					default sits near the middle of that, so icons read like the geometry does.
-				</p>
+				{#if !gpuArrows}
+					<p class="text-xs opacity-60">
+						Both snap to a whole number of cells across a tile, so the size shown is the size drawn.
+						Tile geometry is drawn between 0.7x and 1.4x its nominal size through a zoom level; the
+						default sits near the middle of that, so icons read like the geometry does.
+					</p>
+				{/if}
 			</div>
 		{/if}
 	{:else}

@@ -30,7 +30,8 @@ export const createMap = async (container: HTMLElement) => {
 
 	// The pinned layer build still answers an empty tile with `data: null`, which
 	// MapLibre 6.11 dropped from AddProtocolResponseData; the layer's 0.2.2 release
-	// returns an empty tile instead, so the cast goes with the next pin bump.
+	// returns an empty tile instead, so the cast goes once the pinned gpu build has
+	// merged that release.
 	maplibregl.addProtocol('om', ((params: RequestParameters, abortController: AbortController) =>
 		omProtocol(params, abortController, get(omProtocolSettings))) as maplibregl.AddProtocolAction);
 

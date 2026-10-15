@@ -238,10 +238,14 @@
 		const snapshot = draw
 			.getSnapshot()
 			.filter((f): f is GeoJSONStoreFeatures<Polygon> => f.geometry.type === 'Polygon');
-		// In select mode the snapshot already holds every drawn feature (they
-		// were loaded in for editing); in draw modes it holds only the shape in
-		// progress, on top of the accumulated ones.
-		const base = activeMode === 'select' ? [] : drawnFeatures;
+		// In select mode the snapshot already holds every drawn feature (loaded
+		// in for editing, and they stay in the store after leaving the mode); in
+		// draw modes it holds only the shape in progress, on top of the
+		// accumulated ones. A feature in both counts once: twice would cancel it
+		// out under the even-odd fill rule.
+		const inStore = new Set(snapshot.map((feature) => feature.id));
+		const base =
+			activeMode === 'select' ? [] : drawnFeatures.filter((feature) => !inStore.has(feature.id));
 		const features: GeoJsonFeature[] = [
 			...countryFeatures(),
 			...[...base, ...snapshot]

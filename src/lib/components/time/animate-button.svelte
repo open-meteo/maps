@@ -10,7 +10,7 @@
 	import * as Select from '#lib/components/ui/select/index.js';
 
 	import { MILLISECONDS_PER_DAY } from '#lib/constants.js';
-	import { changeOMfileURL, setRasterFadeMs } from '#lib/layers.js';
+	import { changeOMfileURL, getTimestepResidency, setRasterFadeMs } from '#lib/layers.js';
 	import { prefetchData } from '#lib/prefetch.js';
 	import { formatISOWithoutTimezone } from '#lib/time-format.js';
 	import { updateUrl } from '#lib/url.js';
@@ -45,36 +45,42 @@
 
 	// Streaming buffer, like video playback: a background prefetch warms the
 	// whole loop window front to back; playback starts right away but only
-	// advances while the prefetch stays ahead of the playhead (small margin),
-	// so it either streams smoothly or visibly buffers — never stutters.
+	// advances while the next few steps are cached (small margin), so it
+	// either streams smoothly or visibly buffers — never stutters.
 	const BUFFER_AHEAD = 2;
 	let prefetchDone = true;
-	let prefetchedSteps = 0;
-	let playedSteps = 0;
 	let prefetchAbort: AbortController | null = null;
+
+	// The prefetch runs several steps in parallel and reports them as they
+	// finish, out of order and failed ones too, so its progress count is no
+	// watermark; the cache residency of the upcoming steps is.
+	const bufferedAhead = (steps: Date[], current: number): boolean => {
+		const start = Math.max(
+			0,
+			steps.findIndex((step) => step.getTime() > current)
+		);
+		const upcoming = Array.from(
+			{ length: BUFFER_AHEAD },
+			(_, i) => steps[(start + i) % steps.length]
+		);
+		return getTimestepResidency(upcoming).every((state) => state !== 'none');
+	};
 
 	const startBuffering = (windowEnd: number) => {
 		const meta = $metaJson;
 		const run = $modelRun;
 		if (!meta || !run) return;
 		prefetchDone = false;
-		prefetchedSteps = 0;
-		playedSteps = 0;
 		prefetchAbort = new AbortController();
-		prefetchData(
-			{
-				startDate: new Date(windowStart),
-				endDate: new Date(windowEnd),
-				metaJson: meta,
-				modelRun: run,
-				domain: $domainStore,
-				variable: $variableStore,
-				signal: prefetchAbort.signal
-			},
-			(progress) => {
-				prefetchedSteps = progress.current;
-			}
-		)
+		prefetchData({
+			startDate: new Date(windowStart),
+			endDate: new Date(windowEnd),
+			metaJson: meta,
+			modelRun: run,
+			domain: $domainStore,
+			variable: $variableStore,
+			signal: prefetchAbort.signal
+		})
 			.catch(() => {})
 			.finally(() => {
 				prefetchDone = true;
@@ -84,18 +90,6 @@
 	const tick = () => {
 		if (!playing) return;
 		timer = setTimeout(tick, FRAME_MS);
-		// Wait for the current frame's data instead of racing ahead of the network.
-		if ($loading) {
-			buffering = true;
-			return;
-		}
-		// Hold while the stream buffer has not built up a margin yet.
-		if (!prefetchDone && prefetchedSteps < playedSteps + BUFFER_AHEAD) {
-			buffering = true;
-			return;
-		}
-		buffering = false;
-
 		const windowEnd = windowStart + rangeDays[selectedRange] * MILLISECONDS_PER_DAY;
 		const steps = ($metaJson?.valid_times ?? [])
 			.map((validTime: string) => new Date(validTime))
@@ -105,11 +99,20 @@
 			toast.warning('Not enough time steps to animate');
 			return;
 		}
-
+		// Wait for the current frame's data instead of racing ahead of the network.
+		if ($loading) {
+			buffering = true;
+			return;
+		}
 		const current = $time.getTime();
+		// Hold while the stream buffer has not built up a margin yet.
+		if (!prefetchDone && !bufferedAhead(steps, current)) {
+			buffering = true;
+			return;
+		}
+		buffering = false;
+
 		const next = steps.find((step) => step.getTime() > current) ?? steps[0];
-		if (next.getTime() < current) playedSteps = 0; // wrapped: replays are buffered
-		playedSteps++;
 		$time = next;
 		updateUrl('time', formatISOWithoutTimezone(next));
 		changeOMfileURL();

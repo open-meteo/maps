@@ -3,7 +3,7 @@ import { derived, get } from 'svelte/store';
 import { variableHasDirections } from '@openmeteo/weather-map-layer';
 import { persisted } from 'svelte-persisted-store';
 
-import { cloneSources, matchPreset, sourcesEqual } from '#lib/chart-encoding.js';
+import { cloneSources, matchPreset, sourceKey, sourcesEqual } from '#lib/chart-encoding.js';
 import { getChartPreset } from '#lib/chart-presets.js';
 import { DEFAULT_VARIABLE } from '#lib/constants.js';
 
@@ -177,16 +177,16 @@ export const updateSource = (index: number, patch: Partial<ChartSource>): void =
 	const sources = cloneSources(chart.sources);
 	if (!sources[index]) return;
 	const next = { ...sources[index], ...patch };
-	// Source variables must stay unique (the editor keys rows by them): a
-	// level change that collides with an existing source drops the edit
-	if (sources.some((source, i) => i !== index && source.variable === next.variable)) return;
+	// Source keys must stay unique (the editor keys rows by them): a level
+	// change that collides with an existing source drops the edit
+	if (sources.some((source, i) => i !== index && sourceKey(source) === sourceKey(next))) return;
 	sources[index] = next;
 	activeChart.set(chartFromSources(sources));
 };
 
 export const addSource = (v: string): void => {
 	const chart = get(activeChart);
-	if (chart.sources.some((source) => source.variable === v)) return;
+	if (chart.sources.some((source) => sourceKey(source) === v)) return;
 	const sources = cloneSources(chart.sources);
 	const arrows = get(vectorOptions).arrows && variableHasDirections(v);
 	// Second field defaults to contours when a raster fill is already shown,

@@ -25,6 +25,7 @@ import { getInitialMetaData, tryGetMetaData } from '#lib/metadata.js';
 
 import { version } from '../../../package.json';
 import { activeChart, defaultChart } from './chart';
+import { defaultGpuRenderOptions, gpuRenderOptions } from './gpu-render';
 import {
 	cacheBlockSizeKb,
 	cacheMaxBytesMb,
@@ -175,6 +176,7 @@ export const resetStates = async () => {
 	tileSize.set(DEFAULT_TILE_SIZE);
 	tileSizeSet.set(false);
 	renderer.set(DEFAULT_RENDERER);
+	gpuRenderOptions.set(defaultGpuRenderOptions);
 
 	interpolation.set(DEFAULT_INTERPOLATION);
 	colorBlend.set(DEFAULT_COLOR_BLEND);

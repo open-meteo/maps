@@ -1,6 +1,6 @@
 import { persisted } from 'svelte-persisted-store';
 
-const defaults = {
+export const defaultGpuRenderOptions = {
 	/**
 	 * Morph timestep changes as an in-shader value blend. Off = every commit
 	 * snaps directly once all layers of the batch are loaded.
@@ -16,9 +16,12 @@ const defaults = {
 };
 
 /** GPU rendering options from the settings pane. */
-export const gpuRenderOptions = persisted<typeof defaults, Partial<typeof defaults>>(
+export const gpuRenderOptions = persisted<
+	typeof defaultGpuRenderOptions,
+	Partial<typeof defaultGpuRenderOptions>
+>(
 	'gpu-render-options',
-	defaults,
+	defaultGpuRenderOptions,
 	// Fill in keys a stored object predates, like the vector-options store.
-	{ beforeRead: (stored) => ({ ...defaults, ...stored }) }
+	{ beforeRead: (stored) => ({ ...defaultGpuRenderOptions, ...stored }) }
 );

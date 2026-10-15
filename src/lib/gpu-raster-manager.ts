@@ -65,8 +65,13 @@ export interface GpuRasterManagerOptions {
 }
 
 interface Slot {
+	/** Spec key the slot is registered under. */
+	key: string;
 	layer: WeatherGpuLayer;
+	/** URL the layer shows: set by the commit, so it never runs ahead of the screen. */
 	url: string;
+	/** URL last asked for; differs from `url` only while a load is in flight. */
+	requestedUrl: string;
 	opacity: number;
 	beforeLayer: string;
 	arrowsKey: string;
@@ -105,13 +110,18 @@ export class GpuRasterManager {
 		this.map.on('moveend', this.onMoveEnd);
 	}
 
-	/** URLs currently shown, per chart source key (for the popup). */
+	/**
+	 * URLs currently shown, per chart source key (for the popup). A source
+	 * drawn only as overlays (`<sourceKey>:<overlay>`, e.g. arrows-only wind)
+	 * reports through them; its raster slot takes precedence when it has one.
+	 */
 	getActiveUrls(): Map<string, string> {
 		const urls = new Map<string, string>();
 		for (const [key, slot] of this.slots) {
-			// Overlay slots (`<sourceKey>:<overlay>`) shadow their source's data
-			if (key.includes(':')) continue;
-			if (slot.url) urls.set(key, slot.url);
+			if (!slot.url) continue;
+			const colon = key.indexOf(':');
+			const sourceKey = colon === -1 ? key : key.slice(0, colon);
+			if (colon === -1 || !urls.has(sourceKey)) urls.set(sourceKey, slot.url);
 		}
 		return urls;
 	}
@@ -158,8 +168,10 @@ export class GpuRasterManager {
 				const before = this.map.getLayer(spec.beforeLayer) ? spec.beforeLayer : undefined;
 				this.map.addLayer(layer, before);
 				slot = {
+					key: spec.key,
 					layer,
 					url: '',
+					requestedUrl: '',
 					opacity: spec.opacity,
 					beforeLayer: spec.beforeLayer,
 					arrowsKey: '',
@@ -203,9 +215,11 @@ export class GpuRasterManager {
 				slot.contoursKey = contoursKey;
 				slot.layer.setContours(spec.contours);
 			}
-			if (slot.url !== spec.url) {
-				slot.url = spec.url;
-				prepares.push(this.prepareSlot(slot, spec.url));
+			if (slot.requestedUrl !== spec.url) {
+				slot.requestedUrl = spec.url;
+				// Asking for what is already on screen (a pending load for another
+				// URL just got superseded) needs no load
+				if (slot.url !== spec.url) prepares.push(this.prepareSlot(slot, spec.url));
 			}
 		}
 
@@ -262,8 +276,13 @@ export class GpuRasterManager {
 				// Superseded loads resolve null (per-slot URL check + the layer's own
 				// load sequence), so stale commits are already no-ops.
 				const valid = commits.filter((commit): commit is () => void => commit !== null);
+				// A moveend refresh may have committed an entering slot on its own
+				// meanwhile, in which case the replacement still went through.
+				const settled =
+					transition?.entering.some((slot) => slot.url !== '' && slot.url === slot.requestedUrl) ??
+					false;
 				const commitAll =
-					valid.length > 0
+					valid.length > 0 || settled
 						? (): void => {
 								for (const commit of valid) commit();
 								// An external transition dissolves at the tile frame's commit
@@ -276,9 +295,12 @@ export class GpuRasterManager {
 							}
 						: undefined;
 				if (!commitAll && transition && this.pendingTransition === transition) {
-					// The whole batch was superseded or failed: no dissolve, clean up.
+					// Every new layer failed (a superseding show() has already taken
+					// the transition over): keep the old layers on screen, as the
+					// tile frame keeps its previous frame, and let the next show()
+					// ask for the new ones again.
 					this.pendingTransition = undefined;
-					this.endTransition(transition);
+					this.rollbackTransition(transition);
 				}
 				if (barrier) {
 					barrier.arrive(commitAll);
@@ -323,6 +345,23 @@ export class GpuRasterManager {
 		for (const slot of transition.entering) slot.layer.setOpacity(slot.opacity);
 	}
 
+	/**
+	 * Undo a replacement whose new layers never loaded: drop them (and their
+	 * slots, so a later show() creates and loads them afresh) and put the
+	 * retiring ones back under their keys at full opacity, where the next
+	 * show() retires or removes them again.
+	 */
+	private rollbackTransition(transition: Transition): void {
+		for (const slot of transition.entering) {
+			if (this.map.getLayer(slot.layer.id)) this.map.removeLayer(slot.layer.id);
+			if (this.slots.get(slot.key) === slot) this.slots.delete(slot.key);
+		}
+		for (const slot of transition.retiring) {
+			slot.layer.setOpacity(slot.opacity);
+			if (!this.slots.has(slot.key)) this.slots.set(slot.key, slot);
+		}
+	}
+
 	/** Snap any in-flight replacement to its end state (a newer show supersedes it). */
 	private finalizeTransition(): void {
 		if (this.dissolve) {
@@ -346,15 +385,19 @@ export class GpuRasterManager {
 		updateCurrentBounds([bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()]);
 	}
 
-	/** Re-resolve every slot's URL against the current viewport crop. */
+	/**
+	 * Re-resolve every slot's URL against the current viewport crop. Commits
+	 * on its own, outside any barrier: a load still pending for a batch then
+	 * shows a beat before its vector frame, and the batch's held commit finds
+	 * itself superseded by the layer's load sequence. A failure keeps the
+	 * previous crop; the visible error path is the batch load.
+	 */
 	private refresh(): void {
 		this.syncBounds();
 		for (const slot of this.slots.values()) {
-			if (!slot.url) continue;
-			slot.layer.setUrl(slot.url).catch(() => {
-				// A refresh failure keeps showing the previous crop; the visible
-				// error path is the initial load in prepareSlot().
-			});
+			const url = slot.requestedUrl;
+			if (!url) continue;
+			void this.prepareSlot(slot, url, false).then((commit) => commit?.());
 		}
 	}
 
@@ -436,12 +479,26 @@ export class GpuRasterManager {
 		this.slots.clear();
 	}
 
-	private prepareSlot(slot: Slot, url: string): Promise<(() => void) | null> {
+	/**
+	 * Load `url` into the slot. Resolves to the commit that swaps it in and
+	 * records it as shown, or null when superseded or failed. A failure drops
+	 * the request back to what is on screen, so the next show() asks for the
+	 * URL again instead of seeing it as already requested.
+	 */
+	private prepareSlot(slot: Slot, url: string, report = true): Promise<(() => void) | null> {
 		return slot.layer
 			.prepareUrl(url)
-			.then((commit) => (slot.url === url ? commit : null))
+			.then((commit) => {
+				if (slot.requestedUrl !== url || !commit) return null;
+				return (): void => {
+					commit();
+					slot.url = url;
+				};
+			})
 			.catch((error) => {
-				if (slot.url === url) this.opts.onError?.(error);
+				if (slot.requestedUrl !== url) return null;
+				slot.requestedUrl = slot.url;
+				if (report) this.opts.onError?.(error);
 				return null;
 			});
 	}

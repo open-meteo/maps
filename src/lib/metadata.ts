@@ -178,14 +178,20 @@ export const matchChartOrFallback = () => {
 	if (!metaJson) return;
 
 	const chart = get(activeChart);
-	// Cross-domain (EPS) sources survive when they still point at the new
-	// domain's sibling; their variables are never in the main meta.json.
-	const surviving = chart.sources.filter((source) =>
-		source.domain
-			? source.domain === EPS_SIBLINGS[get(d)]
-			: metaJson.variables.includes(source.variable)
-	);
-	if (surviving.length === chart.sources.length) return;
+	// Cross-domain (EPS) sources follow the new domain's sibling (ICON -> ICON-EU
+	// keeps the probability contours, now from the EU ensemble); their
+	// variables are never in the main meta.json. Without a sibling they go.
+	const sibling = EPS_SIBLINGS[get(d)];
+	const surviving = chart.sources.flatMap((source) => {
+		if (!source.domain) return metaJson.variables.includes(source.variable) ? [source] : [];
+		if (!sibling) return [];
+		return [source.domain === sibling ? source : { ...source, domain: sibling }];
+	});
+	if (
+		surviving.length === chart.sources.length &&
+		surviving.every((s, i) => s === chart.sources[i])
+	)
+		return;
 
 	if (surviving.length > 0) {
 		setSources(surviving);

@@ -581,6 +581,7 @@
 			hoursHoverContainer.addEventListener(
 				'mousemove',
 				(e) => {
+					hoverInside = true;
 					if (hoursHoverContainerWidth) {
 						hoverX = e.layerX + (isSafari ? hoursHoverContainerWidth / 2 : 0);
 						if (isScrubbing) {
@@ -607,7 +608,10 @@
 			hoursHoverContainer.addEventListener(
 				'mouseout',
 				() => {
-					hoverX = 0;
+					hoverInside = false;
+					// A drag that leaves the timeline keeps its last position, so the
+					// release settles where the pointer was, not at the strip's edge
+					if (!isScrubbing) hoverX = 0;
 				},
 				{ signal }
 			);
@@ -819,6 +823,7 @@
 	// VRAM/RAM), and on release settles on the exact step under the cursor.
 	let isScrubbing = false;
 	let scrubDidMove = false;
+	let hoverInside = false;
 
 	/** Nearest cached (VRAM/RAM) step; falls back to the nearest valid step. */
 	const nearestCachedStep = (target: Date): Date | undefined => {
@@ -873,6 +878,7 @@
 			const step = target ? (findTimeStep(target, timeSteps) ?? target) : undefined;
 			if (step) onDateChange(new SvelteDate(step));
 		}
+		if (!hoverInside) hoverX = 0;
 	};
 
 	// Cache residency per valid time: which timesteps sit decoded in RAM and
@@ -882,10 +888,16 @@
 	const pollResidency = () => {
 		if (!timeSteps || timeSteps.length === 0) return;
 		const states = getTimestepResidency(timeSteps);
-		residency.clear();
+		// Only changed entries are written: every write re-renders its tick mark,
+		// and a wholesale rebuild would redraw the whole strip once a second
 		for (let i = 0; i < timeSteps.length; i++) {
+			const key = timeSteps[i].getTime();
 			const state = states[i];
-			if (state !== 'none') residency.set(timeSteps[i].getTime(), state);
+			if (state === 'none') {
+				if (residency.has(key)) residency.delete(key);
+			} else if (residency.get(key) !== state) {
+				residency.set(key, state);
+			}
 		}
 	};
 

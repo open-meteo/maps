@@ -13,7 +13,7 @@
 		savedCharts,
 		setSources
 	} from '#lib/stores/chart.js';
-	import { EPS_VARIABLE, epsMeta } from '#lib/stores/eps.js';
+	import { EPS_VARIABLE, epsMeta, sourceAvailable } from '#lib/stores/eps.js';
 	import { metaJson } from '#lib/stores/time.js';
 
 	import { sourcesEqual } from '#lib/chart-encoding.js';
@@ -30,15 +30,15 @@
 		available: boolean;
 	}
 
-	/** The active domain serves the source's variable. */
-	const sourceAvailable = (source: ChartSource): boolean =>
-		!!$metaJson?.variables.includes(source.variable);
+	/** The active domain (or its loaded EPS sibling) serves the source. */
+	const isAvailable = (source: ChartSource): boolean =>
+		sourceAvailable(source, $metaJson, $epsMeta);
 
 	const presetGroups = $derived.by(() => {
 		const groups: { name: string; presets: GroupedPreset[] }[] = [];
 		if (!$metaJson) return groups;
 		for (const preset of chartPresets) {
-			const available = preset.sources.every(sourceAvailable);
+			const available = preset.sources.every(isAvailable);
 			const name = preset.group ?? 'Other';
 			const group = groups.find((g) => g.name === name);
 			if (group) {
@@ -84,7 +84,7 @@
 	// Same treatment as the presets: unavailable saved charts sink to the bottom
 	const savedEntries = $derived.by(() => {
 		const entries: { chart: SavedChart; available: boolean }[] = $savedCharts.charts.map(
-			(chart) => ({ chart, available: chart.sources.every(sourceAvailable) })
+			(chart) => ({ chart, available: chart.sources.every(isAvailable) })
 		);
 		return entries.sort((a, b) => Number(b.available) - Number(a.available));
 	});

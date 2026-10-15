@@ -56,7 +56,9 @@ export interface FrameManagerOptions {
 	/**
 	 * Ground-truth data availability per channel url (from the om protocol).
 	 * MapLibre counts failed tiles as complete, so tile state alone cannot
-	 * distinguish "everything rendered" from "everything failed".
+	 * distinguish "everything rendered" from "everything failed". 'missing'
+	 * means no tile has asked for the url's data at all (a view outside the
+	 * domain's TileJSON bounds requests none), which the tile state covers.
 	 */
 	getChannelDataState?: (url: string) => 'loaded' | 'loading' | 'error' | 'missing';
 	onLoadingChange?: (loading: boolean) => void;
@@ -359,7 +361,12 @@ export class FrameManager {
 		}
 	}
 
-	/** The underlying variable data of every channel has loaded. */
+	/**
+	 * Whether the variable data behind every channel has loaded or failed. A
+	 * channel without any protocol state has no load to wait for: its tiles
+	 * were never requested, so waiting on it would hold the frame forever,
+	 * and the tile check alone decides for it.
+	 */
 	private frameDataState(frame: Frame): 'loaded' | 'loading' | 'error' {
 		const getState = this.opts.getChannelDataState;
 		if (!getState) return 'loaded';
@@ -367,7 +374,7 @@ export class FrameManager {
 		for (const channel of frame.channels) {
 			const state = getState(channel.url);
 			if (state === 'error') return 'error';
-			if (state !== 'loaded') result = 'loading';
+			if (state === 'loading') result = 'loading';
 		}
 		return result;
 	}
