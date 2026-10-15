@@ -231,7 +231,7 @@ export const getOmUrlForSource = (source: ChartSource): string | undefined => {
 	// needs the step length, which only the run's valid times give
 	if (variableUsesTimeStep(source.variable)) {
 		const step = timeStepHoursAt(selectedTime, get(metaJson)?.valid_times);
-		if (step) result += `&time_step_hours=${step}`;
+		if (step) result += `&delta_time_hours=${step}`;
 	}
 
 	if (mode.current === 'dark') result += '&dark=true';
