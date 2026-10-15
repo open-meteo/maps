@@ -35,14 +35,12 @@ describe('availableVariables', () => {
 			'snowfall',
 			'dew_point_2m',
 			'vapour_pressure_deficit',
-			'wet_bulb_temperature_2m',
-			'precipitation_rate'
+			'wet_bulb_temperature_2m'
 		]) {
 			expect(available).toContain(derived);
 		}
 		// Needs the 10 m wind as well
 		expect(available).not.toContain('apparent_temperature');
-		expect(available).not.toContain('rain_rate');
 	});
 
 	it('does not list a stored variable twice', () => {

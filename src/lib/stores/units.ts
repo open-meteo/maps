@@ -31,22 +31,23 @@ export function convertTemperature(value: number, unit: TemperatureUnit): number
 }
 
 /**
- * Precipitation-like amounts come in mm (sums), mm/h (rates) and cm (fresh
- * snow); the inch preference converts each from its own base.
+ * Precipitation-like quantities come in mm (depths), mm/h (the layer shows
+ * precipitation, rain and showers per hour) and cm/h (fresh snow per hour);
+ * the inch preference converts each from its own base.
  */
 export function convertPrecipitation(
 	value: number,
 	unit: PrecipitationUnit,
 	baseUnit: string = 'mm'
 ): number {
-	if (unit === 'inch') return value / (baseUnit === 'cm' ? 2.54 : 25.4);
+	if (unit === 'inch') return value / (baseUnit.startsWith('cm') ? 2.54 : 25.4);
 	return value;
 }
 
 /** The unit shown for a precipitation-like base unit under the preference. */
 export function precipitationDisplayUnit(baseUnit: string, unit: PrecipitationUnit): string {
 	if (unit !== 'inch') return baseUnit;
-	return baseUnit === 'mm/h' ? 'inch/h' : 'inch';
+	return baseUnit.endsWith('/h') ? 'inch/h' : 'inch';
 }
 
 export function convertWindSpeed(value: number, unit: WindSpeedUnit): number {
@@ -78,6 +79,7 @@ export function getUnitCategory(baseUnit: string): UnitCategory | undefined {
 		case 'mm':
 		case 'mm/h':
 		case 'cm':
+		case 'cm/h':
 			return 'precipitation';
 		case 'm/s':
 			return 'wind_speed';

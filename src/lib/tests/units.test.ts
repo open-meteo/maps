@@ -7,7 +7,7 @@ const imperial = { ...metric, precipitation: 'inch' } as const;
 
 describe('precipitation-like units', () => {
 	it('keeps mm, mm/h and cm as they are under the metric preference', () => {
-		for (const unit of ['mm', 'mm/h', 'cm']) {
+		for (const unit of ['mm', 'mm/h', 'cm', 'cm/h']) {
 			expect(convertValue(25.4, unit, metric)).toBe(25.4);
 			expect(getDisplayUnit(unit, metric)).toBe(unit);
 		}
@@ -20,5 +20,7 @@ describe('precipitation-like units', () => {
 		expect(getDisplayUnit('mm/h', imperial)).toBe('inch/h');
 		expect(convertValue(2.54, 'cm', imperial)).toBeCloseTo(1);
 		expect(getDisplayUnit('cm', imperial)).toBe('inch');
+		expect(convertValue(2.54, 'cm/h', imperial)).toBeCloseTo(1);
+		expect(getDisplayUnit('cm/h', imperial)).toBe('inch/h');
 	});
 });
