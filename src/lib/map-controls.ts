@@ -94,6 +94,21 @@ export const setMapControlSettings = () => {
 	geolocateControl.on('geolocate', () => {
 		if (get(selectedLocation)) clearLocation();
 	});
+	// And the other way round: a picked place replaces the visitor's position,
+	// one dot and no camera snapping back. The control has no "off" call,
+	// trigger() walks its state machine: from the background state (tracking,
+	// but panned away) one step locks onto the visitor again and the second
+	// turns it off; the flight to the place follows in the same tick and
+	// overrides that first step's camera move.
+	const stopGeolocating = () => {
+		const state = geolocateControl._watchState;
+		if (!state || state === 'OFF') return;
+		if (state === 'BACKGROUND') geolocateControl.trigger();
+		geolocateControl.trigger();
+	};
+	selectedLocation.subscribe((location) => {
+		if (location) stopGeolocating();
+	});
 	map.addControl(geolocateControl);
 
 	const globeControl = new maplibregl.GlobeControl();
