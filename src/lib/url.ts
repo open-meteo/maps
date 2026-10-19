@@ -21,6 +21,7 @@ import {
 	setPlainVariable,
 	setSources
 } from '#lib/stores/chart.js';
+import { type SelectedLocation, parseCoordinates, selectedLocation } from '#lib/stores/location.js';
 import { map as m } from '#lib/stores/map.js';
 import {
 	type Preferences,
@@ -128,6 +129,11 @@ export const urlParamsToPreferences = () => {
 	} else if (get(d) !== 'dwd_icon') {
 		url.searchParams.set('domain', get(d));
 	}
+
+	// Only stored here: the map does not exist yet, it opens on the location
+	// (createMap) and marks it once loaded (addLocationMarker)
+	const locationFromUrl = parseCoordinates(params.get('lat'), params.get('lon'));
+	if (locationFromUrl) selectedLocation.set(locationFromUrl);
 
 	const arrowsRaw = params.get('arrows');
 	if (arrowsRaw !== null) {
@@ -291,6 +297,22 @@ export const getOMUrl = (): string | undefined => {
 				? vectorOptions.contourInterval
 				: undefined
 	});
+};
+
+/** Write the selected location's coordinates to the URL, or drop them. */
+export const syncLocationToUrl = async (location: SelectedLocation | undefined): Promise<void> => {
+	const url = get(u);
+	if (!url) return;
+
+	if (location) {
+		url.searchParams.set('lat', String(location.latitude));
+		url.searchParams.set('lon', String(location.longitude));
+	} else {
+		url.searchParams.delete('lat');
+		url.searchParams.delete('lon');
+	}
+
+	await updateUrl();
 };
 
 /**
