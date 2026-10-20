@@ -721,6 +721,9 @@ export const updateSeamlessBorderLayer = (): void => {
 				filter: ['==', ['get', 'layerIndex'], i],
 				layout: {
 					'text-field': ['get', 'label'],
+					// The style's font server only has this face; without an explicit
+					// font MapLibre asks for its default Open Sans stack and gets 404s
+					'text-font': ['Noto Sans Regular'],
 					'text-size': 11,
 					'symbol-placement': 'line',
 					'symbol-spacing': 400,
