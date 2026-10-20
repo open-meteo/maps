@@ -9,7 +9,7 @@ import { get } from 'svelte/store';
 import { addLeafletProtocolSupport, omProtocol } from '@openmeteo/weather-map-layer';
 import L from 'leaflet';
 
-import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
+import { omProtocolSettings } from '#lib/stores/om-protocol-settings.js';
 
 export const omAdapter = addLeafletProtocolSupport(
 	L as unknown as Parameters<typeof addLeafletProtocolSupport>[0]

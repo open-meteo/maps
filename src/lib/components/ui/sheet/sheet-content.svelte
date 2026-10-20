@@ -25,7 +25,7 @@
 	import XIcon from '@lucide/svelte/icons/x';
 	import { Dialog as SheetPrimitive } from 'bits-ui';
 
-	import { type WithoutChildrenOrChild, cn } from '$lib/utils.js';
+	import { type WithoutChildrenOrChild, cn } from '#lib/utils.js';
 
 	import SheetOverlay from './sheet-overlay.svelte';
 	import SheetPortal from './sheet-portal.svelte';

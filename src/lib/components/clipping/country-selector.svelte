@@ -5,12 +5,12 @@
 	import CheckIcon from '@lucide/svelte/icons/check';
 	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down';
 
-	import { clippingCountryCodes } from '$lib/stores/clipping';
-	import { typing } from '$lib/stores/preferences';
+	import { clippingCountryCodes } from '#lib/stores/clipping.js';
+	import { typing } from '#lib/stores/preferences.js';
 
-	import { Button } from '$lib/components/ui/button';
-	import * as Command from '$lib/components/ui/command';
-	import * as Popover from '$lib/components/ui/popover';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Command from '#lib/components/ui/command/index.js';
+	import * as Popover from '#lib/components/ui/popover/index.js';
 
 	import { type Country, countryList, loadCountryGeoJson } from './country-data';
 

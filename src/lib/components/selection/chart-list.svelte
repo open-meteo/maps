@@ -12,13 +12,13 @@
 		deleteSavedChart,
 		savedCharts,
 		setSources
-	} from '$lib/stores/chart';
-	import { metaJson } from '$lib/stores/time';
+	} from '#lib/stores/chart.js';
+	import { availableVariables } from '#lib/stores/variables.js';
 
-	import { sourcesEqual } from '$lib/chart-encoding';
-	import { chartPresets } from '$lib/chart-presets';
+	import { sourcesEqual } from '#lib/chart-encoding.js';
+	import { chartPresets } from '#lib/chart-presets.js';
 
-	import type { ChartPreset, ChartSource, SavedChart } from '$lib/chart-types';
+	import type { ChartPreset, ChartSource, SavedChart } from '#lib/chart-types.js';
 
 	// Which chart groups are expanded, persisted across sessions
 	const openGroups = persisted<Record<string, boolean>>('chart-groups-open', {});
@@ -29,13 +29,13 @@
 		available: boolean;
 	}
 
-	/** The active domain serves the source's variable. */
+	/** The active domain serves the source's variable, stored or derived. */
 	const sourceAvailable = (source: ChartSource): boolean =>
-		!!$metaJson?.variables.includes(source.variable);
+		!!$availableVariables?.includes(source.variable);
 
 	const presetGroups = $derived.by(() => {
 		const groups: { name: string; presets: GroupedPreset[] }[] = [];
-		if (!$metaJson) return groups;
+		if (!$availableVariables) return groups;
 		for (const preset of chartPresets) {
 			const available = preset.sources.every(sourceAvailable);
 			const name = preset.group ?? 'Other';

@@ -7,9 +7,9 @@ import {
 	variableOptions
 } from '@openmeteo/weather-map-layer';
 
-import { metaJson } from '$lib/stores/time';
+import { availableVariables } from '#lib/stores/variables.js';
 
-import { type PopularVariable, getChartPreset, popularVariables } from '$lib/chart-presets';
+import { type PopularVariable, getChartPreset, popularVariables } from '#lib/chart-presets.js';
 
 export interface VariableEntry {
 	value: string;
@@ -113,8 +113,8 @@ export const buildLevelGroups = (metaVariables: string[]): Record<string, Variab
  * Level groups of the active domain, computed once per metadata change and
  * shared by every selection component (several render it per row).
  */
-export const levelGroups = derived(metaJson, ($metaJson) =>
-	$metaJson ? buildLevelGroups($metaJson.variables) : {}
+export const levelGroups = derived(availableVariables, ($availableVariables) =>
+	$availableVariables ? buildLevelGroups($availableVariables) : {}
 );
 
 /**

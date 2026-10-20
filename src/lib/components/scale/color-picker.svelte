@@ -7,7 +7,7 @@
 		percentToAlpha,
 		rgbToHex,
 		rgbToHsv
-	} from '$lib/color';
+	} from '#lib/color.js';
 
 	interface Props {
 		color: string;

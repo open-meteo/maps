@@ -3,9 +3,10 @@ import { get } from 'svelte/store';
 import L from 'leaflet';
 import { setMode, userPrefersMode } from 'mode-watcher';
 
-import { clippingPanelOpen } from '$lib/stores/clipping';
-import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
-import { helpOpen as hO, sheet } from '$lib/stores/preferences';
+import { clippingPanelOpen } from '#lib/stores/clipping.js';
+import { formatCoordinates, locationSearchOpen, selectedLocation } from '#lib/stores/location.js';
+import { omProtocolSettings } from '#lib/stores/om-protocol-settings.js';
+import { helpOpen as hO, sheet } from '#lib/stores/preferences.js';
 
 /**
  * The map buttons as Leaflet controls: a `leaflet-bar` box (styled like the
@@ -138,6 +139,40 @@ export class HelpButton extends L.Control {
 		return div;
 	}
 	onRemove() {}
+}
+
+/** Opens the location search; lit while a place is set, the title names it. */
+export class LocationSearchButton extends L.Control {
+	private selectedLocationSubscription: () => void = () => {};
+
+	constructor() {
+		super({ position: 'topright' });
+	}
+
+	onAdd() {
+		const div = controlBox('Search location');
+		const searchSVG = `<button style="display:flex;justify-content:center;align-items:center;">
+			<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" stroke-width="1.2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search-icon lucide-search"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+			</button>`;
+		const searchActiveSVG = `<button style="display:flex;justify-content:center;align-items:center;color:rgb(51,181,229);">
+			<svg xmlns="http://www.w3.org/2000/svg" opacity="1" stroke-width="1.2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search-icon lucide-search"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+			</button>`;
+
+		this.selectedLocationSubscription = selectedLocation.subscribe((location) => {
+			div.title = location
+				? `Location: ${location.name ?? formatCoordinates(location)}`
+				: 'Search location';
+			div.innerHTML = location ? searchActiveSVG : searchSVG;
+		});
+
+		div.addEventListener('click', () => {
+			locationSearchOpen.set(!get(locationSearchOpen));
+		});
+		return div;
+	}
+	onRemove() {
+		this.selectedLocationSubscription();
+	}
 }
 
 export class ClippingButton extends L.Control {

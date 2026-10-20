@@ -5,19 +5,39 @@ import {
 	LEVEL_REGEX,
 	LEVEL_UNIT_REGEX,
 	domainOptions,
+	variableAvailable,
 	variableOptions
 } from '@openmeteo/weather-map-layer';
 import { type Persisted, persisted } from 'svelte-persisted-store';
 
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 
-import { DEFAULT_DOMAIN, DEFAULT_VARIABLE } from '$lib/constants';
+import { DEFAULT_DOMAIN, DEFAULT_VARIABLE } from '#lib/constants.js';
+
+import { metaJson } from './time';
 
 export const defaultDomain = DEFAULT_DOMAIN;
 export const domain = persisted('domain', defaultDomain);
 
 export const defaultVariable = DEFAULT_VARIABLE;
 export const variable = persisted('variable', defaultVariable);
+
+/**
+ * Variables the active domain can show, in the shape of `metaJson.variables`:
+ * the ones its files store, plus the ones the layer's derivation rules read
+ * from those (snowfall from its water equivalent, the humidity-derived
+ * fields, precipitation rates), which the metadata never lists. The label
+ * dictionary is the candidate list, since the rules match by pattern.
+ * Undefined until the metadata has loaded.
+ */
+export const availableVariables = derived(metaJson, ($metaJson) => {
+	if (!$metaJson) return undefined;
+	const stored = new Set($metaJson.variables);
+	const derivable = variableOptions
+		.map(({ value }) => value)
+		.filter((value) => !stored.has(value) && variableAvailable(value, stored));
+	return [...$metaJson.variables, ...derivable];
+});
 
 export const selectedDomain = derived(domain, ($domain) => {
 	const object = domainOptions.find(({ value }) => value === $domain);
@@ -47,6 +67,7 @@ export const levelGroupSelected: Writable<{ value: string; label: string } | und
 			) ?? undefined)
 		: undefined
 );
+
 selectedVariable.subscribe((newVariable) => {
 	levelGroupSelected.set(
 		newVariable.value.match(LEVEL_REGEX)

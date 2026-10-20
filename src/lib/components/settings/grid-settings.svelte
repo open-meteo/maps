@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
 
-	import { vectorOptions } from '$lib/stores/vector';
+	import { vectorOptions } from '#lib/stores/vector.js';
 
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
+	import { Label } from '#lib/components/ui/label/index.js';
+	import { Switch } from '#lib/components/ui/switch/index.js';
 
-	import { changeOMfileURL } from '$lib/layers';
-	import { updateUrl } from '$lib/url';
+	import { changeOMfileURL } from '#lib/layers.js';
+	import { updateUrl } from '#lib/url.js';
 
 	import SettingsSection from './settings-section.svelte';
 

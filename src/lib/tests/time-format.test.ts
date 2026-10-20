@@ -15,7 +15,7 @@ import {
 	parseISOWithoutTimezone,
 	startOfLocalDay,
 	withLocalTime
-} from '$lib/time-format';
+} from '#lib/time-format.js';
 
 describe('formatLocalTime', () => {
 	beforeEach(() => {

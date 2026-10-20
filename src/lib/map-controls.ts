@@ -12,15 +12,17 @@ import * as maplibregl from 'maplibre-gl';
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import { mode } from 'mode-watcher';
 
-import { map as m } from '$lib/stores/map';
-import { preferences as p } from '$lib/stores/preferences';
-import { domain as d } from '$lib/stores/variables';
+import { selectedLocation } from '#lib/stores/location.js';
+import { map as m } from '#lib/stores/map.js';
+import { preferences as p } from '#lib/stores/preferences.js';
+import { domain as d } from '#lib/stores/variables.js';
 
-import { LocateButton } from '$lib/components/buttons';
+import { LocateButton } from '#lib/components/buttons/index.js';
 
-import { BEFORE_LAYER_RASTER } from '$lib/constants';
+import { BEFORE_LAYER_RASTER } from '#lib/constants.js';
 
 import { addOmFileLayers } from './layers';
+import { LOCATION_ZOOM } from './location';
 import { registerOmProtocol } from './om-adapter';
 
 import type { LayerSpecification, StyleSpecification } from 'maplibre-gl';
@@ -108,9 +110,17 @@ export const createMap = async (container: HTMLElement) => {
 	const { lng, lat } = grid.getCenter();
 	const bounds = grid.getBounds();
 	const global = bounds[2] - bounds[0] >= 359;
+	// A location from the URL is where the map opens; a position hash, when
+	// present, wins over it as it does over the domain's view
 	const hash = parseHash();
+	const location = get(selectedLocation);
 	const start: { center: L.LatLngExpression; zoom: number } =
-		hash ?? (global ? EUROPE : { center: [lat, lng], zoom: gridDomain.grid.zoom ?? 1 });
+		hash ??
+		(location
+			? { center: [location.latitude, location.longitude], zoom: LOCATION_ZOOM }
+			: global
+				? EUROPE
+				: { center: [lat, lng], zoom: gridDomain.grid.zoom ?? 1 });
 
 	const map = L.map(container, {
 		center: start.center,
