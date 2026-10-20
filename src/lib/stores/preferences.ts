@@ -18,9 +18,9 @@ import {
 	DEFAULT_OPACITY,
 	DEFAULT_PREFERENCES,
 	DEFAULT_TILE_SIZE
-} from '$lib/constants';
-import { checkHighDefinition } from '$lib/helpers';
-import { getInitialMetaData, tryGetMetaData } from '$lib/metadata';
+} from '#lib/constants.js';
+import { checkHighDefinition } from '#lib/helpers.js';
+import { getInitialMetaData, tryGetMetaData } from '#lib/metadata.js';
 
 import { version } from '../../../package.json';
 import { activeChart, defaultChart } from './chart';

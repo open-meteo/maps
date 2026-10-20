@@ -5,12 +5,14 @@ import {
 	type ArrowStyle,
 	DEFAULT_ARROW_STYLE,
 	VALID_ARROW_STYLES,
-	defaultOmProtocolSettings
+	defaultOmProtocolSettings,
+	timeStepHoursAt,
+	variableUsesTimeStep
 } from '@openmeteo/weather-map-layer';
 import { mode } from 'mode-watcher';
 import { toast } from 'svelte-sonner';
 
-import { replaceState } from '$app/navigation';
+import { goto } from '$app/navigation';
 
 import {
 	activeChart,
@@ -18,8 +20,9 @@ import {
 	isDefaultsPlainChart,
 	setPlainVariable,
 	setSources
-} from '$lib/stores/chart';
-import { map as m } from '$lib/stores/map';
+} from '#lib/stores/chart.js';
+import { type SelectedLocation, parseCoordinates, selectedLocation } from '#lib/stores/location.js';
+import { map as m } from '#lib/stores/map.js';
 import {
 	type Preferences,
 	colorBlend as cB,
@@ -28,13 +31,13 @@ import {
 	preferences as p,
 	tileSize as tS,
 	url as u
-} from '$lib/stores/preferences';
-import { modelRun as mR, modelRunLocked as mRL, time } from '$lib/stores/time';
-import { domain as d, variable as v } from '$lib/stores/variables';
-import { vectorOptions as vO } from '$lib/stores/vector';
+} from '#lib/stores/preferences.js';
+import { modelRun as mR, modelRunLocked as mRL, metaJson, time } from '#lib/stores/time.js';
+import { domain as d, variable as v } from '#lib/stores/variables.js';
+import { vectorOptions as vO } from '#lib/stores/vector.js';
 
-import { parseSources, serializeSources } from '$lib/chart-encoding';
-import { getChartPreset } from '$lib/chart-presets';
+import { parseSources, serializeSources } from '#lib/chart-encoding.js';
+import { getChartPreset } from '#lib/chart-presets.js';
 
 import {
 	CLIP_COUNTRIES_PARAM,
@@ -46,7 +49,7 @@ import { clippingCountryCodes } from './stores/clipping';
 import { omProtocolSettings } from './stores/om-protocol-settings';
 import { parseISOWithoutTimezone } from './time-format';
 
-import type { ChartSource, ChartState } from '$lib/chart-types';
+import type { ChartSource, ChartState } from '#lib/chart-types.js';
 
 export const updateUrl = async (
 	urlParam?: string,
@@ -86,7 +89,7 @@ export const updateUrl = async (
 	// (the `sources` chart encoding uses both).
 	fullUrl = fullUrl.replace(/%2C/gi, ',').replace(/%3A/gi, ':');
 
-	replaceState(fullUrl, {});
+	goto(fullUrl, { shallow: true, replace: true });
 };
 
 export const urlParamsToPreferences = () => {
@@ -127,6 +130,11 @@ export const urlParamsToPreferences = () => {
 	} else if (get(d) !== 'dwd_icon') {
 		url.searchParams.set('domain', get(d));
 	}
+
+	// Only stored here: the map does not exist yet, it opens on the location
+	// (createMap) and marks it once loaded (addLocationMarker)
+	const locationFromUrl = parseCoordinates(params.get('lat'), params.get('lon'));
+	if (locationFromUrl) selectedLocation.set(locationFromUrl);
 
 	const arrowsRaw = params.get('arrows');
 	if (arrowsRaw !== null) {
@@ -226,6 +234,12 @@ export const getOmUrlForSource = (source: ChartSource): string | undefined => {
 
 	let result = `${base}/${fmtModelRun(modelRun)}/${fmtSelectedTime(selectedTime)}.om`;
 	result += `?variable=${source.variable}`;
+	// A rate is the stored sum over the file's time step: the layer's rule
+	// needs the step length, which only the run's valid times give
+	if (variableUsesTimeStep(source.variable)) {
+		const step = timeStepHoursAt(selectedTime, get(metaJson)?.valid_times);
+		if (step) result += `&delta_time_hours=${step}`;
+	}
 
 	if (mode.current === 'dark') result += '&dark=true';
 	const vectorOptions = get(vO);
@@ -284,6 +298,22 @@ export const getOMUrl = (): string | undefined => {
 				? vectorOptions.contourInterval
 				: undefined
 	});
+};
+
+/** Write the selected location's coordinates to the URL, or drop them. */
+export const syncLocationToUrl = async (location: SelectedLocation | undefined): Promise<void> => {
+	const url = get(u);
+	if (!url) return;
+
+	if (location) {
+		url.searchParams.set('lat', String(location.latitude));
+		url.searchParams.set('lon', String(location.longitude));
+	} else {
+		url.searchParams.delete('lat');
+		url.searchParams.delete('lon');
+	}
+
+	await updateUrl();
 };
 
 /**

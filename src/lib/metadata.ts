@@ -13,21 +13,21 @@ import {
 	pickPrimaryVariable,
 	setPlainVariable,
 	setSources
-} from '$lib/stores/chart';
-import { loading } from '$lib/stores/preferences';
+} from '#lib/stores/chart.js';
+import { loading } from '#lib/stores/preferences.js';
 import {
 	inProgress as iP,
 	latest as l,
 	metaJson as mJ,
 	modelRun as mR,
 	time as t
-} from '$lib/stores/time';
-import { domain as d, selectedDomain } from '$lib/stores/variables';
+} from '#lib/stores/time.js';
+import { availableVariables, domain as d, selectedDomain } from '#lib/stores/variables.js';
 
 import {
 	firstPopularTarget,
 	isStandaloneVariable
-} from '$lib/components/selection/selection-utils';
+} from '#lib/components/selection/selection-utils.js';
 
 import { BASE_URI, fmtModelRun } from './helpers';
 import { formatISOWithoutTimezone } from './time-format';
@@ -175,8 +175,11 @@ export const matchChartOrFallback = () => {
 	const metaJson = get(mJ);
 	if (!metaJson) return;
 
+	// Stored or derived by the layer's rules: a snowfall chart survives a switch
+	// to a model storing only the water equivalent
+	const variables = get(availableVariables) ?? metaJson.variables;
 	const chart = get(activeChart);
-	const surviving = chart.sources.filter((source) => metaJson.variables.includes(source.variable));
+	const surviving = chart.sources.filter((source) => variables.includes(source.variable));
 	if (surviving.length === chart.sources.length) return;
 
 	if (surviving.length > 0) {
@@ -189,20 +192,20 @@ export const matchChartOrFallback = () => {
 	// Directions and v-components are useless as a standalone raster (and
 	// "wind" would otherwise match wind_wave_direction on marine domains)
 	const matched = prefix
-		? metaJson.variables.find((mv) => mv.startsWith(prefix) && isStandaloneVariable(mv))
+		? variables.find((mv) => mv.startsWith(prefix) && isStandaloneVariable(mv))
 		: undefined;
 	if (matched) {
 		setPlainVariable(matched);
 		return;
 	}
 
-	const popular = firstPopularTarget(metaJson.variables);
+	const popular = firstPopularTarget(variables);
 	if (popular?.presetId) {
 		applyPreset(popular.presetId);
 		return;
 	}
 	// e.g. cams greenhouse-gas domains serve no popular entry: pick the
 	// first variable that works as a standalone raster (not a direction)
-	const fallback = metaJson.variables.find(isStandaloneVariable);
-	setPlainVariable(popular?.variable ?? fallback ?? metaJson.variables[0]);
+	const fallback = variables.find(isStandaloneVariable);
+	setPlainVariable(popular?.variable ?? fallback ?? variables[0]);
 };

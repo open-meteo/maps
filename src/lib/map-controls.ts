@@ -9,15 +9,17 @@ import {
 import mapboxgl from 'mapbox-gl';
 import { mode } from 'mode-watcher';
 
-import { map as m } from '$lib/stores/map';
-import { defaultPreferences, preferences as p } from '$lib/stores/preferences';
-import { domain as d } from '$lib/stores/variables';
+import { selectedLocation } from '#lib/stores/location.js';
+import { map as m } from '#lib/stores/map.js';
+import { defaultPreferences, preferences as p } from '#lib/stores/preferences.js';
+import { domain as d } from '#lib/stores/variables.js';
 
-import { GlobeButton } from '$lib/components/buttons';
+import { GlobeButton } from '#lib/components/buttons/index.js';
 
-import { BEFORE_LAYER_RASTER, HILLSHADE_LAYER } from '$lib/constants';
+import { BEFORE_LAYER_RASTER, HILLSHADE_LAYER } from '#lib/constants.js';
 
 import { addOmFileLayers } from './layers';
+import { LOCATION_ZOOM, clearLocation } from './location';
 import { registerOmProtocol } from './om-adapter';
 import { updateUrl } from './url';
 
@@ -48,11 +50,14 @@ export const createMap = async (container: HTMLElement) => {
 	}
 	const grid = GridFactory.create(gridDomain.grid);
 
+	// A location from the URL is where the map opens; a position hash, when
+	// present, is applied by Mapbox over both
+	const location = get(selectedLocation);
 	const map = new mapboxgl.Map({
 		container,
 		style,
-		center: grid.getCenter(),
-		zoom: gridDomain.grid.zoom,
+		center: location ? [location.longitude, location.latitude] : grid.getCenter(),
+		zoom: location ? LOCATION_ZOOM : gridDomain.grid.zoom,
 		keyboard: false,
 		hash: true,
 		maxPitch: 85,
@@ -82,13 +87,33 @@ export const setMapControlSettings = () => {
 	map.addControl(
 		new mapboxgl.NavigationControl({ visualizePitch: true, showZoom: true, showCompass: true })
 	);
-	map.addControl(
-		new mapboxgl.GeolocateControl({
-			fitBoundsOptions: { maxZoom: 13.5 },
-			positionOptions: { enableHighAccuracy: true },
-			trackUserLocation: true
-		})
-	);
+	const geolocateControl = new mapboxgl.GeolocateControl({
+		fitBoundsOptions: { maxZoom: 13.5 },
+		positionOptions: { enableHighAccuracy: true },
+		trackUserLocation: true
+	});
+	// Once the visitor's position is shown its dot takes over: a searched place
+	// would be a second, identical dot. Fires per position update, so only the
+	// first one has anything to clear.
+	geolocateControl.on('geolocate', () => {
+		if (get(selectedLocation)) clearLocation();
+	});
+	// And the other way round: a picked place replaces the visitor's position,
+	// one dot and no camera snapping back. The control has no "off" call,
+	// trigger() walks its state machine: from the background state (tracking,
+	// but panned away) one step locks onto the visitor again and the second
+	// turns it off; the flight to the place follows in the same tick and
+	// overrides that first step's camera move.
+	const stopGeolocating = () => {
+		const state = (geolocateControl as unknown as { _watchState?: string })._watchState;
+		if (!state || state === 'OFF') return;
+		if (state === 'BACKGROUND') geolocateControl.trigger();
+		geolocateControl.trigger();
+	};
+	selectedLocation.subscribe((location) => {
+		if (location) stopGeolocating();
+	});
+	map.addControl(geolocateControl);
 
 	// Mapbox ships no globe control; the button toggles the projection itself
 	map.addControl(new GlobeButton());

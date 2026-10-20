@@ -1,7 +1,7 @@
 import { variableHasDirections } from '@openmeteo/weather-map-layer';
 import { describe, expect, it } from 'vitest';
 
-import { chartPresets, popularVariables } from '$lib/chart-presets';
+import { chartPresets, popularVariables } from '#lib/chart-presets.js';
 
 describe('chartPresets', () => {
 	it('has unique ids', () => {

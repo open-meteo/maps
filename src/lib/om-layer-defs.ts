@@ -17,11 +17,11 @@ import {
 	buildContourWidthExpr,
 	defaultArrowStyle,
 	defaultContourStyle
-} from '$lib/chart-styles';
+} from '#lib/chart-styles.js';
 
 import { omAdapter } from './om-adapter';
 
-import type { ChannelLayerDef, FrameChannel } from '$lib/frame-manager';
+import type { ChannelLayerDef, FrameChannel } from '#lib/frame-manager.js';
 import type { ArrowStyle } from '@openmeteo/weather-map-layer';
 import type * as mapboxgl from 'mapbox-gl';
 

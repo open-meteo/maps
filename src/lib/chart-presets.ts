@@ -2,7 +2,7 @@
  * Predefined chart presets and the curated list of popular variables shown
  * directly in the selection panel.
  */
-import type { ChartPreset } from '$lib/chart-types';
+import type { ChartPreset } from '#lib/chart-types.js';
 
 export const chartPresets: ChartPreset[] = [
 	// ── Synoptic ─────────────────────────────────────────────────────

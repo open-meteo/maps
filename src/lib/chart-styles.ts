@@ -5,7 +5,7 @@
  * properties (line color, width). The defaults match the original
  * hardcoded Mapbox expressions.
  */
-import { alphaOfCssColor, rescaleInto } from '$lib/color';
+import { alphaOfCssColor, rescaleInto } from '#lib/color.js';
 
 import type * as mapboxgl from 'mapbox-gl';
 

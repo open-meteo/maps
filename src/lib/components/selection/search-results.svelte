@@ -8,14 +8,13 @@
 		applySavedChart,
 		savedCharts,
 		setPlainVariable
-	} from '$lib/stores/chart';
-	import { metaJson } from '$lib/stores/time';
-	import { levelGroupSelected, variable } from '$lib/stores/variables';
+	} from '#lib/stores/chart.js';
+	import { availableVariables, levelGroupSelected, variable } from '#lib/stores/variables.js';
 
-	import * as Command from '$lib/components/ui/command';
+	import * as Command from '#lib/components/ui/command/index.js';
 
-	import { sourcesEqual } from '$lib/chart-encoding';
-	import { chartPresets } from '$lib/chart-presets';
+	import { sourcesEqual } from '#lib/chart-encoding.js';
+	import { chartPresets } from '#lib/chart-presets.js';
 
 	import {
 		buildVariableList,
@@ -32,19 +31,19 @@
 
 	let { onDone }: Props = $props();
 
-	const variableList = $derived($metaJson ? buildVariableList($metaJson.variables) : []);
+	const variableList = $derived($availableVariables ? buildVariableList($availableVariables) : []);
 
 	const availablePresets = $derived(
-		$metaJson
+		$availableVariables
 			? chartPresets.filter((preset) =>
-					preset.sources.every((source) => $metaJson.variables.includes(source.variable))
+					preset.sources.every((source) => $availableVariables.includes(source.variable))
 				)
 			: []
 	);
 	const availableSavedCharts = $derived(
-		$metaJson
+		$availableVariables
 			? $savedCharts.charts.filter((chart) =>
-					chart.sources.every((source) => $metaJson.variables.includes(source.variable))
+					chart.sources.every((source) => $availableVariables.includes(source.variable))
 				)
 			: []
 	);

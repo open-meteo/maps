@@ -15,18 +15,18 @@
 		removeSource,
 		saveCurrentChart,
 		updateSource
-	} from '$lib/stores/chart';
-	import { vectorOptions } from '$lib/stores/vector';
+	} from '#lib/stores/chart.js';
+	import { vectorOptions } from '#lib/stores/vector.js';
 
-	import { Input } from '$lib/components/ui/input';
+	import { Input } from '#lib/components/ui/input/index.js';
 
-	import { getChartPreset } from '$lib/chart-presets';
-	import { updateUrl } from '$lib/url';
+	import { getChartPreset } from '#lib/chart-presets.js';
+	import { updateUrl } from '#lib/url.js';
 
 	import { variableLabel } from './selection-utils';
 	import SourceLevelSelect from './source-level-select.svelte';
 
-	import type { ChartSource } from '$lib/chart-types';
+	import type { ChartSource } from '#lib/chart-types.js';
 
 	interface Props {
 		onAddVariable: () => void;

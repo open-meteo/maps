@@ -3,14 +3,14 @@ import { derived, get } from 'svelte/store';
 import { variableHasDirections } from '@openmeteo/weather-map-layer';
 import { persisted } from 'svelte-persisted-store';
 
-import { cloneSources, matchPreset, sourcesEqual } from '$lib/chart-encoding';
-import { getChartPreset } from '$lib/chart-presets';
-import { DEFAULT_VARIABLE } from '$lib/constants';
+import { cloneSources, matchPreset, sourcesEqual } from '#lib/chart-encoding.js';
+import { getChartPreset } from '#lib/chart-presets.js';
+import { DEFAULT_VARIABLE } from '#lib/constants.js';
 
 import { variable } from './variables';
 import { vectorOptions } from './vector';
 
-import type { ChartSource, ChartState, SavedChart } from '$lib/chart-types';
+import type { ChartSource, ChartState, SavedChart } from '#lib/chart-types.js';
 
 interface SavedChartsState {
 	version: 1;

@@ -8,7 +8,7 @@ import { get } from 'svelte/store';
 
 import { addMapboxProtocolSupport, omProtocol } from '@openmeteo/weather-map-layer';
 
-import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
+import { omProtocolSettings } from '#lib/stores/om-protocol-settings.js';
 
 export const omAdapter = addMapboxProtocolSupport();
 
