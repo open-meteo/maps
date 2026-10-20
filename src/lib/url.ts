@@ -6,8 +6,8 @@ import {
 	DEFAULT_ARROW_STYLE,
 	VALID_ARROW_STYLES,
 	defaultOmProtocolSettings,
-	timeStepHoursAt,
-	variableUsesTimeStep
+	deltaTimeHoursAt,
+	variableUsesDeltaTime
 } from '@openmeteo/weather-map-layer';
 import { mode } from 'mode-watcher';
 import { toast } from 'svelte-sonner';
@@ -250,8 +250,8 @@ export const getOmUrlForSource = (source: ChartSource): string | undefined => {
 	result += `?variable=${source.variable}`;
 	// A rate is the stored sum over the file's time step: the layer's rule
 	// needs the step length, which only the run's valid times give
-	if (variableUsesTimeStep(source.variable)) {
-		const step = timeStepHoursAt(selectedTime, get(metaJson)?.valid_times);
+	if (variableUsesDeltaTime(source.variable)) {
+		const step = deltaTimeHoursAt(selectedTime, get(metaJson)?.valid_times);
 		if (step) result += `&delta_time_hours=${step}`;
 	}
 
