@@ -4,7 +4,7 @@
 	 * show how the symbol reads: the arrow flies the way the wind blows, while
 	 * the barb's staff points back at where it came from.
 	 */
-	import { SHAPE_UNITS, barbShape, shapePath } from '$lib/arrow-shapes';
+	import { SHAPE_UNITS, barbShape, shapePath } from '#lib/arrow-shapes.js';
 
 	interface Props {
 		/** Meteorological direction the wind comes from, in degrees. */

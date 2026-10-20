@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { get } from 'svelte/store';
 
-	import { tileSize as tS } from '$lib/stores/preferences';
+	import { tileSize as tS } from '#lib/stores/preferences.js';
 
-	import Button from '$lib/components/ui/button/button.svelte';
+	import Button from '#lib/components/ui/button/button.svelte';
 
-	import { changeOMfileURL } from '$lib/layers';
+	import { changeOMfileURL } from '#lib/layers.js';
 
 	import SettingsSection from './settings-section.svelte';
 

@@ -4,19 +4,19 @@
 
 	import { toast } from 'svelte-sonner';
 
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 
-	import { timeSelectorActions } from '$lib/stores/keyboard';
-	import { popup, popupMode } from '$lib/stores/map';
-	import { helpOpen } from '$lib/stores/preferences';
+	import { timeSelectorActions } from '#lib/stores/keyboard.js';
+	import { popup, popupMode } from '#lib/stores/map.js';
+	import { helpOpen } from '#lib/stores/preferences.js';
 	import {
 		domainSelectionOpen,
 		pressureLevelsSelectionOpen,
 		variableSelectionExtended,
 		variableSelectionOpen
-	} from '$lib/stores/variables';
+	} from '#lib/stores/variables.js';
 
-	import { switchPopupMode } from '$lib/popup';
+	import { switchPopupMode } from '#lib/popup.js';
 
 	const keyDownEvent = (event: KeyboardEvent) => {
 		// Ignore shortcuts when focus is inside an editable element, except for Escape

@@ -21,11 +21,11 @@ import {
 	chartSources,
 	pickPrimarySource,
 	sourceDrawsSomething
-} from '$lib/stores/chart';
-import { map as m, popup as p, popupMode } from '$lib/stores/map';
-import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
-import { convertValue, getDisplayUnit, unitPreferences } from '$lib/stores/units';
-import { selectedDomain } from '$lib/stores/variables';
+} from '#lib/stores/chart.js';
+import { map as m, popup as p, popupMode } from '#lib/stores/map.js';
+import { omProtocolSettings } from '#lib/stores/om-protocol-settings.js';
+import { convertValue, getDisplayUnit, unitPreferences } from '#lib/stores/units.js';
+import { selectedDomain } from '#lib/stores/variables.js';
 
 import { defaultArrowStyle } from './chart-styles';
 import { textWhite } from './helpers';
@@ -585,7 +585,9 @@ const makeDraggable = (overlay: Overlay, element: HTMLElement): void => {
 	element.addEventListener('pointermove', (e) => {
 		const map = get(m);
 		if (!dragging || !map) return;
-		const rect = map.getTargetElement().getBoundingClientRect();
+		// Nullable in the ol typings, never at runtime once the map has a target
+		const rect = map.getTargetElement()?.getBoundingClientRect();
+		if (!rect) return;
 		const coordinate = map.getCoordinateFromPixel([e.clientX - rect.left, e.clientY - rect.top]);
 		overlay.setPosition(coordinate);
 		void updatePopupContent(coordinate);

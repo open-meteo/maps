@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { isSeamlessDomain } from '@openmeteo/weather-map-layer';
 
-	import { preferences } from '$lib/stores/preferences';
-	import { selectedDomain } from '$lib/stores/variables';
+	import { preferences } from '#lib/stores/preferences.js';
+	import { selectedDomain } from '#lib/stores/variables.js';
 
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
+	import { Label } from '#lib/components/ui/label/index.js';
+	import { Switch } from '#lib/components/ui/switch/index.js';
 
-	import { updateSeamlessBorderLayer } from '$lib/layers';
+	import { updateSeamlessBorderLayer } from '#lib/layers.js';
 
 	// Only a seamless domain has sub-domain borders to draw
 	const isSeamless = $derived(isSeamlessDomain($selectedDomain));

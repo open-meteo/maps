@@ -12,7 +12,7 @@ import MVT from 'ol/format/MVT';
 import DataTile from 'ol/source/DataTile';
 import VectorTile from 'ol/source/VectorTile';
 
-import { omProtocolSettings } from '$lib/stores/om-protocol-settings';
+import { omProtocolSettings } from '#lib/stores/om-protocol-settings.js';
 
 export const omAdapter = addOpenLayersProtocolSupport({
 	source: { DataTile, VectorTile },

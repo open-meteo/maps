@@ -17,12 +17,12 @@ import {
 	contourStyleFor,
 	defaultArrowStyle,
 	defaultContourStyle
-} from '$lib/chart-styles';
+} from '#lib/chart-styles.js';
 
 import { Z_INDEX } from './map-controls';
 import { omAdapter } from './om-adapter';
 
-import type { ChannelLayerDef, FrameChannel } from '$lib/frame-manager';
+import type { ChannelLayerDef, FrameChannel } from '#lib/frame-manager.js';
 import type { ArrowStyle } from '@openmeteo/weather-map-layer';
 import type { FeatureLike } from 'ol/Feature';
 import type DataTile from 'ol/source/DataTile';

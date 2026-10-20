@@ -5,12 +5,12 @@
 
 	import { clearBlockCache } from '@openmeteo/weather-map-layer';
 
-	import { cacheBlockSizeKb, cacheMaxBytesMb } from '$lib/stores/om-protocol-settings';
+	import { cacheBlockSizeKb, cacheMaxBytesMb } from '#lib/stores/om-protocol-settings.js';
 
-	import Button from '$lib/components/ui/button/button.svelte';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import * as Select from '$lib/components/ui/select';
+	import Button from '#lib/components/ui/button/button.svelte';
+	import { Input } from '#lib/components/ui/input/index.js';
+	import { Label } from '#lib/components/ui/label/index.js';
+	import * as Select from '#lib/components/ui/select/index.js';
 
 	import SettingsSection from './settings-section.svelte';
 

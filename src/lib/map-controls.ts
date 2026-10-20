@@ -16,15 +16,17 @@ import { defaults as defaultInteractions } from 'ol/interaction/defaults';
 import LayerGroup from 'ol/layer/Group';
 import { fromLonLat, toLonLat, transformExtent } from 'ol/proj';
 
-import { map as m } from '$lib/stores/map';
-import { preferences as p } from '$lib/stores/preferences';
-import { domain as d } from '$lib/stores/variables';
+import { selectedLocation } from '#lib/stores/location.js';
+import { map as m } from '#lib/stores/map.js';
+import { preferences as p } from '#lib/stores/preferences.js';
+import { domain as d } from '#lib/stores/variables.js';
 
-import { LocateButton, controlColumn } from '$lib/components/buttons';
+import { LocateButton, controlColumn } from '#lib/components/buttons/index.js';
 
-import { BEFORE_LAYER_RASTER } from '$lib/constants';
+import { BEFORE_LAYER_RASTER } from '#lib/constants.js';
 
 import { addOmFileLayers } from './layers';
+import { LOCATION_ZOOM } from './location';
 import { registerOmProtocol } from './om-adapter';
 
 /** The parts of a MapLibre style sheet the basemap split looks at. */
@@ -104,8 +106,17 @@ export const createMap = async (container: HTMLElement) => {
 	const { lng, lat } = grid.getCenter();
 	const bounds = grid.getBounds();
 	const global = bounds[2] - bounds[0] >= 359;
+	// A location from the URL is where the map opens; a position hash, when
+	// present, wins over it as it does over the domain's view
 	const hash = parseHash();
-	const start = hash ?? (global ? EUROPE : { lng, lat, zoom: gridDomain.grid.zoom ?? 1 });
+	const location = get(selectedLocation);
+	const start =
+		hash ??
+		(location
+			? { lng: location.longitude, lat: location.latitude, zoom: LOCATION_ZOOM }
+			: global
+				? EUROPE
+				: { lng, lat, zoom: gridDomain.grid.zoom ?? 1 });
 
 	const column = controlColumn();
 	const map = new Map({
@@ -126,7 +137,7 @@ export const createMap = async (container: HTMLElement) => {
 	});
 	// Controls with a `target` are placed by the app; the stop-event container
 	// keeps their clicks away from the map
-	map.getOverlayContainerStopEvent().appendChild(column);
+	map.getOverlayContainerStopEvent()?.appendChild(column);
 	m.set(map);
 
 	await addBasemap(map);

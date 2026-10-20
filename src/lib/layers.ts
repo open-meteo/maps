@@ -22,21 +22,21 @@ import VectorSource from 'ol/source/Vector';
 import { Fill, Stroke, Style, Text } from 'ol/style';
 import { toast } from 'svelte-sonner';
 
-import { chartSources } from '$lib/stores/chart';
-import { map as m } from '$lib/stores/map';
-import { loading, opacity, preferences as p } from '$lib/stores/preferences';
-import { modelRun, time } from '$lib/stores/time';
-import { selectedDomain } from '$lib/stores/variables';
-import { vectorOptions as vO } from '$lib/stores/vector';
+import { chartSources } from '#lib/stores/chart.js';
+import { map as m } from '#lib/stores/map.js';
+import { loading, opacity, preferences as p } from '#lib/stores/preferences.js';
+import { modelRun, time } from '#lib/stores/time.js';
+import { selectedDomain } from '#lib/stores/variables.js';
+import { vectorOptions as vO } from '#lib/stores/vector.js';
 
 import {
 	BEFORE_LAYER_RASTER,
 	BEFORE_LAYER_VECTOR,
 	BEFORE_LAYER_VECTOR_WATER_CLIP,
 	HILLSHADE_LAYER
-} from '$lib/constants';
-import { type FrameChannel, FrameManager } from '$lib/frame-manager';
-import { rasterChannel, vectorChannel } from '$lib/om-layer-defs';
+} from '#lib/constants.js';
+import { type FrameChannel, FrameManager } from '#lib/frame-manager.js';
+import { rasterChannel, vectorChannel } from '#lib/om-layer-defs.js';
 
 import { ZOOM_OFFSET, Z_INDEX } from './map-controls';
 import { refreshPopup } from './popup';

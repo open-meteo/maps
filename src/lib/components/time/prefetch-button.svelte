@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
 
-	import { metaJson } from '$lib/stores/time';
-	import { modelRun, time } from '$lib/stores/time';
-	import { domain as domainStore, variable as variableStore } from '$lib/stores/variables';
+	import { metaJson } from '#lib/stores/time.js';
+	import { modelRun, time } from '#lib/stores/time.js';
+	import { domain as domainStore, variable as variableStore } from '#lib/stores/variables.js';
 
-	import * as Select from '$lib/components/ui/select';
+	import * as Select from '#lib/components/ui/select/index.js';
 
-	import { type PrefetchMode, getDateRangeForMode, prefetchData } from '$lib/prefetch';
+	import { type PrefetchMode, getDateRangeForMode, prefetchData } from '#lib/prefetch.js';
 
 	let isPrefetching = $state(false);
 	let prefetchProgress = $state({ current: 0, total: 0 });
