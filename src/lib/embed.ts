@@ -1,6 +1,7 @@
 // Bridge for embedders: when the map runs inside an iframe, the parent window
-// can steer it with { type: 'om-maps:set', domain?, theme? } messages, and the
-// position hash is mirrored back so the embedder can reflect it in its own URL.
+// can steer it with { type: 'om-maps:set', domain?, theme?, lat?, lon? }
+// messages, and the position hash is mirrored back so the embedder can reflect
+// it in its own URL.
 import { get } from 'svelte/store';
 
 import { domainOptions } from '@openmeteo/weather-map-layer';
@@ -8,8 +9,11 @@ import { setMode } from 'mode-watcher';
 
 import { browser } from '$app/env';
 
+import { parseCoordinates } from '#lib/stores/location.js';
 import { map as m } from '#lib/stores/map.js';
 import { domain } from '#lib/stores/variables.js';
+
+import { setLocation } from '#lib/location.js';
 
 import { version } from '../../package.json';
 
@@ -30,11 +34,15 @@ const onEmbedderMessage = (event: MessageEvent) => {
 	const {
 		type,
 		domain: requestedDomain,
-		theme: requestedTheme
+		theme: requestedTheme,
+		lat,
+		lon
 	} = (event.data ?? {}) as {
 		type?: string;
 		domain?: string;
 		theme?: string;
+		lat?: unknown;
+		lon?: unknown;
 	};
 	if (type !== 'om-maps:set') return;
 	if (
@@ -49,6 +57,9 @@ const onEmbedderMessage = (event: MessageEvent) => {
 		// resolved mode drifts from the applied one, and refreshes the button.
 		setMode(requestedTheme);
 	}
+	// Numbers or strings, like the lat/lon URL params they mirror
+	const requestedLocation = parseCoordinates(lat, lon);
+	if (requestedLocation) setLocation(requestedLocation);
 };
 
 // Mirrors the position hash to the parent window and starts listening for
