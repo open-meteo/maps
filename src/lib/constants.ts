@@ -1,6 +1,10 @@
 // Domain and variable defaults
 export const DEFAULT_DOMAIN = 'dwd_icon';
 export const DEFAULT_VARIABLE = 'temperature_2m';
+// What the compare button opens against: ECMWF's high-resolution model, or
+// its 0.25° one when that is already the main domain
+export const DEFAULT_COMPARE_DOMAIN = 'ecmwf_ifs';
+export const FALLBACK_COMPARE_DOMAIN = 'ecmwf_ifs025';
 
 // Vector options defaults
 export const DEFAULT_VECTOR_OPTIONS = {

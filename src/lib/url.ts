@@ -6,6 +6,7 @@ import {
 	DEFAULT_ARROW_STYLE,
 	VALID_ARROW_STYLES,
 	defaultOmProtocolSettings,
+	domainOptions,
 	timeStepHoursAt,
 	variableUsesTimeStep
 } from '@openmeteo/weather-map-layer';
@@ -21,6 +22,7 @@ import {
 	setPlainVariable,
 	setSources
 } from '#lib/stores/chart.js';
+import { compareDomain } from '#lib/stores/compare.js';
 import { type SelectedLocation, parseCoordinates, selectedLocation } from '#lib/stores/location.js';
 import { map as m } from '#lib/stores/map.js';
 import {
@@ -130,6 +132,18 @@ export const urlParamsToPreferences = () => {
 		url.searchParams.set('domain', get(d));
 	}
 
+	const compare = params.get('compare');
+	const storedCompare = get(compareDomain);
+	if (compare) {
+		if (domainOptions.some(({ value }) => value === compare)) {
+			compareDomain.set(compare);
+		} else {
+			toast('Unknown compare domain: ' + compare);
+		}
+	} else if (storedCompare) {
+		url.searchParams.set('compare', storedCompare);
+	}
+
 	// Only stored here: the map does not exist yet, it opens on the location
 	// (createMap) and marks it once loaded (addLocationMarker)
 	const locationFromUrl = parseCoordinates(params.get('lat'), params.get('lon'));
@@ -220,23 +234,40 @@ let cachedColorRef: unknown;
 let cachedColorHash = '';
 let cachedColorIsDefault = true;
 
+/** The file a chart source is read from: a domain, one of its runs and a valid time of that run. */
+export interface OmPath {
+	domain: string;
+	modelRun: Date;
+	time: Date;
+	/** The run's valid times, for the time step of rate variables. */
+	validTimes?: string[];
+}
+
+/** The main map's path, undefined until its run is known. */
+const currentOmPath = (): OmPath | undefined => {
+	const modelRun = get(mR);
+	if (!modelRun) return undefined;
+	return { domain: get(d), modelRun, time: get(time), validTimes: get(metaJson)?.valid_times };
+};
+
 /**
  * Build the om:// source URL (without protocol prefix) for one chart source.
  * The path part (domain/model run/time) and the global render params are
- * shared by all sources; variable and vector flags are per source.
+ * shared by all sources; variable and vector flags are per source. The path
+ * is the main map's unless given (the compare map reads another domain).
  */
-export const getOmUrlForSource = (source: ChartSource): string | undefined => {
-	const base = `${BASE_URI}/${get(d)}`;
-	const modelRun = get(mR);
-	if (!modelRun) return undefined;
-	const selectedTime = get(time);
+export const getOmUrlForSource = (
+	source: ChartSource,
+	path: OmPath | undefined = currentOmPath()
+): string | undefined => {
+	if (!path) return undefined;
 
-	let result = `${base}/${fmtModelRun(modelRun)}/${fmtSelectedTime(selectedTime)}.om`;
+	let result = `${BASE_URI}/${path.domain}/${fmtModelRun(path.modelRun)}/${fmtSelectedTime(path.time)}.om`;
 	result += `?variable=${source.variable}`;
 	// A rate is the stored sum over the file's time step: the layer's rule
 	// needs the step length, which only the run's valid times give
 	if (variableUsesTimeStep(source.variable)) {
-		const step = timeStepHoursAt(selectedTime, get(metaJson)?.valid_times);
+		const step = timeStepHoursAt(path.time, path.validTimes);
 		if (step) result += `&delta_time_hours=${step}`;
 	}
 
