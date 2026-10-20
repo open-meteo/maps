@@ -3,6 +3,7 @@
 
 	import GripVerticalIcon from '@lucide/svelte/icons/grip-vertical';
 
+	import { terraDrawActive } from '#lib/stores/clipping.js';
 	import { compareDomain, compareSplit, compareTime } from '#lib/stores/compare.js';
 	import { time } from '#lib/stores/time.js';
 	import { domain } from '#lib/stores/variables.js';
@@ -54,8 +55,15 @@
      `map` class, not Tailwind's `absolute`: MapLibre's own stylesheet makes
      every map container `position: relative` with `overflow: hidden`, and
      being unlayered it beats a layered utility, which left this container
-     with no height and the canvas clipped away. -->
-<div bind:this={container} class="map" style="clip-path: inset(0 0 0 {left})"></div>
+     with no height and the canvas clipped away. Clipping shapes are drawn on
+     the main map, so while a draw mode is on, pointer events pass through to
+     it and a shape can be drawn across the divider (the compare map mirrors
+     the drawing, see compare.ts). -->
+<div
+	bind:this={container}
+	class="map"
+	style="clip-path: inset(0 0 0 {left});{$terraDrawActive ? ' pointer-events: none;' : ''}"
+></div>
 
 <!-- The divider: a hairline under the bottom overlays, and the grab handle
      as the only part taking pointer events -->

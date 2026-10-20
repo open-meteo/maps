@@ -29,7 +29,12 @@ import { variableLabel } from '#lib/components/selection/selection-utils.js';
 import { BEFORE_LAYER_RASTER, HILLSHADE_LAYER } from '#lib/constants.js';
 import { FrameManager } from '#lib/frame-manager.js';
 import { BASE_URI } from '#lib/helpers.js';
-import { activeOmUrlsOf, buildChannels } from '#lib/layers.js';
+import {
+	SeamlessBorderOverlay,
+	activeOmUrlsOf,
+	buildChannels,
+	commitBarrier
+} from '#lib/layers.js';
 import { addHillshadeLayer, addTerrainSource, getStyle } from '#lib/map-controls.js';
 import { addPopup, refreshPopup, removePopupHost } from '#lib/popup.js';
 import { findTimeStep } from '#lib/time-utils.js';
@@ -37,7 +42,11 @@ import { getOmUrlForSource } from '#lib/url.js';
 
 let compareMap: maplibregl.Map | undefined;
 let frameManager: FrameManager | undefined;
+let seamlessBorders: SeamlessBorderOverlay | undefined;
 let unsyncCameras: (() => void) | undefined;
+let unmirrorTerraDraw: (() => void) | undefined;
+// Sources and layers can only be added once the style is in (load, style reload)
+let compareStyleReady = false;
 let unfollowPreferences: (() => void) | undefined;
 // Domain and variables of the last "does not provide" warning, so it shows
 // once per combination rather than on every time step
@@ -92,6 +101,50 @@ const syncCameras = (main: maplibregl.Map, compare: maplibregl.Map): (() => void
 	};
 };
 
+// Terra-draw draws on the main map only, which lies under the compare map:
+// while a draw mode is on, the compare map lets pointer events through (see
+// compare-map.svelte) and shows copies of terra-draw's render sources, so
+// the shape and its handles appear on both halves. The adapter updates the
+// sources on every render; the copies follow their sourcedata events.
+const TERRA_DRAW_SOURCES = ['td-polygon', 'td-linestring', 'td-point'];
+
+const mirrorTerraDrawSource = (
+	main: maplibregl.Map,
+	compare: maplibregl.Map,
+	sourceId: string
+): void => {
+	if (!compareStyleReady) return;
+	const source = main.getSource(sourceId) as maplibregl.GeoJSONSource | undefined;
+	if (!source) return;
+	const { data } = source.serialize();
+	const copy = compare.getSource(sourceId) as maplibregl.GeoJSONSource | undefined;
+	if (copy) {
+		copy.setData(data);
+		return;
+	}
+	compare.addSource(sourceId, { type: 'geojson', data, tolerance: 0 });
+	// The adapter's layers draw their style from feature properties, so
+	// copies of them render the copied data alike
+	for (const layer of main.getStyle().layers) {
+		if ('source' in layer && layer.source === sourceId) compare.addLayer(layer);
+	}
+};
+
+const mirrorAllTerraDrawSources = (): void => {
+	const main = get(m);
+	if (!main || !compareMap) return;
+	for (const sourceId of TERRA_DRAW_SOURCES) mirrorTerraDrawSource(main, compareMap, sourceId);
+};
+
+const mirrorTerraDraw = (main: maplibregl.Map, compare: maplibregl.Map): (() => void) => {
+	const onSourceData = (e: maplibregl.MapSourceDataEvent) => {
+		if (e.tile || !e.sourceId || !TERRA_DRAW_SOURCES.includes(e.sourceId)) return;
+		mirrorTerraDrawSource(main, compare, e.sourceId);
+	};
+	main.on('sourcedata', onSourceData);
+	return () => main.off('sourcedata', onSourceData);
+};
+
 /**
  * Hillshade and 3D terrain as the main map has them. Their buttons only
  * touch the main map, and the hillshade layer matters beyond looks: with it
@@ -129,6 +182,7 @@ const setUpStyle = (): void => {
 	frameManager = new FrameManager(map, {
 		crossFadeMs: 250,
 		retainMax: 3,
+		barrier: commitBarrier,
 		onLoadingChange: (isLoading) => compareLoading.set(isLoading),
 		onCommit: () => refreshPopup(),
 		onError: () =>
@@ -136,7 +190,10 @@ const setUpStyle = (): void => {
 				id: 'compare-data-error'
 			})
 	});
+	seamlessBorders = new SeamlessBorderOverlay(map);
 	applyBasemapPreferences(map);
+	compareStyleReady = true;
+	mirrorAllTerraDrawSources();
 	showCompareFrame();
 };
 
@@ -163,6 +220,7 @@ export const createCompareMap = async (container: HTMLElement): Promise<void> =>
 
 	compareMap = map;
 	unsyncCameras = syncCameras(main, map);
+	unmirrorTerraDraw = mirrorTerraDraw(main, map);
 	// Toggles after the load; the load itself applies the current preferences
 	unfollowPreferences = preferences.subscribe(() => {
 		if (frameManager && compareMap) applyBasemapPreferences(compareMap);
@@ -183,6 +241,7 @@ export const reloadCompareStyle = (): void => {
 	if (!map) return;
 	getStyle().then((style) => {
 		if (map !== compareMap) return;
+		compareStyleReady = false;
 		map.setStyle(style);
 		map.once('styledata', () => setTimeout(setUpStyle, 50));
 	});
@@ -191,10 +250,14 @@ export const reloadCompareStyle = (): void => {
 export const destroyCompareMap = (): void => {
 	unsyncCameras?.();
 	unsyncCameras = undefined;
+	unmirrorTerraDraw?.();
+	unmirrorTerraDraw = undefined;
+	compareStyleReady = false;
 	unfollowPreferences?.();
 	unfollowPreferences = undefined;
 	frameManager?.destroy();
 	frameManager = undefined;
+	seamlessBorders = undefined;
 	if (compareMap) removePopupHost(compareMap);
 	compareMap?.remove();
 	compareMap = undefined;
@@ -285,4 +348,16 @@ export const showCompareFrame = (): void => {
 	};
 	const channels = buildChannels(sources, (source) => getOmUrlForSource(source, path));
 	if (channels) frameManager.show(channels);
+	updateCompareBorders();
+};
+
+/** The compare map's seamless borders for the compared domain at its shown time. */
+export const updateCompareBorders = (): void => {
+	const domainValue = get(compareDomain);
+	const meta = get(compareMeta);
+	const validTime = get(compareTime);
+	const domain = domainOptions.find(({ value }) => value === domainValue);
+	if (!seamlessBorders || !domain || !meta || !validTime) return;
+	const leadTimeHours = (validTime.getTime() - new Date(meta.reference_time).getTime()) / 3_600_000;
+	seamlessBorders.update(domain, leadTimeHours);
 };

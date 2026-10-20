@@ -58,6 +58,12 @@ export interface FrameManagerOptions {
 	onError?: () => void;
 	slowLoadWarningMs?: number;
 	onSlowLoad?: () => void;
+	/**
+	 * Commits in step with other managers (the compare map): a loaded frame
+	 * waits in the barrier until every manager in it is ready, see
+	 * `CommitBarrier`. Without one a loaded frame commits at once.
+	 */
+	barrier?: CommitBarrier;
 }
 
 interface FrameLayer {
@@ -132,11 +138,17 @@ export class FrameManager {
 			}
 		};
 		this.map.on('error', this.onMapError);
+		this.opts.barrier?.add(this);
 	}
 
 	/** Channels of the currently visible frame (e.g. for the popup). */
 	getActiveChannels(): FrameChannel[] {
 		return this.currentFrame()?.channels ?? [];
+	}
+
+	/** Whether a frame is loading (or held back) to be shown next. */
+	isPending(): boolean {
+		return this.pendingKey !== null;
 	}
 
 	/**
@@ -190,6 +202,7 @@ export class FrameManager {
 		this.touchLru(key);
 
 		this.pendingKey = key;
+		this.opts.barrier?.cancel(this);
 		this.setLoading(true);
 		this.watchFrame(frame);
 		this.startSlowLoadTimer();
@@ -235,6 +248,7 @@ export class FrameManager {
 	destroy(): void {
 		this.reset();
 		this.map.off('error', this.onMapError);
+		this.opts.barrier?.remove(this);
 	}
 
 	// ── internals ─────────────────────────────────────────────────────────
@@ -314,6 +328,7 @@ export class FrameManager {
 		this.queuedCommit = undefined;
 		this.clearSlowLoadTimer();
 		this.setLoading(false);
+		this.opts.barrier?.release();
 		this.opts.onError?.();
 	}
 
@@ -331,7 +346,7 @@ export class FrameManager {
 			}
 			if (this.isFrameLoaded(frame)) {
 				this.unwatchFrame(frame);
-				this.commit(frame);
+				this.readyToCommit(frame);
 			}
 		};
 		frame.onData = check;
@@ -344,6 +359,20 @@ export class FrameManager {
 		this.map.off('sourcedata', frame.onData);
 		this.map.off('idle', frame.onData);
 		frame.onData = undefined;
+	}
+
+	/**
+	 * Commit the loaded frame, or hand its commit to the barrier. A commit
+	 * released after the frame was superseded does nothing.
+	 */
+	private readyToCommit(frame: Frame): void {
+		if (!this.opts.barrier) {
+			this.commit(frame);
+			return;
+		}
+		this.opts.barrier.ready(this, () => {
+			if (this.pendingKey === frame.key && this.frames.has(frame.key)) this.commit(frame);
+		});
 	}
 
 	private commit(frame: Frame): void {
@@ -527,6 +556,8 @@ export class FrameManager {
 		// Unconditionally, so that a loading state set from outside the manager
 		// (the model run switch) clears when the switch needs no new frame
 		this.setLoading(false);
+		// Nothing of this manager's to wait for any more
+		this.opts.barrier?.release();
 	}
 
 	private setFrameOpacity(
@@ -644,5 +675,49 @@ export class FrameManager {
 			clearTimeout(this.slowLoadTimer);
 			this.slowLoadTimer = undefined;
 		}
+	}
+}
+
+/**
+ * Commits the frames of several managers in step, so that a time step
+ * switches on every map at once rather than on the faster one first. A
+ * loaded frame is held until every manager in the barrier has either a held
+ * frame or nothing pending; then all held frames commit together. A manager
+ * that starts loading another frame drops what it held, and one whose
+ * pending frame is abandoned or failed releases the others.
+ */
+export class CommitBarrier {
+	private managers = new Set<FrameManager>();
+	private held = new Map<FrameManager, () => void>();
+
+	add(manager: FrameManager): void {
+		this.managers.add(manager);
+	}
+
+	remove(manager: FrameManager): void {
+		this.managers.delete(manager);
+		this.held.delete(manager);
+		this.release();
+	}
+
+	/** A frame of `manager` has loaded; `commit` runs once the others are ready. */
+	ready(manager: FrameManager, commit: () => void): void {
+		this.held.set(manager, commit);
+		this.release();
+	}
+
+	/** `manager` loads another frame: what it held is superseded. */
+	cancel(manager: FrameManager): void {
+		this.held.delete(manager);
+	}
+
+	/** Commit every held frame unless a manager is still loading one. */
+	release(): void {
+		for (const manager of this.managers) {
+			if (manager.isPending() && !this.held.has(manager)) return;
+		}
+		const commits = [...this.held.values()];
+		this.held.clear();
+		for (const commit of commits) commit();
 	}
 }
