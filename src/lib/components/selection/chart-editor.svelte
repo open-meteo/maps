@@ -20,6 +20,7 @@
 
 	import { Input } from '#lib/components/ui/input/index.js';
 
+	import { sourceKey } from '#lib/chart-encoding.js';
 	import { getChartPreset } from '#lib/chart-presets.js';
 	import { updateUrl } from '#lib/url.js';
 
@@ -108,7 +109,7 @@
 </script>
 
 <div class="flex flex-col gap-1 py-1 pb-1.5">
-	{#each $activeChart.sources as source, i (source.variable)}
+	{#each $activeChart.sources as source, i (sourceKey(source))}
 		{@const arrowsSupported = variableHasDirections(source.variable)}
 		<div class="flex h-6 items-center gap-1 pr-1 pl-3 text-sm">
 			<div class="truncate" title={source.variable}>
