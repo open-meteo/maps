@@ -18,6 +18,7 @@
 		DarkModeButton,
 		HelpButton,
 		HillshadeButton,
+		LocationSearchButton,
 		SettingsButton
 	} from '#lib/components/buttons/index.js';
 	import ClippingPanel from '#lib/components/clipping/clipping-panel.svelte';
@@ -26,6 +27,7 @@
 	import HelpDialog from '#lib/components/help/help-dialog.svelte';
 	import KeyboardHandler from '#lib/components/keyboard/keyboard-handler.svelte';
 	import Spinner from '#lib/components/loading/spinner.svelte';
+	import LocationSearch from '#lib/components/location/location-search.svelte';
 	import Scale from '#lib/components/scale/scale.svelte';
 	import SelectionPanel from '#lib/components/selection/selection-panel.svelte';
 	import Settings from '#lib/components/settings/settings.svelte';
@@ -35,6 +37,7 @@
 	import { getChartPreset } from '#lib/chart-presets.js';
 	import { postEmbedderReady, startEmbedderBridge, stopEmbedderBridge } from '#lib/embed.js';
 	import { addOmFileLayers, changeOMfileURL } from '#lib/layers.js';
+	import { addLocationMarker } from '#lib/location.js';
 	import {
 		addTerrainSource,
 		createMap,
@@ -84,6 +87,7 @@
 		startEmbedderBridge();
 
 		$map.on('load', async () => {
+			$map.addControl(new LocationSearchButton());
 			$map.addControl(darkModeButton);
 			$map.addControl(new SettingsButton());
 			$map.addControl(new HelpButton());
@@ -101,6 +105,7 @@
 
 			addOmFileLayers();
 			addPopup();
+			addLocationMarker();
 			changeOMfileURL();
 
 			watchAttributionOverlap();
@@ -187,6 +192,7 @@
 <TimeSelector />
 <Settings />
 <HelpDialog />
+<LocationSearch />
 <KeyboardHandler />
 <Dropzone
 	ondrop={(features) => {

@@ -7,8 +7,12 @@
 	import { persisted } from 'svelte-persisted-store';
 
 	import { activeChart, isSingleVariableChart, setPlainVariable } from '#lib/stores/chart.js';
-	import { metaJson } from '#lib/stores/time.js';
-	import { domain, levelGroupSelected, variable } from '#lib/stores/variables.js';
+	import {
+		availableVariables,
+		domain,
+		levelGroupSelected,
+		variable
+	} from '#lib/stores/variables.js';
 
 	import { popularVariables } from '#lib/chart-presets.js';
 
@@ -34,9 +38,9 @@
 	// Whether the domain serves any popular entry. Without one there is no
 	// "more": the collapsible header disappears and the list renders flat.
 	const hasPopular = $derived(
-		$metaJson
+		$availableVariables
 			? popularVariables.some((entry) =>
-					resolvePopularTarget(entry, $metaJson.variables, $levelGroups)
+					resolvePopularTarget(entry, $availableVariables, $levelGroups)
 				)
 			: false
 	);
@@ -44,14 +48,14 @@
 	// Everything the domain serves that the popular list does not already
 	// represent, level-collapsed and alphabetical.
 	const entries = $derived.by(() => {
-		if (!$metaJson) return [];
+		if (!$availableVariables) return [];
 		const popularIds = new Set(popularVariables.map((entry) => entry.id));
 		const popularPlainIds = new Set(
 			popularVariables.filter((entry) => !entry.levelGroup && !entry.presetId).map((e) => e.id)
 		);
 
 		const available: { id: string; label: string; target: string }[] = [];
-		for (const id of buildVariableList($metaJson.variables)) {
+		for (const id of buildVariableList($availableVariables)) {
 			if (popularIds.has(id)) continue;
 
 			if (levelGroupVariables.includes(id) && $levelGroups[id]) {

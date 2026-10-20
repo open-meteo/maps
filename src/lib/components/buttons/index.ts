@@ -4,6 +4,7 @@ import * as maplibregl from 'maplibre-gl';
 import { setMode, userPrefersMode } from 'mode-watcher';
 
 import { clippingPanelOpen } from '#lib/stores/clipping.js';
+import { formatCoordinates, locationSearchOpen, selectedLocation } from '#lib/stores/location.js';
 import { omProtocolSettings } from '#lib/stores/om-protocol-settings.js';
 import {
 	defaultPreferences,
@@ -198,6 +199,39 @@ export class HelpButton {
 		return div;
 	}
 	onRemove() {}
+}
+
+export class LocationSearchButton {
+	private selectedLocationSubscription: () => void = () => {};
+
+	onAdd() {
+		const div = document.createElement('div');
+		div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+
+		const searchSVG = `<button style="display:flex;justify-content:center;align-items:center;">
+			<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" stroke-width="1.2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search-icon lucide-search"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+			</button>`;
+		const searchActiveSVG = `<button style="display:flex;justify-content:center;align-items:center;color:rgb(51,181,229);">
+			<svg xmlns="http://www.w3.org/2000/svg" opacity="1" stroke-width="1.2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search-icon lucide-search"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+			</button>`;
+
+		// Lit like the other buttons with something set; the title names the place
+		this.selectedLocationSubscription = selectedLocation.subscribe((location) => {
+			div.title = location
+				? `Location: ${location.name ?? formatCoordinates(location)}`
+				: 'Search location';
+			div.innerHTML = location ? searchActiveSVG : searchSVG;
+		});
+
+		div.addEventListener('contextmenu', (e) => e.preventDefault());
+		div.addEventListener('click', () => {
+			locationSearchOpen.set(!get(locationSearchOpen));
+		});
+		return div;
+	}
+	onRemove() {
+		this.selectedLocationSubscription();
+	}
 }
 
 export class ClippingButton {
