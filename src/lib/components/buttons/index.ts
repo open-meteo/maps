@@ -15,7 +15,7 @@ import {
 } from '#lib/stores/preferences.js';
 import { domain } from '#lib/stores/variables.js';
 
-import { DEFAULT_COMPARE_DOMAIN, DEFAULT_DOMAIN } from '#lib/constants.js';
+import { DEFAULT_COMPARE_DOMAIN, FALLBACK_COMPARE_DOMAIN } from '#lib/constants.js';
 import { reanchorRasterLayers } from '#lib/layers.js';
 import { addHillshadeLayer, terrainHandler } from '#lib/map-controls.js';
 import { updateUrl } from '#lib/url.js';
@@ -264,7 +264,7 @@ export class CompareButton {
 			}
 			// Against the same domain there is nothing to compare
 			compareDomain.set(
-				get(domain) === DEFAULT_COMPARE_DOMAIN ? DEFAULT_DOMAIN : DEFAULT_COMPARE_DOMAIN
+				get(domain) === DEFAULT_COMPARE_DOMAIN ? FALLBACK_COMPARE_DOMAIN : DEFAULT_COMPARE_DOMAIN
 			);
 		});
 		return div;
