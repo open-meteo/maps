@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { onDestroy, onMount, tick } from 'svelte';
 
-	import { variableOptions } from '@openmeteo/weather-map-layer';
+	import { domainOptions, variableOptions } from '@openmeteo/weather-map-layer';
 	import 'maplibre-gl/dist/maplibre-gl.css';
 	import { mode, userPrefersMode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
 	import { activeChart } from '#lib/stores/chart.js';
+	import { compareDomain, compareLoading } from '#lib/stores/compare.js';
 	import { map } from '#lib/stores/map.js';
 	import { initStoredState, loading, url } from '#lib/stores/preferences.js';
 	import { installRequestCounter } from '#lib/stores/request-counter.js';
@@ -15,6 +16,7 @@
 
 	import {
 		ClippingButton,
+		CompareButton,
 		DarkModeButton,
 		HelpButton,
 		HillshadeButton,
@@ -22,6 +24,7 @@
 		SettingsButton
 	} from '#lib/components/buttons/index.js';
 	import ClippingPanel from '#lib/components/clipping/clipping-panel.svelte';
+	import CompareMap from '#lib/components/compare/compare-map.svelte';
 	import Dropzone from '#lib/components/dropzone/dropzone.svelte';
 	import GithubCorner from '#lib/components/github/github-corner.svelte';
 	import HelpDialog from '#lib/components/help/help-dialog.svelte';
@@ -55,6 +58,8 @@
 	let clippingPanel: ReturnType<typeof ClippingPanel>;
 
 	let mapContainer: HTMLElement | null;
+	// The compare map starts on the main map's camera, so it waits for the load
+	let mapReady = $state(false);
 
 	const darkModeButton = new DarkModeButton();
 
@@ -92,6 +97,7 @@
 			$map.addControl(new SettingsButton());
 			$map.addControl(new HelpButton());
 			$map.addControl(new ClippingButton());
+			$map.addControl(new CompareButton());
 
 			if (getInitialMetaDataPromise) await getInitialMetaDataPromise;
 			// Initial URL-driven setup is finished; from now on domain changes are
@@ -110,6 +116,7 @@
 
 			watchAttributionOverlap();
 			postEmbedderReady();
+			mapReady = true;
 		});
 	});
 
@@ -164,6 +171,23 @@
 		changeOMfileURL();
 	});
 
+	// Undefined only before the subscription's initial synchronous call, which
+	// reflects the stored or URL-parsed state and must not toast or touch the URL
+	let lastCompareDomain: string | null | undefined;
+	const compareSubscription = compareDomain.subscribe((compared) => {
+		const changed = lastCompareDomain !== undefined && compared !== lastCompareDomain;
+		lastCompareDomain = compared;
+		if (!changed) return;
+
+		updateUrl('compare', compared ?? undefined);
+		toast(
+			compared
+				? 'Comparing with: ' +
+						(domainOptions.find(({ value }) => value === compared)?.label ?? compared)
+				: 'Compare mode off'
+		);
+	});
+
 	onDestroy(() => {
 		stopEmbedderBridge();
 		unwatchAttributionOverlap();
@@ -172,6 +196,7 @@
 		}
 		domainSubscription(); // unsubscribe
 		chartSubscription(); // unsubscribe
+		compareSubscription(); // unsubscribe
 	});
 </script>
 
@@ -179,11 +204,14 @@
 	<title>Open-Meteo Maps</title>
 </svelte:head>
 
-{#if $loading}
+{#if $loading || $compareLoading}
 	<Spinner />
 {/if}
 
 <div class="map maplibregl-map" id="#map_container" bind:this={mapContainer}></div>
+{#if mapReady && $compareDomain}
+	<CompareMap />
+{/if}
 
 <GithubCorner />
 <Scale />

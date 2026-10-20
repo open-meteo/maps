@@ -33,9 +33,12 @@ import {
 import { type FrameChannel, FrameManager } from '#lib/frame-manager.js';
 import { rasterChannel, vectorChannel } from '#lib/om-layer-defs.js';
 
+import { showCompareFrame } from './compare';
 import { refreshPopup } from './popup';
 import { omProtocolSettings } from './stores/om-protocol-settings';
 import { getOmUrlForSource } from './url';
+
+import type { ChartSource } from '#lib/chart-types.js';
 
 let frameManager: FrameManager | undefined;
 
@@ -44,9 +47,15 @@ const getRasterOpacity = (): number => {
 	return mode.current === 'dark' ? Math.max(0, (opacityValue * 100 - 10) / 100) : opacityValue;
 };
 
-/** Build the channels for the current chart, or undefined while not ready. */
-const buildChannels = (): FrameChannel[] | undefined => {
-	const sources = get(chartSources);
+/**
+ * Build the channels for `sources`, or undefined while not ready. `urlFor`
+ * resolves a source's om URL: the main map's path by default, the compare
+ * map passes its own domain and time.
+ */
+export const buildChannels = (
+	sources: ChartSource[] = get(chartSources),
+	urlFor: (source: ChartSource) => string | undefined = getOmUrlForSource
+): FrameChannel[] | undefined => {
 	const preferences = get(p);
 	const vectorOptions = get(vO);
 	const dark = mode.current === 'dark';
@@ -55,7 +64,7 @@ const buildChannels = (): FrameChannel[] | undefined => {
 
 	const channels: FrameChannel[] = [];
 	for (const source of sources) {
-		const omUrl = getOmUrlForSource(source);
+		const omUrl = urlFor(source);
 		if (!omUrl) return undefined;
 		const url = 'om://' + omUrl;
 
@@ -145,6 +154,9 @@ export const reanchorRasterLayers = (): void => {
 export const changeOMfileURL = (): void => {
 	const map = get(m);
 	if (!map || !frameManager) return;
+
+	// The compare map shows the same chart, so it re-renders with the main one
+	showCompareFrame();
 
 	// `undefined` means a source is not ready yet; an empty list means the chart
 	// deliberately draws nothing, which the frame manager commits as a blank
@@ -336,15 +348,18 @@ export const updateSeamlessBorderLayer = (): void => {
 };
 
 /**
- * om:// source URL per source variable of the currently visible frame, in
+ * om:// source URL per source variable of the frame `manager` shows, in
  * chart source order (used by the popup).
  */
-export const getActiveOmUrls = (): Map<string, string> => {
+export const activeOmUrlsOf = (manager: FrameManager | undefined): Map<string, string> => {
 	const urls = new Map<string, string>();
-	for (const channel of frameManager?.getActiveChannels() ?? []) {
+	for (const channel of manager?.getActiveChannels() ?? []) {
 		// Channel keys are `${variable}:kind:...`; variables contain no colon
 		const key = channel.key.slice(0, channel.key.indexOf(':'));
 		if (!urls.has(key)) urls.set(key, channel.url);
 	}
 	return urls;
 };
+
+/** `activeOmUrlsOf` the main map's frame. */
+export const getActiveOmUrls = (): Map<string, string> => activeOmUrlsOf(frameManager);

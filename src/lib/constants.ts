@@ -1,6 +1,8 @@
 // Domain and variable defaults
 export const DEFAULT_DOMAIN = 'dwd_icon';
 export const DEFAULT_VARIABLE = 'temperature_2m';
+// What the compare button opens against: a global model from another centre
+export const DEFAULT_COMPARE_DOMAIN = 'ecmwf_ifs025';
 
 // Vector options defaults
 export const DEFAULT_VECTOR_OPTIONS = {

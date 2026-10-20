@@ -24,6 +24,7 @@ import { getInitialMetaData, tryGetMetaData } from '#lib/metadata.js';
 
 import { version } from '../../../package.json';
 import { activeChart, defaultChart } from './chart';
+import { compareDomain } from './compare';
 import { cacheBlockSizeKb, cacheMaxBytesMb, customColorScales } from './om-protocol-settings';
 import { inProgress, latest, metaJson, modelRun, modelRunLocked, now, time } from './time';
 import {
@@ -148,6 +149,7 @@ export const resetStates = async () => {
 	time.set(new Date(currentTimeStep));
 
 	domain.set('dwd_icon');
+	compareDomain.set(null);
 	variable.set('temperature_2m');
 	// After the vector defaults above so the plain chart is built from them.
 	// Saved charts are user data and deliberately survive a reset.

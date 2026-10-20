@@ -9,6 +9,8 @@
 	import { desktop } from '#lib/stores/preferences.js';
 	import { metaJson } from '#lib/stores/time.js';
 	import {
+		domainSelectionOpen as dSO,
+		domain,
 		levelGroupSelected,
 		variableSelectionExtended as vSE,
 		variableSelectionOpen as vSO,
@@ -100,7 +102,7 @@
 					<div class="bg-primary/10 h-4 w-2/5 animate-pulse rounded"></div>
 				</div>
 			{:else}
-				<DomainSelect />
+				<DomainSelect selected={$domain} onSelect={(value) => ($domain = value)} bind:open={$dSO} />
 			{/if}
 		</div>
 
