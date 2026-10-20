@@ -10,8 +10,7 @@
 		setPlainVariable
 	} from '#lib/stores/chart.js';
 	import { epsMeta, sourceAvailable } from '#lib/stores/eps.js';
-	import { metaJson } from '#lib/stores/time.js';
-	import { levelGroupSelected, variable } from '#lib/stores/variables.js';
+	import { availableVariables, levelGroupSelected, variable } from '#lib/stores/variables.js';
 
 	import * as Command from '#lib/components/ui/command/index.js';
 
@@ -33,19 +32,19 @@
 
 	let { onDone }: Props = $props();
 
-	const variableList = $derived($metaJson ? buildVariableList($metaJson.variables) : []);
+	const variableList = $derived($availableVariables ? buildVariableList($availableVariables) : []);
 
 	const availablePresets = $derived(
-		$metaJson
+		$availableVariables
 			? chartPresets.filter((preset) =>
-					preset.sources.every((source) => sourceAvailable(source, $metaJson, $epsMeta))
+					preset.sources.every((source) => sourceAvailable(source, $availableVariables, $epsMeta))
 				)
 			: []
 	);
 	const availableSavedCharts = $derived(
-		$metaJson
+		$availableVariables
 			? $savedCharts.charts.filter((chart) =>
-					chart.sources.every((source) => sourceAvailable(source, $metaJson, $epsMeta))
+					chart.sources.every((source) => sourceAvailable(source, $availableVariables, $epsMeta))
 				)
 			: []
 	);

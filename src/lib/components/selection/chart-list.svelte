@@ -14,7 +14,7 @@
 		setSources
 	} from '#lib/stores/chart.js';
 	import { EPS_VARIABLE, epsMeta, sourceAvailable } from '#lib/stores/eps.js';
-	import { metaJson } from '#lib/stores/time.js';
+	import { availableVariables } from '#lib/stores/variables.js';
 
 	import { sourcesEqual } from '#lib/chart-encoding.js';
 	import { chartPresets } from '#lib/chart-presets.js';
@@ -30,13 +30,13 @@
 		available: boolean;
 	}
 
-	/** The active domain (or its loaded EPS sibling) serves the source. */
+	/** The active domain (stored or derived) or its loaded EPS sibling serves the source. */
 	const isAvailable = (source: ChartSource): boolean =>
-		sourceAvailable(source, $metaJson, $epsMeta);
+		sourceAvailable(source, $availableVariables, $epsMeta);
 
 	const presetGroups = $derived.by(() => {
 		const groups: { name: string; presets: GroupedPreset[] }[] = [];
-		if (!$metaJson) return groups;
+		if (!$availableVariables) return groups;
 		for (const preset of chartPresets) {
 			const available = preset.sources.every(isAvailable);
 			const name = preset.group ?? 'Other';
@@ -51,7 +51,7 @@
 		// so this cannot be a static preset entry.
 		if (
 			$epsMeta?.variables.includes(EPS_VARIABLE) &&
-			$metaJson.variables.includes('precipitation')
+			$availableVariables?.includes('precipitation')
 		) {
 			const epsGroup = 'Precipitation';
 			const epsChart: ChartPreset = {

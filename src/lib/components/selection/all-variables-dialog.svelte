@@ -2,8 +2,7 @@
 	import { levelGroupVariables } from '@openmeteo/weather-map-layer';
 
 	import { activeChart } from '#lib/stores/chart.js';
-	import { metaJson } from '#lib/stores/time.js';
-	import { variableSelectionOpen as vSO } from '#lib/stores/variables.js';
+	import { availableVariables, variableSelectionOpen as vSO } from '#lib/stores/variables.js';
 
 	import * as Command from '#lib/components/ui/command/index.js';
 	import * as Dialog from '#lib/components/ui/dialog/index.js';
@@ -26,7 +25,7 @@
 
 	let { onPick = undefined }: Props = $props();
 
-	const variableList = $derived($metaJson ? buildVariableList($metaJson.variables) : []);
+	const variableList = $derived($availableVariables ? buildVariableList($availableVariables) : []);
 
 	const selectEntry = (entry: string) => {
 		let target = entry;

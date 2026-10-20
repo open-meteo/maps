@@ -11,7 +11,6 @@ import { BASE_URI } from '#lib/helpers.js';
 import { domain } from './variables';
 
 import type { ChartSource } from '#lib/chart-types.js';
-import type { DomainMetaDataJson } from '@openmeteo/weather-map-layer';
 
 /** EPS sibling domain per deterministic domain. */
 export const EPS_SIBLINGS: Record<string, string> = {
@@ -40,17 +39,17 @@ export const epsMeta = writable<EpsMeta | undefined>(undefined);
 
 /**
  * Whether the active domain can render a chart source: a plain source needs
- * its variable in the domain's metadata, a cross-domain (EPS) source needs the
+ * its variable among the domain's stored or derived ones, a cross-domain (EPS) source needs the
  * loaded sibling to be its domain and to serve the variable.
  */
 export const sourceAvailable = (
 	source: Pick<ChartSource, 'variable' | 'domain'>,
-	metaJson: DomainMetaDataJson | undefined,
+	available: string[] | undefined,
 	eps: EpsMeta | undefined
 ): boolean =>
 	source.domain
 		? eps?.domain === source.domain && eps.variables.includes(source.variable)
-		: !!metaJson?.variables.includes(source.variable);
+		: !!available?.includes(source.variable);
 
 /**
  * Load the EPS sibling's latest.json for a freshly selected domain. Runs in
