@@ -13,8 +13,7 @@
 		setSources
 	} from '#lib/stores/chart.js';
 	import { epsMeta } from '#lib/stores/eps.js';
-	import { metaJson } from '#lib/stores/time.js';
-	import { levelGroupSelected, variable } from '#lib/stores/variables.js';
+	import { availableVariables, levelGroupSelected, variable } from '#lib/stores/variables.js';
 
 	import { sourcesEqual } from '#lib/chart-encoding.js';
 	import { getChartPreset, popularVariables } from '#lib/chart-presets.js';
@@ -51,10 +50,10 @@
 	// to their preferred level variant on click, preset-backed rows apply
 	// their chart preset instead of a plain variable.
 	const entries = $derived.by(() => {
-		if (!$metaJson) return [];
+		if (!$availableVariables) return [];
 		const available: PopularEntry[] = [];
 		for (const entry of popularVariables) {
-			const resolved = resolvePopularTarget(entry, $metaJson.variables, $levelGroups);
+			const resolved = resolvePopularTarget(entry, $availableVariables, $levelGroups);
 			if (!resolved) continue;
 			available.push({
 				id: entry.id,

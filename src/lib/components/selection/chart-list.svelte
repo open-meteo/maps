@@ -14,7 +14,7 @@
 		setSources
 	} from '#lib/stores/chart.js';
 	import { epsMeta } from '#lib/stores/eps.js';
-	import { metaJson } from '#lib/stores/time.js';
+	import { availableVariables } from '#lib/stores/variables.js';
 
 	import { sourcesEqual } from '#lib/chart-encoding.js';
 	import { chartPresets } from '#lib/chart-presets.js';
@@ -31,17 +31,18 @@
 	}
 
 	/**
-	 * The active domain serves the source's variable; a cross-domain source
-	 * needs the loaded EPS sibling to be its domain and serve it.
+	 * The active domain serves the source's variable, stored or derived; a
+	 * cross-domain source needs the loaded EPS sibling to be its domain and
+	 * serve it.
 	 */
 	const sourceAvailable = (source: ChartSource): boolean =>
 		source.domain
 			? $epsMeta?.domain === source.domain && $epsMeta.variables.includes(source.variable)
-			: !!$metaJson?.variables.includes(source.variable);
+			: !!$availableVariables?.includes(source.variable);
 
 	const presetGroups = $derived.by(() => {
 		const groups: { name: string; presets: GroupedPreset[] }[] = [];
-		if (!$metaJson) return groups;
+		if (!$availableVariables) return groups;
 		for (const preset of chartPresets) {
 			const available = preset.sources.every(sourceAvailable);
 			const name = preset.group ?? 'Other';
@@ -56,7 +57,7 @@
 		// so this cannot be a static preset entry.
 		if (
 			$epsMeta?.variables.includes('precipitation_probability') &&
-			$metaJson.variables.includes('precipitation')
+			$availableVariables?.includes('precipitation')
 		) {
 			const epsChart: ChartPreset = {
 				id: 'eps_precip_probability',

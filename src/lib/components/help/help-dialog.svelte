@@ -200,6 +200,31 @@
 					</div>
 
 					<div class="flex items-center gap-2">
+						<div title="Search location" class="maplibregl-ctrl maplibregl-ctrl-group">
+							<button
+								aria-label="Explanation Search Location Button"
+								style="display:flex;justify-content:center;align-items:center;"
+							>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									opacity="0.75"
+									stroke-width="1.2"
+									width="24"
+									height="24"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									class="lucide lucide-search-icon lucide-search"
+									><path d="m21 21-4.34-4.34"></path><circle cx="11" cy="11" r="8"></circle></svg
+								>
+							</button>
+						</div>
+						<div class="truncate">Search Location</div>
+					</div>
+
+					<div class="flex items-center gap-2">
 						<div class="maplibregl-ctrl maplibregl-ctrl-group">
 							<button
 								class="maplibregl-ctrl-globe"
