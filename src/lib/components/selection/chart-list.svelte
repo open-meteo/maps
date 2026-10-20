@@ -13,7 +13,7 @@
 		savedCharts,
 		setSources
 	} from '#lib/stores/chart.js';
-	import { metaJson } from '#lib/stores/time.js';
+	import { availableVariables } from '#lib/stores/variables.js';
 
 	import { sourcesEqual } from '#lib/chart-encoding.js';
 	import { chartPresets } from '#lib/chart-presets.js';
@@ -29,13 +29,13 @@
 		available: boolean;
 	}
 
-	/** The active domain serves the source's variable. */
+	/** The active domain serves the source's variable, stored or derived. */
 	const sourceAvailable = (source: ChartSource): boolean =>
-		!!$metaJson?.variables.includes(source.variable);
+		!!$availableVariables?.includes(source.variable);
 
 	const presetGroups = $derived.by(() => {
 		const groups: { name: string; presets: GroupedPreset[] }[] = [];
-		if (!$metaJson) return groups;
+		if (!$availableVariables) return groups;
 		for (const preset of chartPresets) {
 			const available = preset.sources.every(sourceAvailable);
 			const name = preset.group ?? 'Other';
