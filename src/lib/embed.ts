@@ -4,7 +4,6 @@
 // it in its own URL.
 import { get } from 'svelte/store';
 
-import { domainOptions } from '@openmeteo/weather-map-layer';
 import { setMode } from 'mode-watcher';
 
 import { browser } from '$app/env';
@@ -13,6 +12,7 @@ import { parseCoordinates } from '#lib/stores/location.js';
 import { map as m } from '#lib/stores/map.js';
 import { domain } from '#lib/stores/variables.js';
 
+import { domainOptions } from '#lib/domains.js';
 import { setLocation } from '#lib/location.js';
 
 import { version } from '../../package.json';

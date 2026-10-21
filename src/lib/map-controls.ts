@@ -2,7 +2,6 @@ import { get } from 'svelte/store';
 
 import {
 	GridFactory,
-	domainOptions,
 	getConcreteDomainValue,
 	omProtocol,
 	updateCurrentBounds
@@ -17,7 +16,9 @@ import { omProtocolSettings } from '#lib/stores/om-protocol-settings.js';
 import { defaultPreferences, preferences as p } from '#lib/stores/preferences.js';
 import { domain as d } from '#lib/stores/variables.js';
 
+import { recordGeometry, recordRequest } from '#lib/bench.js';
 import { BEFORE_LAYER_RASTER, HILLSHADE_LAYER } from '#lib/constants.js';
+import { domainOptions } from '#lib/domains.js';
 
 import { addOmFileLayers } from './layers';
 import { LOCATION_ZOOM, clearLocation } from './location';
@@ -30,9 +31,18 @@ export const createMap = async (container: HTMLElement) => {
 	// bundled app cannot serve (404, blank map). Use the worker bundled by Vite.
 	maplibregl.setWorkerUrl(maplibreWorkerUrl);
 
-	maplibregl.addProtocol('om', (params: RequestParameters, abortController: AbortController) =>
-		omProtocol(params, abortController, get(omProtocolSettings))
-	);
+	// The pinned layer build still answers an empty tile with `data: null`, which
+	// MapLibre 6.11 dropped from AddProtocolResponseData; the layer's 0.2.2 release
+	// returns an empty tile instead, so the cast goes with the next pin bump.
+	maplibregl.addProtocol('om', (async (
+		params: RequestParameters,
+		abortController: AbortController
+	) => {
+		const start = performance.now();
+		const response = await omProtocol(params, abortController, get(omProtocolSettings));
+		recordRequest(params.url, params.type, performance.now() - start, response.data === null);
+		return response;
+	}) as maplibregl.AddProtocolAction);
 
 	const style = await getStyle();
 
@@ -46,6 +56,10 @@ export const createMap = async (container: HTMLElement) => {
 	if (!gridDomain) {
 		throw new Error('Base domain not found');
 	}
+	// native ICON grids fetch their warp table or cell index before they can be built
+	const geometryStart = performance.now();
+	await GridFactory.preload(gridDomain.grid);
+	recordGeometry(gridDomain.value, performance.now() - geometryStart);
 	const grid = GridFactory.create(gridDomain.grid);
 
 	// A location from the URL is where the map opens; a position hash, when

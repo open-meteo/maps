@@ -4,7 +4,6 @@ import {
 	LEVEL_PREFIX,
 	LEVEL_REGEX,
 	LEVEL_UNIT_REGEX,
-	domainOptions,
 	variableAvailable,
 	variableOptions
 } from '@openmeteo/weather-map-layer';
@@ -13,6 +12,7 @@ import { type Persisted, persisted } from 'svelte-persisted-store';
 import { browser } from '$app/env';
 
 import { DEFAULT_DOMAIN, DEFAULT_VARIABLE } from '#lib/constants.js';
+import { domainOptions } from '#lib/domains.js';
 
 import { metaJson } from './time';
 

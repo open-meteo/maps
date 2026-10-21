@@ -1,12 +1,14 @@
 <script lang="ts">
 	import CheckIcon from '@lucide/svelte/icons/check';
 	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down';
-	import { domainGroups, domainOptions } from '@openmeteo/weather-map-layer';
+	import { domainGroups } from '@openmeteo/weather-map-layer';
 
 	import { domainSelectionOpen as dSO, domain, selectedDomain } from '#lib/stores/variables.js';
 
 	import * as Command from '#lib/components/ui/command/index.js';
 	import * as Popover from '#lib/components/ui/popover/index.js';
+
+	import { domainOptions } from '#lib/domains.js';
 
 	import { rankedFilter, scrollSelectedToTop } from './selection-utils';
 
