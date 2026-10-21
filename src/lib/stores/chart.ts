@@ -108,40 +108,6 @@ export const applyVectorDefaultsToActiveChart = (): void => {
 };
 
 /**
- * Settings sheet contour switch: toggle contours on every source, the way the
- * arrows switch below does. A source left drawing nothing is fine; that is a
- * state the chart editor can produce too.
- */
-export const setContoursOnActiveChart = (enabled: boolean): void => {
-	const chart = get(activeChart);
-	const vo = get(vectorOptions);
-	const sources = cloneSources(chart.sources);
-	let changed = false;
-	for (const source of sources) {
-		if (!!source.contours === enabled) continue;
-		source.contours = enabled || undefined;
-		source.contourInterval = enabled && !vo.breakpoints ? vo.contourInterval : undefined;
-		changed = true;
-	}
-	if (changed) activeChart.set(chartFromSources(sources));
-};
-
-/** Settings sheet arrows switch: toggle arrows on every capable source. */
-export const setArrowsOnActiveChart = (enabled: boolean): void => {
-	const chart = get(activeChart);
-	const sources = cloneSources(chart.sources);
-	let changed = false;
-	for (const source of sources) {
-		const arrows = enabled && variableHasDirections(source.variable);
-		if (!!source.arrows !== arrows) {
-			source.arrows = arrows || undefined;
-			changed = true;
-		}
-	}
-	if (changed) activeChart.set(chartFromSources(sources));
-};
-
-/**
  * True when the chart is one variable's own chart, whatever per-source styling
  * it carries: a preset's opacity, for instance, survives removing the other
  * source. The selection panel reads this as "this variable is selected", for

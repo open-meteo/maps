@@ -124,6 +124,9 @@
 							<Kbd.Root>p</Kbd.Root> Popup mode: Follows mouse / Draggable / Off
 						</div>
 						<div class="flex items-center gap-2">
+							<Kbd.Root>g</Kbd.Root> Grid cell highlight On / Off
+						</div>
+						<div class="flex items-center gap-2">
 							<Kbd.Root>esc</Kbd.Root> Dismiss Popup &amp; Toasts
 						</div>
 					</div>
@@ -456,11 +459,14 @@
 					</div>
 					<b>Grid</b> - Show individual model grid points as orange dots on map
 					<div>
-						<b>Arrows</b> - Show directional arrows on maps with speed and direction (wind / wave). Switch
-						the style to wind barbs to read the speed off the staff: half barb 5 knots, full barb 10,
-						pennant 50.
+						<b>Arrows</b> - Style of the directional arrows (wind / wave) a variable draws: plain arrows,
+						or wind barbs to read the speed off the staff: half barb 5 knots, full barb 10, pennant 50.
+						Whether a variable draws arrows is toggled in the chart editor.
 					</div>
-					<div><b>Contours</b> - Show contour lines between certain thresholds</div>
+					<div>
+						<b>Contours</b> - Interval of the contour lines a variable draws, fixed or on the colour scale's
+						breakpoints. Whether a variable draws contours is toggled in the chart editor.
+					</div>
 					<div>
 						<b>Clip Water</b> - Overlay the oceans over the generated tiles. Makes sense for certain variables
 						like 'Soil Temperature' where values in the oceans don't represent anything
@@ -475,7 +481,8 @@
 					</div>
 					<div>
 						<b>Popup</b> - Turn the value popup on or off, and on desktop choose whether it follows the
-						mouse or stays where you drag it
+						mouse or stays where you drag it. The grid cell highlight outlines the model grid cell the
+						value is read from in orange
 					</div>
 				</div>
 				<div>
