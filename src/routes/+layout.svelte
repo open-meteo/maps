@@ -53,4 +53,5 @@
 />
 
 {@render children()}
-<ModeWatcher />
+<!-- theme colours are --background from styles.css, tinting the browser bar and the installed app's title bar -->
+<ModeWatcher themeColors={{ light: '#ffffff', dark: '#020618' }} />
