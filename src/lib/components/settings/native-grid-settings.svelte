@@ -25,7 +25,7 @@
 
 <SettingsSection title="Native ICON grid">
 	<p class="mt-1 text-sm opacity-75">
-		Geometry of the global native ICON domain: the analytical icosahedral grid with its warp table,
+		Geometry of the global native ICON domains: the analytical icosahedral grid with its warp table,
 		or the backend's cell index (grid.bin, 65 MB fetched once), the same lookup the API uses.
 		Changing it reloads the page.
 	</p>
