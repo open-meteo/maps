@@ -52,6 +52,8 @@ export interface Preferences {
 	clipWater: boolean;
 	showScale: boolean;
 	showSeamlessBorders: boolean;
+	/** Outline the model grid cell the popup value is read from */
+	popupGridCell: boolean;
 }
 
 // Same default-merge as vectorOptions: keys added after a visitor's

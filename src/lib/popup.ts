@@ -6,6 +6,7 @@ import {
 	LEVEL_UNIT_REGEX,
 	createClippingTester,
 	getCachedResolvedClipping,
+	getCellFromLatLong,
 	getColor,
 	getColorScale,
 	getConcreteDomainValue,
@@ -29,8 +30,9 @@ import { selectedDomain } from '#lib/stores/variables.js';
 import { defaultArrowStyle } from './chart-styles';
 import { textWhite } from './helpers';
 import { getActiveOmUrls } from './layers';
+import { showPopupCell } from './popup-cell';
 import { terraDrawActive } from './stores/clipping';
-import { desktop, opacity } from './stores/preferences';
+import { desktop, opacity, preferences } from './stores/preferences';
 
 let el: HTMLDivElement | undefined;
 let wrapperDiv: HTMLDivElement | undefined;
@@ -513,6 +515,7 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 		contentDiv.style.backgroundColor = '';
 		contentDiv.style.color = '';
 		setArrow(undefined, 0);
+		showPopupCell(undefined);
 		valueSpan.innerText = 'No layers';
 		unitSpan.innerText = '';
 		elevationSpan.innerText = hasElevation ? `${Math.round(elevation)}m` : '';
@@ -521,10 +524,15 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 		return;
 	}
 
-	// Primary value and extra lines resolve concurrently. A composite is
-	// sampled from the sub-domains active at the map zoom, like its tiles.
-	const [{ value, direction }] = await Promise.all([
-		getValueFromLatLong(coordinates.lat, coordinates.lng, activeUrl, map?.getZoom()),
+	// Primary value, its grid cell and extra lines resolve concurrently. A
+	// composite is sampled from the sub-domains active at the map zoom, like
+	// its tiles.
+	const zoom = map?.getZoom();
+	const [{ value, direction }, cell] = await Promise.all([
+		getValueFromLatLong(coordinates.lat, coordinates.lng, activeUrl, zoom),
+		get(preferences).popupGridCell
+			? getCellFromLatLong(coordinates.lat, coordinates.lng, activeUrl, zoom)
+			: undefined,
 		updateExtraSources(coordinates, primary.variable, seq)
 	]);
 	if (seq !== popupUpdateSeq) return;
@@ -542,6 +550,7 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 				contentDiv.style.backgroundColor = '';
 				contentDiv.style.color = '';
 				setArrow(undefined, 0);
+				showPopupCell(undefined);
 				valueSpan.innerText = 'Outside clip';
 				unitSpan.innerText = '';
 				elevationSpan.innerText = hasElevation ? `${Math.round(elevation)}m` : '';
@@ -561,6 +570,7 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 		const units = get(unitPreferences);
 		const displayValue = convertValue(value, colorScale.unit, units);
 		setArrow(direction, value);
+		showPopupCell(cell);
 		valueSpan.innerText = displayValue.toFixed(1);
 		unitSpan.innerText = getDisplayUnit(colorScale.unit, units);
 		elevationSpan.innerText = hasElevation ? `${Math.round(elevation)}m` : '';
@@ -569,6 +579,7 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 		contentDiv.style.backgroundColor = '';
 		contentDiv.style.color = '';
 		setArrow(undefined, 0);
+		showPopupCell(undefined);
 
 		// A composite's extent is its base domain's.
 		const concreteDomainValue = getConcreteDomainValue(get(selectedDomain));
@@ -734,6 +745,7 @@ export const removePopup = (): void => {
 	if (!map) return;
 
 	map.off('mousemove', updatePopup);
+	showPopupCell(undefined);
 
 	const popup = get(p);
 	popup?.remove();
