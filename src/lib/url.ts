@@ -47,7 +47,7 @@ import {
 import { BASE_URI, fmtModelRun, fmtSelectedTime, hashValue } from './helpers';
 import { clippingCountryCodes } from './stores/clipping';
 import { omProtocolSettings } from './stores/om-protocol-settings';
-import { parseISOWithoutTimezone } from './time-format';
+import { formatUTCDateTime, parseISOWithoutTimezone } from './time-format';
 
 import type { ChartSource, ChartState } from '#lib/chart-types.js';
 
@@ -340,4 +340,51 @@ export const syncChartToUrl = async (chart: ChartState): Promise<void> => {
 	}
 
 	await updateUrl();
+};
+
+// The installed app always opens on the manifest's start_url, and the map
+// position and the selected place live only in the URL, so every launch would
+// reset them. The app keeps the URL it was left on and reopens that instead,
+// minus time and model run: a reopened app shows the current forecast.
+const LAST_VIEW_KEY = 'last_view';
+// `<domain> <ISO time>` of the run on screen when the app was left, so the
+// reopened view can point out that its forecast comes from a newer run
+const LAST_MODEL_RUN_KEY = 'last_view_model_run';
+
+const isInstalledApp = () => matchMedia('(display-mode: standalone)').matches;
+
+/** Hidden is the last state a closing or backgrounded app reliably reaches. */
+export const saveLastView = () => {
+	if (document.visibilityState !== 'hidden' || !isInstalledApp()) return;
+	const url = new URL(location.href);
+	url.searchParams.delete('time');
+	url.searchParams.delete('model_run');
+	localStorage.setItem(LAST_VIEW_KEY, url.search + url.hash);
+	const modelRun = get(mR);
+	if (modelRun) localStorage.setItem(LAST_MODEL_RUN_KEY, `${get(d)} ${modelRun.toISOString()}`);
+};
+
+// Set by a launch that reopened the last view, until its run info has loaded
+let lastModelRun: string | undefined;
+
+/** Only a launch on the bare start_url reopens the last view; links into the app keep theirs. */
+export const restoreLastView = async () => {
+	if (location.search || location.hash || !isInstalledApp()) return;
+	const lastView = localStorage.getItem(LAST_VIEW_KEY);
+	if (!lastView) return;
+	lastModelRun = localStorage.getItem(LAST_MODEL_RUN_KEY) ?? undefined;
+	await goto(new URL(lastView, location.href), { shallow: true, replace: true });
+};
+
+/** Runs once the reopened view has its run info; compares runs of the same domain only. */
+export const notifyNewerModelRun = () => {
+	const [domain, lastRun] = lastModelRun?.split(' ') ?? [];
+	lastModelRun = undefined;
+	const modelRun = get(mR);
+	if (!modelRun || domain !== get(d)) return;
+	const previous = new Date(lastRun);
+	if (modelRun.getTime() <= previous.getTime()) return;
+	toast.info(`New model run: ${formatUTCDateTime(modelRun)}Z`, {
+		description: `Last time you saw the ${formatUTCDateTime(previous)}Z run.`
+	});
 };
