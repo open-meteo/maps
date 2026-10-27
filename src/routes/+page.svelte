@@ -2,6 +2,7 @@
 	import { onDestroy, onMount, tick } from 'svelte';
 
 	import { variableOptions } from '@openmeteo/weather-map-layer';
+	import { GPUInitializationError } from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
 	import { mode, userPrefersMode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
@@ -62,6 +63,7 @@
 	let clippingPanel: ReturnType<typeof ClippingPanel>;
 
 	let mapContainer: HTMLElement | null;
+	let webgl2Unavailable = $state(false);
 
 	const darkModeButton = new DarkModeButton();
 
@@ -91,7 +93,16 @@
 		urlParamsToPreferences();
 		await initStoredState();
 
-		await createMap(mapContainer as HTMLElement);
+		try {
+			await createMap(mapContainer as HTMLElement);
+		} catch (error) {
+			// MapLibre draws only through WebGL2: without it there is no map at
+			// all, so explain that instead of leaving the loading spinner up.
+			if (!(error instanceof GPUInitializationError)) throw error;
+			webgl2Unavailable = true;
+			$loading = false;
+			return;
+		}
 		startEmbedderBridge();
 
 		$map.on('load', async () => {
@@ -195,6 +206,26 @@
 {/if}
 
 <div class="map maplibregl-map" id="#map_container" bind:this={mapContainer}></div>
+
+{#if webgl2Unavailable}
+	<div
+		role="alert"
+		class="absolute top-1/2 left-1/2 z-90 w-[min(28rem,90vw)] -translate-1/2 rounded-xl bg-background/80 p-5 text-sm shadow-lg"
+	>
+		<h2 class="mb-2 text-base font-semibold">This map needs WebGL2</h2>
+		<p>
+			Your browser could not start WebGL2, which the map uses to draw. Turning on hardware
+			acceleration in the browser settings, updating the browser or graphics driver, or trying
+			another browser usually helps.
+		</p>
+		<a
+			class="mt-2 inline-block underline"
+			href="https://wiki.openstreetmap.org/wiki/This_map_requires_WebGL"
+			target="_blank"
+			rel="noopener noreferrer">More about WebGL support</a
+		>
+	</div>
+{/if}
 
 <GithubCorner />
 <Scale />
