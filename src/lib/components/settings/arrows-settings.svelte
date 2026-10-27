@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { variableSupportsBarbs } from '@openmeteo/weather-map-layer';
+	import { detectGpuSupport, variableSupportsBarbs } from '@openmeteo/weather-map-layer';
 	import { mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 
 	import { activeChart, setArrowsOnActiveChart } from '#lib/stores/chart.js';
-	import { renderer } from '#lib/stores/preferences.js';
+	import { activeRenderer } from '#lib/stores/preferences.js';
 	import { convertValue, getDisplayUnit, unitPreferences } from '#lib/stores/units.js';
 	import { type WindStyle, defaultVectorOptions, vectorOptions } from '#lib/stores/vector.js';
 
@@ -89,7 +89,10 @@
 	let uniformSize = $derived($vectorOptions.arrowRender === 'icon');
 	// Plain arrows on the GPU path are screen-spaced instanced overlays: always
 	// one size, laid out wider than the tile lattice (GPU_ARROW_SPACING).
-	let gpuArrows = $derived($renderer === 'gpu' && arrowStyle === 'arrow');
+	let gpuArrows = $derived($activeRenderer === 'gpu' && arrowStyle === 'arrow');
+	// The animated flow is a GPU pass that needs float render targets; elsewhere
+	// plain arrows draw instead.
+	let particlesAvailable = $derived($activeRenderer === 'gpu' && detectGpuSupport().particles);
 	let iconSizePx = $derived(windIconSizePx(iconStyle, $vectorOptions.arrowIconScale));
 	let iconSpacingPx = $derived(
 		windIconSpacing(iconStyle, $vectorOptions.arrowIconScale, $vectorOptions.arrowPacking) *
@@ -233,7 +236,7 @@
 				role="radio"
 				aria-checked={selected}
 				disabled={!arrows ||
-					(style.value === 'particles' && $renderer === 'cpu') ||
+					(style.value === 'particles' && !particlesAvailable) ||
 					(style.value === 'barb' && !barbCapable)}
 				class="bg-primary/5 hover:bg-primary/10 flex w-full cursor-pointer flex-col gap-1.5 rounded p-2.5 text-left duration-150 disabled:cursor-not-allowed disabled:opacity-40 {selected
 					? 'ring-primary/60 bg-primary/10 ring-2'
@@ -376,18 +379,19 @@
 			</div>
 		{/if}
 	{:else}
-		<!-- The animated flow is a GPU pass; with CPU rendering plain arrows draw instead. -->
-		<h3 class="mt-4 font-semibold {$renderer === 'cpu' ? 'opacity-50' : ''}">Animation</h3>
+		<h3 class="mt-4 font-semibold {particlesAvailable ? '' : 'opacity-50'}">Animation</h3>
 		<p class="text-xs opacity-75">
-			{#if $renderer === 'cpu'}
+			{#if $activeRenderer === 'cpu'}
 				Only with GPU rendering; CPU tiles draw plain arrows instead.
+			{:else if !particlesAvailable}
+				This GPU cannot draw the animation; plain arrows draw instead.
 			{:else}
 				The flow keeps the same screen speed at every zoom; density is per screen, not per area.
 				Density and size adapt to the screen size — the sliders scale that baseline.
 			{/if}
 		</p>
 		<div
-			class="mt-2 flex flex-col gap-2 {$renderer === 'cpu' ? 'pointer-events-none opacity-50' : ''}"
+			class="mt-2 flex flex-col gap-2 {particlesAvailable ? '' : 'pointer-events-none opacity-50'}"
 		>
 			<div class="flex items-center gap-3">
 				<Label class="w-16 shrink-0" for="particle-density">Density</Label>

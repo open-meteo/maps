@@ -1,10 +1,11 @@
 import { MediaQuery } from 'svelte/reactivity';
-import { type Writable, get, writable } from 'svelte/store';
+import { type Readable, type Writable, derived, get, writable } from 'svelte/store';
 
 import {
 	type InterpolationMethod,
 	clearBackends,
-	clearBlockCache
+	clearBlockCache,
+	detectGpuSupport
 } from '@openmeteo/weather-map-layer';
 import { setMode } from 'mode-watcher';
 import { type Persisted, persisted } from 'svelte-persisted-store';
@@ -86,11 +87,26 @@ export const tileSizeSet = persisted('tile-size-set', false);
 /**
  * Raster/vector rendering path: 'gpu' draws rasters, arrows, contour lines
  * and the animated flow as GPU layers (CPU tiles keep contour labels, wind
- * barbs and grid points); 'cpu' renders everything as tiles.
+ * barbs and grid points); 'cpu' renders everything as tiles; 'auto' picks
+ * the GPU unless the browser renders WebGL in software, where the per-pixel
+ * GPU field costs more than drawing tiles.
  */
-export type Renderer = 'gpu' | 'cpu';
-export const DEFAULT_RENDERER: Renderer = 'gpu';
+export type Renderer = 'auto' | 'gpu' | 'cpu';
+export const DEFAULT_RENDERER: Renderer = 'auto';
 export const renderer: Persisted<Renderer> = persisted<Renderer>('renderer', DEFAULT_RENDERER);
+
+/** Set when a GPU layer failed for good: the rest of the session renders on the CPU. */
+export const gpuFailed = writable(false);
+
+/** The path actually rendering: the preference with 'auto' resolved, CPU after a GPU failure. */
+export const activeRenderer: Readable<'gpu' | 'cpu'> = derived(
+	[renderer, gpuFailed],
+	([$renderer, $gpuFailed]) => {
+		if ($gpuFailed) return 'cpu';
+		if ($renderer !== 'auto') return $renderer;
+		return detectGpuSupport().software ? 'cpu' : 'gpu';
+	}
+);
 
 export const interpolation: Persisted<InterpolationMethod> = persisted<InterpolationMethod>(
 	'interpolation',

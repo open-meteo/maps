@@ -136,7 +136,7 @@ export const urlParamsToPreferences = () => {
 	syncBoolParam('clip_water', 'clipWater', false);
 
 	const rendererRaw = params.get('renderer');
-	if (rendererRaw === 'gpu' || rendererRaw === 'cpu') {
+	if (rendererRaw === 'auto' || rendererRaw === 'gpu' || rendererRaw === 'cpu') {
 		rD.set(rendererRaw);
 	} else if (get(rD) !== DEFAULT_RENDERER) {
 		url.searchParams.set('renderer', get(rD));

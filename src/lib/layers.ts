@@ -12,6 +12,7 @@
 import { get } from 'svelte/store';
 
 import {
+	detectGpuSupport,
 	getDataState,
 	getDomainBoundary,
 	isSeamlessDomain,
@@ -25,7 +26,7 @@ import { toast } from 'svelte-sonner';
 import { chartSources } from '#lib/stores/chart.js';
 import { gpuRenderOptions } from '#lib/stores/gpu-render.js';
 import { map as m } from '#lib/stores/map.js';
-import { type Renderer, renderer } from '#lib/stores/preferences.js';
+import { activeRenderer, gpuFailed } from '#lib/stores/preferences.js';
 import { loading, opacity, preferences as p } from '#lib/stores/preferences.js';
 import { modelRun, time } from '#lib/stores/time.js';
 import { selectedDomain, variable as variableStore } from '#lib/stores/variables.js';
@@ -66,7 +67,7 @@ import type {
 let frameManager: FrameManager | undefined;
 let gpuRasters: GpuRasterManager | undefined;
 /** Renderer of the last shown render state: a change cross-dissolves the paths. */
-let shownRenderer: Renderer | undefined;
+let shownRenderer: 'gpu' | 'cpu' | undefined;
 
 // Combined loading indicator: GPU raster loads and vector tile frames finish
 // independently; the spinner shows while either is pending.
@@ -96,7 +97,10 @@ const buildRenderState = (): RenderState | undefined => {
 	const gpuRender = get(gpuRenderOptions);
 	// CPU rendering: every channel goes through the tile pipeline; no GPU slot
 	// is created at all.
-	const cpu = get(renderer) === 'cpu';
+	const cpu = get(activeRenderer) === 'cpu';
+	// Without float render targets the particle pass cannot draw: the animated
+	// wind style falls back to plain GPU arrows and the rain streaks stay off.
+	const particlesSupported = detectGpuSupport().particles;
 	const rasters: GpuRasterSlotSpec[] = [];
 	const vectors: FrameChannel[] = [];
 	for (const source of sources) {
@@ -113,8 +117,13 @@ const buildRenderState = (): RenderState | undefined => {
 		// morph with the raster blend and follow the globe); the animated wind
 		// style renders as the GPU particle pass; barbs keep the CPU tile
 		// pipeline for their discrete glyph alphabet.
-		const gpuArrows = !cpu && !!source.arrows && vectorOptions.arrowStyle === 'arrow';
-		const gpuParticles = !cpu && !!source.arrows && vectorOptions.arrowStyle === 'particles';
+		const gpuParticles =
+			!cpu && !!source.arrows && vectorOptions.arrowStyle === 'particles' && particlesSupported;
+		const gpuArrows =
+			!cpu &&
+			!!source.arrows &&
+			(vectorOptions.arrowStyle === 'arrow' ||
+				(vectorOptions.arrowStyle === 'particles' && !particlesSupported));
 		const cpuArrows = !!source.arrows && !gpuArrows && !gpuParticles;
 
 		if (source.raster && cpu) {
@@ -163,7 +172,13 @@ const buildRenderState = (): RenderState | undefined => {
 				particles: gpuParticleConfig(vectorOptions, dark, source.variable)
 			});
 		}
-		if (!cpu && gpuRender.rainAnimation && source.raster && RAIN_VARIABLES.test(source.variable)) {
+		if (
+			!cpu &&
+			particlesSupported &&
+			gpuRender.rainAnimation &&
+			source.raster &&
+			RAIN_VARIABLES.test(source.variable)
+		) {
 			rasters.push({
 				key: `${sourceKey(source)}:rain`,
 				url,
@@ -438,7 +453,17 @@ export const addOmFileLayers = (): void => {
 		},
 		onShown: () => refreshPopup(),
 		onError: () =>
-			toast.error('Could not load the weather data for this view.', { id: 'om-data-error' })
+			toast.error('Could not load the weather data for this view.', { id: 'om-data-error' }),
+		// A GPU layer that cannot draw here would leave the map blank: the
+		// session moves to the CPU tile path (the renderer switch's dissolve).
+		onFatalError: () => {
+			if (get(gpuFailed)) return;
+			gpuFailed.set(true);
+			toast.warning('GPU rendering failed on this device, switched to CPU rendering.', {
+				id: 'gpu-failed'
+			});
+			changeOMfileURL();
+		}
 	});
 	applyFadeMs();
 	changeOMfileURL();
@@ -488,7 +513,7 @@ export const changeOMfileURL = (): void => {
 	// A GPU/CPU switch moves the rasters between the two paths: the GPU side
 	// fades in or out at the barrier's commit, opposite the tile frame's own
 	// cross-fade, like a variable switch within one path.
-	const currentRenderer = get(renderer);
+	const currentRenderer = get(activeRenderer);
 	const crossfade = shownRenderer !== undefined && shownRenderer !== currentRenderer;
 	shownRenderer = currentRenderer;
 	const transition = gpuRasters.show(renderState.rasters, barrier, { crossfade });

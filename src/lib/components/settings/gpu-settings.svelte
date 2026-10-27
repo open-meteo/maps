@@ -1,6 +1,8 @@
 <script lang="ts">
+	import { detectGpuSupport } from '@openmeteo/weather-map-layer';
+
 	import { gpuRenderOptions } from '#lib/stores/gpu-render.js';
-	import { renderer } from '#lib/stores/preferences.js';
+	import { activeRenderer } from '#lib/stores/preferences.js';
 
 	import { Label } from '#lib/components/ui/label/index.js';
 	import { Switch } from '#lib/components/ui/switch/index.js';
@@ -8,11 +10,14 @@
 	import { changeOMfileURL } from '#lib/layers.js';
 
 	import SettingsSection from './settings-section.svelte';
+
+	// The rain streaks are a particle pass, which needs float render targets.
+	const particlesSupported = detectGpuSupport().particles;
 </script>
 
 <SettingsSection
 	title="GPU rendering"
-	disabled={$renderer === 'cpu'}
+	disabled={$activeRenderer === 'cpu'}
 	note="Only with GPU rendering."
 >
 	<div class="mt-3 flex gap-3">
@@ -41,6 +46,7 @@
 			id="rain-animation"
 			class="cursor-pointer"
 			bind:checked={$gpuRenderOptions.rainAnimation}
+			disabled={!particlesSupported}
 			onCheckedChange={changeOMfileURL}
 		/>
 		<Label for="rain-animation" class="cursor-pointer">

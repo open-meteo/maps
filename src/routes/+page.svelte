@@ -121,6 +121,13 @@
 			watchAttributionOverlap();
 			postEmbedderReady();
 		});
+
+		// After a WebGL context loss (background tab, GPU reset) MapLibre restores
+		// its style but drops custom layers; rebuilding the layer managers once
+		// the restored style has loaded brings the GPU layers back.
+		$map.on('webglcontextrestored', () => {
+			$map.once('style.load', () => addOmFileLayers());
+		});
 	});
 
 	let getInitialMetaDataPromise: Promise<void> | undefined;

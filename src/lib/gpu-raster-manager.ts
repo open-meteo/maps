@@ -62,6 +62,8 @@ export interface GpuRasterManagerOptions {
 	/** Fired when a slot batch committed its loaded URLs (like a frame commit). */
 	onShown?: () => void;
 	onError?: (error: unknown) => void;
+	/** A GPU layer cannot draw on this device (see WeatherGpuLayerOptions.onFatalError). */
+	onFatalError?: (error: Error) => void;
 }
 
 interface Slot {
@@ -163,7 +165,8 @@ export class GpuRasterManager {
 					settings: this.opts.settings,
 					drawRaster: spec.raster,
 					textureCacheMb: this.opts.textureCacheMb,
-					fadeMs: this.fadeMs
+					fadeMs: this.fadeMs,
+					onFatalError: (error) => this.opts.onFatalError?.(error)
 				});
 				const before = this.map.getLayer(spec.beforeLayer) ? spec.beforeLayer : undefined;
 				this.map.addLayer(layer, before);
