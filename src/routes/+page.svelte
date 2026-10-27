@@ -47,7 +47,14 @@
 	} from '#lib/map-controls.js';
 	import { loadDomainMetaData } from '#lib/metadata.js';
 	import { addPopup } from '#lib/popup.js';
-	import { syncChartToUrl, updateUrl, urlParamsToPreferences } from '#lib/url.js';
+	import {
+		notifyNewerModelRun,
+		restoreLastView,
+		saveLastView,
+		syncChartToUrl,
+		updateUrl,
+		urlParamsToPreferences
+	} from '#lib/url.js';
 
 	import '../styles.css';
 
@@ -80,6 +87,7 @@
 	});
 
 	onMount(async () => {
+		await restoreLastView();
 		$url = new URL(document.location.href);
 		urlParamsToPreferences();
 		await initStoredState();
@@ -98,6 +106,7 @@
 			// Initial URL-driven setup is finished; from now on domain changes are
 			// user-initiated and should reset the selected model run.
 			initialLoadComplete = true;
+			notifyNewerModelRun();
 
 			addTerrainSource($map);
 			addTerrainSource($map, 'terrainSource2');
@@ -185,6 +194,8 @@
 <svelte:head>
 	<title>Open-Meteo Maps</title>
 </svelte:head>
+
+<svelte:document onvisibilitychange={saveLastView} />
 
 {#if $loading}
 	<Spinner />
