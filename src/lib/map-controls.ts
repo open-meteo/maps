@@ -49,6 +49,8 @@ export const createMap = async (container: HTMLElement) => {
 	if (!gridDomain) {
 		throw new Error('Base domain not found');
 	}
+	// A native ICON grid fetches its cell index before it can be built
+	await GridFactory.preload(gridDomain.grid);
 	const grid = GridFactory.create(gridDomain.grid);
 
 	// A location from the URL is where the map opens; a position hash, when
