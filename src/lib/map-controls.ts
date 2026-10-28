@@ -49,17 +49,22 @@ export const createMap = async (container: HTMLElement) => {
 	if (!gridDomain) {
 		throw new Error('Base domain not found');
 	}
-	// A native ICON grid fetches its cell index before it can be built
-	await GridFactory.preload(gridDomain.grid);
-	const grid = GridFactory.create(gridDomain.grid);
-
 	// A location from the URL is where the map opens; a position hash, when
-	// present, is applied by MapLibre over both
+	// present, is applied by MapLibre over both. Only without either does the
+	// map need the domain's centre: a native ICON grid first downloads and
+	// triangulates its cell index, which the map then need not wait for.
 	const location = get(selectedLocation);
+	let center: maplibregl.LngLatLike | undefined;
+	if (location) {
+		center = [location.longitude, location.latitude];
+	} else if (!window.location.hash) {
+		await GridFactory.preload(gridDomain.grid);
+		center = GridFactory.create(gridDomain.grid).getCenter();
+	}
 	const map = new maplibregl.Map({
 		container,
 		style,
-		center: location ? [location.longitude, location.latitude] : grid.getCenter(),
+		center,
 		zoom: location ? LOCATION_ZOOM : gridDomain.grid.zoom,
 		keyboard: false,
 		hash: true,
