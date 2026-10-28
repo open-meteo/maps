@@ -34,7 +34,7 @@
 		"@internationalized/date": "^3.12.4",
 		"@lucide/svelte": "^1.57.0",
 		"@openmeteo/file-reader": "^0.0.20",
-		"@openmeteo/weather-map-layer": "^0.3.0",
+		"@openmeteo/weather-map-layer": "github:open-meteo/weather-map-layer#d9b729383100a3964ffa89ef98b64c85f63e7897",
 		"@sveltejs/adapter-static": "^4.0.0",
 		"@sveltejs/kit": "^3.1.0",
 		"@sveltejs/load-config": "^0.2.3",
