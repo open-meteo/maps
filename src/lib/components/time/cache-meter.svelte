@@ -14,10 +14,22 @@
 	const pct = (part: number, whole: number) => Math.min(100, (100 * part) / Math.max(1, whole));
 
 	let timer: ReturnType<typeof setInterval> | undefined;
+	// The block cache stats scan every cached block (one Cache API lookup
+	// each), so they refresh every 15th poll and never overlap; the VRAM
+	// figure is cheap and follows every poll.
+	const SCAN_EVERY = 15;
+	let polls = 0;
+	let scanning = false;
 	const poll = async () => {
 		vram = getGpuMemoryUsage();
-		const stats = await getBlockCacheStats();
-		if (stats) ram = stats;
+		if (scanning || polls++ % SCAN_EVERY !== 0) return;
+		scanning = true;
+		try {
+			const stats = await getBlockCacheStats();
+			if (stats) ram = stats;
+		} finally {
+			scanning = false;
+		}
 	};
 	onMount(() => {
 		poll();
