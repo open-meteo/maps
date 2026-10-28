@@ -1,10 +1,11 @@
 import { MediaQuery } from 'svelte/reactivity';
-import { type Writable, get, writable } from 'svelte/store';
+import { type Readable, type Writable, derived, get, writable } from 'svelte/store';
 
 import {
 	type InterpolationMethod,
 	clearBackends,
-	clearBlockCache
+	clearBlockCache,
+	detectGpuSupport
 } from '@openmeteo/weather-map-layer';
 import { setMode } from 'mode-watcher';
 import { type Persisted, persisted } from 'svelte-persisted-store';
@@ -14,6 +15,7 @@ import {
 	DEFAULT_CACHE_BLOCK_SIZE_KB,
 	DEFAULT_CACHE_MAX_BYTES_MB,
 	DEFAULT_COLOR_BLEND,
+	DEFAULT_GPU_CACHE_MB,
 	DEFAULT_INTERPOLATION,
 	DEFAULT_OPACITY,
 	DEFAULT_PREFERENCES,
@@ -24,7 +26,13 @@ import { getInitialMetaData, tryGetMetaData } from '#lib/metadata.js';
 
 import { version } from '../../../package.json';
 import { activeChart, defaultChart } from './chart';
-import { cacheBlockSizeKb, cacheMaxBytesMb, customColorScales } from './om-protocol-settings';
+import { defaultGpuRenderOptions, gpuRenderOptions } from './gpu-render';
+import {
+	cacheBlockSizeKb,
+	cacheMaxBytesMb,
+	customColorScales,
+	gpuCacheMb
+} from './om-protocol-settings';
 import { inProgress, latest, metaJson, modelRun, modelRunLocked, now, time } from './time';
 import {
 	DEFAULT_PRECIPITATION_UNIT,
@@ -75,6 +83,30 @@ export const tileSize: Persisted<64 | 128 | 256 | 512 | 1024 | 2048> = persisted
 
 // check for retina / hd on first load, afterwards the tile-size won't be set
 export const tileSizeSet = persisted('tile-size-set', false);
+
+/**
+ * Raster/vector rendering path: 'gpu' draws rasters, arrows, contour lines
+ * and the animated flow as GPU layers (CPU tiles keep contour labels, wind
+ * barbs and grid points); 'cpu' renders everything as tiles; 'auto' picks
+ * the GPU unless the browser renders WebGL in software, where the per-pixel
+ * GPU field costs more than drawing tiles.
+ */
+export type Renderer = 'auto' | 'gpu' | 'cpu';
+export const DEFAULT_RENDERER: Renderer = 'auto';
+export const renderer: Persisted<Renderer> = persisted<Renderer>('renderer', DEFAULT_RENDERER);
+
+/** Set when a GPU layer failed for good: the rest of the session renders on the CPU. */
+export const gpuFailed = writable(false);
+
+/** The path actually rendering: the preference with 'auto' resolved, CPU after a GPU failure. */
+export const activeRenderer: Readable<'gpu' | 'cpu'> = derived(
+	[renderer, gpuFailed],
+	([$renderer, $gpuFailed]) => {
+		if ($gpuFailed) return 'cpu';
+		if ($renderer !== 'auto') return $renderer;
+		return detectGpuSupport().software ? 'cpu' : 'gpu';
+	}
+);
 
 export const interpolation: Persisted<InterpolationMethod> = persisted<InterpolationMethod>(
 	'interpolation',
@@ -159,6 +191,8 @@ export const resetStates = async () => {
 
 	tileSize.set(DEFAULT_TILE_SIZE);
 	tileSizeSet.set(false);
+	renderer.set(DEFAULT_RENDERER);
+	gpuRenderOptions.set(defaultGpuRenderOptions);
 
 	interpolation.set(DEFAULT_INTERPOLATION);
 	colorBlend.set(DEFAULT_COLOR_BLEND);
@@ -167,6 +201,7 @@ export const resetStates = async () => {
 
 	cacheBlockSizeKb.set(DEFAULT_CACHE_BLOCK_SIZE_KB);
 	cacheMaxBytesMb.set(DEFAULT_CACHE_MAX_BYTES_MB);
+	gpuCacheMb.set(DEFAULT_GPU_CACHE_MB);
 
 	customColorScales.set({});
 

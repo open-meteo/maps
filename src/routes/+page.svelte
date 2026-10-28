@@ -8,6 +8,7 @@
 	import { toast } from 'svelte-sonner';
 
 	import { activeChart } from '#lib/stores/chart.js';
+	import { epsMeta } from '#lib/stores/eps.js';
 	import { map } from '#lib/stores/map.js';
 	import { initStoredState, loading, url } from '#lib/stores/preferences.js';
 	import { installRequestCounter } from '#lib/stores/request-counter.js';
@@ -131,6 +132,13 @@
 			watchAttributionOverlap();
 			postEmbedderReady();
 		});
+
+		// After a WebGL context loss (background tab, GPU reset) MapLibre restores
+		// its style but drops custom layers; rebuilding the layer managers once
+		// the restored style has loaded brings the GPU layers back.
+		$map.on('webglcontextrestored', () => {
+			$map.once('style.load', () => addOmFileLayers());
+		});
 	});
 
 	let getInitialMetaDataPromise: Promise<void> | undefined;
@@ -184,6 +192,11 @@
 		changeOMfileURL();
 	});
 
+	// An EPS chart source can only render once the sibling's metadata has loaded.
+	const epsSubscription = epsMeta.subscribe((meta) => {
+		if (meta) changeOMfileURL();
+	});
+
 	onDestroy(() => {
 		stopEmbedderBridge();
 		unwatchAttributionOverlap();
@@ -192,6 +205,7 @@
 		}
 		domainSubscription(); // unsubscribe
 		chartSubscription(); // unsubscribe
+		epsSubscription(); // unsubscribe
 	});
 </script>
 
