@@ -8,6 +8,7 @@
 
 	import { activeChart } from '#lib/stores/chart.js';
 	import { epsMeta } from '#lib/stores/eps.js';
+	import { gridLoading } from '#lib/stores/grid-loading.js';
 	import { map } from '#lib/stores/map.js';
 	import { initStoredState, loading, url } from '#lib/stores/preferences.js';
 	import { installRequestCounter } from '#lib/stores/request-counter.js';
@@ -27,6 +28,7 @@
 	import GithubCorner from '#lib/components/github/github-corner.svelte';
 	import HelpDialog from '#lib/components/help/help-dialog.svelte';
 	import KeyboardHandler from '#lib/components/keyboard/keyboard-handler.svelte';
+	import GridLoading from '#lib/components/loading/grid-loading.svelte';
 	import Spinner from '#lib/components/loading/spinner.svelte';
 	import LocationSearch from '#lib/components/location/location-search.svelte';
 	import Scale from '#lib/components/scale/scale.svelte';
@@ -204,7 +206,9 @@
 
 <svelte:document onvisibilitychange={saveLastView} />
 
-{#if $loading}
+{#if $gridLoading.length > 0}
+	<GridLoading loads={$gridLoading} />
+{:else if $loading}
 	<Spinner />
 {/if}
 
