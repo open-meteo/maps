@@ -113,17 +113,24 @@ const buildRenderState = (): RenderState | undefined => {
 		}
 		const url = 'om://' + omUrl;
 
+		// A native ICON grid draws as a mesh on the GPU, which the particle pass
+		// cannot sample: its animated wind falls back to plain arrows too.
+		const sourceGrid = source.domain
+			? get(omProtocolSettings).domainOptions.find((d) => d.value === source.domain)?.grid
+			: get(selectedDomain).grid;
+		const sourceParticles = particlesSupported && sourceGrid?.type !== 'latband';
+
 		// Plain-style arrows render as instanced overlays of the GPU layer (they
 		// morph with the raster blend and follow the globe); the animated wind
 		// style renders as the GPU particle pass; barbs keep the CPU tile
 		// pipeline for their discrete glyph alphabet.
 		const gpuParticles =
-			!cpu && !!source.arrows && vectorOptions.arrowStyle === 'particles' && particlesSupported;
+			!cpu && !!source.arrows && vectorOptions.arrowStyle === 'particles' && sourceParticles;
 		const gpuArrows =
 			!cpu &&
 			!!source.arrows &&
 			(vectorOptions.arrowStyle === 'arrow' ||
-				(vectorOptions.arrowStyle === 'particles' && !particlesSupported));
+				(vectorOptions.arrowStyle === 'particles' && !sourceParticles));
 		const cpuArrows = !!source.arrows && !gpuArrows && !gpuParticles;
 
 		if (source.raster && cpu) {
@@ -174,7 +181,7 @@ const buildRenderState = (): RenderState | undefined => {
 		}
 		if (
 			!cpu &&
-			particlesSupported &&
+			sourceParticles &&
 			gpuRender.rainAnimation &&
 			source.raster &&
 			RAIN_VARIABLES.test(source.variable)
