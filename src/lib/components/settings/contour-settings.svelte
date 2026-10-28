@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
 
-	import { activeChart, applyVectorDefaultsToActiveChart } from '#lib/stores/chart.js';
+	import { activeChart, applyContourIntervalToActiveChart } from '#lib/stores/chart.js';
 	import { defaultVectorOptions, vectorOptions } from '#lib/stores/vector.js';
 
 	import { Input } from '#lib/components/ui/input/index.js';
@@ -25,7 +25,7 @@
 			String(defaultVectorOptions.contourInterval) // different urlParam and key
 		);
 		if (contours) {
-			applyVectorDefaultsToActiveChart();
+			applyContourIntervalToActiveChart();
 			changeOMfileURL();
 		}
 	};
@@ -45,7 +45,7 @@
 				);
 
 				if (contours) {
-					applyVectorDefaultsToActiveChart();
+					applyContourIntervalToActiveChart();
 					changeOMfileURL();
 					toast.info('Contour interval on colorscale turned ' + (breakpoints ? 'on' : 'off'));
 				}

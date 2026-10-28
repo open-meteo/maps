@@ -97,14 +97,20 @@ export const setSources = (sources: ChartSource[]): void => {
 };
 
 /**
- * Re-apply the persisted vector defaults (settings sheet contour toggles) to
- * the active chart. Only plain-ish charts follow the defaults; presets and
- * saved charts keep their per-source configuration.
+ * Apply the contour settings' interval to the active chart's contour source,
+ * keeping the layers and styling the chart editor gave it. Only plain-ish
+ * charts follow the settings; presets and saved charts keep their own
+ * intervals.
  */
-export const applyVectorDefaultsToActiveChart = (): void => {
+export const applyContourIntervalToActiveChart = (): void => {
 	const chart = get(activeChart);
 	if (chart.sources.length !== 1 || chart.presetId || chart.name) return;
-	activeChart.set(plainChartFor(chart.sources[0].variable));
+	const [source] = cloneSources(chart.sources);
+	if (!source.contours) return;
+	const { breakpoints, contourInterval } = get(vectorOptions);
+	if (breakpoints) delete source.contourInterval;
+	else source.contourInterval = contourInterval;
+	activeChart.set(chartFromSources([source]));
 };
 
 /**

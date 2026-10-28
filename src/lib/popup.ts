@@ -493,6 +493,12 @@ const updateExtraSources = async (
 // so a slow earlier lookup cannot overwrite a newer position's values.
 let popupUpdateSeq = 0;
 
+/** Fade out the cell outline and drop lookups in flight, which would draw it back. */
+const clearPopupCell = (): void => {
+	popupUpdateSeq++;
+	showPopupCell(undefined);
+};
+
 /** Update the popup content for the given coordinates without moving the marker. */
 const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void> => {
 	if (!el || !contentDiv || !valueSpan || !unitSpan || !elevationSpan) return;
@@ -687,6 +693,11 @@ export const addPopup = (): void => {
 	// Bearing, pitch and, under pitch, the marker's screen position all change
 	// the apparent direction; `move` covers every one of them
 	map.on('move', realignArrow);
+	// Escape, `p` and the settings switch close the popup through the popupMode
+	// subscriber in stores/map.ts, which knows nothing about the cell outline
+	popupMode.subscribe((mode) => {
+		if (mode === null) clearPopupCell();
+	});
 
 	const togglePopupAt = async (lngLat: maplibregl.LngLat): Promise<void> => {
 		if (!map || get(terraDrawActive)) return;
@@ -745,7 +756,7 @@ export const removePopup = (): void => {
 	if (!map) return;
 
 	map.off('mousemove', updatePopup);
-	showPopupCell(undefined);
+	clearPopupCell();
 
 	const popup = get(p);
 	popup?.remove();
