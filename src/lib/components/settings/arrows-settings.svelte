@@ -161,6 +161,15 @@
 	const PARTICLE_SPEED_RANGE = { min: 0.4, max: 5.6, step: 0.1 };
 	const PARTICLE_TRAIL_RANGE = { min: 0.915, max: 0.995, step: 0.005 };
 	const PARTICLE_OPACITY_RANGE = { min: 0.4, max: 1, step: 0.05 };
+	// The wind field the particles follow: the model's native grid, or a copy
+	// box-averaged over N×N grid cells, which traces smoother, larger-scale
+	// streamlines.
+	const PARTICLE_DOWNSAMPLE_OPTIONS = [
+		{ value: 1, label: 'Native' },
+		{ value: 2, label: '2×' },
+		{ value: 4, label: '4×' },
+		{ value: 8, label: '8×' }
+	];
 
 	// The window size is bound only as a resize/rotation trigger: the labels
 	// re-read the map's own size (an embed is smaller than the window) then.
@@ -185,12 +194,24 @@
 		return `~${Math.round(perFrame * frames)} px at 10 m/s`;
 	});
 
+	const downsampleLabel = $derived(
+		$vectorOptions.particleDownsample > 1
+			? `${$vectorOptions.particleDownsample}×${$vectorOptions.particleDownsample} cells averaged`
+			: 'full resolution'
+	);
+
+	const setParticleDownsample = (factor: number) => {
+		$vectorOptions.particleDownsample = factor;
+		changeOMfileURL();
+	};
+
 	const atDefaultAnimation = $derived(
 		$vectorOptions.particleDensity === defaultVectorOptions.particleDensity &&
 			$vectorOptions.particleWidth === defaultVectorOptions.particleWidth &&
 			$vectorOptions.particleSpeed === defaultVectorOptions.particleSpeed &&
 			$vectorOptions.particleTrail === defaultVectorOptions.particleTrail &&
-			$vectorOptions.particleOpacity === defaultVectorOptions.particleOpacity
+			$vectorOptions.particleOpacity === defaultVectorOptions.particleOpacity &&
+			$vectorOptions.particleDownsample === defaultVectorOptions.particleDownsample
 	);
 
 	const resetAnimation = () => {
@@ -199,6 +220,7 @@
 		$vectorOptions.particleSpeed = defaultVectorOptions.particleSpeed;
 		$vectorOptions.particleTrail = defaultVectorOptions.particleTrail;
 		$vectorOptions.particleOpacity = defaultVectorOptions.particleOpacity;
+		$vectorOptions.particleDownsample = defaultVectorOptions.particleDownsample;
 		changeOMfileURL();
 	};
 
@@ -471,6 +493,25 @@
 					onchange={changeOMfileURL}
 				/>
 				<span class="text-xs opacity-70">{trailLabel}</span>
+			</div>
+			<div class="flex items-center gap-3">
+				<Label class="w-16 shrink-0">Field</Label>
+				<div class="flex gap-1" role="radiogroup" aria-label="Wind field resolution">
+					{#each PARTICLE_DOWNSAMPLE_OPTIONS as option (option.value)}
+						{@const selected = $vectorOptions.particleDownsample === option.value}
+						<Button
+							size="sm"
+							role="radio"
+							aria-checked={selected}
+							class="h-7 cursor-pointer px-2 text-xs {selected ? 'bg-primary' : 'bg-primary/75'}"
+							disabled={!arrows}
+							onclick={() => setParticleDownsample(option.value)}
+						>
+							{option.label}
+						</Button>
+					{/each}
+				</div>
+				<span class="text-xs opacity-70">{downsampleLabel}</span>
 			</div>
 			<Button
 				class="mt-1 h-7 w-fit cursor-pointer text-xs"

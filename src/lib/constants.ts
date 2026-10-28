@@ -30,7 +30,10 @@ export const DEFAULT_VECTOR_OPTIONS = {
 	particleWidth: 1,
 	particleSpeed: 3,
 	particleTrail: 0.955,
-	particleOpacity: 0.7
+	particleOpacity: 0.7,
+	// Box-downsample factor of the wind field the particles follow: 1 is the
+	// model's native grid, N averages it over N×N grid cells.
+	particleDownsample: 1
 };
 
 // The particle baselines at factor x1 on the reference viewport: the count and

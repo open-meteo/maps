@@ -342,7 +342,8 @@ const gpuParticleConfig = (
 		// Thin the population where the field is near-static (calm highs,
 		// sheltered seas): idle particles are clutter, not information.
 		calmThreshold: 0.8,
-		calmThinning: 3
+		calmThinning: 3,
+		fieldDownsample: options.particleDownsample
 	};
 	if (/wave/.test(variable)) {
 		// Magnitude is the wave height (m), not a speed: scale it up so a 2 m

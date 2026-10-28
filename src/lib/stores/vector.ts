@@ -33,6 +33,8 @@ export interface VectorOptions {
 	particleTrail: number;
 	/** Animated flow style: trail opacity 0..1 (light theme scales it down). */
 	particleOpacity: number;
+	/** Animated flow style: wind field box-downsample factor (1 = native grid). */
+	particleDownsample: number;
 }
 
 /**
