@@ -97,48 +97,20 @@ export const setSources = (sources: ChartSource[]): void => {
 };
 
 /**
- * Re-apply the persisted vector defaults (settings sheet contour toggles) to
- * the active chart. Only plain-ish charts follow the defaults; presets and
- * saved charts keep their per-source configuration.
+ * Apply the contour settings' interval to the active chart's contour source,
+ * keeping the layers and styling the chart editor gave it. Only plain-ish
+ * charts follow the settings; presets and saved charts keep their own
+ * intervals.
  */
-export const applyVectorDefaultsToActiveChart = (): void => {
+export const applyContourIntervalToActiveChart = (): void => {
 	const chart = get(activeChart);
 	if (chart.sources.length !== 1 || chart.presetId || chart.name) return;
-	activeChart.set(plainChartFor(chart.sources[0].variable));
-};
-
-/**
- * Settings sheet contour switch: toggle contours on every source, the way the
- * arrows switch below does. A source left drawing nothing is fine; that is a
- * state the chart editor can produce too.
- */
-export const setContoursOnActiveChart = (enabled: boolean): void => {
-	const chart = get(activeChart);
-	const vo = get(vectorOptions);
-	const sources = cloneSources(chart.sources);
-	let changed = false;
-	for (const source of sources) {
-		if (!!source.contours === enabled) continue;
-		source.contours = enabled || undefined;
-		source.contourInterval = enabled && !vo.breakpoints ? vo.contourInterval : undefined;
-		changed = true;
-	}
-	if (changed) activeChart.set(chartFromSources(sources));
-};
-
-/** Settings sheet arrows switch: toggle arrows on every capable source. */
-export const setArrowsOnActiveChart = (enabled: boolean): void => {
-	const chart = get(activeChart);
-	const sources = cloneSources(chart.sources);
-	let changed = false;
-	for (const source of sources) {
-		const arrows = enabled && variableHasDirections(source.variable);
-		if (!!source.arrows !== arrows) {
-			source.arrows = arrows || undefined;
-			changed = true;
-		}
-	}
-	if (changed) activeChart.set(chartFromSources(sources));
+	const [source] = cloneSources(chart.sources);
+	if (!source.contours) return;
+	const { breakpoints, contourInterval } = get(vectorOptions);
+	if (breakpoints) delete source.contourInterval;
+	else source.contourInterval = contourInterval;
+	activeChart.set(chartFromSources([source]));
 };
 
 /**
