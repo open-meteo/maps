@@ -581,6 +581,8 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 		);
 		let insideDomain = false;
 		if (concreteDomain) {
+			// A native ICON grid fetches its cell index before it can be built
+			await GridFactory.preload(concreteDomain.grid);
 			const [minLon, minLat, maxLon, maxLat] = GridFactory.create(concreteDomain.grid).getBounds();
 			insideDomain =
 				coordinates.lat >= minLat &&
