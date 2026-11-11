@@ -9,6 +9,7 @@
 	import EndpointSettings from './endpoint-settings.svelte';
 	import GridSettings from './grid-settings.svelte';
 	import InterpolationSettings from './interpolation-settings.svelte';
+	import NativeGridSettings from './native-grid-settings.svelte';
 	import OpacitySetting from './opacity-setting.svelte';
 	import PopupSettings from './popup-settings.svelte';
 	import SeamlessBorderSettings from './seamless-border-settings.svelte';
@@ -30,6 +31,7 @@
 			<ContourSettings />
 			<TileSizeSettings />
 			<InterpolationSettings />
+			<NativeGridSettings />
 			<PopupSettings />
 			<WaterClipSetting />
 			<SeamlessBorderSettings />
