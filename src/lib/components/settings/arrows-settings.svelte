@@ -5,14 +5,10 @@
 		variableSupportsBarbs
 	} from '@openmeteo/weather-map-layer';
 	import { mode } from 'mode-watcher';
-	import { toast } from 'svelte-sonner';
 
-	import { activeChart, setArrowsOnActiveChart } from '#lib/stores/chart.js';
+	import { activeChart } from '#lib/stores/chart.js';
 	import { convertValue, getDisplayUnit, unitPreferences } from '#lib/stores/units.js';
 	import { vectorOptions } from '#lib/stores/vector.js';
-
-	import { Label } from '#lib/components/ui/label/index.js';
-	import { Switch } from '#lib/components/ui/switch/index.js';
 
 	import { shapeColor, shapeStrokeUnits } from '#lib/arrow-legend.js';
 	import { MS_TO_KNOTS, SHAPE_UNITS, arrowShape, barbShape, shapePath } from '#lib/arrow-shapes.js';
@@ -71,7 +67,9 @@
 		})
 	);
 
-	let arrows = $derived($vectorOptions.arrows);
+	// Whether arrows are drawn is decided per source in the chart editor; the
+	// style is global and only matters while some source draws them
+	let arrows = $derived($activeChart.sources.some((source) => source.arrows));
 	let arrowStyle = $derived($vectorOptions.arrowStyle);
 	// Barbs encode knots, so the option only applies while an arrow source
 	// carries a wind speed; other sources render arrows under either setting
@@ -108,22 +106,6 @@
 </script>
 
 <SettingsSection title="Arrows settings">
-	<div class="mt-3 flex gap-3">
-		<Switch
-			id="arrows"
-			class="cursor-pointer"
-			bind:checked={$vectorOptions.arrows}
-			onCheckedChange={() => {
-				updateUrl('arrows', String(arrows));
-				// Applies to every capable source, also on presets/saved charts
-				setArrowsOnActiveChart(arrows);
-				changeOMfileURL();
-				toast.info('Arrows turned ' + (arrows ? 'on' : 'off'));
-			}}
-		/>
-		<Label class="cursor-pointer" for="arrows">Arrows {arrows ? 'on' : 'off'}</Label>
-	</div>
-
 	<div class="mt-3 flex flex-col gap-2" role="radiogroup" aria-label="Arrow style">
 		{#each styles as style (style.value)}
 			{@const selected = arrowStyle === style.value}

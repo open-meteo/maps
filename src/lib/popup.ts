@@ -6,6 +6,7 @@ import {
 	LEVEL_UNIT_REGEX,
 	createClippingTester,
 	getCachedResolvedClipping,
+	getCellFromLatLong,
 	getColor,
 	getColorScale,
 	getConcreteDomainValue,
@@ -29,8 +30,9 @@ import { selectedDomain } from '#lib/stores/variables.js';
 import { defaultArrowStyle } from './chart-styles';
 import { textWhite } from './helpers';
 import { getActiveOmUrls } from './layers';
+import { showPopupCell } from './popup-cell';
 import { terraDrawActive } from './stores/clipping';
-import { desktop, opacity } from './stores/preferences';
+import { desktop, opacity, preferences } from './stores/preferences';
 
 let el: HTMLDivElement | undefined;
 let wrapperDiv: HTMLDivElement | undefined;
@@ -491,6 +493,12 @@ const updateExtraSources = async (
 // so a slow earlier lookup cannot overwrite a newer position's values.
 let popupUpdateSeq = 0;
 
+/** Fade out the cell outline and drop lookups in flight, which would draw it back. */
+const clearPopupCell = (): void => {
+	popupUpdateSeq++;
+	showPopupCell(undefined);
+};
+
 /** Update the popup content for the given coordinates without moving the marker. */
 const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void> => {
 	if (!el || !contentDiv || !valueSpan || !unitSpan || !elevationSpan) return;
@@ -513,6 +521,7 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 		contentDiv.style.backgroundColor = '';
 		contentDiv.style.color = '';
 		setArrow(undefined, 0);
+		showPopupCell(undefined);
 		valueSpan.innerText = 'No layers';
 		unitSpan.innerText = '';
 		elevationSpan.innerText = hasElevation ? `${Math.round(elevation)}m` : '';
@@ -521,10 +530,15 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 		return;
 	}
 
-	// Primary value and extra lines resolve concurrently. A composite is
-	// sampled from the sub-domains active at the map zoom, like its tiles.
-	const [{ value, direction }] = await Promise.all([
-		getValueFromLatLong(coordinates.lat, coordinates.lng, activeUrl, map?.getZoom()),
+	// Primary value, its grid cell and extra lines resolve concurrently. A
+	// composite is sampled from the sub-domains active at the map zoom, like
+	// its tiles.
+	const zoom = map?.getZoom();
+	const [{ value, direction }, cell] = await Promise.all([
+		getValueFromLatLong(coordinates.lat, coordinates.lng, activeUrl, zoom),
+		get(preferences).popupGridCell
+			? getCellFromLatLong(coordinates.lat, coordinates.lng, activeUrl, zoom)
+			: undefined,
 		updateExtraSources(coordinates, primary.variable, seq)
 	]);
 	if (seq !== popupUpdateSeq) return;
@@ -542,6 +556,7 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 				contentDiv.style.backgroundColor = '';
 				contentDiv.style.color = '';
 				setArrow(undefined, 0);
+				showPopupCell(undefined);
 				valueSpan.innerText = 'Outside clip';
 				unitSpan.innerText = '';
 				elevationSpan.innerText = hasElevation ? `${Math.round(elevation)}m` : '';
@@ -561,6 +576,7 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 		const units = get(unitPreferences);
 		const displayValue = convertValue(value, colorScale.unit, units);
 		setArrow(direction, value);
+		showPopupCell(cell);
 		valueSpan.innerText = displayValue.toFixed(1);
 		unitSpan.innerText = getDisplayUnit(colorScale.unit, units);
 		elevationSpan.innerText = hasElevation ? `${Math.round(elevation)}m` : '';
@@ -569,6 +585,7 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 		contentDiv.style.backgroundColor = '';
 		contentDiv.style.color = '';
 		setArrow(undefined, 0);
+		showPopupCell(undefined);
 
 		// A composite's extent is its base domain's.
 		const concreteDomainValue = getConcreteDomainValue(get(selectedDomain));
@@ -676,6 +693,11 @@ export const addPopup = (): void => {
 	// Bearing, pitch and, under pitch, the marker's screen position all change
 	// the apparent direction; `move` covers every one of them
 	map.on('move', realignArrow);
+	// Escape, `p` and the settings switch close the popup through the popupMode
+	// subscriber in stores/map.ts, which knows nothing about the cell outline
+	popupMode.subscribe((mode) => {
+		if (mode === null) clearPopupCell();
+	});
 
 	const togglePopupAt = async (lngLat: maplibregl.LngLat): Promise<void> => {
 		if (!map || get(terraDrawActive)) return;
@@ -734,6 +756,7 @@ export const removePopup = (): void => {
 	if (!map) return;
 
 	map.off('mousemove', updatePopup);
+	clearPopupCell();
 
 	const popup = get(p);
 	popup?.remove();

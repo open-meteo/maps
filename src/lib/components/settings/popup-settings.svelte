@@ -4,12 +4,12 @@
 	import { toast } from 'svelte-sonner';
 
 	import { map, popup, popupMode } from '#lib/stores/map.js';
-	import { desktop } from '#lib/stores/preferences.js';
+	import { desktop, preferences } from '#lib/stores/preferences.js';
 
 	import { Label } from '#lib/components/ui/label/index.js';
 	import { Switch } from '#lib/components/ui/switch/index.js';
 
-	import { renderPopup } from '#lib/popup.js';
+	import { refreshPopup, renderPopup } from '#lib/popup.js';
 
 	import SettingsSection from './settings-section.svelte';
 
@@ -73,6 +73,21 @@
 					? 'Follows mouse'
 					: 'Draggable'
 				: 'Off'}</Label
+		>
+	</div>
+	<div class="mt-3 flex gap-3">
+		<Switch
+			id="popup_cell"
+			class="cursor-pointer"
+			disabled={!$popupMode}
+			bind:checked={$preferences.popupGridCell}
+			onCheckedChange={(checked) => {
+				toast.info('Grid cell highlight: ' + (checked ? 'On' : 'Off'));
+				refreshPopup();
+			}}
+		/>
+		<Label class="cursor-pointer" for="popup_cell"
+			>Grid cell highlight {$preferences.popupGridCell ? 'on' : 'off'}</Label
 		>
 	</div>
 </SettingsSection>

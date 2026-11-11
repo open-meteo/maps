@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
 
-	import { applyVectorDefaultsToActiveChart, setContoursOnActiveChart } from '#lib/stores/chart.js';
+	import { activeChart, applyContourIntervalToActiveChart } from '#lib/stores/chart.js';
 	import { defaultVectorOptions, vectorOptions } from '#lib/stores/vector.js';
 
 	import { Input } from '#lib/components/ui/input/index.js';
@@ -13,7 +13,9 @@
 
 	import SettingsSection from './settings-section.svelte';
 
-	let contours = $derived($vectorOptions.contours);
+	// Whether contours are drawn is decided per source in the chart editor;
+	// the interval settings only matter while some source draws them
+	let contours = $derived($activeChart.sources.some((source) => source.contours));
 	let breakpoints = $derived($vectorOptions.breakpoints);
 
 	const handleContourIntervalChange = () => {
@@ -23,31 +25,13 @@
 			String(defaultVectorOptions.contourInterval) // different urlParam and key
 		);
 		if (contours) {
-			applyVectorDefaultsToActiveChart();
+			applyContourIntervalToActiveChart();
 			changeOMfileURL();
 		}
 	};
 </script>
 
 <SettingsSection title="Contour settings">
-	<div class="mt-3 flex gap-3">
-		<Switch
-			id="contouring"
-			class="cursor-pointer"
-			bind:checked={$vectorOptions.contours}
-			onCheckedChange={() => {
-				updateUrl('contours', String(contours));
-
-				applyVectorDefaultsToActiveChart();
-				// Applies to every source, also on presets and saved charts, so the
-				// switch says the same thing as the toggles in the chart editor
-				setContoursOnActiveChart(contours);
-				changeOMfileURL();
-				toast.info('Contours turned ' + (contours ? 'on' : 'off'));
-			}}
-		/>
-		<Label class="cursor-pointer" for="contouring">Contouring {contours ? 'on' : 'off'}</Label>
-	</div>
 	<div class="mt-3 flex gap-3">
 		<Switch
 			id="breakpoints"
@@ -61,13 +45,13 @@
 				);
 
 				if (contours) {
-					applyVectorDefaultsToActiveChart();
+					applyContourIntervalToActiveChart();
 					changeOMfileURL();
 					toast.info('Contour interval on colorscale turned ' + (breakpoints ? 'on' : 'off'));
 				}
 			}}
 		/>
-		<Label class="cursor-pointer" for="contouring"
+		<Label class="cursor-pointer" for="breakpoints"
 			>Interval on breakpoints {breakpoints ? 'on' : 'off'}</Label
 		>
 	</div>

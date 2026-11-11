@@ -20,7 +20,8 @@ export const DEFAULT_PREFERENCES = {
 	hillshade: false,
 	clipWater: false,
 	showScale: true,
-	showSeamlessBorders: true
+	showSeamlessBorders: true,
+	popupGridCell: false
 };
 
 // Layer names for map rendering

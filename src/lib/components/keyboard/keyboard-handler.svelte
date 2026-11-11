@@ -8,7 +8,7 @@
 
 	import { timeSelectorActions } from '#lib/stores/keyboard.js';
 	import { popup, popupMode } from '#lib/stores/map.js';
-	import { helpOpen } from '#lib/stores/preferences.js';
+	import { helpOpen, preferences } from '#lib/stores/preferences.js';
 	import {
 		domainSelectionOpen,
 		pressureLevelsSelectionOpen,
@@ -16,7 +16,7 @@
 		variableSelectionOpen
 	} from '#lib/stores/variables.js';
 
-	import { switchPopupMode } from '#lib/popup.js';
+	import { refreshPopup, switchPopupMode } from '#lib/popup.js';
 
 	const keyDownEvent = (event: KeyboardEvent) => {
 		// Ignore shortcuts when focus is inside an editable element, except for Escape
@@ -40,6 +40,19 @@
 			toast.info(
 				'Popup mode: ' + (mode ? (mode === 'follow' ? 'Follows mouse' : 'Draggable') : 'Off')
 			);
+			return;
+		}
+
+		if (event.key === 'g') {
+			// Like its settings switch, the highlight is only toggled while there
+			// is a popup to outline the cell of
+			if (!get(popupMode)) {
+				toast.info('Grid cell highlight needs the popup (p)');
+				return;
+			}
+			preferences.update((prefs) => ({ ...prefs, popupGridCell: !prefs.popupGridCell }));
+			toast.info('Grid cell highlight: ' + (get(preferences).popupGridCell ? 'On' : 'Off'));
+			refreshPopup();
 			return;
 		}
 
