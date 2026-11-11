@@ -8,6 +8,8 @@
 	import { toast } from 'svelte-sonner';
 
 	import { activeChart } from '#lib/stores/chart.js';
+	import { epsMeta } from '#lib/stores/eps.js';
+	import { loadLocalOmFile } from '#lib/stores/local-file.js';
 	import { map } from '#lib/stores/map.js';
 	import { initStoredState, loading, url } from '#lib/stores/preferences.js';
 	import { installRequestCounter } from '#lib/stores/request-counter.js';
@@ -184,6 +186,11 @@
 		changeOMfileURL();
 	});
 
+	// An EPS chart source can only render once the sibling's metadata has loaded.
+	const epsSubscription = epsMeta.subscribe((meta) => {
+		if (meta) changeOMfileURL();
+	});
+
 	onDestroy(() => {
 		stopEmbedderBridge();
 		unwatchAttributionOverlap();
@@ -192,6 +199,7 @@
 		}
 		domainSubscription(); // unsubscribe
 		chartSubscription(); // unsubscribe
+		epsSubscription(); // unsubscribe
 	});
 </script>
 
@@ -240,4 +248,5 @@
 	ondrop={(features) => {
 		clippingPanel?.addImportedFeatures(features);
 	}}
+	onOmFile={loadLocalOmFile}
 />
