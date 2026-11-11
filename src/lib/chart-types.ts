@@ -8,6 +8,13 @@
 export interface ChartSource {
 	/** Full variable id incl. level suffix, e.g. `temperature_850hPa`. */
 	variable: string;
+	/**
+	 * Serve this source from another domain instead of the active one, e.g.
+	 * the EPS sibling of the active deterministic model (`dwd_icon_eps` while
+	 * `dwd_icon` is selected). The source uses that domain's latest model run
+	 * and clamps the selected time to its own valid steps.
+	 */
+	domain?: string;
 	/** Show the raster (colour fill) layer for this source. Default: false */
 	raster?: boolean;
 	/** Show contour lines for this source. Default: false */

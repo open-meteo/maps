@@ -14,6 +14,7 @@ import {
 	setPlainVariable,
 	setSources
 } from '#lib/stores/chart.js';
+import { EPS_SIBLINGS, loadEpsMeta } from '#lib/stores/eps.js';
 import { loading } from '#lib/stores/preferences.js';
 import {
 	inProgress as iP,
@@ -144,6 +145,7 @@ export const tryGetMetaData = async (): Promise<DomainMetaDataJson | undefined> 
 // clears the metadata so the UI can't keep driving off the previous domain's
 // valid times, and bails out without blocking so another domain can be picked.
 export const loadDomainMetaData = async (newDomain: string) => {
+	void loadEpsMeta(newDomain);
 	const ok = await getInitialMetaData();
 	if (get(d) !== newDomain) return;
 	const meta = ok ? await tryGetMetaData() : undefined;
@@ -179,8 +181,20 @@ export const matchChartOrFallback = () => {
 	// to a model storing only the water equivalent
 	const variables = get(availableVariables) ?? metaJson.variables;
 	const chart = get(activeChart);
-	const surviving = chart.sources.filter((source) => variables.includes(source.variable));
-	if (surviving.length === chart.sources.length) return;
+	// Cross-domain (EPS) sources follow the new domain's sibling (ICON -> ICON-EU
+	// keeps the probability contours, now from the EU ensemble); their
+	// variables are never in the main meta.json. Without a sibling they go.
+	const sibling = EPS_SIBLINGS[get(d)];
+	const surviving = chart.sources.flatMap((source) => {
+		if (!source.domain) return variables.includes(source.variable) ? [source] : [];
+		if (!sibling) return [];
+		return [source.domain === sibling ? source : { ...source, domain: sibling }];
+	});
+	if (
+		surviving.length === chart.sources.length &&
+		surviving.every((s, i) => s === chart.sources[i])
+	)
+		return;
 
 	if (surviving.length > 0) {
 		setSources(surviving);

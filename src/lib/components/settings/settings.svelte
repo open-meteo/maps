@@ -7,10 +7,12 @@
 	import CacheSettings from './cache-settings.svelte';
 	import ContourSettings from './contour-settings.svelte';
 	import EndpointSettings from './endpoint-settings.svelte';
+	import GpuSettings from './gpu-settings.svelte';
 	import GridSettings from './grid-settings.svelte';
 	import InterpolationSettings from './interpolation-settings.svelte';
 	import OpacitySetting from './opacity-setting.svelte';
 	import PopupSettings from './popup-settings.svelte';
+	import RendererSettings from './renderer-settings.svelte';
 	import SeamlessBorderSettings from './seamless-border-settings.svelte';
 	import StateSettings from './state-settings.svelte';
 	import TileSizeSettings from './tile-size-settings.svelte';
@@ -25,6 +27,7 @@
 	>
 		<div class="flex flex-col px-6 pt-12 pb-18 gap-2 min-h-full overflow-y-scroll">
 			<UnitSettings />
+			<RendererSettings />
 			<GridSettings />
 			<ArrowsSettings />
 			<ContourSettings />
@@ -34,6 +37,7 @@
 			<WaterClipSetting />
 			<SeamlessBorderSettings />
 			<OpacitySetting />
+			<GpuSettings />
 			<CacheSettings />
 			<EndpointSettings />
 			<StateSettings />

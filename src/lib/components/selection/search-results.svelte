@@ -9,6 +9,7 @@
 		savedCharts,
 		setPlainVariable
 	} from '#lib/stores/chart.js';
+	import { epsMeta, sourceAvailable } from '#lib/stores/eps.js';
 	import { availableVariables, levelGroupSelected, variable } from '#lib/stores/variables.js';
 
 	import * as Command from '#lib/components/ui/command/index.js';
@@ -36,14 +37,14 @@
 	const availablePresets = $derived(
 		$availableVariables
 			? chartPresets.filter((preset) =>
-					preset.sources.every((source) => $availableVariables.includes(source.variable))
+					preset.sources.every((source) => sourceAvailable(source, $availableVariables, $epsMeta))
 				)
 			: []
 	);
 	const availableSavedCharts = $derived(
 		$availableVariables
 			? $savedCharts.charts.filter((chart) =>
-					chart.sources.every((source) => $availableVariables.includes(source.variable))
+					chart.sources.every((source) => sourceAvailable(source, $availableVariables, $epsMeta))
 				)
 			: []
 	);

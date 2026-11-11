@@ -13,6 +13,7 @@
 		savedCharts,
 		setSources
 	} from '#lib/stores/chart.js';
+	import { EPS_VARIABLE, epsMeta, sourceAvailable } from '#lib/stores/eps.js';
 	import { availableVariables } from '#lib/stores/variables.js';
 
 	import { sourcesEqual } from '#lib/chart-encoding.js';
@@ -29,15 +30,15 @@
 		available: boolean;
 	}
 
-	/** The active domain serves the source's variable, stored or derived. */
-	const sourceAvailable = (source: ChartSource): boolean =>
-		!!$availableVariables?.includes(source.variable);
+	/** The active domain (stored or derived) or its loaded EPS sibling serves the source. */
+	const isAvailable = (source: ChartSource): boolean =>
+		sourceAvailable(source, $availableVariables, $epsMeta);
 
 	const presetGroups = $derived.by(() => {
 		const groups: { name: string; presets: GroupedPreset[] }[] = [];
 		if (!$availableVariables) return groups;
 		for (const preset of chartPresets) {
-			const available = preset.sources.every(sourceAvailable);
+			const available = preset.sources.every(isAvailable);
 			const name = preset.group ?? 'Other';
 			const group = groups.find((g) => g.name === name);
 			if (group) {
@@ -45,6 +46,33 @@
 			} else {
 				groups.push({ name, presets: [{ preset, available }] });
 			}
+		}
+		// Dynamic EPS chart: the sibling domain depends on the active domain,
+		// so this cannot be a static preset entry.
+		if (
+			$epsMeta?.variables.includes(EPS_VARIABLE) &&
+			$availableVariables?.includes('precipitation')
+		) {
+			const epsGroup = 'Precipitation';
+			const epsChart: ChartPreset = {
+				id: 'eps_precip_probability',
+				label: 'Precipitation + Probability (EPS)',
+				description: 'Ensemble probability contours over precipitation',
+				group: epsGroup,
+				sources: [
+					{ variable: 'precipitation', raster: true },
+					{
+						variable: EPS_VARIABLE,
+						contours: true,
+						contourInterval: 20,
+						domain: $epsMeta.domain
+					}
+				]
+			};
+			const group = groups.find((g) => g.name === epsGroup);
+			const entry = { preset: epsChart, available: true };
+			if (group) group.presets.push(entry);
+			else groups.push({ name: epsGroup, presets: [entry] });
 		}
 		// Unavailable presets sink to the bottom of their group
 		for (const group of groups) {
@@ -56,7 +84,7 @@
 	// Same treatment as the presets: unavailable saved charts sink to the bottom
 	const savedEntries = $derived.by(() => {
 		const entries: { chart: SavedChart; available: boolean }[] = $savedCharts.charts.map(
-			(chart) => ({ chart, available: chart.sources.every(sourceAvailable) })
+			(chart) => ({ chart, available: chart.sources.every(isAvailable) })
 		);
 		return entries.sort((a, b) => Number(b.available) - Number(a.available));
 	});
