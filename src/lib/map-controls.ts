@@ -2,7 +2,6 @@ import { get } from 'svelte/store';
 
 import {
 	GridFactory,
-	domainOptions,
 	getConcreteDomainValue,
 	omProtocol,
 	updateCurrentBounds
@@ -18,6 +17,7 @@ import { defaultPreferences, preferences as p } from '#lib/stores/preferences.js
 import { domain as d } from '#lib/stores/variables.js';
 
 import { BEFORE_LAYER_RASTER, HILLSHADE_LAYER } from '#lib/constants.js';
+import { domainOptions } from '#lib/domains.js';
 
 import { addOmFileLayers } from './layers';
 import { LOCATION_ZOOM, clearLocation } from './location';

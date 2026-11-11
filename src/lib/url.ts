@@ -44,7 +44,8 @@ import {
 	parseClipCountriesParam,
 	serializeClipCountriesParam
 } from './clipping';
-import { BASE_URI, fmtModelRun, fmtSelectedTime, hashValue } from './helpers';
+import { dataFileQuery, dataFileUrl } from './data-url';
+import { hashValue } from './helpers';
 import { clippingCountryCodes } from './stores/clipping';
 import { omProtocolSettings } from './stores/om-protocol-settings';
 import { formatUTCDateTime, parseISOWithoutTimezone } from './time-format';
@@ -226,13 +227,13 @@ let cachedColorIsDefault = true;
  * shared by all sources; variable and vector flags are per source.
  */
 export const getOmUrlForSource = (source: ChartSource): string | undefined => {
-	const base = `${BASE_URI}/${get(d)}`;
+	const domain = get(d);
 	const modelRun = get(mR);
 	if (!modelRun) return undefined;
 	const selectedTime = get(time);
 
-	let result = `${base}/${fmtModelRun(modelRun)}/${fmtSelectedTime(selectedTime)}.om`;
-	result += `?variable=${source.variable}`;
+	let result = dataFileUrl(domain, modelRun, selectedTime);
+	result += `${dataFileQuery(domain)}variable=${source.variable}`;
 	// A rate is the stored sum over the file's time step: the layer's rule
 	// needs the step length, which only the run's valid times give
 	if (variableUsesDeltaTime(source.variable)) {

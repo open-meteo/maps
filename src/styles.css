@@ -234,13 +234,14 @@
    keeps its default bottom-right corner position. */
 @media (min-width: 769px) {
 	.attrib-raised .maplibregl-ctrl-bottom-right {
-		bottom: 75px;
+		bottom: 84px;
 	}
 }
 
 @media (max-width: 768px) {
+	/* Clear of the time selector, whose top edge the selector reports */
 	.maplibregl-ctrl-bottom-right {
-		bottom: 93px;
+		bottom: calc(var(--time-selector-top, 92px) + 8px);
 	}
 
 	.maplibregl-ctrl.maplibregl-ctrl-attrib {

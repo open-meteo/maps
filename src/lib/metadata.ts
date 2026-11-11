@@ -29,6 +29,7 @@ import {
 	isStandaloneVariable
 } from '#lib/components/selection/selection-utils.js';
 
+import { archiveDomain, archiveMetaData, newestArchiveRun } from './archive';
 import { BASE_URI, fmtModelRun } from './helpers';
 import { formatISOWithoutTimezone } from './time-format';
 import { findTimeStep } from './time-utils';
@@ -46,6 +47,19 @@ export const getInitialMetaData = async (): Promise<boolean> => {
 
 	try {
 		const metaDomainValue = getConcreteDomainValue(domain);
+		const archive = archiveDomain(metaDomainValue);
+		if (archive) {
+			// The bucket has no run info: its newest cycle is the latest run and
+			// nothing is in progress separately (a cycle still uploading is the
+			// latest run with the hours that have arrived)
+			const run = await newestArchiveRun();
+			if (!run) throw new Error('no runs found');
+			const meta = await archiveMetaData(archive, run);
+			if (get(d) !== domain.value) return false;
+			l.set(meta);
+			iP.set(undefined);
+			return true;
+		}
 		const [latestRes, inProgressRes] = await Promise.all([
 			fetch(`${BASE_URI}/${metaDomainValue}/latest.json`),
 			fetch(`${BASE_URI}/${metaDomainValue}/in-progress.json`)
@@ -82,6 +96,8 @@ const matchesModelRun = (referenceTime: Date | undefined, modelRun: Date): boole
 	referenceTime?.getTime() === modelRun.getTime();
 
 const fetchMetaData = async (domain: string, modelRun: Date): Promise<DomainMetaDataJson> => {
+	const archive = archiveDomain(domain);
+	if (archive) return archiveMetaData(archive, modelRun);
 	const url = `${BASE_URI}/${domain}/${fmtModelRun(modelRun)}/meta.json`;
 	const res = await fetch(url);
 

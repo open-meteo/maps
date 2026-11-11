@@ -21,3 +21,17 @@ export const findTimeStep = (
 		return currentDelta < closestDelta ? current : closest;
 	});
 };
+
+/**
+ * The same local time of day `months` months before `date`, on the last day
+ * of the month when the day does not exist there (31 March, 1 month: 28 or
+ * 29 February rather than the early March that Date.setMonth would give).
+ */
+export const monthsBefore = (date: Date, months: number): Date => {
+	const result = new Date(date);
+	result.setDate(1);
+	result.setMonth(result.getMonth() - months);
+	const daysInMonth = new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate();
+	result.setDate(Math.min(date.getDate(), daysInMonth));
+	return result;
+};
