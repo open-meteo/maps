@@ -11,7 +11,9 @@
 		axisWidth,
 		dayBands,
 		firstStepFrom,
+		nearestStep,
 		snapToStep,
+		tickSegments,
 		timeToX,
 		xToTime
 	} from './timeline';
@@ -20,8 +22,8 @@
 		/** Undefined while the run's metadata loads: a skeleton is drawn instead. */
 		axis: TimelineAxis | undefined;
 		value: Date;
-		/** First and last valid time of the selected run. */
-		runRange: [number, number] | undefined;
+		/** The valid times of the selected run, ascending. */
+		steps: number[];
 		/** Earliest and latest instant any kept run serves. */
 		coverage: [number, number] | undefined;
 		now: Date;
@@ -30,7 +32,7 @@
 		onselect: (date: Date) => void;
 	}
 
-	let { axis, value, runRange, coverage, now, disabled, locked, onselect }: Props = $props();
+	let { axis, value, steps, coverage, now, disabled, locked, onselect }: Props = $props();
 
 	let track: HTMLDivElement | undefined = $state();
 	let trackWidth = $state(0);
@@ -41,8 +43,9 @@
 	let dragging = $state(false);
 
 	// A programmatic scroll (new value, snap-back) fires the same scroll events
-	// as the user; nothing is committed until it has settled.
+	// as the user does; while it runs they neither preview nor commit anything.
 	let settling = false;
+	let settleAttempts = 0;
 	let scrollEndTimer: ReturnType<typeof setTimeout> | undefined;
 	let dragStartX = 0;
 	let dragStartScroll = 0;
@@ -50,12 +53,24 @@
 
 	const bands = $derived(axis ? dayBands(axis) : []);
 	const width = $derived(axis ? axisWidth(axis) : 0);
-	const centreTime = (scrollLeft: number) =>
-		axis ? snapToStep(axis, xToTime(axis, scrollLeft)) : 0;
+	const runRange = $derived<[number, number] | undefined>(
+		steps.length > 0 ? [steps[0], steps[steps.length - 1]] : undefined
+	);
+	const segments = $derived(tickSegments(steps));
+
+	// Inside the run the selection lands on its valid times, which thin out
+	// towards the end of a forecast; elsewhere on the step grid, which is all
+	// that is known of the neighbouring runs until one is loaded.
+	const snap = (time: number): number => {
+		if (!axis) return 0;
+		const onGrid = snapToStep(axis, time);
+		return inRun(onGrid) ? nearestStep(steps, time) : onGrid;
+	};
+	const centreTime = (scrollLeft: number) => (axis ? snap(xToTime(axis, scrollLeft)) : 0);
 
 	const hoverTime = $derived(
 		axis && hoverX !== undefined && track
-			? snapToStep(axis, xToTime(axis, track.scrollLeft + hoverX - trackWidth / 2))
+			? snap(xToTime(axis, track.scrollLeft + hoverX - trackWidth / 2))
 			: undefined
 	);
 	const shown = $derived(preview ?? value.getTime());
@@ -78,10 +93,12 @@
 	const inRun = (time: number) => !!runRange && time >= runRange[0] && time <= runRange[1];
 	const selectable = (time: number) => (locked ? inRun(time) : inCoverage(time));
 
+	const atRest = (left: number) => !!track && Math.abs(track.scrollLeft - left) < 1;
+
 	const scrollTo = (time: number, smooth: boolean) => {
 		if (!track || !axis) return;
 		const left = timeToX(axis, time);
-		if (Math.abs(track.scrollLeft - left) < 0.5) return;
+		if (atRest(left)) return;
 		settling = true;
 		track.scrollTo({ left, behavior: smooth ? 'smooth' : 'instant' });
 		armScrollEnd();
@@ -90,14 +107,23 @@
 	// Follow the value: the URL, the keyboard and run changes all land here.
 	// Not while the user scrolls (preview set): the committed time may snap to
 	// another step than the centre shows, and must not tug the track back
-	// mid-gesture. A new axis means new coordinates, so that jump is instant.
+	// mid-gesture; a new axis then only gets its coordinates compensated so the
+	// centre stays under the pointer. Otherwise a new axis is jumped to instantly.
 	let shownAxis: TimelineAxis | undefined;
 	$effect(() => {
-		const time = value.getTime();
-		if (!track || !axis || dragging || preview !== undefined) return;
-		const sameAxis = shownAxis === axis;
+		if (!track || !axis) return;
+		const newAxis = shownAxis !== axis;
 		shownAxis = axis;
-		if (centreTime(track.scrollLeft) !== time) scrollTo(time, sameAxis);
+		if (preview !== undefined) {
+			if (newAxis) track.scrollLeft = timeToX(axis, preview);
+			return;
+		}
+		if (dragging) return;
+		const time = value.getTime();
+		if (centreTime(track.scrollLeft) !== time) {
+			settleAttempts = 0;
+			scrollTo(time, !newAxis);
+		}
 	});
 
 	const commit = (time: number) => {
@@ -108,17 +134,26 @@
 
 	const onScrollEnd = () => {
 		if (!track || !axis) return;
-		const wasSettling = settling;
-		settling = false;
+		if (settling) {
+			// A programmatic scroll has to end on the value; one that was cut
+			// short (or whose value moved on meanwhile) is sent there again
+			settling = false;
+			const target = value.getTime();
+			if (atRest(timeToX(axis, target)) || settleAttempts++ >= 3) settleAttempts = 0;
+			else scrollTo(target, true);
+			return;
+		}
+		// The end of a gesture; the scrollend event and its timer fallback both
+		// arrive here, the second one finds nothing left to do
+		if (preview === undefined) return;
 		const time = centreTime(track.scrollLeft);
 		preview = undefined;
-		if (!wasSettling || time !== value.getTime()) {
-			// Only selectable steps can be committed: scrolling past the data
-			// comes to rest on the last step that has some
-			const target = selectable(time) ? time : nearestSelectable(time);
-			commit(target);
-			scrollTo(target, true);
-		}
+		// Only selectable steps can be committed: scrolling past the data
+		// comes to rest on the last step that has some
+		const target = selectable(time) ? time : nearestSelectable(time);
+		commit(target);
+		settleAttempts = 0;
+		scrollTo(target, true);
 	};
 
 	const nearestSelectable = (time: number): number => {
@@ -135,15 +170,18 @@
 
 	const onScroll = () => {
 		if (!track || !axis) return;
+		armScrollEnd();
+		if (settling) return;
 		const time = centreTime(track.scrollLeft);
 		preview = time;
-		if (!settling) commitThrottled(time);
-		armScrollEnd();
+		commitThrottled(time);
 	};
 
 	const onPointerDown = (e: PointerEvent) => {
 		// Touch pans natively; this is the mouse's way to drag the track
 		if (e.pointerType === 'touch' || e.button !== 0 || !track || disabled) return;
+		// The user takes over from any scroll still settling
+		settling = false;
 		dragging = true;
 		dragMoved = false;
 		dragStartX = e.clientX;
@@ -171,12 +209,10 @@
 		}
 		// A click jumps to the step under the pointer
 		const rect = track.getBoundingClientRect();
-		const time = snapToStep(
-			axis,
-			xToTime(axis, track.scrollLeft + e.clientX - rect.left - trackWidth / 2)
-		);
+		const time = snap(xToTime(axis, track.scrollLeft + e.clientX - rect.left - trackWidth / 2));
 		if (!selectable(time)) return;
 		commit(time);
+		settleAttempts = 0;
 		scrollTo(time, true);
 	};
 
@@ -188,6 +224,7 @@
 	const onWheel = (e: WheelEvent) => {
 		if (!track || e.ctrlKey || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
 		e.preventDefault();
+		settling = false;
 		track.scrollLeft += e.deltaY;
 	};
 
@@ -319,15 +356,16 @@
 							></div>
 						{/if}
 					{/if}
-					{#if runRange}
+					{#each segments as segment (segment.from)}
 						<div
 							class="timeline-ticks absolute bottom-2.5 h-2.5 text-foreground/80 transition-opacity duration-300"
 							class:opacity-50={disabled}
-							style="left: {timeToX(axis, runRange[0])}px; width: {timeToX(axis, runRange[1]) -
-								timeToX(axis, runRange[0])}px; --step: {(axis.stepMs / MILLISECONDS_PER_HOUR) *
+							style="left: {timeToX(axis, segment.from)}px; width: {timeToX(axis, segment.to) -
+								timeToX(axis, segment.from) +
+								1}px; --step: {(segment.stepMs / MILLISECONDS_PER_HOUR) *
 								axis.pxPerHour}px; --offset: 0px;"
 						></div>
-					{/if}
+					{/each}
 
 					<!-- Now -->
 					{#if now.getTime() >= axis.start && now.getTime() <= axis.end}

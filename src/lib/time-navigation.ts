@@ -42,24 +42,37 @@ export const inProgressRun = (): Date | undefined => {
 	return run && run.getTime() !== latestRun()?.getTime() ? run : undefined;
 };
 
+// The run whose metadata is on its way: scrubbing asks for the same run
+// several times before it has loaded, and one load serves all of them.
+let pendingRun: { run: number; done: Promise<boolean> } | undefined;
+
 /**
  * Switches to `run` and loads its metadata. On a failed load (already
- * toasted) the previous run and metadata are put back and false returned.
+ * toasted) the previous run and metadata are put back and false returned;
+ * so is false when another switch took over while this one was loading,
+ * whose outcome is then not this one's to apply.
  */
-const applyRun = async (run: Date): Promise<boolean> => {
+const applyRun = (run: Date): Promise<boolean> => {
+	if (pendingRun?.run === run.getTime()) return pendingRun.done;
 	const previousRun = get(modelRun);
 	const previousMeta = get(metaJson);
 	modelRun.set(run);
-	const meta = await tryGetMetaData();
-	if (!meta) {
-		modelRun.set(previousRun);
-		metaJson.set(previousMeta);
-		return false;
-	}
-	metaJson.set(meta);
-	const isLatest = run.getTime() === latestRun()?.getTime();
-	updateUrl('model_run', isLatest ? undefined : formatISOWithoutTimezone(run));
-	return true;
+	const done = (async () => {
+		const meta = await tryGetMetaData();
+		if (pendingRun?.run === run.getTime()) pendingRun = undefined;
+		if (get(modelRun)?.getTime() !== run.getTime()) return false;
+		if (!meta) {
+			modelRun.set(previousRun);
+			metaJson.set(previousMeta);
+			return false;
+		}
+		metaJson.set(meta);
+		const isLatest = run.getTime() === latestRun()?.getTime();
+		updateUrl('model_run', isLatest ? undefined : formatISOWithoutTimezone(run));
+		return true;
+	})();
+	pendingRun = { run: run.getTime(), done };
+	return done;
 };
 
 const commitTime = (date: Date) => {
@@ -118,7 +131,10 @@ export const selectTime = async (date: Date): Promise<Date> => {
 		time.set(target);
 
 		const run = runForTime(target, get(modelRun), newest, domain.model_interval, inProgressRun());
-		if (run.getTime() !== get(modelRun)?.getTime()) {
+		// The run whose metadata is loaded, not the one merely selected: a switch
+		// still loading must be waited for, or the time would snap to the old
+		// run's steps
+		if (run.getTime() !== referenceTime(meta)?.getTime()) {
 			const ok = await applyRun(run);
 			if (sequence !== selectionSequence) return get(time);
 			if (!ok) target = new Date(findTimeStep(target, steps) ?? first);

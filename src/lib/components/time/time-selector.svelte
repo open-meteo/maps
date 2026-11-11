@@ -25,14 +25,23 @@
 		validTimes
 	} from '#lib/time-navigation.js';
 
-	import { buildAxis, firstStepFrom, stepOf } from './timeline';
+	import { type TimelineAxis, buildAxis, firstStepFrom, sameGrid, stepOf } from './timeline';
 
 	// No run yet: the first metadata is still loading, nothing can be selected
 	const disabled = $derived($modelRun === undefined);
 
-	const steps = $derived(validTimes($metaJson));
+	const validDates = $derived(validTimes($metaJson));
+	const steps = $derived(validDates.map((step) => step.getTime()));
+	// The timeline jumps instantly to a new axis object, so an axis that draws
+	// the same grid (clock tick, run switch) keeps the previous object
+	let lastAxis: TimelineAxis | undefined;
+	const stableAxis = (axis: TimelineAxis): TimelineAxis => {
+		if (!lastAxis || !sameGrid(lastAxis, axis)) lastAxis = axis;
+		return lastAxis;
+	};
+
 	const runRange = $derived<[number, number] | undefined>(
-		steps.length > 0 ? [steps[0].getTime(), steps[steps.length - 1].getTime()] : undefined
+		steps.length > 0 ? [steps[0], steps[steps.length - 1]] : undefined
 	);
 
 	// The axis spans every time some kept run serves: the week of runs before
@@ -51,7 +60,9 @@
 		const start = Math.min(runRange[0], Math.max(oldestRun, kept));
 		const latestSteps = validTimes($latest);
 		const end = Math.max(runRange[1], latestSteps[latestSteps.length - 1]?.getTime() ?? 0);
-		const axis = buildAxis(new Date(start), new Date(end), stepOf(steps), steps[0]);
+		const axis = stableAxis(
+			buildAxis(new Date(start), new Date(end), stepOf(validDates), new Date(steps[0]))
+		);
 		return { axis, coverage: [firstStepFrom(axis, start), end] as [number, number] };
 	});
 
@@ -101,7 +112,7 @@
 			<Timeline
 				axis={bounds?.axis}
 				value={$time}
-				{runRange}
+				{steps}
 				coverage={bounds?.coverage}
 				now={$now}
 				{disabled}

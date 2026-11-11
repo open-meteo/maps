@@ -5,8 +5,11 @@ import {
 	buildAxis,
 	dayBands,
 	firstStepFrom,
+	nearestStep,
+	sameGrid,
 	snapToStep,
 	stepOf,
+	tickSegments,
 	timeToX,
 	xToTime
 } from '#lib/components/time/timeline.js';
@@ -98,5 +101,47 @@ describe('stepOf', () => {
 		expect(stepOf([new Date(0), new Date(3 * HOUR), new Date(9 * HOUR)])).toBe(3 * HOUR);
 		expect(stepOf([new Date(0)])).toBe(HOUR);
 		expect(stepOf([])).toBe(HOUR);
+	});
+});
+
+describe('sameGrid', () => {
+	const axis = buildAxis(first, last, HOUR, first);
+
+	it('treats anchors a whole number of steps apart as the same grid', () => {
+		expect(sameGrid(axis, buildAxis(first, last, HOUR, new Date(first.getTime() + 6 * HOUR)))).toBe(
+			true
+		);
+		expect(sameGrid(axis, buildAxis(first, last, HOUR, new Date(first.getTime() + HOUR / 2)))).toBe(
+			false
+		);
+	});
+
+	it('tells spans and steps apart', () => {
+		expect(sameGrid(axis, buildAxis(first, new Date(last.getTime() + HOUR), HOUR, first))).toBe(
+			false
+		);
+		expect(sameGrid(axis, buildAxis(first, last, 3 * HOUR, first))).toBe(false);
+	});
+});
+
+describe('nearestStep', () => {
+	const steps = [0, HOUR, 2 * HOUR, 5 * HOUR, 8 * HOUR];
+
+	it('picks the closer neighbour and the edges beyond them', () => {
+		expect(nearestStep(steps, 1.4 * HOUR)).toBe(HOUR);
+		expect(nearestStep(steps, 3.6 * HOUR)).toBe(5 * HOUR);
+		expect(nearestStep(steps, -HOUR)).toBe(0);
+		expect(nearestStep(steps, 20 * HOUR)).toBe(8 * HOUR);
+		expect(nearestStep(steps, 5 * HOUR)).toBe(5 * HOUR);
+	});
+});
+
+describe('tickSegments', () => {
+	it('groups equally spaced steps', () => {
+		expect(tickSegments([0, HOUR, 2 * HOUR, 5 * HOUR, 8 * HOUR])).toEqual([
+			{ from: 0, to: 2 * HOUR, stepMs: HOUR },
+			{ from: 2 * HOUR, to: 8 * HOUR, stepMs: 3 * HOUR }
+		]);
+		expect(tickSegments([0])).toEqual([]);
 	});
 });
