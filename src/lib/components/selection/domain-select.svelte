@@ -3,28 +3,37 @@
 	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down';
 	import { domainGroups, domainOptions } from '@openmeteo/weather-map-layer';
 
-	import { domainSelectionOpen as dSO, domain, selectedDomain } from '#lib/stores/variables.js';
-
 	import * as Command from '#lib/components/ui/command/index.js';
 	import * as Popover from '#lib/components/ui/popover/index.js';
 
 	import { rankedFilter, scrollSelectedToTop } from './selection-utils';
 
+	interface Props {
+		/** Domain shown as the current one. */
+		selected: string | undefined;
+		onSelect: (value: string) => void;
+		open?: boolean;
+	}
+
+	let { selected, onSelect, open = $bindable(false) }: Props = $props();
+
+	const selectedLabel = $derived(domainOptions.find(({ value }) => value === selected)?.label);
+
 	$effect(() => {
-		if ($dSO) scrollSelectedToTop($selectedDomain.value);
+		if (open) scrollSelectedToTop(selected);
 	});
 </script>
 
-<Popover.Root bind:open={$dSO}>
+<Popover.Root bind:open>
 	<Popover.Trigger
-		class="hover:bg-primary/10 flex h-8.5 w-full shrink-0 cursor-pointer items-center justify-between gap-1 rounded px-3 text-sm font-semibold {$dSO
+		class="hover:bg-primary/10 flex h-8.5 w-full shrink-0 cursor-pointer items-center justify-between gap-1 rounded px-3 text-sm font-semibold {open
 			? 'bg-primary/10'
 			: ''}"
 		role="combobox"
-		aria-expanded={$dSO}
+		aria-expanded={open}
 	>
 		<div class="truncate">
-			{$selectedDomain?.label || 'Select a domain...'}
+			{selectedLabel || 'Select a domain...'}
 		</div>
 		<ChevronsUpDownIcon class="size-4 shrink-0 opacity-50" />
 	</Popover.Trigger>
@@ -40,20 +49,18 @@
 								<Command.Item
 									{value}
 									keywords={label ? [label] : undefined}
-									class="hover:bg-primary/25! cursor-pointer {$selectedDomain.value === value
+									class="hover:bg-primary/25! cursor-pointer {selected === value
 										? 'bg-primary/10!'
 										: ''}"
 									onSelect={() => {
-										$domain = value;
-										dSO.set(false);
+										onSelect(value);
+										open = false;
 									}}
-									aria-selected={$selectedDomain.value === value}
+									aria-selected={selected === value}
 								>
 									<div class="flex w-full items-center justify-between">
 										{label}
-										<CheckIcon
-											class="size-4 {$selectedDomain.value !== value ? 'text-transparent' : ''}"
-										/>
+										<CheckIcon class="size-4 {selected !== value ? 'text-transparent' : ''}" />
 									</div>
 								</Command.Item>
 							{/if}

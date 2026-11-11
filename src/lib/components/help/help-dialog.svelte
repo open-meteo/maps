@@ -345,6 +345,31 @@
 					</div>
 
 					<div class="flex items-center gap-2">
+						<div class="maplibregl-ctrl maplibregl-ctrl-group" title="Compare domains">
+							<button
+								style="display:flex;justify-content:center;align-items:center;"
+								aria-label="Explanation Compare Button"
+							>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									opacity="0.75"
+									stroke-width="1.2"
+									width="24"
+									height="24"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									class="lucide lucide-columns-2-icon lucide-columns-2"
+									><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M12 3v18" /></svg
+								>
+							</button>
+						</div>
+						<div class="truncate">Compare Domains</div>
+					</div>
+
+					<div class="flex items-center gap-2">
 						<div class="maplibregl-ctrl maplibregl-ctrl-group" title="Hillshade">
 							<button
 								style="display:flex;justify-content:center;align-items:center;"

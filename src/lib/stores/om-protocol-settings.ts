@@ -1,4 +1,4 @@
-import { type Writable, get, writable } from 'svelte/store';
+import { type Writable, derived, get, writable } from 'svelte/store';
 
 import { BrowserBlockCache } from '@openmeteo/file-reader';
 import { defaultOmProtocolSettings } from '@openmeteo/weather-map-layer';
@@ -13,6 +13,7 @@ import {
 } from '#lib/constants.js';
 
 import { chartSources } from './chart';
+import { compareDomain } from './compare';
 
 import type {
 	Data,
@@ -66,10 +67,15 @@ export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
 
 // The protocol keeps at most maxStatesWithData variable states loaded. A chart
 // needs one per source, times two while cross-fading between timesteps, plus
-// headroom for pan/zoom-created partial-bounds states.
-chartSources.subscribe((sources) => {
+// headroom for pan/zoom-created partial-bounds states. The compare map draws
+// the same chart for a second domain through the same protocol instance, so
+// it needs the same number of states again.
+derived([chartSources, compareDomain], ([sources, compared]) => ({
+	sources,
+	compared
+})).subscribe(({ sources, compared }) => {
 	omProtocolSettings.update((settings) => ({
 		...settings,
-		maxStatesWithData: Math.max(4, sources.length * 2)
+		maxStatesWithData: Math.max(4, sources.length * 2) * (compared ? 2 : 1)
 	}));
 });

@@ -4,6 +4,7 @@ import * as maplibregl from 'maplibre-gl';
 import { setMode, userPrefersMode } from 'mode-watcher';
 
 import { clippingPanelOpen } from '#lib/stores/clipping.js';
+import { compareDomain } from '#lib/stores/compare.js';
 import { formatCoordinates, locationSearchOpen, selectedLocation } from '#lib/stores/location.js';
 import { omProtocolSettings } from '#lib/stores/om-protocol-settings.js';
 import {
@@ -12,7 +13,9 @@ import {
 	preferences as p,
 	sheet
 } from '#lib/stores/preferences.js';
+import { domain } from '#lib/stores/variables.js';
 
+import { DEFAULT_COMPARE_DOMAIN, FALLBACK_COMPARE_DOMAIN } from '#lib/constants.js';
 import { reanchorRasterLayers } from '#lib/layers.js';
 import { addHillshadeLayer, terrainHandler } from '#lib/map-controls.js';
 import { updateUrl } from '#lib/url.js';
@@ -231,6 +234,43 @@ export class LocationSearchButton {
 	}
 	onRemove() {
 		this.selectedLocationSubscription();
+	}
+}
+
+export class CompareButton {
+	private compareDomainSubscription: () => void = () => {};
+
+	onAdd() {
+		const div = document.createElement('div');
+		div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+
+		const compareSVG = `<button style="display:flex;justify-content:center;align-items:center;">
+			<svg xmlns="http://www.w3.org/2000/svg" opacity="0.75" stroke-width="1.2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-columns-2-icon lucide-columns-2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 3v18"/></svg>
+			</button>`;
+		const compareActiveSVG = `<button style="display:flex;justify-content:center;align-items:center;color:rgb(51,181,229);">
+			<svg xmlns="http://www.w3.org/2000/svg" opacity="1" stroke-width="1.2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-columns-2-icon lucide-columns-2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 3v18"/></svg>
+			</button>`;
+
+		this.compareDomainSubscription = compareDomain.subscribe((compared) => {
+			div.title = compared ? 'Stop comparing' : 'Compare domains';
+			div.innerHTML = compared ? compareActiveSVG : compareSVG;
+		});
+
+		div.addEventListener('contextmenu', (e) => e.preventDefault());
+		div.addEventListener('click', () => {
+			if (get(compareDomain)) {
+				compareDomain.set(null);
+				return;
+			}
+			// Against the same domain there is nothing to compare
+			compareDomain.set(
+				get(domain) === DEFAULT_COMPARE_DOMAIN ? FALLBACK_COMPARE_DOMAIN : DEFAULT_COMPARE_DOMAIN
+			);
+		});
+		return div;
+	}
+	onRemove() {
+		this.compareDomainSubscription();
 	}
 }
 

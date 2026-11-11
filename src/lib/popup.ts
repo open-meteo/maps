@@ -44,6 +44,14 @@ let elevationSpan: HTMLSpanElement | undefined;
 let extrasDiv: HTMLDivElement | undefined;
 let stemDiv: HTMLDivElement | undefined;
 
+// The maps the popup can sit on, each with the frame its values are read
+// from: the main map, and the compare map while it exists (see addPopup)
+const hosts = new Map<maplibregl.Map, () => Map<string, string>>();
+// The map the popup sits on: the one the pointer was last over
+let popupMap: maplibregl.Map | undefined;
+const activeUrls = (): Map<string, string> =>
+	(popupMap ? hosts.get(popupMap)?.() : undefined) ?? getActiveOmUrls();
+
 // Cached clipping tester — recomputed only when clippingOptions reference changes.
 let cachedClippingOptionsRef: unknown = undefined;
 let cachedClippingTester: ((lon: number, lat: number) => boolean) | undefined;
@@ -424,9 +432,9 @@ const updateExtraSources = async (
 ): Promise<void> => {
 	if (!extrasDiv) return;
 
-	const activeUrls = getActiveOmUrls();
+	const urls = activeUrls();
 	const extras = get(chartSources).filter(
-		(source) => source.variable !== primaryVariable && activeUrls.has(source.variable)
+		(source) => source.variable !== primaryVariable && urls.has(source.variable)
 	);
 
 	if (!extras.length) {
@@ -440,14 +448,14 @@ const updateExtraSources = async (
 
 	// A composite is sampled from the sub-domains active at the map zoom, so
 	// the value matches the pixel under the cursor.
-	const zoom = get(m)?.getZoom();
+	const zoom = (popupMap ?? get(m))?.getZoom();
 	const lines = await Promise.all(
 		extras.map(async (source) => {
 			try {
 				const { value } = await getValueFromLatLong(
 					coordinates.lat,
 					coordinates.lng,
-					activeUrls.get(source.variable) as string,
+					urls.get(source.variable) as string,
 					zoom
 				);
 				const colorScale = getColorScale(
@@ -496,7 +504,7 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 	if (!el || !contentDiv || !valueSpan || !unitSpan || !elevationSpan) return;
 
 	const seq = ++popupUpdateSeq;
-	const map = get(m);
+	const map = popupMap ?? get(m);
 
 	const elevation = map?.queryTerrainElevation(coordinates);
 	const hasElevation = typeof elevation === 'number' && isFinite(elevation);
@@ -504,7 +512,7 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 	// The primary source, not the `variable` store: the branch below needs its
 	// layer toggles, not just its variable name
 	const primary = pickPrimarySource(get(activeChart));
-	const activeUrl = getActiveOmUrls().get(primary.variable);
+	const activeUrl = activeUrls().get(primary.variable);
 	if (!activeUrl) {
 		// A primary that draws something is merely still loading; the commit
 		// callback refreshes once its layer is up. One drawing nothing means the
@@ -592,10 +600,16 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 	}
 };
 
-/** Ensure the marker exists, place it at `coordinates`, and update its content. */
-export const renderPopup = async (coordinates: maplibregl.LngLat): Promise<void> => {
-	const map = get(m);
+/**
+ * Ensure the marker exists, place it at `coordinates` on `map` (where it
+ * last was, else the main map), and update its content.
+ */
+export const renderPopup = async (
+	coordinates: maplibregl.LngLat,
+	map: maplibregl.Map | undefined = popupMap ?? get(m)
+): Promise<void> => {
 	if (!get(popupMode) || !map) return;
+	popupMap = map;
 
 	if (!el || !contentDiv || !valueSpan || !unitSpan || !elevationSpan) initPopupDiv();
 	if (!el || !contentDiv || !valueSpan || !unitSpan || !elevationSpan) return;
@@ -630,7 +644,7 @@ const updatePopup = async (e: maplibregl.MapMouseEvent): Promise<void> => {
 		if (popup) {
 			popup.setLngLat(e.lngLat);
 		}
-		await renderPopup(e.lngLat);
+		await renderPopup(e.lngLat, e.target);
 	}
 };
 
@@ -668,9 +682,16 @@ export const suppressPopupTap = (ms: number = DOUBLE_TAP_WINDOW_MS): void => {
 	suppressTapsUntil = Date.now() + ms;
 };
 
-export const addPopup = (): void => {
-	const map = get(m);
+/**
+ * Bind the popup gestures to `map`; `urls` resolves the frame its values
+ * are read from. The main map by default, the compare map while comparing.
+ */
+export const addPopup = (
+	map: maplibregl.Map | undefined = get(m),
+	urls: () => Map<string, string> = getActiveOmUrls
+): void => {
 	if (!map) return;
+	hosts.set(map, urls);
 
 	map.on('mousemove', updatePopup);
 	// Bearing, pitch and, under pitch, the marker's screen position all change
@@ -687,11 +708,13 @@ export const addPopup = (): void => {
 			return;
 		}
 
-		// Re-add mousemove listener (may have been removed by a previous removePopup)
-		map.off('mousemove', updatePopup);
-		map.on('mousemove', updatePopup);
+		// Re-add the mousemove listeners (removed by a previous removePopup)
+		for (const host of hosts.keys()) {
+			host.off('mousemove', updatePopup);
+			host.on('mousemove', updatePopup);
+		}
 
-		await renderPopup(lngLat);
+		await renderPopup(lngLat, map);
 	};
 
 	let pendingTap: ReturnType<typeof setTimeout> | null = null;
@@ -730,12 +753,21 @@ export const addPopup = (): void => {
 };
 
 export const removePopup = (): void => {
-	const map = get(m);
-	if (!map) return;
-
-	map.off('mousemove', updatePopup);
+	for (const host of hosts.keys()) host.off('mousemove', updatePopup);
 
 	const popup = get(p);
 	popup?.remove();
 	p.set(undefined);
+};
+
+/**
+ * Forget a map the popup was bound to, ahead of its removal; a popup sitting
+ * on it moves back to the main map.
+ */
+export const removePopupHost = (map: maplibregl.Map): void => {
+	hosts.delete(map);
+	if (popupMap !== map) return;
+	popupMap = undefined;
+	const lngLat = get(p)?.getLngLat();
+	if (lngLat) void renderPopup(lngLat);
 };

@@ -1,6 +1,7 @@
 import { type Writable, derived, get, writable } from 'svelte/store';
 
 import {
+	type DomainMetaDataJson,
 	LEVEL_PREFIX,
 	LEVEL_REGEX,
 	LEVEL_UNIT_REGEX,
@@ -23,21 +24,24 @@ export const defaultVariable = DEFAULT_VARIABLE;
 export const variable = persisted('variable', defaultVariable);
 
 /**
- * Variables the active domain can show, in the shape of `metaJson.variables`:
- * the ones its files store, plus the ones the layer's derivation rules read
- * from those (snowfall from its water equivalent, the humidity-derived
- * fields, precipitation rates), which the metadata never lists. The label
- * dictionary is the candidate list, since the rules match by pattern.
- * Undefined until the metadata has loaded.
+ * Variables a domain can show, in the shape of `metaJson.variables`: the
+ * ones its files store, plus the ones the layer's derivation rules read from
+ * those (snowfall from its water equivalent, the humidity-derived fields,
+ * precipitation rates), which the metadata never lists. The label dictionary
+ * is the candidate list, since the rules match by pattern.
  */
-export const availableVariables = derived(metaJson, ($metaJson) => {
-	if (!$metaJson) return undefined;
-	const stored = new Set($metaJson.variables);
+export const availableVariablesFor = (meta: DomainMetaDataJson): string[] => {
+	const stored = new Set(meta.variables);
 	const derivable = variableOptions
 		.map(({ value }) => value)
 		.filter((value) => !stored.has(value) && variableAvailable(value, stored));
-	return [...$metaJson.variables, ...derivable];
-});
+	return [...meta.variables, ...derivable];
+};
+
+/** The active domain's `availableVariablesFor`; undefined until the metadata has loaded. */
+export const availableVariables = derived(metaJson, ($metaJson) =>
+	$metaJson ? availableVariablesFor($metaJson) : undefined
+);
 
 export const selectedDomain = derived(domain, ($domain) => {
 	const object = domainOptions.find(({ value }) => value === $domain);

@@ -19,6 +19,7 @@ import { domain as d } from '#lib/stores/variables.js';
 
 import { BEFORE_LAYER_RASTER, HILLSHADE_LAYER } from '#lib/constants.js';
 
+import { reloadCompareStyle } from './compare';
 import { addOmFileLayers } from './layers';
 import { LOCATION_ZOOM, clearLocation } from './location';
 import { updateUrl } from './url';
@@ -135,8 +136,7 @@ export const addTerrainSource = (map: maplibregl.Map, name: string = 'terrainSou
 	});
 };
 
-export const addHillshadeLayer = () => {
-	const map = get(m);
+export const addHillshadeLayer = (map: maplibregl.Map | undefined = get(m)) => {
 	if (!map) return;
 
 	map.addLayer(
@@ -191,6 +191,7 @@ export const reloadStyles = () => {
 		const map = get(m);
 		if (!map) return;
 		map.setStyle(style);
+		reloadCompareStyle();
 		map.once('styledata', () => {
 			setTimeout(() => {
 				addTerrainSource(map);
