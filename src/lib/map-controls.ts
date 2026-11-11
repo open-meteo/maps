@@ -30,9 +30,11 @@ export const createMap = async (container: HTMLElement) => {
 	// bundled app cannot serve (404, blank map). Use the worker bundled by Vite.
 	maplibregl.setWorkerUrl(maplibreWorkerUrl);
 
-	maplibregl.addProtocol('om', (params: RequestParameters, abortController: AbortController) =>
-		omProtocol(params, abortController, get(omProtocolSettings))
-	);
+	// The pinned layer build still answers an empty tile with `data: null`, which
+	// MapLibre 6.11 dropped from AddProtocolResponseData; the layer's 0.2.2 release
+	// returns an empty tile instead, so the cast goes with the next pin bump.
+	maplibregl.addProtocol('om', ((params: RequestParameters, abortController: AbortController) =>
+		omProtocol(params, abortController, get(omProtocolSettings))) as maplibregl.AddProtocolAction);
 
 	const style = await getStyle();
 
@@ -46,15 +48,22 @@ export const createMap = async (container: HTMLElement) => {
 	if (!gridDomain) {
 		throw new Error('Base domain not found');
 	}
-	const grid = GridFactory.create(gridDomain.grid);
-
 	// A location from the URL is where the map opens; a position hash, when
-	// present, is applied by MapLibre over both
+	// present, is applied by MapLibre over both. Only without either does the
+	// map need the domain's centre: a native ICON grid first downloads and
+	// triangulates its cell index, which the map then need not wait for.
 	const location = get(selectedLocation);
+	let center: maplibregl.LngLatLike | undefined;
+	if (location) {
+		center = [location.longitude, location.latitude];
+	} else if (!window.location.hash) {
+		await GridFactory.preload(gridDomain.grid);
+		center = GridFactory.create(gridDomain.grid).getCenter();
+	}
 	const map = new maplibregl.Map({
 		container,
 		style,
-		center: location ? [location.longitude, location.latitude] : grid.getCenter(),
+		center,
 		zoom: location ? LOCATION_ZOOM : gridDomain.grid.zoom,
 		keyboard: false,
 		hash: true,
