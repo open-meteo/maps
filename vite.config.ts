@@ -98,8 +98,12 @@ export default ({ mode }: { mode: string }) => {
 					// seamless "vr is not defined" crash). Match "weather-map-layer" so it also
 					// covers the symlink-resolved real path used during local `npm link` dev,
 					// not just the installed "@openmeteo/weather-map-layer" node_modules path.
-					manualChunks: (id: string) =>
-						id.includes('weather-map-layer') ? 'weather-map-layer' : undefined
+					// This is a codeSplitting group, not manualChunks: SvelteKit sets its own
+					// codeSplitting groups on the client build, which these are merged into,
+					// whereas rolldown ignores manualChunks once codeSplitting is set.
+					codeSplitting: {
+						groups: [{ name: 'weather-map-layer', test: /weather-map-layer/ }]
+					}
 				}
 			}
 		}
