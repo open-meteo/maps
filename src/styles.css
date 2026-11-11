@@ -239,8 +239,9 @@
 }
 
 @media (max-width: 768px) {
+	/* Clear of the time selector, whose top edge the selector reports */
 	.maplibregl-ctrl-bottom-right {
-		bottom: 100px;
+		bottom: calc(var(--time-selector-top, 92px) + 8px);
 	}
 
 	.maplibregl-ctrl.maplibregl-ctrl-attrib {

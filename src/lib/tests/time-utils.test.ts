@@ -2,7 +2,7 @@ import { SvelteDate } from 'svelte/reactivity';
 
 import { describe, expect, it } from 'vitest';
 
-import { findTimeStep } from '#lib/time-utils.js';
+import { findTimeStep, monthsBefore } from '#lib/time-utils.js';
 
 describe('findTimeStep', () => {
 	it('should return undefined when timeSteps is undefined', () => {
@@ -189,5 +189,22 @@ describe('findTimeStep', () => {
 		const result = findTimeStep(date, timeSteps);
 
 		expect(result?.getTime()).toBe(timeSteps[2].getTime());
+	});
+});
+
+describe('monthsBefore', () => {
+	it('keeps the day and local time of day', () => {
+		const result = monthsBefore(new Date(2026, 10, 11, 14, 37), 3);
+		expect([result.getFullYear(), result.getMonth(), result.getDate()]).toEqual([2026, 7, 11]);
+		expect([result.getHours(), result.getMinutes()]).toEqual([14, 37]);
+	});
+
+	it('clamps to the last day of a shorter month and crosses years', () => {
+		const february = monthsBefore(new Date(2024, 2, 31, 9), 1);
+		expect([february.getMonth(), february.getDate()]).toEqual([1, 29]);
+		const lastYear = monthsBefore(new Date(2026, 0, 15, 9), 12);
+		expect([lastYear.getFullYear(), lastYear.getMonth(), lastYear.getDate()]).toEqual([
+			2025, 0, 15
+		]);
 	});
 });

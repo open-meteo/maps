@@ -11,7 +11,7 @@ import {
 import { omProtocolSettings } from '#lib/stores/om-protocol-settings.js';
 
 import { MILLISECONDS_PER_DAY } from './constants';
-import { BASE_URI, fmtModelRun, fmtSelectedTime } from './helpers';
+import { dataFileUrl } from './data-url';
 
 import type { Domain, DomainMetaDataJson } from '@openmeteo/weather-map-layer';
 
@@ -137,8 +137,6 @@ export const prefetchData = async (
 	try {
 		const omFileReader = getProtocolInstance(settings).omFileReader;
 
-		// All sub-domains of a seamless composite share the same run path.
-		const runPath = fmtModelRun(modelRun);
 		const totalCount = timeSteps.length;
 
 		// The files a timestep needs: the domain's own, or for a seamless
@@ -155,11 +153,10 @@ export const prefetchData = async (
 		// Prefetch every file of a single timestep. Reads are atomic per call, so
 		// all of them can safely share the protocol's reader.
 		const prefetchSingle = async (timeStep: Date): Promise<boolean> => {
-			const validPath = fmtSelectedTime(timeStep);
 			let succeeded = true;
 			for (const concrete of domainsFor(timeStep)) {
 				if (signal?.aborted) return false;
-				const url = `${BASE_URI}/${concrete.value}/${runPath}/${validPath}.om`;
+				const url = dataFileUrl(concrete.value, modelRun, timeStep);
 				try {
 					await omFileReader.prefetchVariable(
 						url,

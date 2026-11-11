@@ -11,6 +11,7 @@ import {
 	DEFAULT_CACHE_MAX_BYTES_MB,
 	HTTP_OVERHEAD_BYTES
 } from '#lib/constants.js';
+import { domainOptions } from '#lib/domains.js';
 
 import { chartSources } from './chart';
 
@@ -45,6 +46,7 @@ function createBlockCache() {
 export const omProtocolSettings: Writable<OmProtocolSettings> = writable({
 	...defaultOmProtocolSettings,
 	// static
+	domainOptions,
 	fileReaderConfig: { useSAB: true, cache: createBlockCache() },
 	// dynamic (can be changed during runtime)
 	colorScales: {

@@ -1,14 +1,33 @@
 /**
- * Which model runs the data server keeps and which one serves a given time.
- * Pure date arithmetic, shared by the time navigation and the run picker.
+ * Which model runs a domain's source keeps and which one serves a given
+ * time. Pure date arithmetic, shared by the time navigation, the run picker
+ * and the time selector's axis.
  */
 import { type Domain, closestModelRun } from '@openmeteo/weather-map-layer';
+
+import { ARCHIVE_START, archiveDomain } from './archive';
+import { MILLISECONDS_PER_WEEK } from './constants';
 
 /** The `model_interval` of a domain: how often it runs. */
 export type ModelInterval = Domain['model_interval'];
 
 /** How many days of runs the data server keeps next to the latest one. */
 export const RUN_HISTORY_DAYS = 6.9;
+
+/** How far an archive's axis reaches beyond the selected run on either side. */
+export const ARCHIVE_AXIS_MARGIN = 2 * MILLISECONDS_PER_WEEK;
+
+/**
+ * The runs a domain can be read at. The data server keeps a week of runs and
+ * drops a run's files after a week; an archive holds every run since its
+ * start and never drops one.
+ */
+export interface RunCatalogue {
+	kind: 'server' | 'archive';
+	interval: ModelInterval;
+	oldest: Date;
+	newest: Date;
+}
 
 export const modelIntervalHours = (interval: ModelInterval): number => {
 	switch (interval) {
@@ -27,7 +46,7 @@ export const modelIntervalHours = (interval: ModelInterval): number => {
 	}
 };
 
-/** The latest run and the ones of the week before it, newest first. */
+/** `latestRun` and the runs of the week before it, newest first. */
 export const runHistory = (latestRun: Date, interval: ModelInterval): Date[] => {
 	const hours = modelIntervalHours(interval);
 	const count = Math.floor((RUN_HISTORY_DAYS * 24) / hours);
@@ -40,13 +59,29 @@ export const runHistory = (latestRun: Date, interval: ModelInterval): Date[] => 
 	});
 };
 
-/** Every run the picker offers, newest first: the in-progress one, then the kept history. */
+export const runCatalogue = (domain: Domain, latestRun: Date): RunCatalogue => {
+	const interval = domain.model_interval;
+	if (archiveDomain(domain.value)) {
+		return { kind: 'archive', interval, oldest: ARCHIVE_START, newest: latestRun };
+	}
+	const history = runHistory(latestRun, interval);
+	return { kind: 'server', interval, oldest: history[history.length - 1], newest: latestRun };
+};
+
+/**
+ * The runs the picker offers around `around`, newest first: the in-progress
+ * run when there is one, then a week of runs ending at `around` (the newest
+ * run for the server, whose week is all there is).
+ */
 export const availableRuns = (
-	latestRun: Date,
-	interval: ModelInterval,
+	catalogue: RunCatalogue,
+	around: Date,
 	inProgressRun?: Date
 ): Date[] => {
-	const history = runHistory(latestRun, interval);
+	const end = new Date(Math.min(around.getTime(), catalogue.newest.getTime()));
+	const history = runHistory(end, catalogue.interval).filter(
+		(run) => run.getTime() >= catalogue.oldest.getTime()
+	);
 	return inProgressRun ? [inProgressRun, ...history] : history;
 };
 
@@ -59,8 +94,7 @@ export const availableRuns = (
 export const runForTime = (
 	time: Date,
 	current: Date | undefined,
-	latestRun: Date,
-	interval: ModelInterval,
+	catalogue: RunCatalogue,
 	inProgressRun?: Date
 ): Date => {
 	if (
@@ -70,8 +104,36 @@ export const runForTime = (
 	) {
 		return inProgressRun;
 	}
-	const nearest = closestModelRun(time, interval).getTime();
-	const history = runHistory(latestRun, interval);
-	const oldest = history[history.length - 1].getTime();
-	return new Date(Math.max(oldest, Math.min(nearest, latestRun.getTime())));
+	const nearest = closestModelRun(time, catalogue.interval).getTime();
+	return new Date(
+		Math.max(catalogue.oldest.getTime(), Math.min(nearest, catalogue.newest.getTime()))
+	);
+};
+
+/**
+ * The span the time selector's axis shows for the selected run: the server's
+ * whole week of runs up to the end of the newest one. An archive's full
+ * extent is years, so its axis is a window with a margin on either side of
+ * the run; the window (`previous`) stays put while the run stays inside it,
+ * so that scrubbing from run to run does not move the track under the pointer.
+ */
+export const axisSpan = (
+	catalogue: RunCatalogue,
+	runRange: [number, number],
+	latestLast: number,
+	now: number,
+	previous?: [number, number]
+): [number, number] => {
+	const [runFirst, runLast] = runRange;
+	if (catalogue.kind === 'archive') {
+		if (previous && runFirst >= previous[0] && runLast <= previous[1]) return previous;
+		const start = Math.max(catalogue.oldest.getTime(), runFirst - ARCHIVE_AXIS_MARGIN);
+		const end = Math.max(runLast, Math.min(latestLast, runLast + ARCHIVE_AXIS_MARGIN));
+		return [start, end];
+	}
+	// Seasonal (monthly) runs stay around; anything else is gone after a week
+	const kept =
+		catalogue.interval === 'monthly' ? catalogue.oldest.getTime() : now - MILLISECONDS_PER_WEEK;
+	const start = Math.min(runFirst, Math.max(catalogue.oldest.getTime(), kept));
+	return [start, Math.max(runLast, latestLast)];
 };

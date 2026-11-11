@@ -23,7 +23,7 @@ import { selectedDomain } from '#lib/stores/variables.js';
 import { MILLISECONDS_PER_HOUR, MILLISECONDS_PER_WEEK } from './constants';
 import { changeOMfileURL } from './layers';
 import { tryGetMetaData } from './metadata';
-import { availableRuns, runForTime } from './model-runs';
+import { availableRuns, runCatalogue, runForTime } from './model-runs';
 import { formatISOWithoutTimezone } from './time-format';
 import { findTimeStep } from './time-utils';
 import { updateUrl } from './url';
@@ -112,8 +112,9 @@ export const selectTime = async (date: Date): Promise<Date> => {
 			return get(time);
 		}
 	} else {
+		const catalogue = runCatalogue(domain, newest);
 		// Runs older than a week are gone from the server (seasonal models aside)
-		if (domain.model_interval !== 'monthly') {
+		if (catalogue.kind === 'server' && domain.model_interval !== 'monthly') {
 			const weekAgo = Date.now() - MILLISECONDS_PER_WEEK;
 			if (target.getTime() < weekAgo) {
 				toast.warning('Date selected too old, using 7 days ago time');
@@ -130,7 +131,7 @@ export const selectTime = async (date: Date): Promise<Date> => {
 		// Show the requested time right away; the run catches up below
 		time.set(target);
 
-		const run = runForTime(target, get(modelRun), newest, domain.model_interval, inProgressRun());
+		const run = runForTime(target, get(modelRun), catalogue, inProgressRun());
 		// The run whose metadata is loaded, not the one merely selected: a switch
 		// still loading must be waited for, or the time would snap to the old
 		// run's steps
@@ -200,7 +201,7 @@ export const stepModelRun = async (direction: 1 | -1): Promise<void> => {
 	const run = get(modelRun);
 	const newest = latestRun();
 	if (!run || !newest) return;
-	const runs = availableRuns(newest, get(selectedDomain).model_interval, inProgressRun());
+	const runs = availableRuns(runCatalogue(get(selectedDomain), newest), run, inProgressRun());
 	const index = runs.findIndex((candidate) => candidate.getTime() === run.getTime());
 	const next = index === -1 ? undefined : runs[index - direction];
 	if (!next) {

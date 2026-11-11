@@ -6,13 +6,14 @@
 	import { latest, metaJson, modelRun, modelRunLocked, now, time } from '#lib/stores/time.js';
 	import { selectedDomain } from '#lib/stores/variables.js';
 
+	import ArchiveJump from '#lib/components/time/archive-jump.svelte';
 	import ModelRunPicker from '#lib/components/time/model-run-picker.svelte';
 	import PrefetchButton from '#lib/components/time/prefetch-button.svelte';
 	import Timeline from '#lib/components/time/timeline.svelte';
 
-	import { MILLISECONDS_PER_WEEK } from '#lib/constants.js';
+	import { archiveDomain } from '#lib/archive.js';
 	import { throttle } from '#lib/helpers.js';
-	import { runHistory } from '#lib/model-runs.js';
+	import { axisSpan, runCatalogue } from '#lib/model-runs.js';
 	import { formatUTCOffset } from '#lib/time-format.js';
 	import {
 		jumpToNow,
@@ -29,9 +30,15 @@
 
 	// No run yet: the first metadata is still loading, nothing can be selected
 	const disabled = $derived($modelRun === undefined);
+	// Years of runs cannot all be on the axis: an archive gets date controls
+	const archive = $derived(archiveDomain($selectedDomain.value) !== undefined);
 
 	const validDates = $derived(validTimes($metaJson));
 	const steps = $derived(validDates.map((step) => step.getTime()));
+	const runRange = $derived<[number, number] | undefined>(
+		steps.length > 0 ? [steps[0], steps[steps.length - 1]] : undefined
+	);
+
 	// The timeline jumps instantly to a new axis object, so an axis that draws
 	// the same grid (clock tick, run switch) keeps the previous object
 	let lastAxis: TimelineAxis | undefined;
@@ -40,26 +47,27 @@
 		return lastAxis;
 	};
 
-	const runRange = $derived<[number, number] | undefined>(
-		steps.length > 0 ? [steps[0], steps[steps.length - 1]] : undefined
-	);
-
-	// The axis spans every time some kept run serves: the week of runs before
-	// the latest one, through the end of the newest run. Steps outside the
-	// selected run switch to the run that has them when selected.
+	// The axis spans the times the selected run's neighbours serve too (see
+	// axisSpan): steps outside the run switch to the run that has them. An
+	// archive's window is handed back in so it stays put between runs; another
+	// domain starts afresh.
+	let lastSpan: [number, number] | undefined;
+	let lastDomain: string | undefined;
 	const bounds = $derived.by(() => {
 		if (!$latest || !runRange) return undefined;
-		const latestRun = new Date($latest.reference_time);
-		const history = runHistory(latestRun, $selectedDomain.model_interval);
-		const oldestRun = history[history.length - 1].getTime();
-		// Monthly (seasonal) runs stay around; anything else is gone after a week
-		const kept =
-			$selectedDomain.model_interval === 'monthly'
-				? oldestRun
-				: $now.getTime() - MILLISECONDS_PER_WEEK;
-		const start = Math.min(runRange[0], Math.max(oldestRun, kept));
+		const catalogue = runCatalogue($selectedDomain, new Date($latest.reference_time));
 		const latestSteps = validTimes($latest);
-		const end = Math.max(runRange[1], latestSteps[latestSteps.length - 1]?.getTime() ?? 0);
+		if (lastDomain !== $selectedDomain.value) {
+			lastDomain = $selectedDomain.value;
+			lastSpan = undefined;
+		}
+		const [start, end] = (lastSpan = axisSpan(
+			catalogue,
+			runRange,
+			latestSteps[latestSteps.length - 1]?.getTime() ?? 0,
+			$now.getTime(),
+			lastSpan
+		));
 		const axis = stableAxis(
 			buildAxis(new Date(start), new Date(end), stepOf(validDates), new Date(steps[0]))
 		);
@@ -87,9 +95,31 @@
 		});
 		return () => timeSelectorActions.set({});
 	});
+
+	// The archive row makes the selector taller on phones, so the colour scale
+	// and the attribution read its top edge (`--time-selector-top`, measured
+	// from the bottom of the viewport) instead of assuming one height.
+	let container: HTMLDivElement | undefined = $state();
+	$effect(() => {
+		if (!container) return;
+		const element = container;
+		const reportTop = () => {
+			const top = window.innerHeight - element.getBoundingClientRect().top;
+			document.documentElement.style.setProperty('--time-selector-top', `${Math.round(top)}px`);
+		};
+		const observer = new ResizeObserver(reportTop);
+		observer.observe(element);
+		window.addEventListener('resize', reportTop);
+		return () => {
+			observer.disconnect();
+			window.removeEventListener('resize', reportTop);
+			document.documentElement.style.removeProperty('--time-selector-top');
+		};
+	});
 </script>
 
 <div
+	bind:this={container}
 	class="time-selector-container fixed inset-x-2 bottom-2 z-40 md:inset-x-auto md:bottom-5 md:left-1/2 md:w-[min(78vw,1100px)] md:-translate-x-1/2 {disabled
 		? 'cursor-not-allowed'
 		: ''}"
@@ -129,6 +159,14 @@
 				<ChevronRightIcon size={18} />
 			</button>
 
+			{#if archive}
+				<div
+					class="hidden shrink-0 flex-col justify-center gap-1 border-l border-foreground/10 px-2.5 md:flex"
+				>
+					<ArchiveJump />
+				</div>
+			{/if}
+
 			<!-- Run controls: beside the track on wide screens -->
 			<div
 				class="hidden shrink-0 flex-col justify-center gap-1 border-l border-foreground/10 pr-3 pl-2.5 md:flex"
@@ -149,5 +187,10 @@
 				<span class="tabular-nums">{utcOffset}</span>
 			</div>
 		</div>
+		{#if archive}
+			<div class="flex h-6 items-center border-t border-foreground/10 px-2 md:hidden">
+				<ArchiveJump />
+			</div>
+		{/if}
 	</div>
 </div>

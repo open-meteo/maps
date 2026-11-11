@@ -45,7 +45,7 @@
 {#if $preferences.showScale}
 	<div
 		class="absolute z-60 {!desktop.current
-			? 'bottom-22.5'
+			? 'bottom-[calc(var(--time-selector-top,82px)+8px)]'
 			: 'bottom-2.5'} left-2.5 flex items-end gap-0.5"
 	>
 		{#each legends as variables (variables[0])}
