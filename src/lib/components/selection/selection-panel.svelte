@@ -95,25 +95,16 @@
 		<div
 			class="bg-glass/75 dark:bg-glass/75 shrink-0 overflow-hidden rounded shadow-md backdrop-blur-sm"
 		>
-			{#if !$metaJson}
-				<div class="flex h-8.5 items-center px-3">
-					<div class="bg-primary/10 h-4 w-2/5 animate-pulse rounded"></div>
-				</div>
-			{:else}
-				<DomainSelect />
-			{/if}
+			<DomainSelect />
 		</div>
 
 		<div
 			class="bg-glass/75 dark:bg-glass/75 flex flex-col overflow-hidden rounded shadow-md backdrop-blur-sm"
 		>
 			{#if !$metaJson}
-				<div class="flex animate-pulse flex-col gap-2 p-2.5">
-					<div class="bg-primary/10 h-5 w-3/4 rounded"></div>
-					<div class="bg-primary/10 h-4 w-full rounded"></div>
-					<div class="bg-primary/10 h-4 w-full rounded"></div>
-					<div class="bg-primary/10 h-4 w-2/3 rounded"></div>
-				</div>
+				<p class="text-muted-foreground p-2.5 text-sm">
+					No model data available. Try selecting another model.
+				</p>
 			{:else}
 				<!-- h-auto: the default h-full is circular in this auto-height
 				     column and over-constrains it. The scroll limit lives on the
