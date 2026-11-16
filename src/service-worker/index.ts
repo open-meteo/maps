@@ -16,6 +16,48 @@ const ASSETS = [...immutable, ...prerendered].map(
 	({ path }) => new URL(path, self.registration.scope).pathname
 );
 
+// The native ICON cell indexes (up to 65 MB each) change only with the model's
+// grid, so they are kept in a cache of their own, which survives deploys, and
+// revalidated in the background (a HEAD request) once per worker start.
+const GRID_CACHE = 'grid-geometry';
+const isGridGeometry = (url: URL) =>
+	url.origin === 'https://openmeteo.s3.amazonaws.com' &&
+	/^\/data\/[^/]+\/static\/grid\.bin$/.test(url.pathname);
+const revalidated = new Set<string>();
+
+const gridGeometry = async (event: FetchEvent): Promise<Response> => {
+	const { request } = event;
+	const cache = await caches.open(GRID_CACHE);
+	const cached = await cache.match(request.url);
+	if (!cached) {
+		const response = await fetch(request);
+		// Stored while the page reads the other branch, which keeps its progress
+		if (response.ok) event.waitUntil(cache.put(request.url, response.clone()));
+		return response;
+	}
+	if (!revalidated.has(request.url)) {
+		revalidated.add(request.url);
+		event.waitUntil(revalidate(cache, request.url, cached));
+	}
+	return cached;
+};
+
+const revalidate = async (cache: Cache, url: string, cached: Response) => {
+	try {
+		const head = await fetch(url, { method: 'HEAD', mode: 'cors', cache: 'no-store' });
+		const changed = (name: string) => {
+			const current = head.headers.get(name);
+			return current !== null && current !== cached.headers.get(name);
+		};
+		if (head.ok && (changed('Last-Modified') || changed('Content-Length'))) {
+			const response = await fetch(url, { mode: 'cors', cache: 'no-store' });
+			if (response.ok) await cache.put(url, response);
+		}
+	} catch {
+		// offline: the cached copy stays
+	}
+};
+
 // No skipWaiting: a new worker only takes over once every tab of the previous
 // build is closed, so an open tab keeps the precached chunks it may still
 // lazy-load after a deploy has removed them from the server.
@@ -35,6 +77,11 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
 	const url = new URL(event.request.url);
+
+	if (event.request.method === 'GET' && isGridGeometry(url)) {
+		event.respondWith(gridGeometry(event));
+		return;
+	}
 
 	// Weather data, map tiles and geocoding come from other origins and are
 	// cached by the file-reader and the HTTP cache, so they bypass the worker.
