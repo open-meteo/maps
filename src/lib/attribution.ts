@@ -4,8 +4,7 @@
 import { browser } from '$app/env';
 
 const RAISED_CLASS = 'attrib-raised';
-// The chevron buttons stick out 28px on each side of the time selector's
-// border box, plus a little breathing room.
+// Breathing room between the attribution and the time selector's shadow.
 const OVERLAP_MARGIN = 36;
 
 let resizeObserver: ResizeObserver | undefined;
