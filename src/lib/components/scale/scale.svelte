@@ -11,7 +11,6 @@
 
 	import { variableLabel } from '#lib/components/selection/selection-utils.js';
 
-	import { sourceShowsContours } from '#lib/chart-types.js';
 	import { RAIN_SNOW, UNKNOWN_PHASE_COLOR } from '#lib/precipitation-phase/model.js';
 	import {
 		PHASE_CONTOUR_COLOR,
@@ -30,9 +29,7 @@
 	// variable's legend so units stay visible.
 	const legends = $derived.by(() => {
 		const rasters = $chartSources
-			.filter(
-				(source) => source.raster || (source.variable === RAIN_SNOW && sourceShowsContours(source))
-			)
+			.filter((source) => source.raster || (source.variable === RAIN_SNOW && source.contours))
 			.map((source) => source.variable);
 		const ordered = rasters.length
 			? [...rasters].sort((a, b) => (a === $variable ? -1 : b === $variable ? 1 : 0))
@@ -65,7 +62,7 @@
 		{#each legends as variables (variables[0])}
 			{#if variables[0] === RAIN_SNOW}
 				{@const phase = $chartSources.find((source) => source.variable === RAIN_SNOW)}
-				{@const boundary = phase && sourceShowsContours(phase)}
+				{@const boundary = phase?.contours}
 				<div class="flex items-end gap-1">
 					{#if phase?.raster}<ScaleLegend variables={['precipitation']} {compact} />{/if}
 					{#if phase?.raster || boundary}

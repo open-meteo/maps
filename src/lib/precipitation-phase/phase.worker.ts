@@ -123,9 +123,9 @@ const render = async (
 
 	const size = PHASE_TILE_SIZE;
 	const canvas = new OffscreenCanvas(size, size);
+	const context = canvas.getContext('2d')!;
 	if (!sample || !weather.rates) return canvas.transferToImageBitmap();
 	const inside = createClippingTester(clipping);
-	const context = canvas.getContext('2d')!;
 	const rgba = fill ? new ImageData(size, size) : undefined;
 	const wet = fill ? new Uint8Array(size * size) : undefined;
 	const colorOut: [number, number, number, number] = [0, 0, 0, 0];

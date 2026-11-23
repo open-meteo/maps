@@ -12,13 +12,12 @@
 	import { Label } from '#lib/components/ui/label/index.js';
 	import { Switch } from '#lib/components/ui/switch/index.js';
 
-	import { sourceShowsContours } from '#lib/chart-types.js';
 	import { changeOMfileURL } from '#lib/layers.js';
 	import { updateUrl } from '#lib/url.js';
 
 	import SettingsSection from './settings-section.svelte';
 
-	let contours = $derived($chartSources.some(sourceShowsContours));
+	let contours = $derived($chartSources.some((source) => source.contours));
 	let breakpoints = $derived($vectorOptions.breakpoints);
 
 	const handleContourIntervalChange = () => {

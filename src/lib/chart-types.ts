@@ -4,14 +4,13 @@
  * types it renders (raster fill, contour lines, wind arrows). Plain
  * single-variable selection is simply a chart with one raster source.
  */
-import { RAIN_SNOW } from '#lib/precipitation-phase/model.js';
 
 export interface ChartSource {
 	/** Full variable id incl. level suffix, e.g. `temperature_850hPa`. */
 	variable: string;
 	/** Show the raster (colour fill) layer for this source. Default: false */
 	raster?: boolean;
-	/** Show contour lines. Defaults on for precipitation phase and off for other sources. */
+	/** Show contour lines for this source. Default: false */
 	contours?: boolean;
 	/** Contour interval. Undefined = use the colour-scale breakpoints. */
 	contourInterval?: number;
@@ -36,9 +35,6 @@ export interface ChartSource {
 	 */
 	inlineVectors?: boolean;
 }
-
-export const sourceShowsContours = (source: ChartSource): boolean =>
-	source.contours ?? source.variable === RAIN_SNOW;
 
 export interface ChartPreset {
 	/** Unique identifier — also used as the `chart` URL parameter. */

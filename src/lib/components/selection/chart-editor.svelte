@@ -21,12 +21,13 @@
 	import { Input } from '#lib/components/ui/input/index.js';
 
 	import { getChartPreset } from '#lib/chart-presets.js';
-	import { type ChartSource, sourceShowsContours } from '#lib/chart-types.js';
 	import { RAIN_SNOW } from '#lib/precipitation-phase/model.js';
 	import { updateUrl } from '#lib/url.js';
 
 	import { variableLabel } from './selection-utils';
 	import SourceLevelSelect from './source-level-select.svelte';
+
+	import type { ChartSource } from '#lib/chart-types.js';
 
 	interface Props {
 		onAddVariable: () => void;
@@ -39,7 +40,7 @@
 
 	const toggle = (index: number, source: ChartSource, key: 'raster' | 'contours' | 'arrows') => {
 		updateSource(index, {
-			[key]: key === 'contours' ? !sourceShowsContours(source) : !source[key]
+			[key]: !source[key]
 		});
 		if (key !== 'raster' && source.variable !== RAIN_SNOW) syncVectorSetting(key);
 	};
@@ -159,11 +160,9 @@
 					<LayersIcon class="size-3.5" />
 				</button>
 				<button
-					class="cursor-pointer rounded-sm p-0.5 duration-150 {toggleClass(
-						sourceShowsContours(source)
-					)}"
+					class="cursor-pointer rounded-sm p-0.5 duration-150 {toggleClass(source.contours)}"
 					title={phaseSource ? 'Rain–snow boundary' : 'Contour lines'}
-					aria-pressed={sourceShowsContours(source)}
+					aria-pressed={!!source.contours}
 					onclick={() => toggle(i, source, 'contours')}
 				>
 					<WavesIcon class="size-3.5" />

@@ -38,7 +38,6 @@ import { vectorOptions as vO } from '#lib/stores/vector.js';
 
 import { parseSources, serializeSources } from '#lib/chart-encoding.js';
 import { getChartPreset } from '#lib/chart-presets.js';
-import { sourceShowsContours } from '#lib/chart-types.js';
 
 import {
 	CLIP_COUNTRIES_PARAM,
@@ -202,6 +201,7 @@ export const urlParamsToPreferences = () => {
 			// was persisted (its URL form is the `sources` param instead)
 			setPlainVariable(variableRaw);
 		} else if (get(v) === RAIN_SNOW) {
+			if (get(activeChart).presetId === RAIN_SNOW) applyPreset(RAIN_SNOW);
 			writeChartParams(url.searchParams, get(activeChart));
 		} else if (!isDefaultsPlainChart(get(activeChart))) {
 			// Persisted custom chart: reflect it in the URL so it survives reloads
@@ -251,7 +251,7 @@ export const getOmUrlForSource = (source: ChartSource): string | undefined => {
 	if (mode.current === 'dark') result += '&dark=true';
 	if (phase) {
 		if (!source.raster) result += '&phase_fill=false';
-		if (!sourceShowsContours(source)) result += '&contours=false';
+		if (source.contours) result += '&contours=true';
 	} else {
 		const vectorOptions = get(vO);
 		if (vectorOptions.grid) result += '&grid=true';
@@ -334,10 +334,9 @@ const writeChartParams = (params: URLSearchParams, chart: ChartState): void => {
 	params.delete('sources');
 	params.delete('variable');
 
-	if (isDefaultsPlainChart(chart)) {
+	if (chart.sources[0].variable !== RAIN_SNOW && isDefaultsPlainChart(chart)) {
 		const variable = chart.sources[0].variable;
-		if (variable === RAIN_SNOW) params.set('chart', RAIN_SNOW);
-		else if (variable !== completeDefaultValues.variable) params.set('variable', variable);
+		if (variable !== completeDefaultValues.variable) params.set('variable', variable);
 	} else if (chart.presetId) {
 		params.set('chart', chart.presetId);
 	} else {

@@ -6,13 +6,10 @@
  * source): `variable[:flags]` where flags is a concatenation of `r`
  * (raster), `a` (arrows), `c` optionally followed by the contour interval,
  * `i` (inline vectors), `o` followed by the opacity and `w` followed by the
- * contour line width. For precipitation phase, `n` disables the boundary
- * that is otherwise shown by default. A token without flags selects the raster.
+ * contour line width. A token without flags means raster only.
  * Example: `temperature_850hPa:rc2,geopotential_height_500hPa:c4w0.8`
  */
 import { chartPresets } from '#lib/chart-presets.js';
-import { sourceShowsContours } from '#lib/chart-types.js';
-import { RAIN_SNOW } from '#lib/precipitation-phase/model.js';
 
 import type { ChartPreset, ChartSource } from '#lib/chart-types.js';
 
@@ -21,9 +18,7 @@ const serializeSource = (source: ChartSource): string => {
 	if (source.raster) flags += 'r';
 	if (source.arrows) flags += 'a';
 	if (source.inlineVectors) flags += 'i';
-	if (source.variable === RAIN_SNOW) {
-		if (!sourceShowsContours(source)) flags += 'n';
-	} else if (source.contours) flags += 'c' + (source.contourInterval ?? '');
+	if (source.contours) flags += 'c' + (source.contourInterval ?? '');
 	if (source.opacity !== undefined) flags += 'o' + source.opacity;
 	if (source.lineWidth !== undefined) flags += 'w' + source.lineWidth;
 	// A raster-only source matches the no-flags default, keep the URL short
@@ -36,7 +31,7 @@ export const serializeSources = (sources: ChartSource[]): string =>
 
 const SOURCE_TOKEN_REGEX = /^(?<variable>[a-z0-9_]+)(?::(?<flags>[a-z0-9.]*))?$/i;
 const NUMBER = '[0-9]+(?:\\.[0-9]+)?';
-const FLAGS_REGEX = new RegExp(`^(?:r|a|i|n|c(?:${NUMBER})?|o${NUMBER}|w${NUMBER})*$`);
+const FLAGS_REGEX = new RegExp(`^(?:r|a|i|c(?:${NUMBER})?|o${NUMBER}|w${NUMBER})*$`);
 
 const parseSourceToken = (token: string): ChartSource | undefined => {
 	const match = token.match(SOURCE_TOKEN_REGEX);
@@ -49,17 +44,14 @@ const parseSourceToken = (token: string): ChartSource | undefined => {
 		return source;
 	}
 	if (!FLAGS_REGEX.test(flags)) return undefined;
-	const phase = source.variable === RAIN_SNOW;
-	if (flags.includes('n') && (!phase || flags.includes('c'))) return undefined;
 
 	if (flags.includes('r')) source.raster = true;
 	if (flags.includes('a')) source.arrows = true;
 	if (flags.includes('i')) source.inlineVectors = true;
 	const contourMatch = flags.match(/c(?<interval>[0-9]+(?:\.[0-9]+)?)?/);
-	if (phase && flags.includes('n')) source.contours = false;
-	else if (contourMatch) {
+	if (contourMatch) {
 		source.contours = true;
-		if (!phase && contourMatch.groups?.interval) {
+		if (contourMatch.groups?.interval) {
 			source.contourInterval = Number(contourMatch.groups.interval);
 		}
 	}
@@ -85,9 +77,7 @@ export const parseSources = (raw: string): ChartSource[] | undefined => {
 			existing.raster ||= source.raster;
 			existing.arrows ||= source.arrows;
 			existing.inlineVectors ||= source.inlineVectors;
-			if (source.variable === RAIN_SNOW) {
-				existing.contours = sourceShowsContours(existing) || sourceShowsContours(source);
-			} else existing.contours ||= source.contours;
+			existing.contours ||= source.contours;
 			existing.contourInterval ??= source.contourInterval;
 			existing.opacity ??= source.opacity;
 			existing.lineWidth ??= source.lineWidth;
@@ -106,9 +96,9 @@ export const parseSources = (raw: string): ChartSource[] | undefined => {
 const sourceEquals = (a: ChartSource, b: ChartSource): boolean =>
 	a.variable === b.variable &&
 	!a.raster === !b.raster &&
-	sourceShowsContours(a) === sourceShowsContours(b) &&
+	!a.contours === !b.contours &&
 	!a.arrows === !b.arrows &&
-	(!a.contours || a.variable === RAIN_SNOW || a.contourInterval === b.contourInterval) &&
+	(a.contours ? a.contourInterval === b.contourInterval : true) &&
 	a.opacity === b.opacity &&
 	a.lineWidth === b.lineWidth &&
 	!a.inlineVectors === !b.inlineVectors;

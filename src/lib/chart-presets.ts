@@ -191,7 +191,7 @@ export const chartPresets: ChartPreset[] = [
 		label: RAIN_SNOW_LABEL,
 		description: 'Precipitation intensity and the terrain snowline',
 		group: 'Precipitation',
-		sources: [{ variable: RAIN_SNOW, raster: true }]
+		sources: [{ variable: RAIN_SNOW, raster: true, contours: true }]
 	},
 	{
 		id: 'rain_mslp',

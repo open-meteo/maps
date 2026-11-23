@@ -13,7 +13,7 @@ describe('chartPresets', () => {
 		expect(getChartPreset('rain_snow')).toMatchObject({
 			label: 'Rain & Snow',
 			group: 'Precipitation',
-			sources: [{ variable: 'rain_snow', raster: true }]
+			sources: [{ variable: 'rain_snow', raster: true, contours: true }]
 		});
 		expect(popularVariables.some((entry) => entry.id === 'rain_snow')).toBe(false);
 	});

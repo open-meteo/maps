@@ -5,7 +5,6 @@ import { persisted } from 'svelte-persisted-store';
 
 import { cloneSources, matchPreset, sourcesEqual } from '#lib/chart-encoding.js';
 import { getChartPreset } from '#lib/chart-presets.js';
-import { sourceShowsContours } from '#lib/chart-types.js';
 import { DEFAULT_VARIABLE } from '#lib/constants.js';
 import { RAIN_SNOW } from '#lib/precipitation-phase/model.js';
 
@@ -21,7 +20,7 @@ interface SavedChartsState {
 
 /** A source with every layer type toggled off draws nothing on the map. */
 export const sourceDrawsSomething = (source: ChartSource): boolean =>
-	!!(source.raster || sourceShowsContours(source) || source.arrows);
+	!!(source.raster || source.contours || source.arrows);
 
 /**
  * First raster source, else the first source drawing anything, else the first
@@ -126,8 +125,8 @@ export const setContoursOnActiveChart = (enabled: boolean): void => {
 	const sources = cloneSources(chart.sources);
 	let changed = false;
 	for (const source of sources) {
-		if (sourceShowsContours(source) === enabled) continue;
-		source.contours = source.variable === RAIN_SNOW ? enabled : enabled || undefined;
+		if (!!source.contours === enabled) continue;
+		source.contours = enabled || undefined;
 		source.contourInterval =
 			enabled && source.variable !== RAIN_SNOW && !vo.breakpoints ? vo.contourInterval : undefined;
 		changed = true;

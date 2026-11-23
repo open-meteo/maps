@@ -1,3 +1,4 @@
+import { GridFactory } from '@openmeteo/weather-map-layer';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -13,6 +14,7 @@ import {
 	tilePoint
 } from '#lib/precipitation-phase/model.js';
 import { PHASE_CONTOUR_HALO, tracePhaseBoundary } from '#lib/precipitation-phase/phase-contour.js';
+import { weatherRanges } from '#lib/precipitation-phase/protocol.js';
 import { phaseTileHalo, shadeSnow } from '#lib/precipitation-phase/snow-pattern.js';
 
 describe('terrain precipitation phase', () => {
@@ -37,6 +39,31 @@ describe('terrain precipitation phase', () => {
 		expect(phaseInterpolation(null)).toBe('linear');
 		expect(phaseInterpolation('unsupported')).toBe('linear');
 	});
+
+	it.each(['nearest', 'linear', 'cubic', 'monotone'] as const)(
+		'samples %s from a small picker window at and between grid nodes',
+		(method) => {
+			const grid = { type: 'regular', nx: 40, ny: 40, lonMin: 0, latMin: 0, dx: 1, dy: 1 } as const;
+			const values = Float32Array.from({ length: grid.nx * grid.ny }, (_, i) => Math.sin(i / 15));
+			for (const [lon, lat] of [
+				[10, 15],
+				[10.25, 15.75]
+			]) {
+				const ranges = weatherRanges(grid, [lon, lat, lon, lat], method);
+				const [rows, cols] = ranges;
+				const slice = values.filter((_, i) => {
+					const y = Math.floor(i / grid.nx);
+					const x = i % grid.nx;
+					return y >= rows.start && y < rows.end && x >= cols.start && x < cols.end;
+				});
+				expect(slice.length).toBeLessThanOrEqual(36);
+				const expected = GridFactory.create(grid).getInterpolatedValue(values, lat, lon, method);
+				expect(GridFactory.create(grid, ranges).getInterpolatedValue(slice, lat, lon, method)).toBe(
+					expected
+				);
+			}
+		}
+	);
 
 	it('decodes fractional and below-sea-level elevations', () => {
 		expect(decodeTerrarium(128, 10, 128)).toBe(10.5);

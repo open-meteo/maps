@@ -33,7 +33,6 @@ import {
 import { type FrameChannel, FrameManager } from '#lib/frame-manager.js';
 import { rasterChannel, vectorChannel } from '#lib/om-layer-defs.js';
 
-import { sourceShowsContours } from './chart-types';
 import { refreshPopup } from './popup';
 import { RAIN_SNOW } from './precipitation-phase/model';
 import { PHASE_PROTOCOL } from './precipitation-phase/protocol';
@@ -64,7 +63,7 @@ const buildChannels = (): FrameChannel[] | undefined => {
 		if (terrainPhase && !get(availableVariables)?.includes(RAIN_SNOW)) continue;
 		const url = terrainPhase ? `${PHASE_PROTOCOL}://${omUrl}` : 'om://' + omUrl;
 
-		if (source.raster || (terrainPhase && sourceShowsContours(source))) {
+		if (source.raster || (terrainPhase && source.contours)) {
 			channels.push(
 				rasterChannel(
 					source.variable,

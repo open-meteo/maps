@@ -90,10 +90,36 @@ const parsePhaseUrl = (url: string, settings: OmProtocolSettings) => {
 	const colorBlend = target.searchParams.get('color_blend') === 'true';
 	const interpolation = phaseInterpolation(target.searchParams.get('interpolation'));
 	const fill = target.searchParams.get('phase_fill') !== 'false';
-	const contours = target.searchParams.get('contours') !== 'false';
+	const contours = target.searchParams.get('contours') === 'true';
 	const tile = target.searchParams.get('tile')?.split('/').map(Number);
 	const path = target.origin + target.pathname;
 	return { domain, deltaTimeHours, path, tile, dark, colorBlend, interpolation, fill, contours };
+};
+
+export const weatherRanges = (
+	grid: Domain['grid'],
+	bounds: Bounds,
+	interpolation: PhaseJob['interpolation']
+) => {
+	const cubic = interpolation === 'cubic' || interpolation === 'monotone';
+	if (grid.type === 'gaussian') {
+		// Reduced Gaussian grids are stored by latitude row. Cubic sampling
+		// needs the row on either side of the two used by linear sampling.
+		const row = cubic ? 180 / (2 * grid.gaussianGridLatitudeLines + 0.5) : 0;
+		return getRanges(grid, [bounds[0], bounds[1] - row, bounds[2], bounds[3] + row]);
+	}
+	const ranges = getRanges(grid, bounds);
+	const limits = [grid.ny, grid.nx];
+	const padding = cubic ? 1 : 0;
+	// A point exactly on a regular-grid node still needs the following
+	// neighbor: linear sampling reads it even when its weight is zero.
+	const regularPoint =
+		grid.type === 'regular' && bounds[0] === bounds[2] && bounds[1] === bounds[3];
+	const endPadding = regularPoint ? padding + 1 : padding;
+	return ranges.map(({ start, end }, axis) => ({
+		start: Math.max(0, start - padding),
+		end: Math.min(limits[axis], end + endPadding)
+	}));
 };
 
 // Keep completed weather slices for the most recently rendered tiles and
@@ -103,34 +129,20 @@ const loadWeather = async (
 	domain: Domain,
 	path: string,
 	deltaTimeHours: number,
-	tile: Tile,
+	bounds: Bounds,
 	settings: OmProtocolSettings,
 	signal: AbortSignal,
 	includeHeight: boolean,
-	halo: number,
 	interpolation: PhaseJob['interpolation']
 ): Promise<PhaseWeather> => {
-	const bounds = tileBounds(tile, halo);
 	const extent = GridFactory.create(domain.grid).getBounds();
 	const [west, south, east, north] = bounds;
 	if (west > extent[2] || south > extent[3] || east < extent[0] || north < extent[1]) {
 		return { domain };
 	}
 
-	let ranges = getRanges(domain.grid, bounds);
+	const ranges = weatherRanges(domain.grid, bounds, interpolation);
 	if (ranges.some(({ start, end }) => end <= start)) return { domain };
-	// A cubic stencil needs the neighboring grid cells on both sides of the
-	// tile window, including when a tile edge falls exactly on a grid point.
-	if (
-		(interpolation === 'cubic' || interpolation === 'monotone') &&
-		domain.grid.type !== 'gaussian'
-	) {
-		const limits = [domain.grid.ny, domain.grid.nx];
-		ranges = ranges.map(({ start, end }, axis) => ({
-			start: Math.max(0, start - 1),
-			end: Math.min(limits[axis], end + 1)
-		}));
-	}
 	const cacheKey = JSON.stringify([path, deltaTimeHours, ranges]);
 	const cached = weatherSlices.get(cacheKey);
 	if (cached?.rates && (!includeHeight || cached.heights)) {
@@ -188,11 +200,12 @@ const renderAtTile = async (
 		domain,
 		path,
 		deltaTimeHours,
-		tile,
+		point
+			? [point.lon, point.lat, point.lon, point.lat]
+			: tileBounds(tile, phaseTileHalo(tile.z, fill, contours) / PHASE_TILE_SIZE),
 		settings,
 		signal,
 		!!point,
-		point ? 0 : phaseTileHalo(tile.z, fill, contours) / PHASE_TILE_SIZE,
 		interpolation
 	);
 	const clipping = point ? undefined : getCachedResolvedClipping(settings.clippingOptions);
