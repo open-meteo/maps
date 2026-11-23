@@ -6,6 +6,8 @@ import { RAIN_SNOW, RAIN_SNOW_LABEL } from '#lib/precipitation-phase/model.js';
 
 import type { ChartPreset } from '#lib/chart-types.js';
 
+export const rainSnowSource = { variable: RAIN_SNOW, raster: true, contours: true } as const;
+
 export const chartPresets: ChartPreset[] = [
 	// ── Synoptic ─────────────────────────────────────────────────────
 	{
@@ -191,7 +193,7 @@ export const chartPresets: ChartPreset[] = [
 		label: RAIN_SNOW_LABEL,
 		description: 'Precipitation intensity and the terrain snowline',
 		group: 'Precipitation',
-		sources: [{ variable: RAIN_SNOW, raster: true, contours: true }]
+		sources: [rainSnowSource]
 	},
 	{
 		id: 'rain_mslp',

@@ -2,7 +2,14 @@ import { get } from 'svelte/store';
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { activeChart, setPlainVariable, setSources } from '#lib/stores/chart.js';
+import {
+	activeChart,
+	addSource,
+	applyPreset,
+	setPlainVariable,
+	setSources,
+	updateSource
+} from '#lib/stores/chart.js';
 import { metaJson } from '#lib/stores/time.js';
 import { availableVariables, domain } from '#lib/stores/variables.js';
 
@@ -61,6 +68,27 @@ describe('availableVariables', () => {
 		} finally {
 			domain.set(previousDomain);
 			metaJson.set(undefined);
+		}
+	});
+
+	it('enables the snowline on selection and restores it when the preset is reselected', () => {
+		const previous = get(activeChart);
+		try {
+			setPlainVariable(RAIN_SNOW);
+			expect(get(activeChart).sources[0].contours).toBe(true);
+			updateSource(0, { contours: false });
+			expect(get(activeChart).sources[0].contours).toBe(false);
+			applyPreset(RAIN_SNOW);
+			expect(get(activeChart).sources[0].contours).toBe(true);
+			setPlainVariable('temperature_2m');
+			addSource(RAIN_SNOW);
+			expect(get(activeChart).sources[1]).toEqual({
+				variable: RAIN_SNOW,
+				raster: true,
+				contours: true
+			});
+		} finally {
+			activeChart.set(previous);
 		}
 	});
 

@@ -4,7 +4,7 @@ import { variableHasDirections } from '@openmeteo/weather-map-layer';
 import { persisted } from 'svelte-persisted-store';
 
 import { cloneSources, matchPreset, sourcesEqual } from '#lib/chart-encoding.js';
-import { getChartPreset } from '#lib/chart-presets.js';
+import { getChartPreset, rainSnowSource } from '#lib/chart-presets.js';
 import { DEFAULT_VARIABLE } from '#lib/constants.js';
 import { RAIN_SNOW } from '#lib/precipitation-phase/model.js';
 
@@ -36,9 +36,10 @@ export const pickPrimaryVariable = (chart: ChartState): string => pickPrimarySou
 
 /** A single-source chart for `v`, applying the persisted vector defaults. */
 export const plainChartFor = (v: string): ChartState => {
+	if (v === RAIN_SNOW) return chartFromSources([{ ...rainSnowSource }]);
 	const vo = get(vectorOptions);
 	const source: ChartSource = { variable: v, raster: true };
-	if (vo.contours && v !== RAIN_SNOW) {
+	if (vo.contours) {
 		source.contours = true;
 		if (!vo.breakpoints) source.contourInterval = vo.contourInterval;
 	}
@@ -195,15 +196,19 @@ export const addSource = (v: string): void => {
 	const chart = get(activeChart);
 	if (chart.sources.some((source) => source.variable === v)) return;
 	const sources = cloneSources(chart.sources);
+	if (v === RAIN_SNOW) {
+		sources.push({ ...rainSnowSource });
+		activeChart.set(chartFromSources(sources));
+		return;
+	}
 	const arrows = get(vectorOptions).arrows && variableHasDirections(v);
 	// Second field defaults to contours when a raster fill is already shown,
 	// except for variables carrying directions: those default to arrows
-	const source: ChartSource =
-		v !== RAIN_SNOW && sources.some((s) => s.raster)
-			? arrows
-				? { variable: v, arrows: true }
-				: { variable: v, contours: true }
-			: { variable: v, raster: true };
+	const source: ChartSource = sources.some((s) => s.raster)
+		? arrows
+			? { variable: v, arrows: true }
+			: { variable: v, contours: true }
+		: { variable: v, raster: true };
 	if (arrows) source.arrows = true;
 	sources.push(source);
 	activeChart.set(chartFromSources(sources));
