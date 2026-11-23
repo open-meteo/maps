@@ -10,6 +10,7 @@ import {
 import { availableVariables } from '#lib/stores/variables.js';
 
 import { type PopularVariable, getChartPreset, popularVariables } from '#lib/chart-presets.js';
+import { RAIN_SNOW, RAIN_SNOW_LABEL } from '#lib/precipitation-phase/model.js';
 
 export interface VariableEntry {
 	value: string;
@@ -24,7 +25,9 @@ export const isStandaloneVariable = (value: string): boolean =>
 	!/_v_(?:component|current)/.test(value) && !value.includes('_direction');
 
 export const variableLabel = (value: string): string =>
-	variableOptions.find((option) => option.value === value)?.label ?? value;
+	value === RAIN_SNOW
+		? RAIN_SNOW_LABEL
+		: (variableOptions.find((option) => option.value === value)?.label ?? value);
 
 /**
  * Search ranking for the command lists, replacing the default fuzzy matcher:

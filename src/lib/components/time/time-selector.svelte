@@ -24,7 +24,7 @@
 	} from '#lib/constants.js';
 	import { throttle } from '#lib/helpers.js';
 	import { changeOMfileURL } from '#lib/layers.js';
-	import { tryGetMetaData } from '#lib/metadata.js';
+	import { setRunMetadata, tryGetMetaData } from '#lib/metadata.js';
 	import {
 		formatISOWithoutTimezone,
 		formatLocalDate,
@@ -259,15 +259,22 @@
 		}
 
 		if (!$modelRunLocked && $modelRun && setToModelRun.getTime() !== $modelRun.getTime()) {
-			$modelRun = new Date(setToModelRun);
+			const requestedRun = new Date(setToModelRun);
+			const requestedDomain = $selectedDomain.value;
+			$modelRun = requestedRun;
 			const meta = await tryGetMetaData();
+			if (
+				$selectedDomain.value !== requestedDomain ||
+				$modelRun?.getTime() !== requestedRun.getTime()
+			)
+				return;
 			if (meta) {
-				$metaJson = meta;
+				setRunMetadata(meta);
 			} else {
 				// Failed load already toasted; fall back to the latest run
 				$time = new Date(latestReferenceTime);
 				$modelRun = new Date(latestReferenceTime);
-				$metaJson = $latest;
+				setRunMetadata($latest);
 			}
 			if ($modelRun.getTime() !== latestReferenceTime.getTime()) {
 				updateUrl('model_run', formatISOWithoutTimezone($modelRun));
@@ -309,8 +316,11 @@
 		const previousLocked = $modelRunLocked;
 		$loading = true;
 		$modelRunLocked = true;
+		const requestedDomain = $selectedDomain.value;
 		$modelRun = step;
 		const meta = await tryGetMetaData();
+		if ($selectedDomain.value !== requestedDomain || $modelRun?.getTime() !== step.getTime())
+			return;
 		if (!meta) {
 			// Failed load already toasted; put the selection back where it was
 			$modelRun = previousModelRun;
@@ -318,7 +328,7 @@
 			$loading = false;
 			return;
 		}
-		$metaJson = meta;
+		setRunMetadata(meta);
 
 		let closestTime = new SvelteDate($modelRun);
 		for (const vT of meta.valid_times) {

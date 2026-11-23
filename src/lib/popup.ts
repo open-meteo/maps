@@ -29,8 +29,12 @@ import { selectedDomain } from '#lib/stores/variables.js';
 import { defaultArrowStyle } from './chart-styles';
 import { textWhite } from './helpers';
 import { getActiveOmUrls } from './layers';
+import { classifyPhase, phaseLabels } from './precipitation-phase/model';
+import { getPhasePoint, isPhaseUrl } from './precipitation-phase/protocol';
 import { terraDrawActive } from './stores/clipping';
-import { desktop, opacity } from './stores/preferences';
+import { colorBlend, desktop, opacity } from './stores/preferences';
+
+import type { Phase } from './precipitation-phase/model';
 
 let el: HTMLDivElement | undefined;
 let wrapperDiv: HTMLDivElement | undefined;
@@ -412,90 +416,144 @@ const adjustStemForExtras = (): void => {
 	stemDiv.style.height = `${STEM_BASE_HEIGHT + extraHeight}px`;
 };
 
-/**
- * Values of the chart's secondary sources (everything except the primary
- * source shown in the coloured chip), one `label value unit` line each.
- * `seq` drops the DOM write when a newer update superseded this one.
- */
-const updateExtraSources = async (
+interface PopupLine {
+	text: string;
+	small?: boolean;
+	muted?: boolean;
+}
+
+const setExtraLines = (lines: PopupLine[]): void => {
+	if (!extrasDiv) return;
+	extrasDiv.replaceChildren(
+		...lines.map((line) => {
+			const lineDiv = document.createElement('div');
+			lineDiv.classList.add('popup-extra-line');
+			if (line.small) lineDiv.classList.add('popup-extra-line-sm');
+			if (line.muted) lineDiv.classList.add('popup-extra-line-muted');
+			lineDiv.innerText = line.text;
+			return lineDiv;
+		})
+	);
+	adjustStemForExtras();
+};
+
+const phaseDetails = (point: Awaited<ReturnType<typeof getPhasePoint>>): PopupLine[] => {
+	const units = get(unitPreferences);
+	const line = (label: string, value: number, unit: string, precision: number): PopupLine => {
+		if (!Number.isFinite(value)) return { text: `${label}: –`, muted: true };
+		const display = convertValue(value, unit, units);
+		return { text: `${label}: ${display.toFixed(precision)} ${getDisplayUnit(unit, units)}` };
+	};
+	return [
+		line('Snowfall height', point.height, 'm', 0),
+		line('Surface elevation', point.elevation, 'm', 0),
+		line(
+			`Total precipitation (${point.intervalHours} h)`,
+			point.rate * point.intervalHours,
+			'mm',
+			2
+		)
+	];
+};
+
+/** Values of the chart's secondary sources, in chart order. */
+const getExtraLines = async (
 	coordinates: maplibregl.LngLat,
 	primaryVariable: string,
-	seq: number
-): Promise<void> => {
-	if (!extrasDiv) return;
-
+	signal: AbortSignal
+): Promise<PopupLine[]> => {
 	const activeUrls = getActiveOmUrls();
 	const extras = get(chartSources).filter(
 		(source) => source.variable !== primaryVariable && activeUrls.has(source.variable)
 	);
+	if (!extras.length) return [];
 
-	if (!extras.length) {
-		extrasDiv.replaceChildren();
-		adjustStemForExtras();
-		return;
-	}
-
-	const omProtocolSettingsState = get(omProtocolSettings);
+	const settings = get(omProtocolSettings);
 	const units = get(unitPreferences);
-
-	// A composite is sampled from the sub-domains active at the map zoom, so
-	// the value matches the pixel under the cursor.
+	// Sample a composite from the sub-domains active at the map zoom.
 	const zoom = get(m)?.getZoom();
 	const lines = await Promise.all(
-		extras.map(async (source) => {
+		extras.map(async (source): Promise<PopupLine[]> => {
 			try {
-				const { value } = await getValueFromLatLong(
-					coordinates.lat,
-					coordinates.lng,
-					activeUrls.get(source.variable) as string,
-					zoom
-				);
+				const url = activeUrls.get(source.variable)!;
+				const sample = await getPopupSample(coordinates, url, zoom, signal);
+				const phase = isPhaseUrl(url);
+				const details = sample.phasePoint ? phaseDetails(sample.phasePoint) : [];
 				const colorScale = getColorScale(
-					source.variable,
+					phase ? 'precipitation' : source.variable,
 					mode.current === 'dark',
-					omProtocolSettingsState.colorScales
+					settings.colorScales
 				);
-				const label = shortLabel(source.variable);
-				const unit = getDisplayUnit(colorScale.unit, units);
-				if (!isFinite(value)) return { text: `${label}: –`, small: false, muted: true };
-				const displayValue = convertValue(value, colorScale.unit, units);
-				return {
-					text: `${label}: ${displayValue.toFixed(1)} ${unit}`,
-					small: isPressureOrHeight(source.variable),
-					// A line whose value displays as zero is context, not signal
-					muted: Math.round(Math.abs(displayValue) * 10) === 0
-				};
+				const label = phase
+					? sample.phase
+						? phaseLabels[sample.phase]
+						: 'Precip'
+					: shortLabel(source.variable);
+				if (!Number.isFinite(sample.value))
+					return [{ text: `${label}: –`, muted: true }, ...details];
+				const displayValue = convertValue(sample.value, colorScale.unit, units);
+				return [
+					{
+						text: `${label}: ${displayValue.toFixed(1)} ${getDisplayUnit(colorScale.unit, units)}`,
+						small: isPressureOrHeight(source.variable),
+						muted: Math.round(Math.abs(displayValue) * 10) === 0
+					},
+					...details
+				];
 			} catch {
-				return undefined;
+				return [];
 			}
 		})
 	);
-
-	if (seq !== popupUpdateSeq) return;
-	extrasDiv.replaceChildren(
-		...lines
-			.filter((line) => line !== undefined)
-			.map((line) => {
-				const lineDiv = document.createElement('div');
-				lineDiv.classList.add('popup-extra-line');
-				if (line.small) lineDiv.classList.add('popup-extra-line-sm');
-				if (line.muted) lineDiv.classList.add('popup-extra-line-muted');
-				lineDiv.innerText = line.text;
-				return lineDiv;
-			})
-	);
-	adjustStemForExtras();
+	return lines.flat();
 };
 
 // Monotonic token: only the latest updatePopupContent call may write the DOM,
 // so a slow earlier lookup cannot overwrite a newer position's values.
 let popupUpdateSeq = 0;
+let phaseLookup: AbortController | undefined;
+
+interface PopupSample {
+	value: number;
+	direction?: number;
+	phase?: Phase;
+	phasePoint?: Awaited<ReturnType<typeof getPhasePoint>>;
+}
+
+const getPopupSample = async (
+	coordinates: maplibregl.LngLat,
+	url: string,
+	zoom: number | undefined,
+	signal: AbortSignal
+): Promise<PopupSample> => {
+	if (!isPhaseUrl(url)) return getValueFromLatLong(coordinates.lat, coordinates.lng, url, zoom);
+	try {
+		const point = await getPhasePoint(
+			url,
+			coordinates.lat,
+			coordinates.lng,
+			zoom ?? 0,
+			get(omProtocolSettings),
+			signal
+		);
+		return {
+			value: point.rate,
+			phase: point.rate > 0 ? classifyPhase(point.elevation, point.height) : undefined,
+			phasePoint: point
+		};
+	} catch {
+		return { value: NaN };
+	}
+};
 
 /** Update the popup content for the given coordinates without moving the marker. */
 const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void> => {
 	if (!el || !contentDiv || !valueSpan || !unitSpan || !elevationSpan) return;
 
 	const seq = ++popupUpdateSeq;
+	phaseLookup?.abort();
+	phaseLookup = new AbortController();
+	const { signal } = phaseLookup;
 	const map = get(m);
 
 	const elevation = map?.queryTerrainElevation(coordinates);
@@ -517,54 +575,63 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 		unitSpan.innerText = '';
 		elevationSpan.innerText = hasElevation ? `${Math.round(elevation)}m` : '';
 		elevationSpan.style.color = '';
-		await updateExtraSources(coordinates, primary.variable, seq);
+		const extras = await getExtraLines(coordinates, primary.variable, signal);
+		if (seq === popupUpdateSeq) setExtraLines(extras);
 		return;
 	}
 
 	// Primary value and extra lines resolve concurrently. A composite is
 	// sampled from the sub-domains active at the map zoom, like its tiles.
-	const [{ value, direction }] = await Promise.all([
-		getValueFromLatLong(coordinates.lat, coordinates.lng, activeUrl, map?.getZoom()),
-		updateExtraSources(coordinates, primary.variable, seq)
+	const [sample, extras] = await Promise.all([
+		getPopupSample(coordinates, activeUrl, map?.getZoom(), signal),
+		getExtraLines(coordinates, primary.variable, signal)
 	]);
 	if (seq !== popupUpdateSeq) return;
 
-	if (isFinite(value)) {
-		const omProtocolSettingsState = get(omProtocolSettings);
-		const clippingOptions = omProtocolSettingsState.clippingOptions;
+	const { value, direction, phase, phasePoint } = sample;
+	const settings = get(omProtocolSettings);
+	const clippingOptions = settings.clippingOptions;
+	if (clippingOptions !== cachedClippingOptionsRef) {
+		cachedClippingOptionsRef = clippingOptions;
+		cachedClippingTester = createClippingTester(getCachedResolvedClipping(clippingOptions));
+	}
+	const outsideClip =
+		cachedClippingTester && !cachedClippingTester(coordinates.lng, coordinates.lat);
+	if (outsideClip && (Number.isFinite(value) || phasePoint)) {
+		contentDiv.style.backgroundColor = '';
+		contentDiv.style.color = '';
+		setArrow(undefined, 0);
+		valueSpan.innerText = 'Outside clip';
+		unitSpan.innerText = '';
+		elevationSpan.innerText = hasElevation ? `${Math.round(elevation)}m` : '';
+		elevationSpan.style.color = '';
+		setExtraLines(extras);
+		return;
+	}
 
-		if (clippingOptions) {
-			if (clippingOptions !== cachedClippingOptionsRef) {
-				cachedClippingOptionsRef = clippingOptions;
-				cachedClippingTester = createClippingTester(getCachedResolvedClipping(clippingOptions));
-			}
-			if (cachedClippingTester && !cachedClippingTester(coordinates.lng, coordinates.lat)) {
-				contentDiv.style.backgroundColor = '';
-				contentDiv.style.color = '';
-				setArrow(undefined, 0);
-				valueSpan.innerText = 'Outside clip';
-				unitSpan.innerText = '';
-				elevationSpan.innerText = hasElevation ? `${Math.round(elevation)}m` : '';
-				return;
-			}
-		}
-
+	setExtraLines(phasePoint ? [...phaseDetails(phasePoint), ...extras] : extras);
+	if (Number.isFinite(value)) {
 		const isDark = mode.current === 'dark';
-		const colorScale = getColorScale(primary.variable, isDark, omProtocolSettingsState.colorScales);
-		const color = getColor(colorScale, value);
-
-		const popupOpacity =
-			color[3] && color[3] ? (color[3] * get(opacity)) / 100 : get(opacity) / 100;
+		const phaseStyle = isPhaseUrl(activeUrl);
+		const colorScale = getColorScale(
+			phaseStyle ? 'precipitation' : primary.variable,
+			isDark,
+			settings.colorScales
+		);
+		const color = getColor(colorScale, value, phaseStyle && get(colorBlend));
+		const popupOpacity = ((color[3] || 1) * get(opacity)) / 100;
 
 		contentDiv.style.backgroundColor = `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${popupOpacity})`;
-		contentDiv.style.color = textWhite(color, isDark) ? 'white' : 'black';
+		const textColor = textWhite(color, isDark) ? 'white' : 'black';
+		contentDiv.style.color = textColor;
 		const units = get(unitPreferences);
 		const displayValue = convertValue(value, colorScale.unit, units);
 		setArrow(direction, value);
 		valueSpan.innerText = displayValue.toFixed(1);
-		unitSpan.innerText = getDisplayUnit(colorScale.unit, units);
-		elevationSpan.innerText = hasElevation ? `${Math.round(elevation)}m` : '';
-		elevationSpan.style.color = textWhite(color, isDark) ? 'white' : 'black';
+		const unit = getDisplayUnit(colorScale.unit, units);
+		unitSpan.innerText = phase ? `${unit} · ${phaseLabels[phase]}` : unit;
+		elevationSpan.innerText = hasElevation && !phasePoint ? `${Math.round(elevation)}m` : '';
+		elevationSpan.style.color = textColor;
 	} else {
 		contentDiv.style.backgroundColor = '';
 		contentDiv.style.color = '';
@@ -587,7 +654,7 @@ const updatePopupContent = async (coordinates: maplibregl.LngLat): Promise<void>
 
 		valueSpan.innerText = insideDomain ? 'No data' : 'Outside domain';
 		unitSpan.innerText = '';
-		elevationSpan.innerText = hasElevation ? `${Math.round(elevation)}m` : '';
+		elevationSpan.innerText = hasElevation && !phasePoint ? `${Math.round(elevation)}m` : '';
 		elevationSpan.style.color = '';
 	}
 };

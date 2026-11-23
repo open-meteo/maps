@@ -5,7 +5,9 @@ import { persisted } from 'svelte-persisted-store';
 
 import { cloneSources, matchPreset, sourcesEqual } from '#lib/chart-encoding.js';
 import { getChartPreset } from '#lib/chart-presets.js';
+import { sourceShowsContours } from '#lib/chart-types.js';
 import { DEFAULT_VARIABLE } from '#lib/constants.js';
+import { RAIN_SNOW } from '#lib/precipitation-phase/model.js';
 
 import { variable } from './variables';
 import { vectorOptions } from './vector';
@@ -19,7 +21,7 @@ interface SavedChartsState {
 
 /** A source with every layer type toggled off draws nothing on the map. */
 export const sourceDrawsSomething = (source: ChartSource): boolean =>
-	!!(source.raster || source.contours || source.arrows);
+	!!(source.raster || sourceShowsContours(source) || source.arrows);
 
 /**
  * First raster source, else the first source drawing anything, else the first
@@ -37,7 +39,7 @@ export const pickPrimaryVariable = (chart: ChartState): string => pickPrimarySou
 export const plainChartFor = (v: string): ChartState => {
 	const vo = get(vectorOptions);
 	const source: ChartSource = { variable: v, raster: true };
-	if (vo.contours) {
+	if (vo.contours && v !== RAIN_SNOW) {
 		source.contours = true;
 		if (!vo.breakpoints) source.contourInterval = vo.contourInterval;
 	}
@@ -103,7 +105,13 @@ export const setSources = (sources: ChartSource[]): void => {
  */
 export const applyVectorDefaultsToActiveChart = (): void => {
 	const chart = get(activeChart);
-	if (chart.sources.length !== 1 || chart.presetId || chart.name) return;
+	if (
+		chart.sources.length !== 1 ||
+		chart.presetId ||
+		chart.name ||
+		chart.sources[0].variable === RAIN_SNOW
+	)
+		return;
 	activeChart.set(plainChartFor(chart.sources[0].variable));
 };
 
@@ -118,9 +126,10 @@ export const setContoursOnActiveChart = (enabled: boolean): void => {
 	const sources = cloneSources(chart.sources);
 	let changed = false;
 	for (const source of sources) {
-		if (!!source.contours === enabled) continue;
-		source.contours = enabled || undefined;
-		source.contourInterval = enabled && !vo.breakpoints ? vo.contourInterval : undefined;
+		if (sourceShowsContours(source) === enabled) continue;
+		source.contours = source.variable === RAIN_SNOW ? enabled : enabled || undefined;
+		source.contourInterval =
+			enabled && source.variable !== RAIN_SNOW && !vo.breakpoints ? vo.contourInterval : undefined;
 		changed = true;
 	}
 	if (changed) activeChart.set(chartFromSources(sources));
@@ -190,11 +199,12 @@ export const addSource = (v: string): void => {
 	const arrows = get(vectorOptions).arrows && variableHasDirections(v);
 	// Second field defaults to contours when a raster fill is already shown,
 	// except for variables carrying directions: those default to arrows
-	const source: ChartSource = sources.some((s) => s.raster)
-		? arrows
-			? { variable: v, arrows: true }
-			: { variable: v, contours: true }
-		: { variable: v, raster: true };
+	const source: ChartSource =
+		v !== RAIN_SNOW && sources.some((s) => s.raster)
+			? arrows
+				? { variable: v, arrows: true }
+				: { variable: v, contours: true }
+			: { variable: v, raster: true };
 	if (arrows) source.arrows = true;
 	sources.push(source);
 	activeChart.set(chartFromSources(sources));

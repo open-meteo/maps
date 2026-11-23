@@ -1,12 +1,21 @@
 import { variableHasDirections } from '@openmeteo/weather-map-layer';
 import { describe, expect, it } from 'vitest';
 
-import { chartPresets, popularVariables } from '#lib/chart-presets.js';
+import { chartPresets, getChartPreset, popularVariables } from '#lib/chart-presets.js';
 
 describe('chartPresets', () => {
 	it('has unique ids', () => {
 		const ids = chartPresets.map((preset) => preset.id);
 		expect(new Set(ids).size).toBe(ids.length);
+	});
+
+	it('lists Rain & Snow as a Precipitation chart', () => {
+		expect(getChartPreset('rain_snow')).toMatchObject({
+			label: 'Rain & Snow',
+			group: 'Precipitation',
+			sources: [{ variable: 'rain_snow', raster: true }]
+		});
+		expect(popularVariables.some((entry) => entry.id === 'rain_snow')).toBe(false);
 	});
 
 	it('has unique variables per chart and at least one layer per source', () => {

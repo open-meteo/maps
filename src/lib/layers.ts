@@ -21,7 +21,7 @@ import { chartSources } from '#lib/stores/chart.js';
 import { map as m } from '#lib/stores/map.js';
 import { loading, opacity, preferences as p } from '#lib/stores/preferences.js';
 import { modelRun, time } from '#lib/stores/time.js';
-import { selectedDomain } from '#lib/stores/variables.js';
+import { availableVariables, selectedDomain } from '#lib/stores/variables.js';
 import { vectorOptions as vO } from '#lib/stores/vector.js';
 
 import {
@@ -33,7 +33,10 @@ import {
 import { type FrameChannel, FrameManager } from '#lib/frame-manager.js';
 import { rasterChannel, vectorChannel } from '#lib/om-layer-defs.js';
 
+import { sourceShowsContours } from './chart-types';
 import { refreshPopup } from './popup';
+import { RAIN_SNOW } from './precipitation-phase/model';
+import { PHASE_PROTOCOL } from './precipitation-phase/protocol';
 import { omProtocolSettings } from './stores/om-protocol-settings';
 import { getOmUrlForSource } from './url';
 
@@ -57,9 +60,11 @@ const buildChannels = (): FrameChannel[] | undefined => {
 	for (const source of sources) {
 		const omUrl = getOmUrlForSource(source);
 		if (!omUrl) return undefined;
-		const url = 'om://' + omUrl;
+		const terrainPhase = source.variable === RAIN_SNOW;
+		if (terrainPhase && !get(availableVariables)?.includes(RAIN_SNOW)) continue;
+		const url = terrainPhase ? `${PHASE_PROTOCOL}://${omUrl}` : 'om://' + omUrl;
 
-		if (source.raster) {
+		if (source.raster || (terrainPhase && sourceShowsContours(source))) {
 			channels.push(
 				rasterChannel(
 					source.variable,
@@ -69,7 +74,7 @@ const buildChannels = (): FrameChannel[] | undefined => {
 				)
 			);
 		}
-		if (source.contours || source.arrows || vectorOptions.grid) {
+		if (!terrainPhase && (source.contours || source.arrows || vectorOptions.grid)) {
 			channels.push(
 				vectorChannel(source.variable, url, {
 					contours: !!source.contours,

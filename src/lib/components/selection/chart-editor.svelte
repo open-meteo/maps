@@ -21,12 +21,12 @@
 	import { Input } from '#lib/components/ui/input/index.js';
 
 	import { getChartPreset } from '#lib/chart-presets.js';
+	import { type ChartSource, sourceShowsContours } from '#lib/chart-types.js';
+	import { RAIN_SNOW } from '#lib/precipitation-phase/model.js';
 	import { updateUrl } from '#lib/url.js';
 
 	import { variableLabel } from './selection-utils';
 	import SourceLevelSelect from './source-level-select.svelte';
-
-	import type { ChartSource } from '#lib/chart-types.js';
 
 	interface Props {
 		onAddVariable: () => void;
@@ -38,8 +38,10 @@
 	let saveName = $state('');
 
 	const toggle = (index: number, source: ChartSource, key: 'raster' | 'contours' | 'arrows') => {
-		updateSource(index, { [key]: !source[key] });
-		if (key !== 'raster') syncVectorSetting(key);
+		updateSource(index, {
+			[key]: key === 'contours' ? !sourceShowsContours(source) : !source[key]
+		});
+		if (key !== 'raster' && source.variable !== RAIN_SNOW) syncVectorSetting(key);
 	};
 
 	/**
@@ -48,7 +50,9 @@
 	 * inherits. Their URL params carry the same names.
 	 */
 	const syncVectorSetting = (key: 'contours' | 'arrows') => {
-		const on = get(activeChart).sources.some((source) => source[key]);
+		const on = get(activeChart).sources.some(
+			(source) => source.variable !== RAIN_SNOW && source[key]
+		);
 		if ($vectorOptions[key] === on) return;
 		$vectorOptions[key] = on;
 		updateUrl(key, String(on));
@@ -110,6 +114,7 @@
 <div class="flex flex-col gap-1 py-1 pb-1.5">
 	{#each $activeChart.sources as source, i (source.variable)}
 		{@const arrowsSupported = variableHasDirections(source.variable)}
+		{@const phaseSource = source.variable === RAIN_SNOW}
 		<div class="flex h-6 items-center gap-1 pr-1 pl-3 text-sm">
 			<div class="truncate" title={source.variable}>
 				{baseLabel(source.variable)}
@@ -119,7 +124,7 @@
 				onSelect={(newVariable) => updateSource(i, { variable: newVariable })}
 			/>
 			<div class="ml-auto flex shrink-0 items-center gap-0.5">
-				{#if source.contours}
+				{#if !phaseSource && source.contours}
 					<Input
 						type="number"
 						step="any"
@@ -154,9 +159,11 @@
 					<LayersIcon class="size-3.5" />
 				</button>
 				<button
-					class="cursor-pointer rounded-sm p-0.5 duration-150 {toggleClass(source.contours)}"
-					title="Contour lines"
-					aria-pressed={!!source.contours}
+					class="cursor-pointer rounded-sm p-0.5 duration-150 {toggleClass(
+						sourceShowsContours(source)
+					)}"
+					title={phaseSource ? 'Rain–snow boundary' : 'Contour lines'}
+					aria-pressed={sourceShowsContours(source)}
 					onclick={() => toggle(i, source, 'contours')}
 				>
 					<WavesIcon class="size-3.5" />

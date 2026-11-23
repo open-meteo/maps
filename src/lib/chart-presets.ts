@@ -2,6 +2,8 @@
  * Predefined chart presets and the curated list of popular variables shown
  * directly in the selection panel.
  */
+import { RAIN_SNOW, RAIN_SNOW_LABEL } from '#lib/precipitation-phase/model.js';
+
 import type { ChartPreset } from '#lib/chart-types.js';
 
 export const chartPresets: ChartPreset[] = [
@@ -184,6 +186,13 @@ export const chartPresets: ChartPreset[] = [
 		]
 	},
 	// ── Precipitation ───────────────────────────────────────────────────
+	{
+		id: RAIN_SNOW,
+		label: RAIN_SNOW_LABEL,
+		description: 'Precipitation intensity and the terrain snowline',
+		group: 'Precipitation',
+		sources: [{ variable: RAIN_SNOW, raster: true }]
+	},
 	{
 		id: 'rain_mslp',
 		label: 'Precipitation + MSLP',

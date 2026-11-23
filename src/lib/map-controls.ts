@@ -21,6 +21,8 @@ import { BEFORE_LAYER_RASTER, HILLSHADE_LAYER } from '#lib/constants.js';
 
 import { addOmFileLayers } from './layers';
 import { LOCATION_ZOOM, clearLocation } from './location';
+import { MAPTERHORN_TILEJSON } from './precipitation-phase/model';
+import { PHASE_PROTOCOL, precipitationPhaseProtocol } from './precipitation-phase/protocol';
 import { updateUrl } from './url';
 
 import type { RequestParameters } from 'maplibre-gl';
@@ -32,6 +34,11 @@ export const createMap = async (container: HTMLElement) => {
 
 	maplibregl.addProtocol('om', (params: RequestParameters, abortController: AbortController) =>
 		omProtocol(params, abortController, get(omProtocolSettings))
+	);
+
+	maplibregl.addProtocol(
+		PHASE_PROTOCOL,
+		precipitationPhaseProtocol(() => get(omProtocolSettings))
 	);
 
 	const style = await getStyle();
@@ -131,7 +138,7 @@ export const addTerrainSource = (map: maplibregl.Map, name: string = 'terrainSou
 
 	map.addSource(name, {
 		type: 'raster-dem',
-		url: 'https://tiles.mapterhorn.com/tilejson.json'
+		url: MAPTERHORN_TILEJSON
 	});
 };
 

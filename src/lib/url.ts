@@ -38,6 +38,7 @@ import { vectorOptions as vO } from '#lib/stores/vector.js';
 
 import { parseSources, serializeSources } from '#lib/chart-encoding.js';
 import { getChartPreset } from '#lib/chart-presets.js';
+import { sourceShowsContours } from '#lib/chart-types.js';
 
 import {
 	CLIP_COUNTRIES_PARAM,
@@ -45,6 +46,7 @@ import {
 	serializeClipCountriesParam
 } from './clipping';
 import { BASE_URI, fmtModelRun, fmtSelectedTime, hashValue } from './helpers';
+import { RAIN_SNOW, precipitationInterval } from './precipitation-phase/model';
 import { clippingCountryCodes } from './stores/clipping';
 import { omProtocolSettings } from './stores/om-protocol-settings';
 import { formatUTCDateTime, parseISOWithoutTimezone } from './time-format';
@@ -195,10 +197,12 @@ export const urlParamsToPreferences = () => {
 		applyPreset(chartPresetFromUrl.id);
 	} else {
 		const variableRaw = params.get('variable');
-		if (variableRaw) {
+		if (variableRaw && variableRaw !== RAIN_SNOW) {
 			// Explicit variable param means plain mode, also when a custom chart
 			// was persisted (its URL form is the `sources` param instead)
 			setPlainVariable(variableRaw);
+		} else if (get(v) === RAIN_SNOW) {
+			writeChartParams(url.searchParams, get(activeChart));
 		} else if (!isDefaultsPlainChart(get(activeChart))) {
 			// Persisted custom chart: reflect it in the URL so it survives reloads
 			url.searchParams.set('sources', serializeSources(get(activeChart).sources));
@@ -235,29 +239,39 @@ export const getOmUrlForSource = (source: ChartSource): string | undefined => {
 	result += `?variable=${source.variable}`;
 	// A rate is the stored sum over the file's time step: the layer's rule
 	// needs the step length, which only the run's valid times give
-	if (variableUsesDeltaTime(source.variable)) {
+	const phase = source.variable === RAIN_SNOW;
+	if (phase || variableUsesDeltaTime(source.variable)) {
 		const step = deltaTimeHoursAt(selectedTime, get(metaJson)?.valid_times);
-		if (step) result += `&delta_time_hours=${step}`;
+		if (phase) {
+			const leadHours = (selectedTime.getTime() - modelRun.getTime()) / 3_600_000;
+			result += `&delta_time_hours=${precipitationInterval(get(d), leadHours, step ?? 1)}`;
+		} else if (step) result += `&delta_time_hours=${step}`;
 	}
 
 	if (mode.current === 'dark') result += '&dark=true';
-	const vectorOptions = get(vO);
-	if (vectorOptions.grid) result += '&grid=true';
-	if (source.arrows) {
-		result += '&arrows=true';
-		if (vectorOptions.arrowStyle !== 'arrow') result += `&arrow_style=${vectorOptions.arrowStyle}`;
+	if (phase) {
+		if (!source.raster) result += '&phase_fill=false';
+		if (!sourceShowsContours(source)) result += '&contours=false';
+	} else {
+		const vectorOptions = get(vO);
+		if (vectorOptions.grid) result += '&grid=true';
+		if (source.arrows) {
+			result += '&arrows=true';
+			if (vectorOptions.arrowStyle !== 'arrow')
+				result += `&arrow_style=${vectorOptions.arrowStyle}`;
+		}
+		if (source.contours) {
+			result += '&contours=true';
+			if (source.contourInterval !== undefined) result += `&intervals=${source.contourInterval}`;
+		}
+
+		const tileSize = get(tS);
+		if (tileSize !== 256) result += `&tile_size=${tileSize}`;
 	}
-	if (source.contours) result += '&contours=true';
-	if (source.contours && source.contourInterval !== undefined)
-		result += `&intervals=${source.contourInterval}`;
-
-	const tileSize = get(tS);
-	if (tileSize !== 256) result += `&tile_size=${tileSize}`;
-
 	const interpolation = get(iP);
 	if (interpolation !== 'linear') result += `&interpolation=${interpolation}`;
 
-	if (get(cB)) result += `&color_blend=true`;
+	if (get(cB)) result += '&color_blend=true';
 
 	const omProtocolSettingsState = get(omProtocolSettings);
 	if (
@@ -315,30 +329,27 @@ export const syncLocationToUrl = async (location: SelectedLocation | undefined):
 	await updateUrl();
 };
 
-/**
- * Write the active chart to the URL. A defaults-derived plain chart keeps the
- * legacy `variable` param (backward-compatible links); an unmodified preset
- * uses `chart=<id>`; anything else the explicit `sources` encoding.
- */
-export const syncChartToUrl = async (chart: ChartState): Promise<void> => {
-	const url = get(u);
-	if (!url) return;
-
-	url.searchParams.delete('chart');
-	url.searchParams.delete('sources');
-	url.searchParams.delete('variable');
+const writeChartParams = (params: URLSearchParams, chart: ChartState): void => {
+	params.delete('chart');
+	params.delete('sources');
+	params.delete('variable');
 
 	if (isDefaultsPlainChart(chart)) {
 		const variable = chart.sources[0].variable;
-		if (variable !== completeDefaultValues.variable) {
-			url.searchParams.set('variable', variable);
-		}
+		if (variable === RAIN_SNOW) params.set('chart', RAIN_SNOW);
+		else if (variable !== completeDefaultValues.variable) params.set('variable', variable);
 	} else if (chart.presetId) {
-		url.searchParams.set('chart', chart.presetId);
+		params.set('chart', chart.presetId);
 	} else {
-		url.searchParams.set('sources', serializeSources(chart.sources));
+		params.set('sources', serializeSources(chart.sources));
 	}
+};
 
+/** Keep the active chart and its shareable URL in sync. */
+export const syncChartToUrl = async (chart: ChartState): Promise<void> => {
+	const url = get(u);
+	if (!url) return;
+	writeChartParams(url.searchParams, chart);
 	await updateUrl();
 };
 

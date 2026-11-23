@@ -5,6 +5,7 @@ import {
 	LEVEL_REGEX,
 	LEVEL_UNIT_REGEX,
 	domainOptions,
+	isSeamlessDomain,
 	variableAvailable,
 	variableOptions
 } from '@openmeteo/weather-map-layer';
@@ -13,6 +14,7 @@ import { type Persisted, persisted } from 'svelte-persisted-store';
 import { browser } from '$app/env';
 
 import { DEFAULT_DOMAIN, DEFAULT_VARIABLE } from '#lib/constants.js';
+import { RAIN_SNOW, RAIN_SNOW_LABEL, hasPhaseInputs } from '#lib/precipitation-phase/model.js';
 
 import { metaJson } from './time';
 
@@ -30,13 +32,16 @@ export const variable = persisted('variable', defaultVariable);
  * dictionary is the candidate list, since the rules match by pattern.
  * Undefined until the metadata has loaded.
  */
-export const availableVariables = derived(metaJson, ($metaJson) => {
+export const availableVariables = derived([metaJson, domain], ([$metaJson, $domain]) => {
 	if (!$metaJson) return undefined;
 	const stored = new Set($metaJson.variables);
+	const concrete = domainOptions.find(({ value }) => value === $domain);
+	const phase =
+		concrete && !isSeamlessDomain(concrete) && hasPhaseInputs(stored) ? [RAIN_SNOW] : [];
 	const derivable = variableOptions
 		.map(({ value }) => value)
 		.filter((value) => !stored.has(value) && variableAvailable(value, stored));
-	return [...$metaJson.variables, ...derivable];
+	return [...$metaJson.variables, ...derivable, ...phase];
 });
 
 export const selectedDomain = derived(domain, ($domain) => {
@@ -49,6 +54,7 @@ export const selectedDomain = derived(domain, ($domain) => {
 });
 
 export const selectedVariable = derived(variable, ($variable) => {
+	if ($variable === RAIN_SNOW) return { value: $variable, label: RAIN_SNOW_LABEL };
 	const object = variableOptions.find(({ value }) => value === $variable);
 	if (object) {
 		return object;

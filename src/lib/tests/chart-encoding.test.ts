@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { matchPreset, parseSources, serializeSources, sourcesEqual } from '#lib/chart-encoding.js';
 import { chartPresets } from '#lib/chart-presets.js';
+import { sourceShowsContours } from '#lib/chart-types.js';
 
 import type { ChartSource } from '#lib/chart-types.js';
 
@@ -24,6 +25,18 @@ describe('serializeSources / parseSources', () => {
 
 	it('parses a bare variable as raster-only', () => {
 		expect(parseSources('temperature_2m')).toEqual([{ variable: 'temperature_2m', raster: true }]);
+	});
+
+	it('defaults to the phase boundary and preserves an explicit off state', () => {
+		const defaultPhase = parseSources('rain_snow')![0];
+		expect(sourceShowsContours(defaultPhase)).toBe(true);
+		expect(serializeSources([defaultPhase])).toBe('rain_snow');
+
+		const disabled = { ...defaultPhase, contours: false };
+		expect(sourcesEqual([disabled], [defaultPhase])).toBe(false);
+		expect(serializeSources([disabled])).toBe('rain_snow:rn');
+		expect(parseSources('rain_snow:rn')).toEqual([disabled]);
+		expect(parseSources('temperature_2m:rn')).toBeUndefined();
 	});
 
 	it('parses contours without an interval (breakpoints mode)', () => {

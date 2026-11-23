@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onDestroy, onMount, tick } from 'svelte';
 
-	import { variableOptions } from '@openmeteo/weather-map-layer';
 	import { GPUInitializationError } from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
 	import { mode, userPrefersMode } from 'mode-watcher';
@@ -31,6 +30,7 @@
 	import LocationSearch from '#lib/components/location/location-search.svelte';
 	import Scale from '#lib/components/scale/scale.svelte';
 	import SelectionPanel from '#lib/components/selection/selection-panel.svelte';
+	import { variableLabel } from '#lib/components/selection/selection-utils.js';
 	import Settings from '#lib/components/settings/settings.svelte';
 	import TimeSelector from '#lib/components/time/time-selector.svelte';
 
@@ -160,7 +160,7 @@
 		if (chart.name) return 'Chart set to: ' + chart.name;
 		if (chart.sources.length === 1) {
 			const variable = chart.sources[0].variable;
-			const label = variableOptions.find(({ value }) => value === variable)?.label ?? variable;
+			const label = variableLabel(variable);
 			return 'Variable set to: ' + label;
 		}
 		return 'Custom chart applied';

@@ -12,6 +12,7 @@ import { omProtocolSettings } from '#lib/stores/om-protocol-settings.js';
 
 import { MILLISECONDS_PER_DAY } from './constants';
 import { BASE_URI, fmtModelRun, fmtSelectedTime } from './helpers';
+import { PHASE_INPUTS, RAIN_SNOW } from './precipitation-phase/model';
 
 import type { Domain, DomainMetaDataJson } from '@openmeteo/weather-map-layer';
 
@@ -161,11 +162,10 @@ export const prefetchData = async (
 				if (signal?.aborted) return false;
 				const url = `${BASE_URI}/${concrete.value}/${runPath}/${validPath}.om`;
 				try {
-					await omFileReader.prefetchVariable(
-						url,
-						variable,
-						getRanges(concrete.grid, currentBounds),
-						signal
+					const ranges = getRanges(concrete.grid, currentBounds);
+					const variables = variable === RAIN_SNOW ? PHASE_INPUTS : [variable];
+					await Promise.all(
+						variables.map((field) => omFileReader.prefetchVariable(url, field, ranges, signal))
 					);
 				} catch {
 					// Best-effort cache warming: keep going with the other files
