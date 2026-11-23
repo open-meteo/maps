@@ -538,7 +538,7 @@ const getPopupSample = async (
 		);
 		return {
 			value: point.rate,
-			phase: point.rate > 0 ? classifyPhase(point.elevation, point.height) : undefined,
+			phase: point.rate > 0 ? classifyPhase(point.elevation - point.height) : undefined,
 			phasePoint: point
 		};
 	} catch {

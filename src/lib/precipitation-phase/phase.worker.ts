@@ -3,6 +3,7 @@ import { GridFactory, createClippingTester, getColor } from '@openmeteo/weather-
 import {
 	PHASE_TILE_SIZE,
 	UNKNOWN_PHASE_COLOR,
+	classifyPhase,
 	decodeTerrarium,
 	demTileRegion,
 	latitudeAt,
@@ -191,7 +192,9 @@ const render = async (
 	if (rgba) {
 		const phaseDifference = differences;
 		if (phaseDifference) {
-			shadeSnow(rgba.data, size, z, (col, row) => phaseDifference[indexAt(col, row)] >= 0);
+			shadeSnow(rgba.data, size, z, (col, row) =>
+				classifyPhase(phaseDifference[indexAt(col, row)])
+			);
 		}
 		context.putImageData(rgba, 0, 0);
 	}

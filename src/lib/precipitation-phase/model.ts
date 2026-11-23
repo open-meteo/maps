@@ -14,6 +14,7 @@ const DEM_MAX_ZOOM = 12;
 export const phaseLabels = {
 	rain: 'Rain',
 	snow: 'Snow',
+	transition: 'Rain/snow transition',
 	unknown: 'Phase unknown'
 } as const;
 
@@ -39,9 +40,11 @@ export const hasPhaseInputs = (stored: Set<string>): boolean =>
 export const precipitationInterval = (domain: string, leadHours: number, stepHours: number) =>
 	domain === 'ncep_nbm_conus' ? (leadHours > 36 ? 6 : 1) : stepHours;
 
-export const classifyPhase = (elevation: number, height: number): Phase => {
-	if (!Number.isFinite(elevation) || !Number.isFinite(height)) return 'unknown';
-	return elevation >= height ? 'snow' : 'rain';
+/** Terrain elevation minus forecast snowfall height, in metres. */
+export const classifyPhase = (difference: number): Phase => {
+	if (!Number.isFinite(difference)) return 'unknown';
+	if (Math.abs(difference) <= 100) return 'transition';
+	return difference > 0 ? 'snow' : 'rain';
 };
 
 export const UNKNOWN_PHASE_COLOR = [112, 116, 125] as const;

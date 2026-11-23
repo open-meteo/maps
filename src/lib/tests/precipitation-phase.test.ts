@@ -17,11 +17,10 @@ import { phaseTileHalo, shadeSnow } from '#lib/precipitation-phase/snow-pattern.
 
 describe('terrain precipitation phase', () => {
 	it('compares sea-level heights and leaves missing heights unclassified', () => {
-		expect(classifyPhase(800, 1200)).toBe('rain');
-		expect(classifyPhase(1200, 1200)).toBe('snow');
-		expect(classifyPhase(1400, 1200)).toBe('snow');
-		expect(classifyPhase(1400, NaN)).toBe('unknown');
-		expect(classifyPhase(NaN, 1200)).toBe('unknown');
+		expect(classifyPhase(-101)).toBe('rain');
+		for (const difference of [-100, 0, 100]) expect(classifyPhase(difference)).toBe('transition');
+		expect(classifyPhase(101)).toBe('snow');
+		expect(classifyPhase(NaN)).toBe('unknown');
 	});
 
 	it('accepts each map interpolation mode and defaults to linear', () => {
@@ -81,7 +80,7 @@ describe('terrain precipitation phase', () => {
 	it('draws diagonal white hatching only within snow', () => {
 		const size = 32;
 		const colors = new Uint8ClampedArray(size * size * 4).fill(123);
-		shadeSnow(colors, size, 8, (x) => x >= 8);
+		shadeSnow(colors, size, 8, (x) => (x >= 8 ? 'snow' : 'rain'));
 		const pixel = (x: number, y: number) =>
 			Array.from(colors.slice((y * size + x) * 4, (y * size + x + 1) * 4));
 		expect(pixel(8, 8)[0]).toBeGreaterThan(245);
@@ -93,14 +92,25 @@ describe('terrain precipitation phase', () => {
 		expect(pixel(31, 1)).toEqual(pixel(8, 8));
 	});
 
+	it.each([5, 8])('staggers sparse dots within the transition band at zoom %i', (zoom) => {
+		const size = 64;
+		const image = new Uint8ClampedArray(size * size * 4).fill(255);
+		for (let i = 0; i < image.length; i += 4) image[i] = 40;
+		shadeSnow(image, size, zoom, (x) => (x < 48 ? 'transition' : 'rain'));
+		const red = (x: number, y: number) => image[(y * size + x) * 4];
+		const spacing = zoom === 5 ? 32 : 16;
+		const center = spacing / 2;
+		expect(red(center, center)).toBeGreaterThan(210);
+		expect(red(spacing, center + spacing)).toBe(red(center, center));
+		expect(red(center, center + spacing)).toBeLessThan(100);
+		expect(red(48, center)).toBe(40);
+	});
+
 	it('uses a tint for short regional patches and keeps long stripes visible over trace snow', () => {
 		const size = 64;
 		const colors = new Uint8ClampedArray(size * size * 4);
-		shadeSnow(
-			colors,
-			size,
-			5,
-			(x, y) => (x >= 32 && x <= 60) || (x >= 13 && x <= 16 && y >= 16 && y <= 20)
+		shadeSnow(colors, size, 5, (x, y) =>
+			(x >= 32 && x <= 60) || (x >= 13 && x <= 16 && y >= 16 && y <= 20) ? 'snow' : 'rain'
 		);
 		const pixel = (x: number, y: number) =>
 			Array.from(colors.slice((y * size + x) * 4, (y * size + x + 1) * 4));

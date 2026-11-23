@@ -11,7 +11,7 @@
 
 	import { variableLabel } from '#lib/components/selection/selection-utils.js';
 
-	import { RAIN_SNOW, UNKNOWN_PHASE_COLOR } from '#lib/precipitation-phase/model.js';
+	import { RAIN_SNOW, UNKNOWN_PHASE_COLOR, phaseLabels } from '#lib/precipitation-phase/model.js';
 	import {
 		PHASE_CONTOUR_COLOR,
 		PHASE_CONTOUR_HALO_COLOR
@@ -22,6 +22,9 @@
 	const desktop = new MediaQuery('min-width: 768px');
 	const snowSwatch =
 		'repeating-linear-gradient(135deg, #7099bb 0 4px, #1c3652 4px 5px, white 5px 8px, #1c3652 8px 9px)';
+
+	const transitionSwatch =
+		'radial-gradient(circle, white 1px, transparent 1.5px) 0 0 / 8px 8px, radial-gradient(circle, white 1px, transparent 1.5px) 4px 4px / 8px 8px #8597b9';
 
 	// One legend per distinct colour scale among the raster sources (primary
 	// first): variables resolving to the same scale, e.g. temperature at two
@@ -70,11 +73,16 @@
 							class="bg-glass/90 flex flex-col gap-1 rounded px-2 py-1 text-xs shadow-sm backdrop-blur-sm"
 						>
 							{#if phase?.raster}
-								<div class="flex items-center gap-1.5">
-									<span aria-hidden="true" class="h-3 w-4 rounded-sm" style:background={snowSwatch}
-									></span>
-									Snow
-								</div>
+								{#each ['snow', 'transition'] as const as phaseType (phaseType)}
+									<div class="flex items-center gap-1.5">
+										<span
+											aria-hidden="true"
+											class="h-3 w-4 rounded-sm"
+											style:background={phaseType === 'snow' ? snowSwatch : transitionSwatch}
+										></span>
+										{phaseLabels[phaseType]}
+									</div>
+								{/each}
 								<div class="flex items-center gap-1.5">
 									<span
 										aria-hidden="true"
