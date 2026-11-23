@@ -26,6 +26,17 @@ describe('serializeSources / parseSources', () => {
 		expect(parseSources('temperature_2m')).toEqual([{ variable: 'temperature_2m', raster: true }]);
 	});
 
+	it('uses ordinary raster and contour flags for Rain & Snow', () => {
+		for (const [token, source] of [
+			['rain_snow', { variable: 'rain_snow', raster: true }],
+			['rain_snow:c', { variable: 'rain_snow', contours: true }],
+			['rain_snow:rc', { variable: 'rain_snow', raster: true, contours: true }]
+		] as const) {
+			expect(parseSources(token)).toEqual([source]);
+			expect(serializeSources([source])).toBe(token);
+		}
+	});
+
 	it('parses contours without an interval (breakpoints mode)', () => {
 		expect(parseSources('pressure_msl:rc')).toEqual([
 			{ variable: 'pressure_msl', raster: true, contours: true }

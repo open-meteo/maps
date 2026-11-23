@@ -4,8 +4,9 @@ import { variableHasDirections } from '@openmeteo/weather-map-layer';
 import { persisted } from 'svelte-persisted-store';
 
 import { cloneSources, matchPreset, sourcesEqual } from '#lib/chart-encoding.js';
-import { getChartPreset } from '#lib/chart-presets.js';
+import { getChartPreset, rainSnowSource } from '#lib/chart-presets.js';
 import { DEFAULT_VARIABLE } from '#lib/constants.js';
+import { RAIN_SNOW } from '#lib/precipitation-phase/model.js';
 
 import { variable } from './variables';
 import { vectorOptions } from './vector';
@@ -35,6 +36,7 @@ export const pickPrimaryVariable = (chart: ChartState): string => pickPrimarySou
 
 /** A single-source chart for `v`, applying the persisted vector defaults. */
 export const plainChartFor = (v: string): ChartState => {
+	if (v === RAIN_SNOW) return chartFromSources([{ ...rainSnowSource }]);
 	const vo = get(vectorOptions);
 	const source: ChartSource = { variable: v, raster: true };
 	if (vo.contours) {
@@ -103,7 +105,13 @@ export const setSources = (sources: ChartSource[]): void => {
  */
 export const applyVectorDefaultsToActiveChart = (): void => {
 	const chart = get(activeChart);
-	if (chart.sources.length !== 1 || chart.presetId || chart.name) return;
+	if (
+		chart.sources.length !== 1 ||
+		chart.presetId ||
+		chart.name ||
+		chart.sources[0].variable === RAIN_SNOW
+	)
+		return;
 	activeChart.set(plainChartFor(chart.sources[0].variable));
 };
 
@@ -120,7 +128,8 @@ export const setContoursOnActiveChart = (enabled: boolean): void => {
 	for (const source of sources) {
 		if (!!source.contours === enabled) continue;
 		source.contours = enabled || undefined;
-		source.contourInterval = enabled && !vo.breakpoints ? vo.contourInterval : undefined;
+		source.contourInterval =
+			enabled && source.variable !== RAIN_SNOW && !vo.breakpoints ? vo.contourInterval : undefined;
 		changed = true;
 	}
 	if (changed) activeChart.set(chartFromSources(sources));
@@ -187,6 +196,11 @@ export const addSource = (v: string): void => {
 	const chart = get(activeChart);
 	if (chart.sources.some((source) => source.variable === v)) return;
 	const sources = cloneSources(chart.sources);
+	if (v === RAIN_SNOW) {
+		sources.push({ ...rainSnowSource });
+		activeChart.set(chartFromSources(sources));
+		return;
+	}
 	const arrows = get(vectorOptions).arrows && variableHasDirections(v);
 	// Second field defaults to contours when a raster fill is already shown,
 	// except for variables carrying directions: those default to arrows

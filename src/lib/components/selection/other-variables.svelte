@@ -15,6 +15,7 @@
 	} from '#lib/stores/variables.js';
 
 	import { popularVariables } from '#lib/chart-presets.js';
+	import { RAIN_SNOW } from '#lib/precipitation-phase/model.js';
 
 	import LevelSelect from './level-select.svelte';
 	import {
@@ -56,7 +57,7 @@
 
 		const available: { id: string; label: string; target: string }[] = [];
 		for (const id of buildVariableList($availableVariables)) {
-			if (popularIds.has(id)) continue;
+			if (id === RAIN_SNOW || popularIds.has(id)) continue;
 
 			if (levelGroupVariables.includes(id) && $levelGroups[id]) {
 				// Skip level variants the popular list already offers as plain rows

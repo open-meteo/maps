@@ -30,6 +30,7 @@ import {
 } from '#lib/components/selection/selection-utils.js';
 
 import { BASE_URI, fmtModelRun } from './helpers';
+import { RAIN_SNOW } from './precipitation-phase/model';
 import { formatISOWithoutTimezone } from './time-format';
 import { findTimeStep } from './time-utils';
 import { updateUrl } from './url';
@@ -163,8 +164,14 @@ export const loadDomainMetaData = async (newDomain: string) => {
 	matchChartOrFallback();
 };
 
+/** Apply metadata for a selected run and keep the active chart compatible. */
+export const setRunMetadata = (meta: DomainMetaDataJson | undefined) => {
+	mJ.set(meta);
+	if (meta) matchChartOrFallback();
+};
+
 /**
- * After a domain switch, keep only the chart sources the new domain actually
+ * After a run or domain switch, keep only the chart sources the metadata
  * serves. When nothing survives, fall back to a plain chart via a
  * prefix-match on the primary variable (keeps the variable family, e.g.
  * temperature_2m → temperature_850hPa); when even that fails, to the first
@@ -188,6 +195,10 @@ export const matchChartOrFallback = () => {
 	}
 
 	const primary = pickPrimaryVariable(chart);
+	if (primary === RAIN_SNOW && variables.includes('precipitation')) {
+		setPlainVariable('precipitation');
+		return;
+	}
 	const prefix = primary.match(VARIABLE_PREFIX)?.groups?.prefix;
 	// Directions and v-components are useless as a standalone raster (and
 	// "wind" would otherwise match wind_wave_direction on marine domains)

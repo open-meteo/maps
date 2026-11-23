@@ -15,6 +15,7 @@
 
 	import { sourcesEqual } from '#lib/chart-encoding.js';
 	import { chartPresets } from '#lib/chart-presets.js';
+	import { RAIN_SNOW } from '#lib/precipitation-phase/model.js';
 
 	import {
 		buildVariableList,
@@ -31,7 +32,11 @@
 
 	let { onDone }: Props = $props();
 
-	const variableList = $derived($availableVariables ? buildVariableList($availableVariables) : []);
+	const variableList = $derived(
+		$availableVariables
+			? buildVariableList($availableVariables).filter((entry) => entry !== RAIN_SNOW)
+			: []
+	);
 
 	const availablePresets = $derived(
 		$availableVariables

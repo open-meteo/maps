@@ -1,7 +1,11 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
 
-	import { applyVectorDefaultsToActiveChart, setContoursOnActiveChart } from '#lib/stores/chart.js';
+	import {
+		applyVectorDefaultsToActiveChart,
+		chartSources,
+		setContoursOnActiveChart
+	} from '#lib/stores/chart.js';
 	import { defaultVectorOptions, vectorOptions } from '#lib/stores/vector.js';
 
 	import { Input } from '#lib/components/ui/input/index.js';
@@ -13,7 +17,7 @@
 
 	import SettingsSection from './settings-section.svelte';
 
-	let contours = $derived($vectorOptions.contours);
+	let contours = $derived($chartSources.some((source) => source.contours));
 	let breakpoints = $derived($vectorOptions.breakpoints);
 
 	const handleContourIntervalChange = () => {
@@ -34,16 +38,17 @@
 		<Switch
 			id="contouring"
 			class="cursor-pointer"
-			bind:checked={$vectorOptions.contours}
-			onCheckedChange={() => {
-				updateUrl('contours', String(contours));
+			checked={contours}
+			onCheckedChange={(enabled) => {
+				$vectorOptions.contours = enabled;
+				updateUrl('contours', String(enabled));
 
 				applyVectorDefaultsToActiveChart();
 				// Applies to every source, also on presets and saved charts, so the
 				// switch says the same thing as the toggles in the chart editor
-				setContoursOnActiveChart(contours);
+				setContoursOnActiveChart(enabled);
 				changeOMfileURL();
-				toast.info('Contours turned ' + (contours ? 'on' : 'off'));
+				toast.info('Contours turned ' + (enabled ? 'on' : 'off'));
 			}}
 		/>
 		<Label class="cursor-pointer" for="contouring">Contouring {contours ? 'on' : 'off'}</Label>
