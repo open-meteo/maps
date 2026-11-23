@@ -46,17 +46,6 @@ export const classifyPhase = (elevation: number, height: number): Phase => {
 
 export const UNKNOWN_PHASE_COLOR = [112, 116, 125] as const;
 
-/** Mark unclassified precipitation without changing the intensity opacity. */
-export const markUnknownPhase = (
-	rgba: Uint8ClampedArray,
-	wet: Uint8Array,
-	hasPhase: (pixel: number) => boolean
-) => {
-	for (let pixel = 0; pixel < wet.length; pixel++) {
-		if (wet[pixel] && !hasPhase(pixel)) rgba.set(UNKNOWN_PHASE_COLOR, pixel * 4);
-	}
-};
-
 export const phaseInterpolation = (value: string | null): InterpolationMethod =>
 	value === 'nearest' || value === 'cubic' || value === 'monotone' ? value : 'linear';
 

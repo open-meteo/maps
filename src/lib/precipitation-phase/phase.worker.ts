@@ -2,18 +2,18 @@ import { GridFactory, createClippingTester, getColor } from '@openmeteo/weather-
 
 import {
 	PHASE_TILE_SIZE,
+	UNKNOWN_PHASE_COLOR,
 	decodeTerrarium,
 	demTileRegion,
 	latitudeAt,
 	longitudeAt,
-	mapterhornTileUrl,
-	markUnknownPhase
+	mapterhornTileUrl
 } from './model';
 import { PHASE_CONTOUR_COLOR, PHASE_CONTOUR_HALO_COLOR, tracePhaseBoundary } from './phase-contour';
 import { phaseTileHalo, shadeSnow } from './snow-pattern';
 
 import type { PhasePoint, Tile } from './model';
-import type { PhaseJob, PhaseMessage, PhaseResult, PhaseWeather } from './worker-types';
+import type { PhaseJob, PhaseMessage, PhaseResult } from './worker-types';
 
 const worker = globalThis as unknown as {
 	onmessage: (event: MessageEvent<PhaseMessage>) => void;
@@ -66,33 +66,21 @@ const demSampler = async (weatherTile: Tile) => {
 };
 
 /** Pixel coordinates may include samples in the neighboring tiles. */
-const demAcrossTile = async (tile: Tile, size: number, halo: number) => {
+const demAcrossTile = async (tile: Tile, size: number, needed: number) => {
 	const world = 2 ** tile.z;
-	const offsets = halo ? [-1, 0, 1] : [0];
 	const samplers = await Promise.all(
-		offsets.flatMap((dy) =>
-			offsets.map((dx) => {
-				const y = tile.y + dy;
-				const x = (tile.x + dx + world) % world;
-				return y >= 0 && y < world ? demSampler({ z: tile.z, x, y }) : undefined;
-			})
-		)
+		Array.from({ length: 9 }, (_, index) => {
+			if (!(needed & (1 << index))) return undefined;
+			const y = tile.y + Math.floor(index / 3) - 1;
+			const x = (tile.x + (index % 3) - 1 + world) % world;
+			return y >= 0 && y < world ? demSampler({ z: tile.z, x, y }) : undefined;
+		})
 	);
 	return (col: number, row: number) => {
 		const dx = Math.floor(col / size);
 		const dy = Math.floor(row / size);
-		const sample = halo ? samplers[(dy + 1) * 3 + dx + 1] : samplers[0];
+		const sample = samplers[(dy + 1) * 3 + dx + 1];
 		return sample?.((col - dx * size + 0.5) / size, (row - dy * size + 0.5) / size) ?? NaN;
-	};
-};
-
-const weatherSampler = (weather: PhaseWeather, interpolation: PhaseJob['interpolation']) => {
-	const { domain, rates, heights, ranges } = weather;
-	if (!rates && !heights) return undefined;
-	const grid = GridFactory.create(domain.grid, ranges);
-	return (lat: number, lon: number, out: PhasePoint) => {
-		out.rate = rates ? grid.getInterpolatedValue(rates, lat, lon, interpolation) : NaN;
-		out.height = heights ? grid.getInterpolatedValue(heights, lat, lon, interpolation) : NaN;
 	};
 };
 
@@ -111,23 +99,30 @@ const render = async (
 	signal: AbortSignal
 ) => {
 	const { x, y, z } = tile;
-	const sample = weatherSampler(weather, interpolation);
-	const values: PhasePoint = { rate: NaN, height: NaN, elevation: NaN };
-
+	const { rates, heights, domain, ranges } = weather;
 	if (point) {
-		sample?.(point.lat, point.lon, values);
+		const grid = GridFactory.create(domain.grid, ranges);
 		const elevationAt = await demSampler(tile);
-		values.elevation = elevationAt(point.u, point.v);
-		return values;
+		return {
+			rate: rates ? grid.getInterpolatedValue(rates, point.lat, point.lon, interpolation) : NaN,
+			height: heights
+				? grid.getInterpolatedValue(heights, point.lat, point.lon, interpolation)
+				: NaN,
+			elevation: elevationAt(point.u, point.v)
+		} satisfies PhasePoint;
 	}
 
 	const size = PHASE_TILE_SIZE;
 	const canvas = new OffscreenCanvas(size, size);
 	const context = canvas.getContext('2d')!;
-	if (!sample || !weather.rates) return canvas.transferToImageBitmap();
+	if (!rates) return canvas.transferToImageBitmap();
+	const transparentZero = !fill || getColor(colorScale, 0, colorBlend)[3] === 0;
+	if (transparentZero && !rates.some((value) => value !== 0 && Number.isFinite(value))) {
+		return canvas.transferToImageBitmap();
+	}
+	const grid = GridFactory.create(domain.grid, ranges);
 	const inside = createClippingTester(clipping);
 	const rgba = fill ? new ImageData(size, size) : undefined;
-	const wet = fill ? new Uint8Array(size * size) : undefined;
 	const colorOut: [number, number, number, number] = [0, 0, 0, 0];
 	const halo = phaseTileHalo(z, fill, contours);
 	const stride = size + 2 * halo;
@@ -136,49 +131,65 @@ const render = async (
 	const lons = Float64Array.from({ length: stride }, (_, col) =>
 		longitudeAt(x + (col - halo + 0.5) / size, z)
 	);
-	let hasSnowline = false;
+	// One bit for each DEM tile in the 3×3 neighborhood covered by the halo.
+	let neededDemTiles = 0;
 	for (let row = -halo; row < size + halo; row++) {
 		const lat = latitudeAt(y + (row + 0.5) / size, z);
+		const demRow = 3 * (1 + Math.floor(row / size));
 		for (let col = -halo; col < size + halo; col++) {
 			const lon = lons[col + halo];
 			if (inside && !inside(lon, lat)) continue;
-			sample(lat, lon, values);
-			if (!Number.isFinite(values.rate)) continue;
-			if (values.rate > 0 && Number.isFinite(values.height)) {
-				snowlines[indexAt(col, row)] = values.height;
-				hasSnowline = true;
+			const rate = grid.getInterpolatedValue(rates, lat, lon, interpolation);
+			if (!Number.isFinite(rate) || (rate === 0 && transparentZero)) continue;
+			if (rate > 0 && heights) {
+				const height = grid.getInterpolatedValue(heights, lat, lon, interpolation);
+				if (Number.isFinite(height)) {
+					snowlines[indexAt(col, row)] = height;
+					neededDemTiles |= 1 << (demRow + 1 + Math.floor(col / size));
+				}
 			}
 			if (rgba && col >= 0 && col < size && row >= 0 && row < size) {
-				const [red, green, blue, alpha] = getColor(colorScale, values.rate, colorBlend, colorOut);
+				const [red, green, blue, alpha] = getColor(colorScale, rate, colorBlend, colorOut);
 				if (!alpha) continue;
-				const pixel = row * size + col;
-				if (wet && values.rate > 0) wet[pixel] = 1;
-				const offset = pixel * 4;
+				const offset = (row * size + col) * 4;
 				rgba.data[offset] = red;
 				rgba.data[offset + 1] = green;
 				rgba.data[offset + 2] = blue;
 				rgba.data[offset + 3] = alpha * 255;
+				if (rate > 0 && !Number.isFinite(snowlines[indexAt(col, row)])) {
+					rgba.data.set(UNKNOWN_PHASE_COLOR, offset);
+				}
 			}
 		}
 	}
 	let differences: Float32Array | undefined;
-	if (hasSnowline) {
-		const elevationAt = await demAcrossTile(tile, size, halo);
+	if (neededDemTiles) {
+		const elevationAt = await demAcrossTile(tile, size, neededDemTiles);
 		signal.throwIfAborted();
-		differences = new Float32Array(snowlines.length);
+		differences = snowlines;
 		for (let row = -halo; row < size + halo; row++) {
 			for (let col = -halo; col < size + halo; col++) {
 				const index = indexAt(col, row);
 				const height = snowlines[index];
-				differences[index] = Number.isFinite(height) ? elevationAt(col, row) - height : NaN;
+				if (!Number.isFinite(height)) continue;
+				const elevation = elevationAt(col, row);
+				differences[index] = elevation - height;
+				if (
+					!Number.isFinite(elevation) &&
+					rgba &&
+					col >= 0 &&
+					col < size &&
+					row >= 0 &&
+					row < size
+				) {
+					const offset = (row * size + col) * 4;
+					if (rgba.data[offset + 3]) rgba.data.set(UNKNOWN_PHASE_COLOR, offset);
+				}
 			}
 		}
 	}
-	if (rgba && wet) {
+	if (rgba) {
 		const phaseDifference = differences;
-		markUnknownPhase(rgba.data, wet, (pixel) =>
-			Number.isFinite(phaseDifference?.[indexAt(pixel % size, Math.floor(pixel / size))])
-		);
 		if (phaseDifference) {
 			shadeSnow(rgba.data, size, z, (col, row) => phaseDifference[indexAt(col, row)] >= 0);
 		}

@@ -2,13 +2,11 @@ import { GridFactory } from '@openmeteo/weather-map-layer';
 import { describe, expect, it } from 'vitest';
 
 import {
-	UNKNOWN_PHASE_COLOR,
 	classifyPhase,
 	decodeTerrarium,
 	demTileRegion,
 	latitudeAt,
 	longitudeAt,
-	markUnknownPhase,
 	phaseInterpolation,
 	precipitationInterval,
 	tilePoint
@@ -24,12 +22,6 @@ describe('terrain precipitation phase', () => {
 		expect(classifyPhase(1400, 1200)).toBe('snow');
 		expect(classifyPhase(1400, NaN)).toBe('unknown');
 		expect(classifyPhase(NaN, 1200)).toBe('unknown');
-	});
-
-	it('keeps known precipitation colors and marks unknown phase in gray at the same opacity', () => {
-		const pixels = new Uint8ClampedArray([20, 50, 220, 150, 20, 50, 220, 200, 0, 0, 0, 0]);
-		markUnknownPhase(pixels, new Uint8Array([1, 1, 0]), (index) => index === 0);
-		expect(Array.from(pixels)).toEqual([20, 50, 220, 150, ...UNKNOWN_PHASE_COLOR, 200, 0, 0, 0, 0]);
 	});
 
 	it('accepts each map interpolation mode and defaults to linear', () => {
